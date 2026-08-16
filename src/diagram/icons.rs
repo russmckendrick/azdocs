@@ -1,5 +1,17 @@
-//! Azure resource type → draw.io azure2 icon SVG path (category, file name).
-//! Icons render via `image;...;image=img/lib/azure2/<category>/<Name>.svg`.
+//! Azure resource type → draw.io azure2 icon SVG path (category, file name),
+//! plus self-contained SVG icons for the SVG/PNG emitters.
+//!
+//! Icons render in draw.io via
+//! `image;...;image=img/lib/azure2/<category>/<Name>.svg`. The SVG emitter
+//! cannot reference draw.io's bundled art, so `svg_data_uri` serves embedded
+//! icons instead. No icon pack is vendored yet, so every type currently gets
+//! a deterministic generated placeholder (category-coloured rounded rect with
+//! a two-letter monogram); vendoring real SVGs later only changes what the
+//! data URI carries, not the API.
+
+use base64::Engine as _;
+
+use crate::model::azure_types;
 
 const ICONS: &[(&str, &str, &str)] = &[
     (
@@ -223,6 +235,133 @@ pub fn style_for(azure_type: &str) -> String {
     )
 }
 
+/// Icon category for a resource type, resolved in three tiers: exact ARM
+/// type match, parent-type match (last segment stripped), then keyword
+/// inference over the type string. Unknown types land in "general".
+fn category_for(azure_type: &str) -> &'static str {
+    let lookup = |wanted: &str| {
+        ICONS
+            .iter()
+            .find(|(key, _, _)| *key == wanted)
+            .map(|(_, category, _)| *category)
+    };
+    if let Some(category) = lookup(azure_type) {
+        return category;
+    }
+    if let Some((parent, _)) = azure_type.rsplit_once('/')
+        && let Some(category) = lookup(parent)
+    {
+        return category;
+    }
+    infer_category(azure_type)
+}
+
+/// Keyword inference for types outside the icon table, mirroring the legacy
+/// mapping. Order matters: earlier arms win for ambiguous names.
+fn infer_category(azure_type: &str) -> &'static str {
+    const KEYWORDS: &[(&str, &[&str])] = &[
+        (
+            "networking",
+            &["network", "dns", "frontdoor", "cdn", "bastion", "firewall"],
+        ),
+        ("compute", &["compute", "virtualmachine", "hybridcompute"]),
+        ("storage", &["storage", "recoveryservices"]),
+        (
+            "databases",
+            &["sql", "documentdb", "cosmos", "cache", "dbfor"],
+        ),
+        ("app_services", &["web", "sites"]),
+        ("security", &["keyvault", "security"]),
+        ("identity", &["managedidentity", "authorization"]),
+        ("containers", &["container", "kubernetes", "microsoft.app/"]),
+        (
+            "devops",
+            &["insights", "operationalinsights", "monitor", "alerts"],
+        ),
+        (
+            "integration",
+            &[
+                "logic",
+                "servicebus",
+                "eventgrid",
+                "eventhub",
+                "apimanagement",
+                "relay",
+                "appconfiguration",
+            ],
+        ),
+        (
+            "ai_machine_learning",
+            &["cognitive", "machinelearning", "search"],
+        ),
+        (
+            "analytics",
+            &["datafactory", "synapse", "databricks", "kusto", "purview"],
+        ),
+    ];
+    for (category, needles) in KEYWORDS {
+        if needles.iter().any(|needle| azure_type.contains(needle)) {
+            return category;
+        }
+    }
+    "general"
+}
+
+/// Fill colour for a resource type's icon category.
+pub fn category_color(azure_type: &str) -> &'static str {
+    match category_for(azure_type) {
+        "compute" => "#0078D4",
+        "networking" => "#107C10",
+        "storage" => "#C19C00",
+        "databases" => "#B146C2",
+        "app_services" => "#D83B01",
+        "containers" => "#0F6CBD",
+        "security" => "#D13438",
+        "identity" => "#8661C5",
+        "devops" => "#038387",
+        "analytics" => "#A4262C",
+        "integration" => "#CA5010",
+        "ai_machine_learning" => "#E3008C",
+        _ => "#605E5C",
+    }
+}
+
+/// Embeddable `data:image/svg+xml;base64,...` icon for a resource type.
+/// Currently always the generated placeholder (see module docs).
+pub fn svg_data_uri(azure_type: &str) -> String {
+    let svg = monogram_svg(azure_type);
+    format!(
+        "data:image/svg+xml;base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(svg)
+    )
+}
+
+/// Placeholder icon: rounded rect in the category colour with a two-letter
+/// monogram from the type's display name.
+fn monogram_svg(azure_type: &str) -> String {
+    let color = category_color(azure_type);
+    let monogram = monogram(azure_types::display_name(azure_type));
+    format!(
+        r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect x="1" y="1" width="46" height="46" rx="8" fill="{color}"/><text x="24" y="31" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="#FFFFFF">{monogram}</text></svg>"##
+    )
+}
+
+/// First letters of the first two words, or the first two letters of a
+/// single word, uppercased.
+fn monogram(display_name: &str) -> String {
+    let mut words = display_name.split_whitespace().filter(|w| !w.is_empty());
+    let first = words.next().unwrap_or("?");
+    match words.next() {
+        Some(second) => first
+            .chars()
+            .take(1)
+            .chain(second.chars().take(1))
+            .collect::<String>()
+            .to_uppercase(),
+        None => first.chars().take(2).collect::<String>().to_uppercase(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -238,5 +377,37 @@ mod tests {
     #[test]
     fn style_for_falls_back_to_generic_icon() {
         assert!(style_for("microsoft.custom/widgets").contains("general/All_Resources.svg"));
+    }
+
+    #[test]
+    fn category_for_resolves_exact_type_first() {
+        assert_eq!(category_for("microsoft.compute/virtualmachines"), "compute");
+    }
+
+    #[test]
+    fn category_for_strips_child_segment_when_exact_type_unknown() {
+        assert_eq!(
+            category_for("microsoft.compute/virtualmachines/extensions"),
+            "compute"
+        );
+    }
+
+    #[test]
+    fn category_for_infers_from_keywords_when_type_unknown() {
+        assert_eq!(category_for("microsoft.network/somethingnew"), "networking");
+        assert_eq!(category_for("microsoft.custom/widgets"), "general");
+    }
+
+    #[test]
+    fn svg_data_uri_is_deterministic_base64_svg() {
+        let uri = svg_data_uri("microsoft.compute/virtualmachines");
+        assert!(uri.starts_with("data:image/svg+xml;base64,"), "uri: {uri}");
+        assert_eq!(uri, svg_data_uri("microsoft.compute/virtualmachines"));
+    }
+
+    #[test]
+    fn monogram_takes_word_initials_or_first_two_letters() {
+        assert_eq!(monogram("Virtual Machine"), "VM");
+        assert_eq!(monogram("widgets"), "WI");
     }
 }

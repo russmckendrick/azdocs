@@ -33,8 +33,13 @@ pub fn run(store: &Store, args: &ReportArgs) -> anyhow::Result<()> {
                 let out = out_root.join("report.html");
                 report::html::write(&context, &out)?;
                 println!("HTML report -> {}", out.display());
+                let diagrams = crate::diagram::assets::build_all(
+                    store,
+                    &snapshot_id,
+                    &crate::diagram::DiagramScope::default(),
+                )?;
                 let site_dir = out_root.join("docs-html");
-                report::site::write(&context, &site_dir)?;
+                report::site::write(&context, &diagrams, &site_dir)?;
                 println!("HTML docs -> {}", site_dir.join("index.html").display());
             }
             ReportFormat::Csv => {

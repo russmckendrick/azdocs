@@ -190,7 +190,8 @@ pub struct DiagramArgs {
     #[arg(long, value_name = "NAME")]
     pub resource_group: Option<String>,
 
-    /// Output file path (default: ./output/azdocs-<type>.<ext>)
+    /// Output file path (default: ./output/azdocs-<type>.<ext>); treated as
+    /// a directory for the fan-out types (vnets, resource-groups)
     #[arg(long, value_name = "PATH")]
     pub out: Option<PathBuf>,
 }
@@ -200,13 +201,24 @@ pub enum DiagramType {
     Hierarchy,
     Resources,
     Network,
+    /// One diagram per virtual network
+    Vnets,
+    /// One diagram per resource group
+    ResourceGroups,
+    /// Multi-sheet draw.io file: network, peerings, per-VNet, per-RG
+    Workbook,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum DiagramFormat {
     Drawio,
     Mermaid,
+    Svg,
+    Png,
+    /// draw.io + Mermaid
     Both,
+    /// Every applicable format
+    All,
 }
 
 #[derive(Debug, Subcommand)]

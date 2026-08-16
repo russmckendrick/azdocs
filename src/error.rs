@@ -53,6 +53,18 @@ pub enum StoreError {
 }
 
 #[derive(Debug, thiserror::Error)]
+pub enum DiagramError {
+    #[error(transparent)]
+    Store(#[from] StoreError),
+    #[error("invalid SVG: {0}")]
+    Svg(#[from] usvg::Error),
+    #[error("cannot allocate a {width}x{height} pixel buffer")]
+    Pixmap { width: u32, height: u32 },
+    #[error("PNG encoding failed: {0}")]
+    PngEncode(String),
+}
+
+#[derive(Debug, thiserror::Error)]
 pub enum QueryPackError {
     #[error("failed to parse query definition {path}: {source}")]
     Parse {

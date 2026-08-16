@@ -47,6 +47,21 @@ pub fn layout(graph: &EstateGraph) -> Vec<Placement> {
     placements
 }
 
+/// Convert parent-relative placements (draw.io child geometry) into absolute
+/// page coordinates (what SVG needs) by walking each node's parent chain.
+pub fn absolutize(graph: &EstateGraph, placements: &[Placement]) -> Vec<Placement> {
+    let mut absolute = placements.to_vec();
+    for (index, node) in graph.nodes.iter().enumerate() {
+        let mut parent = node.parent;
+        while let Some(ancestor) = parent {
+            absolute[index].x += placements[ancestor].x;
+            absolute[index].y += placements[ancestor].y;
+            parent = graph.nodes[ancestor].parent;
+        }
+    }
+    absolute
+}
+
 /// Post-order: size children first, then this container around them.
 fn size_node(
     graph: &EstateGraph,
@@ -135,6 +150,60 @@ mod tests {
             placements[0].width > 2.0 * LEAF_WIDTH && placements[0].height > LEAF_HEIGHT,
             "container: {:?}",
             placements[0]
+        );
+    }
+
+    #[test]
+    fn absolutize_offsets_children_by_ancestor_positions() {
+        let graph = EstateGraph {
+            title: String::new(),
+            nodes: vec![
+                Node {
+                    label: "rg".into(),
+                    sublabel: None,
+                    kind: NodeKind::ResourceGroup,
+                    parent: None,
+                },
+                Node {
+                    label: "vnet".into(),
+                    sublabel: None,
+                    kind: NodeKind::Vnet,
+                    parent: Some(0),
+                },
+                leaf(Some(1)),
+            ],
+            edges: vec![],
+        };
+        let placements = vec![
+            Placement {
+                x: 100.0,
+                y: 50.0,
+                width: 400.0,
+                height: 300.0,
+            },
+            Placement {
+                x: 20.0,
+                y: 30.0,
+                width: 200.0,
+                height: 150.0,
+            },
+            Placement {
+                x: 5.0,
+                y: 7.0,
+                width: 150.0,
+                height: 100.0,
+            },
+        ];
+
+        let absolute = absolutize(&graph, &placements);
+
+        assert_eq!((absolute[0].x, absolute[0].y), (100.0, 50.0));
+        assert_eq!((absolute[1].x, absolute[1].y), (120.0, 80.0));
+        assert_eq!((absolute[2].x, absolute[2].y), (125.0, 87.0));
+        assert_eq!(
+            (absolute[2].width, absolute[2].height),
+            (150.0, 100.0),
+            "sizes are untouched"
         );
     }
 

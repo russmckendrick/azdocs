@@ -8,6 +8,7 @@ use pulldown_cmark::{Options, Parser, html};
 
 use super::ReportContext;
 use super::markdown::render_pages;
+use crate::diagram::assets::{DiagramAsset, DiagramAssetKind};
 
 const STYLE: &str = r#"
 :root { --bg:#fff; --fg:#1a1a2e; --muted:#666; --border:#ddd; --accent:#0078d4; }
@@ -29,15 +30,34 @@ blockquote { margin: .6rem 0; padding: .5rem .9rem; border-left: 4px solid #d134
 blockquote p { margin: 0; }
 "#;
 
-/// Write the docs tree as HTML pages under `out_dir` (index.html, ...).
-pub fn write(report: &ReportContext, out_dir: &Path) -> anyhow::Result<()> {
+/// Write the docs tree as HTML pages under `out_dir` (index.html, ...),
+/// plus a `diagrams/` directory of SVGs; the overview diagrams are embedded
+/// on the index page.
+pub fn write(
+    report: &ReportContext,
+    diagrams: &[DiagramAsset],
+    out_dir: &Path,
+) -> anyhow::Result<()> {
+    if !diagrams.is_empty() {
+        let diagrams_dir = out_dir.join("diagrams");
+        std::fs::create_dir_all(&diagrams_dir)
+            .with_context(|| format!("creating {}", diagrams_dir.display()))?;
+        for asset in diagrams {
+            let path = diagrams_dir.join(format!("{}.svg", asset.slug));
+            std::fs::write(&path, &asset.svg)
+                .with_context(|| format!("writing {}", path.display()))?;
+        }
+    }
     let pages = render_pages(report)?;
     let nav = navigation(&pages);
     for (relative, markdown) in &pages {
         let html_relative = relative.replace(".md", ".html");
         let depth = html_relative.matches('/').count();
         let prefix = "../".repeat(depth);
-        let body = markdown_to_html(&rewrite_links(markdown));
+        let mut body = markdown_to_html(&rewrite_links(markdown));
+        if relative == "index.md" {
+            body.push_str(&diagram_section(diagrams));
+        }
         let title = markdown
             .lines()
             .find_map(|l| l.strip_prefix("# "))
@@ -59,6 +79,41 @@ pub fn write(report: &ReportContext, out_dir: &Path) -> anyhow::Result<()> {
         std::fs::write(&path, page).with_context(|| format!("writing {}", path.display()))?;
     }
     Ok(())
+}
+
+/// Overview diagrams (estate hierarchy + network topology) embedded on the
+/// index page; the full set lives in `diagrams/` for linking.
+fn diagram_section(diagrams: &[DiagramAsset]) -> String {
+    let embedded: Vec<&DiagramAsset> = diagrams
+        .iter()
+        .filter(|asset| {
+            matches!(
+                asset.kind,
+                DiagramAssetKind::Hierarchy | DiagramAssetKind::Network
+            )
+        })
+        .collect();
+    if embedded.is_empty() {
+        return String::new();
+    }
+    let mut out = String::from("<h2>Diagrams</h2>\n");
+    for asset in embedded {
+        let title = html_escape(&asset.title);
+        out.push_str(&format!(
+            "<figure><img src=\"diagrams/{slug}.svg\" alt=\"{title}\" style=\"max-width:100%\">\
+             <figcaption>{title}</figcaption></figure>\n",
+            slug = asset.slug,
+        ));
+    }
+    out
+}
+
+fn html_escape(value: &str) -> String {
+    value
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
 }
 
 fn navigation(pages: &[(String, String)]) -> Vec<(String, String)> {
