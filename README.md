@@ -17,6 +17,12 @@ and diagrams of the whole estate — entirely offline once collected.
 - Single static binary for macOS, Linux, and Windows; no OpenSSL, no system
   SQLite, no Azure CLI required
 
+## Documentation
+
+- [Usage guide](docs/usage.md) — setup, all commands, custom queries, CI, troubleshooting
+- [Development guide](docs/development.md) — architecture, testing, common tasks, release
+- [Query pack reference](docs/queries.md) — all 41 built-in queries and findings
+
 ## Quick start
 
 ```sh
