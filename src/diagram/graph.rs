@@ -823,6 +823,19 @@ impl EstateGraph {
         let mut graph = Self::default();
         let mut node_ids: HashMap<String, usize> = HashMap::new();
 
+        // Drawn inside the same dashed group frame as every other diagram.
+        // Without it a relationships picture was a couple of icons loose on the
+        // page, which read as an illustration rather than part of the estate.
+        let frame = graph.add_node(
+            resource
+                .resource_group
+                .clone()
+                .unwrap_or_else(|| resource.subscription_id.clone()),
+            None,
+            NodeKind::ResourceGroup,
+            None,
+        );
+
         let add = |graph: &mut Self, node_ids: &mut HashMap<String, usize>, r: &Resource| {
             let node = graph.add_node(
                 &r.name,
@@ -830,12 +843,10 @@ impl EstateGraph {
                 NodeKind::Resource {
                     azure_type: r.azure_type.clone(),
                 },
-                None,
+                Some(frame),
             );
             node_ids.insert(r.id.clone(), node);
         };
-        add(&mut graph, &mut node_ids, resource);
-
         // Sorted by name so the layout — and therefore the golden SVG — is
         // stable regardless of edge insertion order.
         let mut neighbours: Vec<&Resource> = edges
@@ -854,7 +865,16 @@ impl EstateGraph {
         neighbours
             .sort_by(|a, b| (a.name.to_lowercase(), &a.id).cmp(&(b.name.to_lowercase(), &b.id)));
         neighbours.dedup_by(|a, b| a.id == b.id);
-        for neighbour in neighbours {
+        // The subject goes in the middle of the row rather than at its head.
+        // Nearly every edge here ends on it, and from one end a connector has
+        // to cross the tiles in between — which is what made a VM's disk edge
+        // run straight through its NIC.
+        let (before, after) = neighbours.split_at(neighbours.len() / 2);
+        for neighbour in before {
+            add(&mut graph, &mut node_ids, neighbour);
+        }
+        add(&mut graph, &mut node_ids, resource);
+        for neighbour in after {
             add(&mut graph, &mut node_ids, neighbour);
         }
 

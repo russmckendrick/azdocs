@@ -13,37 +13,35 @@ its own does not. One flag, `DiagramDetail`, decides both.
 | | `Summary` | `Full` |
 |---|---|---|
 | Resources | Aggregated by type (`Storage Account ×13`) | One tile per resource |
-| Canvas | Snapped to a share of an A4 portrait page | Natural, 1400px working width |
+| Canvas | Full text-column width, height from the content | Natural, 1400px working width |
 | Consumers | PDF, DOCX, HTML report | `azdocs diagram` |
 
 The summary is what makes a 59-resource group fit a page at a readable size.
 The full export is what you open in draw.io when you need every name.
 
 ```sh
-azdocs report  --format pdf        # summarised, page-fraction canvases
+azdocs report  --format pdf        # summarised, page-width canvases
 azdocs diagram --type resource-groups --format svg   # full detail
 ```
 
-## Page fractions
+## Page sizing
 
-Every summary diagram is emitted at exactly one of four canvas sizes, so a
-report stacks predictable blocks rather than a run of rectangles that each
-downscale by a different amount.
+A summary diagram is **exactly the width of the text column** — 680px, the
+170mm A4 content box — and as tall as its content needs at that width, capped
+at the 250mm page height. `PX_PER_MM` is exactly `4.0`, so one layout pixel is
+0.25mm and every integer pixel is an exact millimetre quantity.
 
-| Fraction | Canvas (px) | On paper |
-|---|---|---|
-| Quarter | 680 × 250 | 170 × 62.5 mm |
-| Third | 680 × 333 | 170 × 83 mm |
-| Half | 680 × 500 | 170 × 125 mm |
-| Full | 680 × 1000 | 170 × 250 mm |
+The width sets the scale, so every diagram in a report downscales by the same
+~0.95 and its labels print at the same size. The height was previously snapped
+*up* to a quarter/third/half/full page, which let the height set the scale
+instead — every diagram came out a shrunken block adrift in white space.
+`PageFraction` survives to name the share a canvas claims (`data-page-fraction`
+on the drawing); it no longer imposes it.
 
-`PX_PER_MM` is exactly `4.0`, so one layout pixel is 0.25 mm and every integer
-pixel is an exact millimetre quantity. The A4 portrait content box is
-170 × 250 mm after the report's 20 mm margins and the room a caption needs.
-
-The smallest fraction that holds the content without shrinking it below
-`MIN_SCALE` wins. Content is never enlarged — a small diagram prints at true
-size.
+The title band is a `Full`-export affair. In a report the section heading above
+and the figure caption below already name the diagram, so `Summary` drops it
+(`DiagramDetail::shows_title`). The legend band is likewise only reserved when
+there are boundaries to explain.
 
 ## Density rungs
 
@@ -55,6 +53,15 @@ never drawn at two sizes in one picture.
 | `comfortable` | ≤ 14 | 152 × 112 | 48 | 11px | shown |
 | `compact` | 15–32 | 116 × 88 | 40 | 10px | shown |
 | `dense` | > 32 | 88 × 64 | 32 | 9px | shown |
+
+Labels are **fitted, never left to overflow**. A name is wrapped at separators
+to the box width, and if it still does not fit it steps down a point at a time
+to a floor of 8px before any cut is made — an Azure group name runs past thirty
+characters, and `rg-n4-corp-dwh-…` on two tiles that differ only in what was
+cut tells a reader nothing. A cut that does happen is always marked with an
+ellipsis, which is also the signal the fitter tests. In a container band the
+CIDR or count takes at most 40% of the width and shrinks to fit it, so the two
+can never overprint.
 
 Padding, gutter and title band decay by 2px per nesting level to a floor —
 nested chrome otherwise compounds, and a resource group > VNet > subnet > leaf
@@ -80,7 +87,17 @@ for a container the centre sits *inside* the box, so a VNet peering erupted
 from the middle of a subnet and crossed the icons on its way out.
 
 - **Containment edges are not drawn.** Nesting already says it.
-- Edges leave from a **boundary anchor** on the side facing the target.
+- Edges leave from a **boundary anchor**. The four opposite side-pairs are
+  scored and the one running through the **fewest boxes** wins, ties going to
+  the pair geometry suggests. Two tiles in one row are "side by side", so the
+  direct line was drawn straight through whatever sat between them; leaving
+  through the top and running above the row is clear.
+- A leaf is met **under its label** when an edge arrives from below. The label
+  sits directly beneath the glyph, so anchoring on the glyph drew the connector
+  through the name of the resource it pointed at.
+- The **channel slides off** any box it would be drawn through, to the nearest
+  free lane between the two anchors — a trunk runs down the gutter between two
+  tiles rather than across one.
 - Several edges meeting one box **fan out** along that side rather than piling
   onto the midpoint, turning a fan into a bus.
 - Mid-segments **snap to an 8px lane grid** and deconflict, so parallel trunks
@@ -88,11 +105,13 @@ from the middle of a subnet and crossed the icons on its way out.
 - Corners are rounded 8px — what draw.io's own `rounded=1` draws, so the SVG
   and the `.drawio` agree.
 - Labels sit on the **longest segment**, not the straight-line midpoint, which
-  for a routed edge is frequently nowhere near the connector.
+  for a routed edge is frequently nowhere near the connector, and are lifted
+  clear of any label already placed nearby.
 
-There is deliberately **no obstacle search**. Routing is closed-form and paid
-once per edge per diagram, and a report renders hundreds of diagrams. A
-connector may still cross an unrelated box; that is accepted.
+There is deliberately **no path search**. Every step above is closed-form — a
+fixed set of candidates scored against the boxes — because routing is paid once
+per edge per diagram and a report renders hundreds of diagrams. A connector may
+still cross an unrelated box; that is accepted.
 
 ## Zones and containers
 
@@ -107,6 +126,10 @@ Headers are top-left, not centred: `[icon] Virtual network · name` with the
 CIDR right-aligned in the same band. The kind reads as a quiet grey prefix so
 the name is what the eye lands on. A centred header competes with the content
 beneath it.
+
+A per-resource **neighbourhood** diagram is drawn inside its resource group's
+frame too, with the subject in the *middle* of the row: nearly every edge ends
+on it, and from one end a connector has to cross the tiles in between.
 
 Empty subnets collapse to a **strip** carrying just name and CIDR. The address
 space being allocated is worth stating; a full-height empty box reads as a

@@ -8,20 +8,18 @@ use super::drawio::container_palette;
 use super::graph::{DiagEdge, EdgeStyle, EstateGraph, NodeKind, truncate_label};
 use super::icons;
 use super::layout::{self, Placement};
-use super::page::{DiagramDetail, PageFraction, Rung};
+use super::page::{A4_PORTRAIT, DiagramDetail, PageFraction, Rung};
 use super::route;
 
 const MARGIN: f64 = 16.0;
-/// Vertical room above the content for the diagram title.
+/// Vertical room above the content for the diagram title, on the exports that
+/// draw one ([`DiagramDetail::shows_title`]).
 const TITLE_BAND: f64 = 40.0;
 /// Corner radius on connectors. Matches what draw.io's own `rounded=1` draws,
 /// so the two emitters finally agree.
 const CORNER: f64 = 8.0;
 /// Room below the content for the border-convention key.
 const LEGEND_BAND: f64 = 26.0;
-/// Never shrink content below this to win a smaller page share — past it the
-/// labels stop being readable, which is the whole problem being solved.
-const MIN_SCALE: f64 = 0.62;
 const FONT: &str = "Arial, Helvetica, sans-serif";
 const TEXT_PRIMARY: &str = "#323130";
 const TEXT_SECONDARY: &str = "#605E5C";
@@ -43,27 +41,36 @@ pub fn render_for(graph: &EstateGraph, detail: DiagramDetail) -> String {
     // viewBox stops matching what the rasteriser draws.
     let (content_width, content_height) = bounds(&placements, &routes);
 
-    // Snap the canvas to a share of an A4 portrait page rather than emitting
-    // whatever the content happens to measure, so a report stacks predictable
-    // blocks instead of a run of differently-downscaled rectangles.
-    let fraction = PageFraction::fit(
-        content_width + 2.0 * MARGIN,
-        content_height + TITLE_BAND + LEGEND_BAND + MARGIN,
-        MIN_SCALE,
-    );
-    let (width, height) = if detail.snaps_to_page() {
-        fraction.canvas()
+    // A report diagram is the width of the text column, full stop: the layout
+    // has already justified its rows to the page width, so the width decides
+    // the scale and the height simply follows the content. Snapping the height
+    // up to a fixed share of the sheet instead — as this used to — meant the
+    // height, not the width, set the scale, and every diagram ended up a
+    // shrunken block adrift in white space.
+    let top_band = if detail.shows_title() {
+        TITLE_BAND
     } else {
-        (
-            content_width + 2.0 * MARGIN,
-            content_height + TITLE_BAND + LEGEND_BAND + MARGIN,
-        )
+        MARGIN
+    };
+    // A graph with no boundaries to explain — a resource neighbourhood — gets
+    // no key, so it must not pay for the band either.
+    let keys = legend_entries(graph);
+    let legend_band = if keys.is_empty() { 0.0 } else { LEGEND_BAND };
+    let width = if detail.snaps_to_page() {
+        A4_PORTRAIT.width
+    } else {
+        content_width + 2.0 * MARGIN
     };
     let inner_width = width - 2.0 * MARGIN;
-    let inner_height = height - TITLE_BAND - LEGEND_BAND - MARGIN;
-    let scale = (inner_width / content_width)
-        .min(inner_height / content_height)
-        .min(1.0);
+    // The one thing the content may not do is outgrow the sheet; past that it
+    // scales down, which is the only case that leaves a horizontal margin.
+    let ceiling = A4_PORTRAIT.height - top_band - legend_band - MARGIN;
+    let scale = if detail.snaps_to_page() {
+        (inner_width / content_width).min(ceiling / content_height)
+    } else {
+        1.0
+    };
+    let height = (top_band + content_height * scale + legend_band + MARGIN).round();
     // Centre horizontally; the content hangs from the top so the title band
     // and the legend keep their fixed positions on the canvas.
     let offset_x = MARGIN + (inner_width - content_width * scale) / 2.0;
@@ -75,7 +82,7 @@ pub fn render_for(graph: &EstateGraph, detail: DiagramDetail) -> String {
         w = fmt(width),
         h = fmt(height),
         f = if detail.snaps_to_page() {
-            fraction.label()
+            PageFraction::for_height(height).label()
         } else {
             "full"
         },
@@ -94,17 +101,19 @@ pub fn render_for(graph: &EstateGraph, detail: DiagramDetail) -> String {
         "    </marker>\n",
         "  </defs>\n",
     ));
-    let _ = writeln!(
-        out,
-        r#"  <text x="{}" y="28" font-size="18" font-weight="bold" text-anchor="middle" fill="{TEXT_PRIMARY}">{}</text>"#,
-        fmt(width / 2.0),
-        escape(&graph.title),
-    );
+    if detail.shows_title() {
+        let _ = writeln!(
+            out,
+            r#"  <text x="{}" y="28" font-size="18" font-weight="bold" text-anchor="middle" fill="{TEXT_PRIMARY}">{}</text>"#,
+            fmt(width / 2.0),
+            escape(&graph.title),
+        );
+    }
     let _ = writeln!(
         out,
         r#"  <g transform="translate({},{}) scale({:.4})">"#,
         fmt(offset_x),
-        fmt(TITLE_BAND),
+        fmt(top_band),
         scale,
     );
 
@@ -127,16 +136,16 @@ pub fn render_for(graph: &EstateGraph, detail: DiagramDetail) -> String {
     out.push_str("  </g>\n");
     // The legend is canvas furniture, so it is drawn outside the scaled group
     // and stays the same size whatever the content had to shrink to.
-    legend(&mut out, graph, width, height);
+    legend(&mut out, graph, &keys, width, height);
 
     out.push_str("</svg>\n");
     out
 }
 
-/// Key to the border conventions, drawn only for the kinds actually present so
-/// a simple diagram is not captioned with boundaries it does not use.
-fn legend(out: &mut String, graph: &EstateGraph, canvas_width: f64, canvas_height: f64) {
-    let entries: Vec<(&str, &str, &str)> = [
+/// Border conventions this graph actually uses: `(stroke, label, dash)`. A
+/// simple diagram is not captioned with boundaries it does not draw.
+fn legend_entries(graph: &EstateGraph) -> Vec<(&'static str, &'static str, &'static str)> {
+    [
         (NodeKind::Vnet, "Virtual network", "7,4"),
         (NodeKind::Subnet, "Subnet", "4,3"),
         (NodeKind::Unnetworked, "Not in a VNet", "7,4"),
@@ -144,14 +153,24 @@ fn legend(out: &mut String, graph: &EstateGraph, canvas_width: f64, canvas_heigh
     .iter()
     .filter(|(kind, _, _)| graph.nodes.iter().any(|node| &node.kind == kind))
     .map(|(kind, label, dash)| (container_palette(kind).1, *label, *dash))
-    .collect();
+    .collect()
+}
+
+/// Key to the border conventions, plus the count convention and the Azure mark.
+fn legend(
+    out: &mut String,
+    graph: &EstateGraph,
+    entries: &[(&str, &str, &str)],
+    canvas_width: f64,
+    canvas_height: f64,
+) {
     if entries.is_empty() {
         return;
     }
 
     let y = canvas_height - 10.0;
     let mut x = MARGIN + 4.0;
-    for (stroke, label, dash) in &entries {
+    for (stroke, label, dash) in entries {
         let _ = writeln!(
             out,
             r#"    <rect x="{}" y="{}" width="22" height="12" rx="2" fill="none" stroke="{stroke}" stroke-width="1.5" stroke-dasharray="{dash}"/>"#,
@@ -269,27 +288,39 @@ fn container(
     }
 
     if !has_children {
-        // A peering stub is a plain labelled box, so its label is centred.
+        // A resource-group tile or peering stub: a plain box with its name
+        // centred. The name is wrapped and clipped to the box — Azure group
+        // names run to forty characters, and drawn as one unbroken line they
+        // ran clean across their neighbours.
         let center_x = placement.x + placement.width / 2.0;
-        let baseline = placement.y + placement.height / 2.0 + font / 2.0 - 2.0;
-        let _ = writeln!(
-            out,
-            r#"    <text x="{}" y="{}" font-size="{}" font-weight="bold" text-anchor="middle" fill="{TEXT_PRIMARY}">{}</text>"#,
-            fmt(center_x),
-            fmt(if node.sublabel.is_some() {
-                baseline - font * 0.6
-            } else {
-                baseline
-            }),
-            fmt(font),
-            escape(&truncate_label(&node.label)),
+        let (font, lines) = fit_lines(
+            &truncate_label(&node.label),
+            font,
+            placement.width - 16.0,
+            stub_label_lines(placement.height, font, node.sublabel.is_some()),
         );
+        let line_height = font + 2.0;
+        // Centre the whole block — name lines plus the count beneath them.
+        let block =
+            lines.len() as f64 * line_height + if node.sublabel.is_some() { font } else { 0.0 };
+        let mut baseline = placement.y + (placement.height - block) / 2.0 + font;
+        for line in &lines {
+            let _ = writeln!(
+                out,
+                r#"    <text x="{}" y="{}" font-size="{}" font-weight="bold" text-anchor="middle" fill="{TEXT_PRIMARY}">{}</text>"#,
+                fmt(center_x),
+                fmt(baseline),
+                fmt(font),
+                escape(line),
+            );
+            baseline += line_height;
+        }
         if let Some(sublabel) = &node.sublabel {
             let _ = writeln!(
                 out,
                 r#"    <text x="{}" y="{}" font-size="{}" text-anchor="middle" fill="{TEXT_SECONDARY}">{}</text>"#,
                 fmt(center_x),
-                fmt(baseline + font * 0.7),
+                fmt(baseline - 2.0),
                 fmt(font - 2.0),
                 escape(sublabel),
             );
@@ -331,33 +362,43 @@ fn container(
         cursor += text_width(prefix, font) + font;
     }
 
-    // The CIDR sits at the far right of the same band, so the name only gets
-    // the width left over. Both are clipped rather than allowed to collide.
-    let sublabel_width = node
-        .sublabel
-        .as_deref()
-        .map_or(0.0, |value| text_width(value, font - 1.0) + 12.0)
-        .min((band_end - cursor) / 2.0);
+    // The CIDR or count sits at the far right of the same band and the name
+    // gets the rest. The band is for the name, so the right-hand half is
+    // capped at a third and its own type shrinks to fit that — reserving less
+    // room than the text needs is what let the two overprint each other.
+    let reserved = (band_end - cursor) * 0.4;
+    let (sublabel_font, sublabel_text) = node.sublabel.as_deref().map_or((0.0, None), |value| {
+        let mut size = font - 1.0;
+        while size > MIN_LABEL_PX && text_width(value, size) > reserved {
+            size -= 1.0;
+        }
+        (size, Some(ellipsize(value, size, reserved)))
+    });
+    let name_end = band_end
+        - sublabel_text
+            .as_deref()
+            .map_or(0.0, |value| text_width(value, sublabel_font) + 12.0);
+    // The name shrinks to stay whole before it is allowed to be cut: a
+    // subscription band is narrow in an estate-wide diagram, and
+    // "node4-datawareho…" tells a reader less than the same name two points
+    // smaller.
+    let name_font = fit_font(&node.label, font, name_end - cursor);
     let _ = writeln!(
         out,
         r#"    <text x="{}" y="{}" font-size="{}" font-weight="bold" fill="{colour}">{}</text>"#,
         fmt(cursor),
         fmt(baseline),
-        fmt(font),
-        escape(&ellipsize(
-            &node.label,
-            font,
-            band_end - cursor - sublabel_width
-        )),
+        fmt(name_font),
+        escape(&ellipsize(&node.label, name_font, name_end - cursor)),
     );
-    if let Some(sublabel) = &node.sublabel {
+    if let Some(sublabel) = sublabel_text {
         let _ = writeln!(
             out,
             r#"    <text x="{}" y="{}" font-size="{}" text-anchor="end" fill="{TEXT_SECONDARY}">{}</text>"#,
             fmt(band_end),
             fmt(baseline),
-            fmt(font - 1.0),
-            escape(&ellipsize(sublabel, font - 1.0, band_end - cursor)),
+            fmt(sublabel_font),
+            escape(&sublabel),
         );
     }
 }
@@ -494,13 +535,66 @@ fn ellipsize(value: &str, font_px: f64, limit: f64) -> String {
     out
 }
 
+/// How many name lines a childless container has room for above its count.
+fn stub_label_lines(height: f64, font: f64, has_sublabel: bool) -> usize {
+    let reserved = if has_sublabel { font + 4.0 } else { 0.0 };
+    (((height - 12.0 - reserved) / (font + 2.0)).floor() as usize).clamp(1, 3)
+}
+
+/// Floor on a fitted label. Past this the name is unreadable on paper, so a
+/// cut is the better trade.
+const MIN_LABEL_PX: f64 = 8.0;
+
+/// Largest size at or below `font` whose wrap fits the box whole, and the lines
+/// it produces.
+///
+/// The name is the only thing on a resource-group tile, and Azure group names
+/// run past thirty characters: dropping a couple of points to keep one whole
+/// beats printing `rg-app-auto-…` on two tiles that differ only in what was
+/// cut.
+/// Largest size at or below `font` that keeps `value` inside `width` on one
+/// line, floored at [`MIN_LABEL_PX`].
+fn fit_font(value: &str, font: f64, width: f64) -> f64 {
+    let mut size = font;
+    while size > MIN_LABEL_PX && text_width(value, size) > width {
+        size -= 1.0;
+    }
+    size
+}
+
+fn fit_lines(value: &str, font: f64, width: f64, lines: usize) -> (f64, Vec<String>) {
+    let mut smallest = None;
+    let mut size = font;
+    while size >= MIN_LABEL_PX {
+        let wrapped = wrap_to_width(value, size, width, lines);
+        if !wrapped.iter().any(|line| line.ends_with('…')) {
+            return (size, wrapped);
+        }
+        smallest = Some((size, wrapped));
+        size -= 1.0;
+    }
+    smallest.unwrap_or_else(|| (font, wrap_to_width(value, font, width, lines)))
+}
+
 /// Wrap to the rung's line budget, breaking at word boundaries.
+fn wrap_label(value: &str, rung: &Rung) -> Vec<String> {
+    wrap_to_width(
+        value,
+        rung.label_px,
+        rung.wrap_chars as f64 * rung.label_px * 0.55,
+        rung.wrap_lines,
+    )
+}
+
+/// Wrap to `width` px in at most `lines`, breaking at word boundaries and
+/// marking any cut.
 ///
 /// Chunking by character count split "Log Analytics Workspace" into
 /// "Log Analytics W" / "orkspace"; Azure type names are prose and hyphenated
 /// resource names have natural break points, so both are honoured.
-fn wrap_label(value: &str, rung: &Rung) -> Vec<String> {
-    if value.chars().count() <= rung.wrap_chars {
+fn wrap_to_width(value: &str, font_px: f64, width: f64, lines: usize) -> Vec<String> {
+    let width = width.max(font_px);
+    if text_width(value, font_px) <= width {
         return vec![value.to_owned()];
     }
     // Break after spaces, hyphens and slashes, keeping the separator attached
@@ -517,32 +611,60 @@ fn wrap_label(value: &str, rung: &Rung) -> Vec<String> {
         pieces.push(current);
     }
 
-    let mut lines: Vec<String> = Vec::new();
+    let budget = lines;
+    let mut wrapped: Vec<String> = Vec::new();
     let mut line = String::new();
+    // Whether the name ran out of lines. Counting characters instead misses a
+    // separator the trim ate, which marked "Log Analytics Workspace" as cut.
+    let mut cut = false;
     for piece in pieces {
-        if !line.is_empty() && line.chars().count() + piece.chars().count() > rung.wrap_chars {
-            lines.push(line.trim_end().to_owned());
+        if !line.is_empty() && text_width(&(line.clone() + &piece), font_px) > width {
+            wrapped.push(line.trim_end().to_owned());
             line = String::new();
-            if lines.len() == rung.wrap_lines {
+            if wrapped.len() == budget {
+                cut = true;
                 break;
             }
         }
         line.push_str(&piece);
     }
-    if lines.len() < rung.wrap_lines && !line.is_empty() {
-        lines.push(line.trim_end().to_owned());
+    if wrapped.len() < budget && !line.is_empty() {
+        wrapped.push(line.trim_end().to_owned());
+    } else if !line.is_empty() {
+        cut = true;
     }
     // A single piece longer than the budget still has to be cut somewhere.
-    if lines.is_empty() {
-        lines.push(value.chars().take(rung.wrap_chars).collect());
+    if wrapped.is_empty() {
+        wrapped.push(ellipsize(value, font_px, width));
     }
-    let consumed: usize = lines.iter().map(|l| l.chars().count()).sum();
-    if consumed < value.trim_end().chars().count()
-        && let Some(last) = lines.last_mut()
-    {
-        *last = ellipsize(last, 1.0, (rung.wrap_chars as f64 - 1.0) * 0.55);
+    // A single unbreakable piece can still be wider than the box; clipping
+    // every line is what guarantees a label never runs over its neighbour.
+    let mut wrapped: Vec<String> = wrapped
+        .into_iter()
+        .map(|line| ellipsize(&line, font_px, width))
+        .collect();
+    // Running out of lines has to be *marked*. Left unmarked it reads as the
+    // whole name, so `rg-n4-corp-dwh-dev` and `rg-n4-corp-dwh-prod` printed as
+    // the same tile — and nothing upstream could tell the label had not fitted.
+    if cut && let Some(last) = wrapped.last_mut() {
+        *last = mark_cut(last, font_px, width);
     }
-    lines
+    wrapped
+}
+
+/// End a line with an ellipsis, dropping characters until it fits.
+fn mark_cut(line: &str, font_px: f64, width: f64) -> String {
+    let mut out: String = line.trim_end().to_owned();
+    if out.ends_with('…') {
+        return out;
+    }
+    out.push('…');
+    while text_width(&out, font_px) > width && out.chars().count() > 1 {
+        out.pop();
+        out.pop();
+        out.push('…');
+    }
+    out
 }
 
 fn escape(value: &str) -> String {
@@ -606,6 +728,53 @@ mod tests {
         assert!(lines[0].ends_with('-'), "split mid-token: {lines:?}");
     }
 
+    /// Two resource groups whose names differ only in the suffix printed as
+    /// the same tile, because the label was cut without being marked and
+    /// nothing then tried a smaller size.
+    #[test]
+    fn unit_a_name_shrinks_to_stay_whole_before_it_is_cut() {
+        let (font, lines) = fit_lines("rg-n4-corp-dwh-logicapps-prod", 11.0, 80.0, 2);
+
+        assert!(font < 11.0, "kept the full size and cut instead");
+        assert_eq!(lines.concat(), "rg-n4-corp-dwh-logicapps-prod");
+    }
+
+    #[test]
+    fn unit_a_name_too_long_for_any_size_is_marked_as_cut() {
+        let (_, lines) = fit_lines("averyveryverylongunbreakabletoken", 11.0, 40.0, 1);
+
+        assert!(lines[0].ends_with('…'), "cut silently: {lines:?}");
+    }
+
+    /// The band is for the name; a count that wanted more room than was left
+    /// used to be printed straight over it.
+    #[test]
+    fn unit_a_header_name_and_its_count_never_share_the_same_pixels() {
+        let graph = EstateGraph {
+            title: String::new(),
+            nodes: vec![
+                Node {
+                    label: "node4-datawarehouse".into(),
+                    sublabel: Some("137 resources".into()),
+                    kind: NodeKind::Subscription,
+                    parent: None,
+                },
+                Node {
+                    label: "rg".into(),
+                    sublabel: None,
+                    kind: NodeKind::ResourceGroup,
+                    parent: Some(0),
+                },
+            ],
+            edges: vec![],
+        };
+
+        let svg = render(&graph);
+
+        assert!(svg.contains(">node4-datawarehouse<"), "name cut: {svg}");
+        assert!(svg.contains(">137 resources<"), "count cut: {svg}");
+    }
+
     #[test]
     fn unit_ellipsize_marks_a_name_it_had_to_cut() {
         let cut = ellipsize("an-extremely-long-resource-name", 11.0, 60.0);
@@ -613,10 +782,10 @@ mod tests {
         assert!(cut.ends_with('…') && cut.len() < 31, "got {cut:?}");
     }
 
-    /// Every diagram has to land on one of the four page shares, whatever the
-    /// estate throws at it — that is the sizing contract.
+    /// The sizing contract: a report diagram is exactly the width of the text
+    /// column and never taller than the sheet, whatever the estate throws at it.
     #[test]
-    fn unit_render_snaps_the_canvas_to_a_page_fraction() {
+    fn unit_render_spans_the_page_width_and_never_outgrows_the_sheet() {
         for count in [1, 5, 20, 60] {
             let mut nodes = vec![Node {
                 label: "rg".into(),
@@ -640,18 +809,78 @@ mod tests {
 
             let svg = render(&graph);
 
-            let allowed = crate::diagram::page::PageFraction::ALL
-                .iter()
-                .map(|fraction| {
-                    let (width, height) = fraction.canvas();
-                    format!(r#"viewBox="0 0 {} {}""#, fmt(width), fmt(height))
-                })
-                .collect::<Vec<_>>();
+            let (width, height) = viewbox(&svg);
+            assert_eq!(
+                width,
+                crate::diagram::page::A4_PORTRAIT.width,
+                "{count} resources produced a {width}px canvas"
+            );
             assert!(
-                allowed.iter().any(|candidate| svg.contains(candidate)),
-                "{count} resources produced an off-grid canvas; expected one of {allowed:?}"
+                height <= crate::diagram::page::A4_PORTRAIT.height,
+                "{count} resources produced a {height}px canvas, taller than the sheet"
             );
         }
+    }
+
+    /// The content is drawn at the width it was laid out for, so the drawing
+    /// reaches the canvas edges instead of floating in the middle of it.
+    #[test]
+    fn unit_render_leaves_no_horizontal_slack_around_the_content() {
+        let mut nodes = vec![Node {
+            label: "rg".into(),
+            sublabel: None,
+            kind: NodeKind::ResourceGroup,
+            parent: None,
+        }];
+        nodes.extend((0..13).map(|index| Node {
+            label: format!("resource-{index}"),
+            sublabel: None,
+            kind: NodeKind::Resource {
+                azure_type: "microsoft.storage/storageaccounts".into(),
+            },
+            parent: Some(0),
+        }));
+        let graph = EstateGraph {
+            title: "t".into(),
+            nodes,
+            edges: vec![],
+        };
+
+        let svg = render(&graph);
+
+        assert!(
+            svg.contains(&format!(r#"transform="translate({MARGIN},"#)),
+            "content is inset past the margin: {svg}"
+        );
+    }
+
+    #[test]
+    fn unit_a_report_diagram_has_no_title_but_a_standalone_export_does() {
+        let graph = EstateGraph {
+            title: "estate".into(),
+            nodes: vec![Node {
+                label: "rg".into(),
+                sublabel: None,
+                kind: NodeKind::ResourceGroup,
+                parent: None,
+            }],
+            edges: vec![],
+        };
+
+        assert!(!render_for(&graph, DiagramDetail::Summary).contains(">estate<"));
+        assert!(render_for(&graph, DiagramDetail::Full).contains(">estate<"));
+    }
+
+    /// First and last numbers of the `viewBox`.
+    fn viewbox(svg: &str) -> (f64, f64) {
+        let attribute = svg
+            .split_once(r#"viewBox="0 0 "#)
+            .and_then(|(_, rest)| rest.split_once('"'))
+            .expect("rendered SVG carries a viewBox");
+        let mut parts = attribute.0.split_whitespace();
+        let width = parts.next().and_then(|v| v.parse().ok()).unwrap_or(0.0);
+        let height = parts.next().and_then(|v| v.parse().ok()).unwrap_or(0.0);
+        (width, height)
     }
 
     #[test]
@@ -677,7 +906,7 @@ mod tests {
             edges: vec![],
         };
 
-        let svg = render(&graph);
+        let svg = render_for(&graph, DiagramDetail::Full);
 
         assert!(svg.contains("t &amp; t"), "title escaped: {svg}");
         assert!(

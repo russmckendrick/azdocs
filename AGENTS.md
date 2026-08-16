@@ -60,13 +60,17 @@ cli → commands → collect / report / diagram / tui → store / model ← arg 
   do not introduce `azure_identity`.
 - Config structs use `deny_unknown_fields`; keep it that way so typos fail.
 - **Diagrams are sized for A4 portrait, not for their content.** A summary
-  diagram is emitted at exactly a quarter, third, half or full page
+  diagram is exactly the width of the text column and no taller than the sheet
   (`diagram::page`); `PX_PER_MM` is 4.0 so a layout pixel is exactly 0.25mm.
-  Never let a diagram grow to fit its content — that is the defect this
-  replaced, and it made every label unreadable once scaled to the page.
+  The width sets the scale, so every diagram in a report prints its labels at
+  the same size. Never let a diagram grow *wider* to fit its content — that is
+  the defect this replaced, and it made every label unreadable once scaled to
+  the page. Report diagrams carry no title band: the section heading above and
+  the figure caption below already name them (`DiagramDetail::shows_title`).
 - **Connectors are orthogonal and anchored on boundaries**, never straight
-  centre-to-centre; containment edges are not drawn at all. Routing is
-  closed-form with no obstacle search — a report renders hundreds of diagrams.
+  centre-to-centre; containment edges are not drawn at all. Sides and channels
+  are picked by scoring a fixed set of candidates against the other boxes —
+  closed-form, no path search, because a report renders hundreds of diagrams.
 
 ## Queries are data
 

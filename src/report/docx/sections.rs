@@ -327,7 +327,7 @@ pub fn estate(
             docx = docx.add_paragraph(style::muted(ctx, &context.join(" · ")));
 
             if let Some(asset) = by_group.get(page.group_key.as_str())
-                && let Some(run) = diagram_run(ctx, asset, 1.0)
+                && let Some(run) = diagram_run(ctx, asset)
             {
                 docx =
                     docx.add_paragraph(Paragraph::new().align(AlignmentType::Center).add_run(run));
@@ -355,7 +355,7 @@ pub fn estate(
                 // ARM ids are normalized to lowercase for joins; display_id keeps
                 // the original casing, so match on the normalized form.
                 if let Some(asset) = by_resource.get(detail.arm_id.to_lowercase().as_str())
-                    && let Some(run) = diagram_run(ctx, asset, 0.55)
+                    && let Some(run) = diagram_run(ctx, asset)
                 {
                     docx = docx.add_paragraph(style::sub_label(ctx, "Relationships"));
                     docx = docx
@@ -403,8 +403,8 @@ fn icon_run(ctx: &Ctx, azure_type: &str) -> Option<Run> {
     Some(Run::new().add_image(Pic::new(&png).size(side, side)))
 }
 
-/// Scale a diagram to `fraction` of the text width, preserving aspect ratio.
-fn diagram_run(ctx: &Ctx, asset: &DiagramAsset, fraction: f64) -> Option<Run> {
+/// Place a diagram across the full text width, preserving aspect ratio.
+fn diagram_run(ctx: &Ctx, asset: &DiagramAsset) -> Option<Run> {
     let png = crate::diagram::png::from_svg(&asset.svg, crate::diagram::png::DEFAULT_SCALE)
         .map_err(
             |error| tracing::warn!(slug = %asset.slug, %error, "skipping unrenderable diagram"),
@@ -415,7 +415,7 @@ fn diagram_run(ctx: &Ctx, asset: &DiagramAsset, fraction: f64) -> Option<Run> {
     if width == 0 || height == 0 {
         return None;
     }
-    let target_width = (f64::from(twips_to_emu(ctx.usable_twips)) * fraction).round() as u32;
+    let target_width = twips_to_emu(ctx.usable_twips);
     let target_height =
         (f64::from(target_width) * f64::from(height) / f64::from(width)).round() as u32;
     Some(Run::new().add_image(Pic::new(&png).size(target_width, target_height)))

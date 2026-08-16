@@ -141,7 +141,15 @@ pub fn build_resource_diagrams(
     // slugs — and any golden output — are stable.
     for (index, resource) in connected.iter().take(MAX_RESOURCE_DIAGRAMS).enumerate() {
         let graph = EstateGraph::neighbourhood(resource, &by_id, &edges);
-        if graph.nodes.len() < 2 {
+        // Counted on the resources, not the nodes: the graph also carries the
+        // group frame they are drawn in.
+        if graph
+            .nodes
+            .iter()
+            .filter(|node| !node.kind.is_container())
+            .count()
+            < 2
+        {
             continue;
         }
         assets.push(DiagramAsset {
@@ -204,7 +212,12 @@ mod tests {
 
         let graph = EstateGraph::neighbourhood(&vm, &by_id, &edges);
 
-        let labels: Vec<&str> = graph.nodes.iter().map(|n| n.label.as_str()).collect();
+        let labels: Vec<&str> = graph
+            .nodes
+            .iter()
+            .filter(|node| !node.kind.is_container())
+            .map(|node| node.label.as_str())
+            .collect();
         assert_eq!(labels, vec!["vm-01", "vm-01-nic"]);
         assert_eq!(graph.edges.len(), 1);
     }
@@ -219,8 +232,8 @@ mod tests {
         assert!(graph.title.is_empty());
     }
 
-    /// build_resource_diagrams drops any graph with fewer than two nodes; this
-    /// is the shape that triggers it.
+    /// build_resource_diagrams drops any graph with fewer than two resources;
+    /// this is the shape that triggers it.
     #[test]
     fn unit_neighbourhood_of_an_unconnected_resource_is_a_lone_node() {
         let lonely = resource("st1", "microsoft.storage/storageaccounts");
@@ -228,6 +241,30 @@ mod tests {
 
         let graph = EstateGraph::neighbourhood(&lonely, &by_id, &[]);
 
-        assert_eq!(graph.nodes.len(), 1);
+        assert_eq!(
+            graph
+                .nodes
+                .iter()
+                .filter(|node| !node.kind.is_container())
+                .count(),
+            1
+        );
+    }
+
+    /// The frame is what makes a relationships diagram look like the rest of
+    /// the document rather than icons dropped on the page.
+    #[test]
+    fn unit_neighbourhood_is_drawn_inside_its_resource_group_frame() {
+        let vm = resource("vm-01", "microsoft.compute/virtualmachines");
+        let by_id: HashMap<&str, &Resource> = HashMap::from([(vm.id.as_str(), &vm)]);
+
+        let graph = EstateGraph::neighbourhood(&vm, &by_id, &[]);
+
+        assert_eq!(
+            graph.nodes[0].kind,
+            crate::diagram::graph::NodeKind::ResourceGroup
+        );
+        assert_eq!(graph.nodes[0].label, "rg");
+        assert!(graph.nodes[1..].iter().all(|node| node.parent == Some(0)));
     }
 }

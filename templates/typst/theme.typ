@@ -336,9 +336,11 @@
 
   if diagram-path != "" {
     sub-label("Relationships")
-    // Fixed height rather than full width: a neighbourhood graph is one short
-    // row of nodes, so scaling it to the text width would blow the icons up.
-    align(center, block(width: 100%, height: 3.6cm, image(diagram-path, fit: "contain")))
+    // Full width, like every other diagram: the canvas is already only as tall
+    // as a neighbourhood graph needs, so nothing is blown up by filling the
+    // measure. It used to be boxed to a fixed height because the canvas was
+    // snapped to a page fraction and arrived mostly empty.
+    image(diagram-path, width: 100%)
   }
 
   sub-label("Settings")

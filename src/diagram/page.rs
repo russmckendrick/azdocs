@@ -49,18 +49,26 @@ impl DiagramDetail {
         self == Self::Summary
     }
 
-    /// Whether the canvas is rounded to a share of the page.
+    /// Whether the canvas is sized to the page rather than to the content.
     pub fn snaps_to_page(self) -> bool {
         self == Self::Summary
+    }
+
+    /// Whether the drawing carries its own title band. A report diagram does
+    /// not: the section heading above it and the figure caption below it both
+    /// name it already, so the band was 40px of white space between two
+    /// captions. A standalone export has neither, so it keeps its title.
+    pub fn shows_title(self) -> bool {
+        self == Self::Full
     }
 }
 
 /// The share of an A4 portrait page a diagram occupies.
 ///
-/// Every diagram is emitted at exactly one of these sizes rather than at
-/// whatever its content happens to measure. A report then stacks predictable
-/// blocks — two halves or three thirds to a page — instead of a run of
-/// arbitrary rectangles that each downscale by a different amount.
+/// A diagram is always the full width of the text column and never taller than
+/// the sheet; this names how much of the page height it claims. Rounding the
+/// height *up* to one of these shares is what used to leave a group diagram
+/// floating in white space — the share is now measured, not imposed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum PageFraction {
     Quarter,
@@ -100,18 +108,13 @@ impl PageFraction {
         )
     }
 
-    /// Smallest fraction whose canvas holds `width` x `height` of content
-    /// without shrinking it below `min_scale`. Falls back to a full page.
-    pub fn fit(width: f64, height: f64, min_scale: f64) -> Self {
+    /// Smallest share of the page a canvas `height` px tall fits inside.
+    /// Reported on the drawing so a reader — or a golden file — can see how
+    /// much of the sheet it claims.
+    pub fn for_height(height: f64) -> Self {
         Self::ALL
             .into_iter()
-            .find(|fraction| {
-                let (canvas_width, canvas_height) = fraction.canvas();
-                if width <= 0.0 || height <= 0.0 {
-                    return true;
-                }
-                (canvas_width / width).min(canvas_height / height) >= min_scale
-            })
+            .find(|fraction| height <= fraction.canvas().1)
             .unwrap_or(Self::Full)
     }
 }

@@ -77,6 +77,10 @@ fallback = "general/10001-icon-service-All-Resources.svg"
 "microsoft.purview/accounts" = "general/10001-icon-service-All-Resources.svg"
 "microsoft.recoveryservices/vaults" = "storage/00017-icon-service-Recovery-Services-Vaults.svg"
 "microsoft.relay/namespaces" = "integration/10209-icon-service-Relays.svg"
+# Not resource types ARG returns, but the containers a diagram draws: without
+# these the resource-group and subscription bands fell back to All Resources.
+"microsoft.resources/resourcegroups" = "general/10007-icon-service-Resource-Groups.svg"
+"microsoft.resources/subscriptions" = "general/10002-icon-service-Subscriptions.svg"
 "microsoft.search/searchservices" = "ai + machine learning/10044-icon-service-Cognitive-Search.svg"
 "microsoft.servicebus/namespaces" = "integration/10836-icon-service-Azure-Service-Bus.svg"
 "microsoft.signalrservice/signalr" = "web/10052-icon-service-SignalR.svg"

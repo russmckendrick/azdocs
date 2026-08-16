@@ -7,10 +7,13 @@
 //! draw.io already does for its own edges (`edgeStyle=orthogonalEdgeStyle`) —
 //! this brings the SVG, and therefore the PDF/DOCX/HTML reports, into line.
 //!
-//! Everything is closed-form: no obstacle search, because routing is paid once
-//! per edge per diagram and a report renders hundreds of diagrams. A connector
-//! may still cross an unrelated box; that is accepted in exchange for staying
-//! fast and deterministic.
+//! Boxes in the way are avoided by scoring, not by searching: the four
+//! side-pairs are each shaped once and the one crossing the fewest boxes wins,
+//! and its channel then slides to the nearest free lane. Everything stays
+//! closed-form — routing is paid once per edge per diagram and a report renders
+//! hundreds of diagrams. A connector may still cross an unrelated box when no
+//! candidate is clear; that is accepted in exchange for staying fast and
+//! deterministic.
 
 use std::collections::BTreeMap;
 
@@ -21,6 +24,8 @@ use super::page::Rung;
 /// Distance a connector runs perpendicular to the boundary before it may turn,
 /// so it never appears to start on the border line itself.
 const ESCAPE: f64 = 20.0;
+/// Clearance kept between a channel and the boxes it runs past.
+const CLEAR: f64 = 6.0;
 /// Mid-segment coordinates snap to this grid, so parallel trunks stack into a
 /// bus instead of scattering.
 const LANE: f64 = 8.0;
@@ -78,6 +83,23 @@ pub fn visual_box(placement: &Placement, is_leaf: bool, rung: &Rung) -> Placemen
     }
 }
 
+/// The rectangle an edge leaving through `side` attaches to.
+///
+/// Left, right and top meet the glyph. Bottom meets the bottom of the whole
+/// slot instead: the label sits directly under the icon, so a connector
+/// arriving from below and stopping at the glyph ran straight through the name
+/// of the resource it was pointing at.
+fn anchor_rect(placement: &Placement, is_leaf: bool, rung: &Rung, side: Side) -> Placement {
+    let icon = visual_box(placement, is_leaf, rung);
+    if !is_leaf || side != Side::Bottom {
+        return icon;
+    }
+    Placement {
+        height: placement.y + placement.height - icon.y,
+        ..icon
+    }
+}
+
 fn centre(placement: &Placement) -> (f64, f64) {
     (
         placement.x + placement.width / 2.0,
@@ -127,6 +149,124 @@ fn side_toward(from: (f64, f64), to: (f64, f64)) -> Side {
     }
 }
 
+/// The pair of sides geometry alone suggests: boxes that share a band leave
+/// through the edges facing each other, and anything else falls back to the
+/// dominant delta. Two tiles in one row are side by side even when the row is
+/// far above the other end, which a centre-to-centre comparison gets wrong.
+fn facing_sides(from: &Placement, to: &Placement) -> (Side, Side) {
+    let rows_overlap = from.y < to.y + to.height && to.y < from.y + from.height;
+    let columns_overlap = from.x < to.x + to.width && to.x < from.x + from.width;
+    if rows_overlap && !columns_overlap {
+        return if from.x < to.x {
+            (Side::Right, Side::Left)
+        } else {
+            (Side::Left, Side::Right)
+        };
+    }
+    if columns_overlap && !rows_overlap {
+        return if from.y < to.y {
+            (Side::Bottom, Side::Top)
+        } else {
+            (Side::Top, Side::Bottom)
+        };
+    }
+    let side = side_toward(centre(from), centre(to));
+    (side, side.opposite())
+}
+
+/// Boxes this connector must not be drawn through: every other node, minus the
+/// two ends and the containers they live in — a connector has to cross its own
+/// boundaries to get out at all.
+fn blockers(graph: &EstateGraph, absolute: &[Placement], ends: (usize, usize)) -> Vec<Placement> {
+    (0..graph.nodes.len())
+        .filter(|&node| {
+            ![ends.0, ends.1]
+                .iter()
+                .any(|&end| node == end || encloses(graph, node, end) || encloses(graph, end, node))
+        })
+        .map(|node| absolute[node])
+        .collect()
+}
+
+/// Whether a segment passes through `rect`, ignoring a graze along its edge.
+fn segment_hits(from: (f64, f64), to: (f64, f64), rect: &Placement) -> bool {
+    let (left, right) = (rect.x + CLEAR, rect.x + rect.width - CLEAR);
+    let (top, bottom) = (rect.y + CLEAR, rect.y + rect.height - CLEAR);
+    from.0.min(to.0) < right
+        && left < from.0.max(to.0)
+        && from.1.min(to.1) < bottom
+        && top < from.1.max(to.1)
+}
+
+/// How many distinct boxes a path is drawn through, and how long it is. The
+/// pair is the score a candidate route is chosen on.
+fn cost(points: &[(f64, f64)], blockers: &[Placement]) -> (usize, f64) {
+    let crossed = blockers
+        .iter()
+        .filter(|rect| {
+            points
+                .windows(2)
+                .any(|pair| segment_hits(pair[0], pair[1], rect))
+        })
+        .count();
+    let length = points
+        .windows(2)
+        .map(|pair| (pair[1].0 - pair[0].0).abs() + (pair[1].1 - pair[0].1).abs())
+        .sum();
+    (crossed, length)
+}
+
+/// Channel coordinate closest to `preferred` that no blocker occupies.
+///
+/// `forbidden` is in the channel's own axis; a value on an interval boundary is
+/// free, which is what puts a trunk in the gutter between two tiles.
+fn free_channel(preferred: f64, range: (f64, f64), forbidden: &[(f64, f64)]) -> f64 {
+    let blocked = |value: f64| forbidden.iter().any(|&(lo, hi)| value > lo && value < hi);
+    if !blocked(preferred) {
+        return preferred;
+    }
+    let (low, high) = (range.0.min(range.1), range.0.max(range.1));
+    forbidden
+        .iter()
+        .flat_map(|&(lo, hi)| [lo, hi])
+        .filter(|&candidate| candidate >= low && candidate <= high && !blocked(candidate))
+        .min_by(|a, b| {
+            (a - preferred)
+                .abs()
+                .total_cmp(&(b - preferred).abs())
+                .then(a.total_cmp(b))
+        })
+        .map_or(preferred, f64::round)
+}
+
+/// Intervals along `axis` that a channel spanning `span` on the other axis
+/// would run through.
+fn forbidden_intervals(
+    blockers: &[Placement],
+    vertical_channel: bool,
+    span: (f64, f64),
+) -> Vec<(f64, f64)> {
+    let (low, high) = (span.0.min(span.1), span.0.max(span.1));
+    blockers
+        .iter()
+        .filter(|rect| {
+            let (start, end) = if vertical_channel {
+                (rect.y, rect.y + rect.height)
+            } else {
+                (rect.x, rect.x + rect.width)
+            };
+            start < high && low < end
+        })
+        .map(|rect| {
+            if vertical_channel {
+                (rect.x - CLEAR, rect.x + rect.width + CLEAR)
+            } else {
+                (rect.y - CLEAR, rect.y + rect.height + CLEAR)
+            }
+        })
+        .collect()
+}
+
 /// Route every edge in `graph`. One entry per drawn edge, in edge order;
 /// containment edges are omitted because the nesting already shows them.
 pub fn route(graph: &EstateGraph, absolute: &[Placement], rung: &Rung) -> Vec<EdgeRoute> {
@@ -139,7 +279,11 @@ pub fn route(graph: &EstateGraph, absolute: &[Placement], rung: &Rung) -> Vec<Ed
         })
         .collect();
 
-    // Which edges are drawn at all, and which side each end leaves from.
+    // Which edges are drawn at all, and which side each end leaves from. The
+    // sides are chosen by trying each pairing and taking the one that runs
+    // through the fewest boxes: geometry on its own sends an edge between two
+    // tiles in the same row straight through whatever sits between them, when
+    // leaving through the top and running above the row is clear.
     let mut drawn: Vec<(usize, Side, Side)> = Vec::new();
     for (index, edge) in graph.edges.iter().enumerate() {
         if edge.source == edge.target
@@ -148,8 +292,41 @@ pub fn route(graph: &EstateGraph, absolute: &[Placement], rung: &Rung) -> Vec<Ed
         {
             continue;
         }
-        let source_side = side_toward(centre(&rects[edge.source]), centre(&rects[edge.target]));
-        drawn.push((index, source_side, source_side.opposite()));
+        let obstacles = blockers(graph, absolute, (edge.source, edge.target));
+        let preferred = facing_sides(&rects[edge.source], &rects[edge.target]);
+        let (source_side, target_side) = [
+            (Side::Right, Side::Left),
+            (Side::Left, Side::Right),
+            (Side::Bottom, Side::Top),
+            (Side::Top, Side::Bottom),
+        ]
+        .into_iter()
+        .map(|pair| {
+            let leg = |node: usize, side: Side| {
+                let is_leaf = !graph.nodes[node].kind.is_container();
+                anchor_point(
+                    &anchor_rect(&absolute[node], is_leaf, rung, side),
+                    side,
+                    0.5,
+                )
+            };
+            let points = shape(
+                leg(edge.source, pair.0),
+                leg(edge.target, pair.1),
+                pair.0,
+                &obstacles,
+            );
+            let (crossed, length) = cost(&points, &obstacles);
+            (crossed, pair != preferred, length, pair)
+        })
+        .min_by(|a, b| {
+            a.0.cmp(&b.0)
+                .then(a.1.cmp(&b.1))
+                .then(a.2.total_cmp(&b.2))
+                .then(a.3.cmp(&b.3))
+        })
+        .map_or(preferred, |(_, _, _, pair)| pair);
+        drawn.push((index, source_side, target_side));
     }
 
     // Spread the anchors: several edges meeting one box fan out along its side
@@ -196,24 +373,22 @@ pub fn route(graph: &EstateGraph, absolute: &[Placement], rung: &Rung) -> Vec<Ed
         .enumerate()
         .map(|(position, &(index, source_side, target_side))| {
             let edge = &graph.edges[index];
-            let start = anchor_point(
-                &rects[edge.source],
-                source_side,
-                fractions
-                    .get(&(position, edge.source))
-                    .copied()
-                    .unwrap_or(0.5),
-            );
-            let end = anchor_point(
-                &rects[edge.target],
-                target_side,
-                fractions
-                    .get(&(position, edge.target))
-                    .copied()
-                    .unwrap_or(0.5),
-            );
+            let leg = |node: usize, side: Side| {
+                let is_leaf = !graph.nodes[node].kind.is_container();
+                anchor_point(
+                    &anchor_rect(&absolute[node], is_leaf, rung, side),
+                    side,
+                    fractions.get(&(position, node)).copied().unwrap_or(0.5),
+                )
+            };
+            let obstacles = blockers(graph, absolute, (edge.source, edge.target));
             EdgeRoute {
-                points: shape(start, end, source_side),
+                points: shape(
+                    leg(edge.source, source_side),
+                    leg(edge.target, target_side),
+                    source_side,
+                    &obstacles,
+                ),
                 label_at: None,
                 edge: index,
             }
@@ -224,12 +399,47 @@ pub fn route(graph: &EstateGraph, absolute: &[Placement], rung: &Rung) -> Vec<Ed
     for route in &mut routes {
         route.label_at = Some(label_anchor(&route.points));
     }
+    stack_labels(graph, &mut routes);
     routes
 }
 
+/// Lift a label clear of any already placed near the same point. Two edges
+/// running through one gap — a peering and a private link between the same
+/// pair of VNets — otherwise print their labels on top of each other.
+fn stack_labels(graph: &EstateGraph, routes: &mut [EdgeRoute]) {
+    const NEAR_X: f64 = 40.0;
+    const NEAR_Y: f64 = 11.0;
+    const STEP: f64 = 12.0;
+
+    let mut placed: Vec<(f64, f64)> = Vec::new();
+    for route in routes.iter_mut() {
+        if graph.edges[route.edge].label.is_none() {
+            continue;
+        }
+        let Some((x, mut y)) = route.label_at else {
+            continue;
+        };
+        while placed
+            .iter()
+            .any(|&(px, py)| (px - x).abs() < NEAR_X && (py - y).abs() < NEAR_Y)
+        {
+            y -= STEP;
+        }
+        placed.push((x, y));
+        route.label_at = Some((x, y));
+    }
+}
+
 /// Two elbows in a channel between the anchors, or a U when they face away
-/// from each other.
-fn shape(start: (f64, f64), end: (f64, f64), side: Side) -> Vec<(f64, f64)> {
+/// from each other. The channel slides off any box it would otherwise be drawn
+/// through, so a trunk runs down the gutter between two tiles rather than
+/// across one of them.
+fn shape(
+    start: (f64, f64),
+    end: (f64, f64),
+    side: Side,
+    blockers: &[Placement],
+) -> Vec<(f64, f64)> {
     let points = if side.is_horizontal() {
         let forward = if side == Side::Right {
             end.0 - start.0
@@ -237,7 +447,11 @@ fn shape(start: (f64, f64), end: (f64, f64), side: Side) -> Vec<(f64, f64)> {
             start.0 - end.0
         };
         if forward >= 2.0 * ESCAPE {
-            let mid = ((start.0 + end.0) / 2.0).round();
+            let mid = free_channel(
+                ((start.0 + end.0) / 2.0).round(),
+                (start.0.min(end.0) + ESCAPE, start.0.max(end.0) - ESCAPE),
+                &forbidden_intervals(blockers, true, (start.1, end.1)),
+            );
             vec![start, (mid, start.1), (mid, end.1), end]
         } else {
             // Anchors face away: escape past the further edge and come back.
@@ -255,7 +469,11 @@ fn shape(start: (f64, f64), end: (f64, f64), side: Side) -> Vec<(f64, f64)> {
             start.1 - end.1
         };
         if forward >= 2.0 * ESCAPE {
-            let mid = ((start.1 + end.1) / 2.0).round();
+            let mid = free_channel(
+                ((start.1 + end.1) / 2.0).round(),
+                (start.1.min(end.1) + ESCAPE, start.1.max(end.1) - ESCAPE),
+                &forbidden_intervals(blockers, false, (start.0, end.0)),
+            );
             vec![start, (start.0, mid), (end.0, mid), end]
         } else {
             let mid = if side == Side::Bottom {
@@ -574,6 +792,84 @@ mod tests {
         assert_eq!(anchored.width, COMFORTABLE.icon);
         assert_eq!(anchored.height, COMFORTABLE.icon);
         assert!(anchored.height < slot.height, "icon is not the whole slot");
+    }
+
+    /// A leaf's label sits directly under its glyph, so a connector arriving
+    /// from below used to be drawn through the name of the resource it pointed
+    /// at.
+    #[test]
+    fn unit_a_leaf_entered_from_below_is_met_under_its_label() {
+        let slot = box_at(0.0, 0.0, 152.0, 112.0);
+
+        let rect = anchor_rect(&slot, true, &COMFORTABLE, Side::Bottom);
+
+        assert_eq!(rect.y + rect.height, slot.y + slot.height);
+        assert_eq!(rect.width, COMFORTABLE.icon, "still aimed at the glyph");
+    }
+
+    /// The pathology this replaced: two tiles in one row are "side by side",
+    /// so the direct connector was drawn straight across whatever sat between
+    /// them. Leaving through the top and running above the row is clear.
+    #[test]
+    fn unit_an_edge_steps_around_a_box_standing_between_its_ends() {
+        let graph = EstateGraph {
+            title: String::new(),
+            nodes: vec![leaf(None), leaf(None), leaf(None)],
+            edges: vec![edge(0, 2)],
+        };
+        let absolute = vec![
+            box_at(0.0, 200.0, 152.0, 112.0),
+            box_at(200.0, 200.0, 152.0, 112.0),
+            box_at(400.0, 200.0, 152.0, 112.0),
+        ];
+
+        let routes = route(&graph, &absolute, &COMFORTABLE);
+
+        let blocker = visual_box(&absolute[1], true, &COMFORTABLE);
+        assert!(
+            !routes[0]
+                .points
+                .windows(2)
+                .any(|pair| segment_hits(pair[0], pair[1], &blocker)),
+            "drawn through the middle tile: {:?}",
+            routes[0].points
+        );
+    }
+
+    /// The channel between two boxes belongs in the gutter, not across a third.
+    #[test]
+    fn unit_free_channel_slides_off_a_blocked_lane_to_its_nearest_edge() {
+        let chosen = free_channel(100.0, (0.0, 300.0), &[(80.0, 140.0)]);
+
+        assert_eq!(chosen, 80.0);
+    }
+
+    #[test]
+    fn unit_free_channel_keeps_the_midpoint_when_nothing_is_in_the_way() {
+        assert_eq!(free_channel(100.0, (0.0, 300.0), &[(200.0, 260.0)]), 100.0);
+    }
+
+    #[test]
+    fn unit_labels_in_one_gap_are_stacked_rather_than_overprinted() {
+        let mut graph = EstateGraph {
+            title: String::new(),
+            nodes: vec![container(None), container(None)],
+            edges: vec![edge(0, 1), edge(0, 1)],
+        };
+        for edge in &mut graph.edges {
+            edge.label = Some("peered".to_owned());
+        }
+        let absolute = vec![
+            box_at(0.0, 0.0, 400.0, 100.0),
+            box_at(0.0, 300.0, 400.0, 100.0),
+        ];
+
+        let routes = route(&graph, &absolute, &COMFORTABLE);
+
+        assert_ne!(
+            routes[0].label_at, routes[1].label_at,
+            "both labels printed at the same point"
+        );
     }
 
     #[test]
