@@ -32,11 +32,11 @@ pub fn run(
         single => &[single],
     };
 
-    // HTML (docs site) and PDF both embed the prerendered diagram assets;
+    // HTML (docs site), PDF and DOCX all embed the prerendered diagram assets;
     // build them once.
     let diagrams = if formats
         .iter()
-        .any(|f| matches!(f, ReportFormat::Html | ReportFormat::Pdf))
+        .any(|f| matches!(f, ReportFormat::Html | ReportFormat::Pdf | ReportFormat::Docx))
     {
         crate::diagram::assets::build_overviews(
             store,
@@ -85,7 +85,7 @@ pub fn run(
             }
             ReportFormat::Docx => {
                 let out = out_root.join("report.docx");
-                report::docx::write(&context, &branding, &out)?;
+                report::docx::write(&context, &branding, &diagrams, &out)?;
                 println!("DOCX report -> {}", out.display());
             }
             ReportFormat::All => unreachable!("expanded above"),

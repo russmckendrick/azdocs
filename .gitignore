@@ -5,3 +5,4 @@ azdocs.db
 azdocs.db-shm
 azdocs.db-wal
 /output/
+.DS_Store

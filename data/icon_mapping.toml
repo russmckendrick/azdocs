@@ -1,4 +1,4 @@
-# Azure resource type -> icon file, relative to assets/icons/ (embedded).
+# Azure resource type -> icon file, relative to data/icons/ (embedded).
 # Ported from the legacy azdocs icon mapping; five stale paths fixed and
 # AVD types added. Types not listed fall back to `fallback`, then to a
 # generated monogram tile if the file is somehow absent.

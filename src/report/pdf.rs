@@ -1,5 +1,5 @@
 //! PDF report via an embedded Typst compiler: no external binaries, fonts
-//! embedded from `typst-assets`, and byte-deterministic output (the document
+//! embedded from `data/fonts`, and byte-deterministic output (the document
 //! date comes from the snapshot, not the wall clock).
 
 use std::collections::BTreeMap;
@@ -23,9 +23,14 @@ use crate::diagram::assets::{DiagramAsset, DiagramAssetKind};
 
 static TYPST_TEMPLATES: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/templates/typst");
 
-/// Font families the template uses; everything else in `typst-assets` is
-/// skipped so the font book stays small and deterministic.
-const FONT_FAMILIES: [&str; 2] = ["Libertinus Serif", "DejaVu Sans Mono"];
+/// The vendored report typeface. `typst-assets` ships no proportional sans, so
+/// the document face has to come from the repo.
+static VENDORED_FONTS: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/data/fonts");
+
+/// `typst-assets` families kept purely as a glyph fallback behind the vendored
+/// faces, so a character IBM Plex lacks still renders instead of turning into
+/// `.notdef`. Everything else there is skipped to keep the font book small.
+const FALLBACK_FAMILIES: [&str; 2] = ["Libertinus Serif", "DejaVu Sans Mono"];
 
 /// Render the PDF report and write it to `out_path`.
 pub fn write(
@@ -127,6 +132,10 @@ impl ReportWorld {
             "diagrams".into(),
             Value::Str(serde_json::to_string(&embeds)?.into()),
         );
+        inputs.insert(
+            "theme".into(),
+            Value::Str(serde_json::to_string(&branding.tokens)?.into()),
+        );
 
         let mut files = BTreeMap::new();
         for asset in diagrams {
@@ -158,10 +167,21 @@ impl ReportWorld {
         }
         let main = main.ok_or_else(|| anyhow!("embedded templates/typst/report.typ missing"))?;
 
+        // Order is load-bearing: Typst resolves a glyph through the book in
+        // insertion order, so vendored faces must precede the fallbacks. The
+        // vendored directory is walked in sorted order for determinism.
         let mut fonts = Vec::new();
+        let mut vendored: Vec<_> = VENDORED_FONTS.files().collect();
+        vendored.sort_by_key(|file| file.path());
+        for file in vendored {
+            fonts.extend(Font::iter(Bytes::new(file.contents().to_vec())));
+        }
+        for data in &branding.extra_fonts {
+            fonts.extend(Font::iter(Bytes::new(data.clone())));
+        }
         for data in typst_assets::fonts() {
             for font in Font::iter(Bytes::new(data)) {
-                if FONT_FAMILIES.contains(&font.info().family.as_str()) {
+                if FALLBACK_FAMILIES.contains(&font.info().family.as_str()) {
                     fonts.push(font);
                 }
             }

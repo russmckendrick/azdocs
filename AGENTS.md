@@ -62,7 +62,7 @@ Built-in query pack = TOML files in `queries/<category>/`, embedded via
 `severity`), not Rust. Routing of rows to tables is in `collect/ingest.rs`:
 `all_resources`/`subscriptions`/`resource_groups` fill typed tables, other
 inventory rows go to `query_results`, findings to `findings`. Resource
-display names are data too: `assets/display_names.toml` (embedded), user
+display names are data too: `data/display_names.toml` (embedded), user
 overrides at `<config dir>/azdocs/display_names.toml`.
 
 ## Testing layout
@@ -88,7 +88,10 @@ overrides at `<config dir>/azdocs/display_names.toml`.
   (category sheets are suffixed `" queries"` for this reason).
 - typst/typst-pdf/typst-assets are pinned to the same minor (0.13); the World
   impl in `report/pdf.rs` derives today()/timestamps from the snapshot so PDF
-  bytes stay deterministic. Fonts come from typst-assets, not the repo.
+  bytes stay deterministic. The document face is vendored in `data/fonts`
+  (typst-assets ships no proportional sans); its two families stay loaded
+  behind it purely as a glyph fallback, and font-book insertion order is
+  load-bearing.
 - resvg and usvg are lockstep-released — always bump them together.
 - drawio single-sheet output must stay byte-identical (bare n{i}/e{i} cell
   ids, sheet id `azdocs-0`); workbook sheets prefix ids `s{i}-`.

@@ -6,6 +6,7 @@ pub mod html;
 pub mod markdown;
 pub mod pdf;
 pub mod site;
+pub mod theme;
 pub mod xlsx;
 
 use std::collections::BTreeMap;
@@ -86,6 +87,10 @@ pub struct QuerySection {
     pub name: String,
     pub description: String,
     pub columns: Vec<String>,
+    /// [`page_columns`] applied once here so the page-width emitters (PDF,
+    /// DOCX) share one definition of "what fits" instead of each reimplementing
+    /// the rule.
+    pub print_columns: Vec<String>,
     pub rows: Vec<Value>,
 }
 
@@ -199,7 +204,7 @@ impl ReportContext {
             if rows.is_empty() {
                 continue;
             }
-            let columns = rows
+            let columns: Vec<String> = rows
                 .first()
                 .and_then(Value::as_object)
                 .map(|map| map.keys().cloned().collect())
@@ -210,6 +215,10 @@ impl ReportContext {
                 .push(QuerySection {
                     name: def.name.clone(),
                     description: def.description.clone(),
+                    print_columns: page_columns(&columns)
+                        .into_iter()
+                        .map(str::to_owned)
+                        .collect(),
                     columns,
                     rows,
                 });

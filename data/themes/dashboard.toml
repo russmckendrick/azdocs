@@ -1,0 +1,70 @@
+# Modern tech dashboard. Full-bleed colour block cover with a reversed-out
+# title, tinted KPI cards with accent top rules, banded tables.
+#
+# Palette values are expressions over the [branding] colours: a literal
+# `#rrggbb`, a reference (`$primary` / `$accent`), or one call — `lighten`,
+# `darken`, `mix`, `readable_on`. See docs/reference/themes.md.
+
+description = "Modern tech dashboard: colour block cover, tinted KPI cards, banded tables."
+
+[palette]
+primary = "$primary"
+primary_dark = "darken($primary, 0.3)"
+primary_tint = "lighten($primary, 0.9)"
+accent = "$accent"
+accent_tint = "lighten($accent, 0.8)"
+on_primary = "readable_on($primary)"
+band = "darken($primary, 0.35)"
+on_band = "readable_on(darken($primary, 0.35))"
+ink = "#14141f"
+muted = "#6c6c78"
+rule = "#e2e2ea"
+surface = "#ffffff"
+zebra = "#f7f7fa"
+
+[palette.severity.high]
+text = "#ffffff"
+fill = "#c0392b"
+
+[palette.severity.medium]
+text = "#ffffff"
+fill = "#d17b0f"
+
+[palette.severity.low]
+text = "#3d3200"
+fill = "#f2cf4a"
+
+[palette.severity.info]
+text = "readable_on($accent)"
+fill = "$accent"
+
+[typography]
+sans = "IBM Plex Sans"
+mono = "IBM Plex Mono"
+docx_sans = "Calibri"
+docx_mono = "Consolas"
+base_pt = 9.5
+small_pt = 7.5
+table_pt = 7.5
+table_header_pt = 7.5
+title_pt = 34.0
+subtitle_pt = 13.0
+h1_pt = 17.0
+h2_pt = 12.5
+h3_pt = 10.5
+stat_value_pt = 22.0
+stat_label_pt = 7.0
+line_height = 1.35
+
+[layout]
+cover = "block"
+table = "banded"
+stat = "card"
+heading_numbering = false
+divider_pages = false
+running_header = true
+zebra_rows = true
+rule_pt = 0.6
+radius_pt = 6.0
+table_inset_pt = 4.0
+cover_band_pt = 0.0

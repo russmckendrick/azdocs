@@ -121,7 +121,7 @@ attachment, private endpoints, DNS links) are likewise derived in Rust
 ## Display names
 
 Resource types render with friendly names (e.g. `microsoft.desktopvirtualization/hostpools`
-→ "AVD Host Pool") from `assets/display_names.toml`, embedded in the binary.
+→ "AVD Host Pool") from `data/display_names.toml`, embedded in the binary.
 Add or override names without recompiling by creating
 `<config dir>/azdocs/display_names.toml` with the same
 `"<lowercase arm type>" = "Name"` shape — entries merge over the built-ins,

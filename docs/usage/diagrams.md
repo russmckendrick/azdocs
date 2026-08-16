@@ -58,7 +58,7 @@ flowchart LR
   embedded in the HTML docs site (`output/docs-html/diagrams/`).
 - **`.png`** — the SVG rasterised at 2× via resvg; needs no browser or
   external tool. SVG/PNG diagrams use the Microsoft Azure icon set embedded
-  in the binary (mapping in `assets/icon_mapping.toml`; unmapped types get
+  in the binary (mapping in `data/icon_mapping.toml`; unmapped types get
   the generic resource icon).
 
 ## Scoping

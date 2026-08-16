@@ -4,7 +4,7 @@ use std::sync::OnceLock;
 
 /// Built-in display names live in a data file so they can be reviewed and
 /// extended without touching Rust; user overrides merge on top at runtime.
-const BUILTIN_DISPLAY_NAMES: &str = include_str!("../../assets/display_names.toml");
+const BUILTIN_DISPLAY_NAMES: &str = include_str!("../../data/display_names.toml");
 
 /// `<platform config dir>/azdocs/display_names.toml`, the user override file
 /// merged over the built-in display names by key (same pattern as

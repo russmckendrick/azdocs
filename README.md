@@ -124,6 +124,12 @@ cargo test          # unit + integration + golden-file tests (no Azure needed)
 cargo insta review  # accept intentional report/diagram output changes
 ```
 
+## Credits
+
+Reports are set in [IBM Plex](https://github.com/IBM/plex) (Sans and Mono),
+vendored under `data/fonts/` and used under the SIL Open Font License 1.1.
+Diagram icons come from the Microsoft Azure icon set under `data/icons/`.
+
 Inspired by [billybeckett/Audit-Azure](https://github.com/billybeckett/Audit-Azure),
 [adrian207/Audit-Azure](https://github.com/adrian207/Audit-Azure),
 [dswann101164/azure-enterprise-diagram-automation](https://github.com/dswann101164/azure-enterprise-diagram-automation),

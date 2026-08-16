@@ -27,6 +27,35 @@ pub enum ConfigError {
         "unsupported branding logo format `{path}` (expected .png, .jpg, .jpeg, .gif, or .svg)"
     )]
     LogoFormat { path: PathBuf },
+    #[error("failed to read branding font dir {path}: {source}")]
+    FontDirRead {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    #[error(transparent)]
+    Theme(#[from] ThemeError),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ThemeError {
+    #[error("unknown theme `{name}` (available: {available})")]
+    Unknown { name: String, available: String },
+    #[error("failed to parse theme {path}: {source}")]
+    Parse {
+        path: String,
+        source: Box<toml::de::Error>,
+    },
+    #[error("failed to read user theme dir {path}: {source}")]
+    ReadDir {
+        path: String,
+        source: std::io::Error,
+    },
+    #[error("invalid color expression `{expr}` for `{field}` ({reason})")]
+    Color {
+        field: String,
+        expr: String,
+        reason: String,
+    },
 }
 
 #[derive(Debug, thiserror::Error)]

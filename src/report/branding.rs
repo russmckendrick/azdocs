@@ -6,6 +6,7 @@ use std::path::Path;
 use base64::Engine as _;
 use serde::Serialize;
 
+use super::theme::{ThemePack, ThemeTokens};
 use crate::config::BrandingConfig;
 use crate::error::ConfigError;
 
@@ -34,6 +35,12 @@ pub struct BrandingContext {
     pub page_size: String,
     pub margin: String,
     pub footer: String,
+    /// The resolved theme: every design value every emitter uses.
+    pub tokens: ThemeTokens,
+    /// Extra font faces from `branding.font_dir`, appended to the PDF font
+    /// book. Bytes only — the PDF emitter reads them, nothing serializes them.
+    #[serde(skip)]
+    pub extra_fonts: Vec<Vec<u8>>,
 }
 
 impl Default for BrandingContext {
@@ -56,16 +63,37 @@ impl BrandingContext {
             Some(path) => Some(load_logo(path, config_dir)?),
             None => None,
         };
+        let primary_color = config.primary_color.to_lowercase();
+        let accent_color = config.accent_color.to_lowercase();
+
+        let mut tokens = ThemePack::load()?
+            .get(&config.theme)?
+            .resolve(&config.theme, &primary_color, &accent_color)?;
+        // Branding beats the theme, which beats the built-in default.
+        if !config.font_family.is_empty() {
+            tokens.typography.sans = config.font_family.clone();
+        }
+        if !config.mono_family.is_empty() {
+            tokens.typography.mono = config.mono_family.clone();
+        }
+
+        let extra_fonts = match &config.font_dir {
+            Some(path) => load_fonts(path, config_dir)?,
+            None => Vec::new(),
+        };
+
         Ok(Self {
             company: config.company.clone(),
             title: config.title.clone(),
             subtitle: config.subtitle.clone(),
-            primary_color: config.primary_color.to_lowercase(),
-            accent_color: config.accent_color.to_lowercase(),
+            primary_color,
+            accent_color,
             logo,
             page_size: config.page_size.clone(),
             margin: config.margin.clone(),
             footer: config.footer.clone(),
+            tokens,
+            extra_fonts,
         })
     }
 }
@@ -84,12 +112,45 @@ fn validate_color(field: &'static str, value: &str) -> Result<(), ConfigError> {
     }
 }
 
-fn load_logo(path: &Path, config_dir: Option<&Path>) -> Result<BrandingLogo, ConfigError> {
-    let resolved = if path.is_absolute() {
+/// Read every `.ttf`/`.otf` in `dir` so the PDF can use a typeface that is not
+/// vendored. Sorted so the font book — and therefore the PDF bytes — stay
+/// deterministic; anything that is not a font file is ignored.
+fn load_fonts(dir: &Path, config_dir: Option<&Path>) -> Result<Vec<Vec<u8>>, ConfigError> {
+    let resolved = resolve_path(dir, config_dir);
+    let read_err = |source: std::io::Error| ConfigError::FontDirRead {
+        path: resolved.clone(),
+        source,
+    };
+
+    let mut paths: Vec<std::path::PathBuf> = Vec::new();
+    for entry in std::fs::read_dir(&resolved).map_err(read_err)? {
+        let path = entry.map_err(read_err)?.path();
+        let extension = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(str::to_ascii_lowercase);
+        if path.is_file() && matches!(extension.as_deref(), Some("ttf" | "otf")) {
+            paths.push(path);
+        }
+    }
+    paths.sort();
+
+    paths
+        .into_iter()
+        .map(|path| std::fs::read(&path).map_err(|source| ConfigError::FontDirRead { path, source }))
+        .collect()
+}
+
+fn resolve_path(path: &Path, config_dir: Option<&Path>) -> std::path::PathBuf {
+    if path.is_absolute() {
         path.to_path_buf()
     } else {
         config_dir.unwrap_or(Path::new(".")).join(path)
-    };
+    }
+}
+
+fn load_logo(path: &Path, config_dir: Option<&Path>) -> Result<BrandingLogo, ConfigError> {
+    let resolved = resolve_path(path, config_dir);
     let extension = resolved
         .extension()
         .and_then(|e| e.to_str())

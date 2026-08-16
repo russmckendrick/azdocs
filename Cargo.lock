@@ -236,6 +236,7 @@ dependencies = [
  "dialoguer",
  "directories",
  "docx-rs",
+ "image",
  "include_dir",
  "indicatif",
  "insta",

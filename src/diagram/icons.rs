@@ -4,8 +4,8 @@
 //! Icons render in draw.io via
 //! `image;...;image=img/lib/azure2/<category>/<Name>.svg`. The SVG emitter
 //! cannot reference draw.io's bundled art, so `svg_data_uri` serves icons
-//! from the Microsoft Azure icon pack vendored under `assets/icons/`,
-//! resolved through `assets/icon_mapping.toml` (exact type, then parent
+//! from the Microsoft Azure icon pack vendored under `data/icons/`,
+//! resolved through `data/icon_mapping.toml` (exact type, then parent
 //! type, then the mapping's fallback icon). A generated monogram tile
 //! remains the last resort so output stays deterministic even if a mapping
 //! entry points at a file the pack no longer ships.
@@ -18,8 +18,8 @@ use include_dir::{Dir, include_dir};
 
 use crate::model::azure_types;
 
-static ICON_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/assets/icons");
-const ICON_MAPPING: &str = include_str!("../../assets/icon_mapping.toml");
+static ICON_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/data/icons");
+const ICON_MAPPING: &str = include_str!("../../data/icon_mapping.toml");
 
 struct IconMapping {
     fallback: String,
