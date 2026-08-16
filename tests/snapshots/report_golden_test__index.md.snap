@@ -48,6 +48,7 @@ expression: content
 
 ## Sections
 
+- [inventory](inventory.md)
 - [networking](networking.md)
 - [findings](findings.md)
 - [subscription: Development](subscriptions/development.md)

@@ -4,6 +4,6 @@ kind = "inventory"
 description = "Resource counts by type across the estate"
 kql = '''
 resources
-| summarize count = count() by type
-| order by count desc, type asc
+| summarize resourceCount = count() by type
+| order by resourceCount desc, type asc
 '''

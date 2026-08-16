@@ -32,8 +32,12 @@ pub fn write(
         &header,
     )?;
     for category in &report.categories {
-        // Sheet names cap at 31 chars.
-        let name: String = category.name.chars().take(31).collect();
+        // Suffix avoids case-insensitive collisions with the fixed sheets
+        // (e.g. a category literally named "inventory"); names cap at 31 chars.
+        let name: String = format!("{} queries", category.name)
+            .chars()
+            .take(31)
+            .collect();
         category_sheet(workbook.add_worksheet().set_name(name)?, category, &header)?;
     }
 

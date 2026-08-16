@@ -106,6 +106,21 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 </table>
 
 
+<h2>Inventory</h2>
+
+<details open>
+<summary>resource_type_counts (2)</summary>
+<p class="meta">Resource counts by type across the estate</p>
+<table>
+<thead><tr><th>type</th><th>resourceCount</th></tr></thead>
+<tbody>
+<tr><td>microsoft.network/virtualnetworks</td><td>2</td></tr>
+<tr><td>microsoft.compute/virtualmachines</td><td>1</td></tr>
+</tbody>
+</table>
+</details>
+
+
 <h2>Networking</h2>
 
 <details open>

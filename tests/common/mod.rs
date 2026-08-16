@@ -44,6 +44,13 @@ pub fn seed_estate(store: &Store) -> String {
         ],
     );
     ingest_rows(
+        "resource_type_counts",
+        &[
+            json!({"type": "microsoft.network/virtualnetworks", "resourceCount": 2}),
+            json!({"type": "microsoft.compute/virtualmachines", "resourceCount": 1}),
+        ],
+    );
+    ingest_rows(
         "storage_public_blob_access",
         &[
             json!({"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Storage/storageAccounts/stprodapp01",
