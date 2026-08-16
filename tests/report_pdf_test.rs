@@ -8,6 +8,24 @@ use azdocs::report::theme::ThemePack;
 use azdocs::report::{ReportContext, pdf};
 use azdocs::store::Store;
 
+/// Typst rendering shares process-global state, so two `pdf::render` calls on
+/// different threads can interleave through it. Every real invocation is its
+/// own process, so that is not a product concern — but it does mean the
+/// byte-identity assertion below cannot race its sibling tests. Serialise
+/// every render in this binary rather than weaken what is asserted.
+static RENDER: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn render_locked(
+    report: &ReportContext,
+    branding: &BrandingContext,
+    diagrams: &[DiagramAsset],
+) -> Vec<u8> {
+    let _guard = RENDER
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    pdf::render(report, branding, diagrams).unwrap()
+}
+
 fn seeded() -> (ReportContext, Vec<DiagramAsset>) {
     let store = Store::open_in_memory().unwrap();
     let id = common::seed_estate(&store);
@@ -64,7 +82,7 @@ fn pdf_compiles_every_theme_with_zero_diagnostics() {
 fn pdf_contains_title_findings_and_resource_group_text() {
     let (report, diagrams) = seeded();
 
-    let bytes = pdf::render(&report, &BrandingContext::default(), &diagrams).unwrap();
+    let bytes = render_locked(&report, &BrandingContext::default(), &diagrams);
 
     let (page_count, text) = extract_all_text(&bytes);
     assert!(page_count >= 3, "expected >= 3 pages, got {page_count}");
@@ -73,20 +91,43 @@ fn pdf_contains_title_findings_and_resource_group_text() {
     assert!(text.contains("rg-app"), "resource group name missing");
 }
 
-/// The per-resource chapters are the point of the report: a type heading, then
-/// each resource's own settings.
+/// The per-resource detail is the point of the report: each resource's own
+/// settings, reached through the estate structure.
 #[test]
 fn pdf_documents_each_resource_with_its_settings() {
     let (report, diagrams) = seeded();
 
-    let bytes = pdf::render(&report, &BrandingContext::default(), &diagrams).unwrap();
+    let bytes = render_locked(&report, &BrandingContext::default(), &diagrams);
 
     let (_, text) = extract_all_text(&bytes);
-    assert!(text.contains("VIRTUAL MACHINE"), "resource type chapter");
     assert!(text.contains("Settings"), "per-resource settings block");
     assert!(text.contains("Relationships"), "per-resource diagram block");
     // A flattened property, i.e. real configuration rather than a summary row.
     assert!(text.contains("Host Pool Type"), "flattened property");
+}
+
+/// The document is laid out the way Azure is — subscription, then resource
+/// group, then resource — with a by-type index kept for compliance sweeps.
+#[test]
+fn pdf_lays_the_estate_out_by_subscription_then_group() {
+    let (report, diagrams) = seeded();
+
+    let bytes = render_locked(&report, &BrandingContext::default(), &diagrams);
+
+    let (_, text) = extract_all_text(&bytes);
+    let index = text.find("Resources by type").expect("type index missing");
+    let subscription = text
+        .find("Production")
+        .expect("subscription chapter missing");
+    let group = text.find("rg-app").expect("resource group heading missing");
+    assert!(
+        index < subscription,
+        "the type index belongs before the estate body"
+    );
+    assert!(
+        subscription < group,
+        "resource groups belong under their subscription"
+    );
 }
 
 #[test]
@@ -95,8 +136,8 @@ fn pdf_renders_every_theme_byte_identically_across_runs() {
 
     for theme in themes() {
         let branding = themed(&theme);
-        let first = pdf::render(&report, &branding, &diagrams).unwrap();
-        let second = pdf::render(&report, &branding, &diagrams).unwrap();
+        let first = render_locked(&report, &branding, &diagrams);
+        let second = render_locked(&report, &branding, &diagrams);
 
         assert_eq!(first, second, "{theme} PDF output must be deterministic");
     }
@@ -107,8 +148,8 @@ fn pdf_renders_every_theme_byte_identically_across_runs() {
 fn pdf_themes_produce_different_documents() {
     let (report, diagrams) = seeded();
 
-    let fluent = pdf::render(&report, &themed("fluent"), &diagrams).unwrap();
-    let editorial = pdf::render(&report, &themed("editorial"), &diagrams).unwrap();
+    let fluent = render_locked(&report, &themed("fluent"), &diagrams);
+    let editorial = render_locked(&report, &themed("editorial"), &diagrams);
 
     // Editorial adds divider pages, so it is the longer document.
     let (fluent_pages, _) = extract_all_text(&fluent);
@@ -127,7 +168,7 @@ fn pdf_themes_produce_different_documents() {
 fn pdf_wraps_long_arm_ids_instead_of_clipping_them() {
     let (report, diagrams) = seeded();
 
-    let bytes = pdf::render(&report, &BrandingContext::default(), &diagrams).unwrap();
+    let bytes = render_locked(&report, &BrandingContext::default(), &diagrams);
 
     let (_, text) = extract_all_text(&bytes);
     let stripped: String = text.chars().filter(|c| !c.is_whitespace()).collect();

@@ -16,7 +16,20 @@ pub struct ResourceGroupPage {
     pub subscription_slug: String,
     pub resource_group: String,
     pub location: Option<String>,
+    /// `<subscription id>/<lowercased group name>` — the key a per-group
+    /// diagram is filed under, so a section can find its own picture. Group
+    /// names are not unique across subscriptions, so the name alone will not do.
+    pub group_key: String,
     pub resources: Vec<ResourceDetail>,
+}
+
+/// Build the key a resource group and its diagram agree on.
+pub fn group_key(subscription_id: &str, resource_group: &str) -> String {
+    format!(
+        "{}/{}",
+        subscription_id.to_lowercase(),
+        resource_group.to_lowercase()
+    )
 }
 
 #[derive(Debug, Serialize)]

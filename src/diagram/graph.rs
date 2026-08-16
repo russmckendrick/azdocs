@@ -87,6 +87,12 @@ pub struct DiagramScope {
 pub struct NamedGraph {
     pub slug: String,
     pub sheet_name: String,
+    /// `<subscription id>/<lowercased group name>` on per-group graphs, so a
+    /// report section can find its own diagram. `None` on the other fan-outs.
+    pub group_key: Option<String>,
+    /// Display name of the owning subscription. An id alone tells a reader
+    /// nothing, and a group name is only unique within its subscription.
+    pub subscription_name: Option<String>,
     pub graph: EstateGraph,
 }
 
@@ -606,6 +612,8 @@ impl EstateGraph {
             named.push(NamedGraph {
                 slug: slugify(&vnet.name),
                 sheet_name,
+                group_key: None,
+                subscription_name: None,
                 graph,
             });
         }
@@ -627,6 +635,11 @@ impl EstateGraph {
         let edges = store.edges(snapshot_id)?;
         let by_id: HashMap<&str, &Resource> =
             resources.iter().map(|r| (r.id.as_str(), r)).collect();
+        let subscriptions = store.subscriptions(snapshot_id)?;
+        let subscription_names: HashMap<&str, &str> = subscriptions
+            .iter()
+            .map(|sub| (sub.subscription_id.as_str(), sub.display_name.as_str()))
+            .collect();
 
         let mut groups: Vec<_> = groups
             .iter()
@@ -663,7 +676,15 @@ impl EstateGraph {
                 (a.name.to_lowercase(), &a.id).cmp(&(b.name.to_lowercase(), &b.id))
             });
 
-            let sheet_name = format!("Resource Group - {}", rg.name);
+            let subscription_name = subscription_names
+                .get(rg.subscription_id.as_str())
+                .map(|name| (*name).to_owned());
+            // Group names repeat across subscriptions, so a bare group name is
+            // an ambiguous caption once the fan-out is spread over a directory.
+            let sheet_name = match &subscription_name {
+                Some(sub) => format!("Resource Group - {} · {sub}", rg.name),
+                None => format!("Resource Group - {}", rg.name),
+            };
             let mut graph = Self {
                 title: sheet_name.clone(),
                 ..Self::default()
@@ -720,6 +741,11 @@ impl EstateGraph {
             named.push(NamedGraph {
                 slug: slugify(&rg.name),
                 sheet_name,
+                group_key: Some(crate::report::details::group_key(
+                    &rg.subscription_id,
+                    &rg.name,
+                )),
+                subscription_name,
                 graph,
             });
         }

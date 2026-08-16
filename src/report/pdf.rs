@@ -106,19 +106,25 @@ impl ReportWorld {
         branding: &BrandingContext,
         diagrams: &[DiagramAsset],
     ) -> anyhow::Result<Self> {
-        // Overview diagrams are embedded as figures; the template receives
-        // their slugs/titles and loads the SVGs from the virtual files.
+        // Only the estate overviews go in the Diagrams chapter. Per-group
+        // diagrams are placed at the head of their own resource-group section,
+        // where they describe what the reader is looking at.
         let embeds: Vec<serde_json::Value> = diagrams
             .iter()
             .filter(|asset| {
                 matches!(
                     asset.kind,
-                    DiagramAssetKind::Hierarchy
-                        | DiagramAssetKind::Network
-                        | DiagramAssetKind::ResourceGroup
+                    DiagramAssetKind::Hierarchy | DiagramAssetKind::Network
                 )
             })
             .map(|asset| serde_json::json!({ "slug": asset.slug, "title": asset.title }))
+            .collect();
+
+        // Per-group diagrams, keyed the way a detail page is filed.
+        let group_diagrams: BTreeMap<&str, &str> = diagrams
+            .iter()
+            .filter(|asset| asset.kind == DiagramAssetKind::ResourceGroup)
+            .filter_map(|asset| Some((asset.group_key.as_deref()?, asset.slug.as_str())))
             .collect();
 
         // Per-resource diagrams are looked up by ARM id from the resource
@@ -162,6 +168,10 @@ impl ReportWorld {
         inputs.insert(
             "resource_diagrams".into(),
             Value::Str(serde_json::to_string(&resource_diagrams)?.into()),
+        );
+        inputs.insert(
+            "group_diagrams".into(),
+            Value::Str(serde_json::to_string(&group_diagrams)?.into()),
         );
         inputs.insert(
             "icons".into(),

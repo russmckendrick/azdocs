@@ -30,19 +30,23 @@ Both are built from the same content and the same
 3. **Executive summary** — KPI figures, severity breakdown, resources by type.
 4. **Findings** — every finding, colour-coded by severity.
 5. **Category tables** — the inventory query results, trimmed to page width.
-6. **One chapter per resource type** — the detail. Each chapter opens with the
-   type's Azure icon, then documents every resource of that type: a name
-   plate, a **relationship diagram** of the resource and everything attached
-   to it, a **settings table** flattened from its properties, any findings
-   raised against it, and its related resources.
-7. **Subscriptions** — inventory by subscription and resource group.
-8. **Diagrams** — estate hierarchy, network topology, and one summarised
-   diagram per resource group. Each is emitted at a fixed share of an A4
-   portrait page (quarter, third, half or full) and flows, so several tile onto
-   one sheet. Resources are aggregated by type (`Storage Account ×13`) to stay
-   readable; run `azdocs diagram` for the full per-resource detail. Per-group
-   diagrams are capped at 60. See
-   [Diagram standards](../reference/diagrams.md).
+6. **Resources by type** — an index: every resource of each type with its
+   subscription, group and location. The body below is grouped the way Azure
+   is, which scatters one type across many groups; this restores the
+   compliance sweep ("every storage account") without repeating the detail.
+7. **The estate** — laid out as Azure itself is: **subscription → resource
+   group → resource**. Each group opens with its own summarised diagram, then
+   documents every resource inside it: a name plate, a **relationship diagram**
+   of the resource and everything attached to it, a **settings table**
+   flattened from its properties, any findings raised against it, and its
+   related resources.
+8. **Diagrams** — the estate overviews: hierarchy and network topology. Each is
+   emitted at a fixed share of an A4 portrait page (quarter, third, half or
+   full) and flows, so several tile onto one sheet. Per-group diagrams are not
+   repeated here — they live with their group in section 7. Resources are
+   aggregated by type (`Storage Account ×13`) to stay readable; run
+   `azdocs diagram` for the full per-resource detail. Per-group diagrams are
+   capped at 60. See [Diagram standards](../reference/diagrams.md).
 
 Resources with no relationships get no diagram — a lone box says nothing the
 settings table does not. Per-resource diagrams are capped at 250 for a single

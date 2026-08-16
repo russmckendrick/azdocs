@@ -96,6 +96,15 @@ anywhere on a theme's name.** User overrides live in
   fonts, so themes carry separate `docx_sans`/`docx_mono` names that Word can
   resolve locally — do not point those at the vendored family.
 
+## Report structure
+
+The PDF and DOCX are laid out the way Azure is: **subscription → resource
+group → resource**, driven by `ReportContext.details` (the same shape Markdown
+and the HTML site already used). A group's summarised diagram heads its own
+section rather than sitting in the Diagrams chapter. A **Resources by type**
+index precedes the body so a compliance sweep over one type still works — that
+is what `resource_types` is for now; it is an index, not the spine.
+
 ## Diagram detail levels
 
 The two consumers of a diagram want opposite things, and one flag

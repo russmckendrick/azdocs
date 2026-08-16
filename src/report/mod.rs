@@ -329,6 +329,7 @@ impl ReportContext {
                     subscription_slug: markdown::slug(&sub.display_name),
                     resource_group: rg.name.clone(),
                     location: rg.location.clone(),
+                    group_key: details::group_key(&sub.subscription_id, &rg.name),
                     resources: members,
                 });
             }

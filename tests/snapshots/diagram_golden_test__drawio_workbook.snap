@@ -134,7 +134,7 @@ Private Endpoint" style="image;aspect=fixed;html=1;points=[];align=center;fontSi
       </root>
     </mxGraphModel>
   </diagram>
-  <diagram name="Resource Group - rg-app" id="azdocs-4">
+  <diagram name="Resource Group - rg-app · Production" id="azdocs-4">
     <mxGraphModel dx="1000" dy="800" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="826" math="0" shadow="0">
       <root>
         <mxCell id="s4-0"/>
@@ -194,7 +194,7 @@ vm-app-01-pip" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=
       </root>
     </mxGraphModel>
   </diagram>
-  <diagram name="Resource Group - rg-dev" id="azdocs-5">
+  <diagram name="Resource Group - rg-dev · Development" id="azdocs-5">
     <mxGraphModel dx="1000" dy="800" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="826" math="0" shadow="0">
       <root>
         <mxCell id="s5-0"/>
@@ -216,7 +216,7 @@ web-dev" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=10;lab
       </root>
     </mxGraphModel>
   </diagram>
-  <diagram name="Resource Group - rg-network" id="azdocs-6">
+  <diagram name="Resource Group - rg-network · Production" id="azdocs-6">
     <mxGraphModel dx="1000" dy="800" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="826" math="0" shadow="0">
       <root>
         <mxCell id="s6-0"/>

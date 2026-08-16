@@ -58,8 +58,8 @@ pub fn render(
     docx = sections::summary(docx, &ctx, report);
     docx = sections::findings(docx, &ctx, report);
     docx = sections::categories(docx, &ctx, report);
-    docx = sections::resource_types(docx, &ctx, report, diagrams);
-    docx = sections::subscriptions(docx, &ctx, report);
+    docx = sections::type_index(docx, &ctx, report);
+    docx = sections::estate(docx, &ctx, report, diagrams);
     docx = sections::diagrams(docx, &ctx, diagrams);
 
     let mut cursor = Cursor::new(Vec::new());

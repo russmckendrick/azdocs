@@ -11,6 +11,7 @@
 #let branding = json(bytes(sys.inputs.branding))
 #let diagrams = json(bytes(sys.inputs.diagrams))
 #let resource-diagrams = json(bytes(sys.inputs.resource_diagrams))
+#let group-diagrams = json(bytes(sys.inputs.group_diagrams))
 #let icons = json(bytes(sys.inputs.icons))
 #let logo-path = sys.inputs.at("logo", default: "")
 
@@ -106,36 +107,54 @@ Findings by severity:
   }
 }
 
-// ------------------------------------------------------ resource detail ----
-// One chapter per resource type, one section per resource: the configuration
-// detail the summary tables above deliberately leave out.
+// ------------------------------------------------------- type index ----
+// The by-group body below is the right shape for reading an estate, but it
+// scatters resources of one type across many groups. This index restores the
+// compliance sweep — "every storage account" — without duplicating detail.
+#chapter("Resources by type")
+
 #for section in report.resource_types {
-  type-chapter(section.display, icons.at(section.azure_type, default: ""))
-  for detail in section.resources {
-    let slug = resource-diagrams.at(lower(detail.arm_id), default: "")
-    resource-detail(
-      detail,
-      if slug == "" { "" } else { "/diagrams/" + slug + ".svg" },
-    )
-  }
+  heading(level: 2, section.display)
+  data-table(
+    ("name", "subscription_name", "resource_group", "location"),
+    section.resources,
+    widths: (auto, auto, auto, 1fr),
+  )
 }
 
-// -------------------------------------------------------- subscriptions ----
-#chapter("Subscriptions")
-
+// ------------------------------------------------------ resource detail ----
+// Laid out the way Azure itself is: subscription, then resource group, then
+// the resources inside it. The group's diagram heads its section, so the
+// picture and the configuration it describes sit together.
 #for sub in report.subscriptions {
-  heading(level: 2, sub.display_name)
+  chapter(sub.display_name)
   block(text(size: typ.small_pt * 1pt, fill: muted)[
     #mono(breakable(sub.subscription_id)) · #cell(sub.resource_count) resources
   ])
-  for rg in sub.resource_groups {
-    if rg.resources.len() == 0 { continue }
-    heading(level: 3, rg.name + if rg.location != none { " (" + rg.location + ")" } else { "" })
-    data-table(
-      ("name", "display_type", "location", "tags"),
-      rg.resources,
-      widths: (auto, auto, auto, 1fr),
-    )
+
+  for page in report.details {
+    if page.subscription_name != sub.display_name { continue }
+    heading(level: 2, page.resource_group)
+    block(text(size: typ.small_pt * 1pt, fill: muted)[
+      #cell(page.resources.len()) resources
+      #if page.location != none [ · #page.location]
+    ])
+
+    let group-slug = group-diagrams.at(lower(page.group_key), default: "")
+    if group-slug != "" {
+      figure(
+        image("/diagrams/" + group-slug + ".svg", width: 100%),
+        caption: text(size: typ.small_pt * 1pt, page.resource_group),
+      )
+    }
+
+    for detail in page.resources {
+      let slug = resource-diagrams.at(lower(detail.arm_id), default: "")
+      resource-detail(
+        detail,
+        if slug == "" { "" } else { "/diagrams/" + slug + ".svg" },
+      )
+    }
   }
 }
 

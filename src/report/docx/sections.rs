@@ -254,46 +254,42 @@ pub fn categories(mut docx: Docx, ctx: &Ctx, report: &ReportContext) -> Docx {
     docx
 }
 
-pub fn subscriptions(mut docx: Docx, ctx: &Ctx, report: &ReportContext) -> Docx {
-    docx = docx.add_paragraph(style::heading(1, "Subscriptions"));
-    let headers = ["Name", "Type", "Location", "Tags"].map(str::to_owned);
-    for sub in &report.subscriptions {
-        docx = docx.add_paragraph(style::heading(2, &sub.display_name));
-        docx = docx.add_paragraph(style::muted(
+/// Index of every resource by type.
+///
+/// The body below is grouped the way Azure is — subscription, group, resource
+/// — which scatters one type across many groups. This restores the compliance
+/// sweep ("every storage account") without repeating the detail.
+pub fn type_index(mut docx: Docx, ctx: &Ctx, report: &ReportContext) -> Docx {
+    docx = docx.add_paragraph(style::heading(1, "Resources by type"));
+    let headers = ["Name", "Subscription", "Resource group", "Location"].map(str::to_owned);
+    for section in &report.resource_types {
+        docx = docx.add_table(style::type_heading(
             ctx,
-            &format!("{} · {} resources", sub.subscription_id, sub.resource_count),
+            icon_run(ctx, &section.azure_type),
+            &section.display,
         ));
-        for rg in &sub.resource_groups {
-            if rg.resources.is_empty() {
-                continue;
-            }
-            let label = match &rg.location {
-                Some(location) => format!("{} ({location})", rg.name),
-                None => rg.name.clone(),
-            };
-            docx = docx.add_paragraph(style::heading(3, &label));
-            let rows: Vec<Vec<String>> = rg
-                .resources
-                .iter()
-                .map(|resource| {
-                    vec![
-                        resource.name.clone(),
-                        resource.display_type.clone(),
-                        resource.location.clone().unwrap_or_default(),
-                        resource.tags.clone().unwrap_or_default(),
-                    ]
-                })
-                .collect();
-            docx = docx.add_table(style::data_table(ctx, &headers, &rows, &[]));
-        }
+        let rows: Vec<Vec<String>> = section
+            .resources
+            .iter()
+            .map(|detail| {
+                vec![
+                    detail.name.clone(),
+                    detail.subscription_name.clone(),
+                    detail.resource_group.clone().unwrap_or_default(),
+                    detail.location.clone().unwrap_or_default(),
+                ]
+            })
+            .collect();
+        docx = docx.add_table(style::data_table(ctx, &headers, &rows, &[]));
     }
     docx
 }
 
-/// One chapter per resource type, one section per resource: the configuration
-/// detail the summary tables deliberately leave out. Mirrors the PDF's
-/// resource chapters.
-pub fn resource_types(
+/// The document body, laid out the way Azure itself is: subscription, then
+/// resource group, then the resources inside it. The group's diagram heads its
+/// section so the picture and the configuration it describes sit together.
+/// Mirrors the PDF.
+pub fn estate(
     mut docx: Docx,
     ctx: &Ctx,
     report: &ReportContext,
@@ -304,68 +300,92 @@ pub fn resource_types(
         .filter(|asset| asset.kind == DiagramAssetKind::Resource)
         .filter_map(|asset| Some((asset.resource_id.as_deref()?, asset)))
         .collect();
+    let by_group: HashMap<&str, &DiagramAsset> = diagrams
+        .iter()
+        .filter(|asset| asset.kind == DiagramAssetKind::ResourceGroup)
+        .filter_map(|asset| Some((asset.group_key.as_deref()?, asset)))
+        .collect();
 
-    for section in &report.resource_types {
-        // Each type starts a new page: these chapters are long, and running two
-        // types together makes the document hard to navigate.
+    for sub in &report.subscriptions {
+        // Each subscription starts a new page: these chapters are long, and
+        // running two together makes the document hard to navigate.
         docx = docx.add_paragraph(page_break());
-        docx = docx.add_table(style::type_heading(
+        docx = docx.add_paragraph(style::heading(1, &sub.display_name));
+        docx = docx.add_paragraph(style::muted(
             ctx,
-            icon_run(ctx, &section.azure_type),
-            &section.display,
+            &format!("{} · {} resources", sub.subscription_id, sub.resource_count),
         ));
 
-        for detail in &section.resources {
-            docx = docx.add_table(style::resource_plate(ctx, &detail.name));
-            let mut context = vec![
-                detail.display_type.clone(),
-                detail.subscription_name.clone(),
-            ];
-            context.extend(detail.resource_group.clone());
-            context.extend(detail.location.clone());
+        for page in report
+            .details
+            .iter()
+            .filter(|page| page.subscription_name == sub.display_name)
+        {
+            docx = docx.add_paragraph(style::heading(2, &page.resource_group));
+            let mut context = vec![format!("{} resources", page.resources.len())];
+            context.extend(page.location.clone());
             docx = docx.add_paragraph(style::muted(ctx, &context.join(" · ")));
-            docx = docx.add_paragraph(
-                Paragraph::new().add_run(
-                    Run::new()
-                        .add_text(style::wrappable(&detail.arm_id))
-                        .size(half_points(ctx.tokens.typography.small_pt))
-                        .color(hex(&ctx.tokens.palette.muted))
-                        .fonts(ctx.mono()),
-                ),
-            );
 
-            // ARM ids are normalized to lowercase for joins; display_id keeps
-            // the original casing, so match on the normalized form.
-            if let Some(asset) = by_resource.get(detail.arm_id.to_lowercase().as_str())
-                && let Some(run) = diagram_run(ctx, asset, 0.55)
+            if let Some(asset) = by_group.get(page.group_key.as_str())
+                && let Some(run) = diagram_run(ctx, asset, 1.0)
             {
-                docx = docx.add_paragraph(style::sub_label(ctx, "Relationships"));
                 docx =
                     docx.add_paragraph(Paragraph::new().align(AlignmentType::Center).add_run(run));
             }
 
-            docx = docx.add_paragraph(style::sub_label(ctx, "Settings"));
-            if detail.settings.is_empty() {
-                docx = docx.add_paragraph(style::muted(ctx, "No settings recorded."));
-            } else {
-                let settings: Vec<(String, String)> = detail
-                    .settings
-                    .iter()
-                    .map(|s| (s.key.clone(), s.value.clone()))
-                    .collect();
-                docx = docx.add_table(style::settings_table(ctx, &settings));
-            }
+            for detail in &page.resources {
+                docx = docx.add_table(style::resource_plate(ctx, &detail.name));
+                let mut context = vec![
+                    detail.display_type.clone(),
+                    detail.subscription_name.clone(),
+                ];
+                context.extend(detail.resource_group.clone());
+                context.extend(detail.location.clone());
+                docx = docx.add_paragraph(style::muted(ctx, &context.join(" · ")));
+                docx = docx.add_paragraph(
+                    Paragraph::new().add_run(
+                        Run::new()
+                            .add_text(style::wrappable(&detail.arm_id))
+                            .size(half_points(ctx.tokens.typography.small_pt))
+                            .color(hex(&ctx.tokens.palette.muted))
+                            .fonts(ctx.mono()),
+                    ),
+                );
 
-            if !detail.findings.is_empty() {
-                docx = docx.add_paragraph(style::sub_label(ctx, "Findings"));
-                for callout in &detail.findings {
-                    docx = docx.add_table(style::callout(ctx, &callout.severity, &callout.title));
+                // ARM ids are normalized to lowercase for joins; display_id keeps
+                // the original casing, so match on the normalized form.
+                if let Some(asset) = by_resource.get(detail.arm_id.to_lowercase().as_str())
+                    && let Some(run) = diagram_run(ctx, asset, 0.55)
+                {
+                    docx = docx.add_paragraph(style::sub_label(ctx, "Relationships"));
+                    docx = docx
+                        .add_paragraph(Paragraph::new().align(AlignmentType::Center).add_run(run));
                 }
-            }
 
-            if !detail.related.is_empty() {
-                docx = docx.add_paragraph(style::sub_label(ctx, "Related resources"));
-                docx = docx.add_paragraph(style::body(&detail.related.join(" · ")));
+                docx = docx.add_paragraph(style::sub_label(ctx, "Settings"));
+                if detail.settings.is_empty() {
+                    docx = docx.add_paragraph(style::muted(ctx, "No settings recorded."));
+                } else {
+                    let settings: Vec<(String, String)> = detail
+                        .settings
+                        .iter()
+                        .map(|s| (s.key.clone(), s.value.clone()))
+                        .collect();
+                    docx = docx.add_table(style::settings_table(ctx, &settings));
+                }
+
+                if !detail.findings.is_empty() {
+                    docx = docx.add_paragraph(style::sub_label(ctx, "Findings"));
+                    for callout in &detail.findings {
+                        docx =
+                            docx.add_table(style::callout(ctx, &callout.severity, &callout.title));
+                    }
+                }
+
+                if !detail.related.is_empty() {
+                    docx = docx.add_paragraph(style::sub_label(ctx, "Related resources"));
+                    docx = docx.add_paragraph(style::body(&detail.related.join(" · ")));
+                }
             }
         }
     }

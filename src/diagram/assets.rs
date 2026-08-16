@@ -34,6 +34,10 @@ pub struct DiagramAsset {
     /// Set on [`DiagramAssetKind::Resource`] assets: the normalized ARM id the
     /// diagram belongs to, so a report section can find its own diagram.
     pub resource_id: Option<String>,
+    /// Set on [`DiagramAssetKind::ResourceGroup`] assets: the
+    /// `<subscription id>/<group name>` key its report section is filed under.
+    /// Group names repeat across subscriptions, so the name alone will not do.
+    pub group_key: Option<String>,
 }
 
 /// Ceiling on per-resource diagrams. Each one is a layout plus an SVG render,
@@ -61,6 +65,7 @@ pub fn build_overviews(
                 kind,
                 svg: svg::render(graph),
                 resource_id: None,
+                group_key: None,
             });
         }
     };
@@ -94,6 +99,7 @@ pub fn build_overviews(
             kind: DiagramAssetKind::ResourceGroup,
             svg: svg::render_for(&named.graph, DiagramDetail::Summary),
             resource_id: None,
+            group_key: named.group_key.clone(),
         });
     }
     Ok(assets)
@@ -146,6 +152,7 @@ pub fn build_resource_diagrams(
             kind: DiagramAssetKind::Resource,
             svg: svg::render(&graph),
             resource_id: Some(resource.id.clone()),
+            group_key: None,
         });
     }
     Ok(assets)

@@ -9,7 +9,7 @@ expression: "svg::render(&groups[0].graph)"
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#605E5C"/>
     </marker>
   </defs>
-  <text x="340" y="28" font-size="18" font-weight="bold" text-anchor="middle" fill="#323130">Resource Group - rg-app</text>
+  <text x="340" y="28" font-size="18" font-weight="bold" text-anchor="middle" fill="#323130">Resource Group - rg-app · Production</text>
   <g transform="translate(103.9,40) scale(0.6944)">
     <rect x="0" y="0" width="680" height="602" rx="6" fill="#F3F2F1" stroke="#8A8886" stroke-width="1.5" stroke-dasharray="6,5"/>
     <image x="12" y="7" width="16" height="16" href="data:image/svg+xml;base64,[icon]"/>
