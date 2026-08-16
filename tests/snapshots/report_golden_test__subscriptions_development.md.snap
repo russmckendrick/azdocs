@@ -1,0 +1,19 @@
+---
+source: tests/report_golden_test.rs
+expression: content
+---
+# Subscription: Development
+
+[← index](../index.md)
+
+- **Id**: `sub-dev`
+- **State**: Enabled
+- **Resources**: 2
+
+
+## rg-dev (ukwest)
+
+| Name | Type | Location |
+|---|---|---|
+| asp-dev | App Service Plan | ukwest |
+| web-dev | App Service / Function App | ukwest |

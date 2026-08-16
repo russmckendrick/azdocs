@@ -1,0 +1,30 @@
+---
+source: tests/report_golden_test.rs
+expression: content
+---
+# Findings
+
+[← index](index.md)
+
+**2 high · 0 medium · 7 low · 0 info**
+
+
+## High
+
+| Title | Category | Check | Resource |
+|---|---|---|---|
+| nsg-app: rule allow-ssh allows Internet -> port 22 | security | `nsg_open_to_internet` | `/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/networksecuritygroups/nsg-app` |
+| stprodapp01 allows public blob access | security | `storage_public_blob_access` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01` |
+
+
+## Low
+
+| Title | Category | Check | Resource |
+|---|---|---|---|
+| asp-dev is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.web/serverfarms/asp-dev` |
+| pe-sql is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/privateendpoints/pe-sql` |
+| stprodapp01 is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01` |
+| vm-app-01-nic is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/networkinterfaces/vm-app-01-nic` |
+| vm-app-01-os is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.compute/disks/vm-app-01-os` |
+| vm-app-01-pip is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/publicipaddresses/vm-app-01-pip` |
+| web-dev is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.web/sites/web-dev` |

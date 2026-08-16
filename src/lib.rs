@@ -7,4 +7,5 @@ pub mod config;
 pub mod error;
 pub mod model;
 pub mod querypack;
+pub mod report;
 pub mod store;

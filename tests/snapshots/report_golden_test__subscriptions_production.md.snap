@@ -1,0 +1,33 @@
+---
+source: tests/report_golden_test.rs
+expression: content
+---
+# Subscription: Production
+
+[← index](../index.md)
+
+- **Id**: `sub-prod`
+- **State**: Enabled
+- **Resources**: 10
+
+
+## rg-app (uksouth)
+
+| Name | Type | Location |
+|---|---|---|
+| vm-app-01-os | Managed Disk | uksouth |
+| vm-app-01 | Virtual Machine | uksouth |
+| vm-app-01-nic | Network Interface | uksouth |
+| pe-sql | Private Endpoint | uksouth |
+| vm-app-01-pip | Public IP Address | uksouth |
+| vnet-app | Virtual Network | uksouth |
+| sql-prod | SQL Server | uksouth |
+| stprodapp01 | Storage Account | uksouth |
+
+
+## rg-network (uksouth)
+
+| Name | Type | Location |
+|---|---|---|
+| nsg-app | Network Security Group | uksouth |
+| vnet-hub | Virtual Network | uksouth |

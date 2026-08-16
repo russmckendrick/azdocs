@@ -2,6 +2,7 @@ pub mod check;
 pub mod collect;
 pub mod init;
 pub mod query;
+pub mod report;
 pub mod snapshots;
 
 use crate::auth::ClientCredentialsProvider;

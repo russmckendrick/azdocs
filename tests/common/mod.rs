@@ -1,0 +1,189 @@
+//! Canonical fixture estate shared by report/diagram golden tests: two
+//! subscriptions, peered hub/spoke VNets, a VM with NIC + public IP, storage
+//! with findings, and a private endpoint.
+
+use azdocs::collect::{audit, extractors, ingest};
+use azdocs::querypack::QueryPack;
+use azdocs::store::Store;
+use serde_json::{Value, json};
+
+pub fn seed_estate(store: &Store) -> String {
+    let snapshot = store
+        .create_snapshot("fixture-tenant", Some("golden fixture"))
+        .unwrap();
+    let pack = QueryPack::builtin().unwrap();
+    let ingest_rows = |name: &str, rows: &[Value]| {
+        ingest::ingest(store, &snapshot.id, pack.get(name).unwrap(), rows).unwrap();
+    };
+
+    ingest_rows(
+        "subscriptions",
+        &[
+            json!({"subscriptionId": "sub-prod", "name": "Production", "state": "Enabled"}),
+            json!({"subscriptionId": "sub-dev", "name": "Development", "state": "Enabled"}),
+        ],
+    );
+    ingest_rows(
+        "resource_groups",
+        &[
+            json!({"id": "/subscriptions/sub-prod/resourceGroups/rg-network", "name": "rg-network", "subscriptionId": "sub-prod", "location": "uksouth"}),
+            json!({"id": "/subscriptions/sub-prod/resourceGroups/rg-app", "name": "rg-app", "subscriptionId": "sub-prod", "location": "uksouth", "tags": {"env": "prod"}}),
+            json!({"id": "/subscriptions/sub-dev/resourceGroups/rg-dev", "name": "rg-dev", "subscriptionId": "sub-dev", "location": "ukwest"}),
+        ],
+    );
+    ingest_rows("all_resources", &estate_resources());
+    ingest_rows(
+        "virtual_networks",
+        &[
+            json!({"id": "/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/virtualnetworks/vnet-hub",
+                   "name": "vnet-hub", "location": "uksouth", "resourceGroup": "rg-network", "subscriptionId": "sub-prod",
+                   "addressPrefixes": ["10.0.0.0/16"], "dnsServers": [], "subnetCount": 2}),
+            json!({"id": "/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/virtualnetworks/vnet-app",
+                   "name": "vnet-app", "location": "uksouth", "resourceGroup": "rg-app", "subscriptionId": "sub-prod",
+                   "addressPrefixes": ["10.1.0.0/16"], "dnsServers": [], "subnetCount": 1}),
+        ],
+    );
+    ingest_rows(
+        "storage_public_blob_access",
+        &[
+            json!({"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Storage/storageAccounts/stprodapp01",
+                 "name": "stprodapp01", "resourceGroup": "rg-app", "subscriptionId": "sub-prod",
+                 "summary": "stprodapp01 allows public blob access"}),
+        ],
+    );
+    ingest_rows(
+        "nsg_open_to_internet",
+        &[
+            json!({"id": "/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/networkSecurityGroups/nsg-app",
+                 "name": "nsg-app", "resourceGroup": "rg-network", "subscriptionId": "sub-prod",
+                 "ruleName": "allow-ssh", "port": "22", "priority": 100,
+                 "summary": "nsg-app: rule allow-ssh allows Internet -> port 22"}),
+        ],
+    );
+
+    // Same post-pass the collect runner performs.
+    let resources = store.resources(&snapshot.id).unwrap();
+    let edges: Vec<_> = resources.iter().flat_map(extractors::extract).collect();
+    store.insert_edges(&snapshot.id, &edges).unwrap();
+    let tag_findings = audit::missing_required_tags(&resources, &["env".to_owned()]);
+    store.insert_findings(&snapshot.id, &tag_findings).unwrap();
+    store
+        .set_snapshot_status(&snapshot.id, azdocs::model::SnapshotStatus::Complete)
+        .unwrap();
+    snapshot.id
+}
+
+fn estate_resources() -> Vec<Value> {
+    vec![
+        json!({
+            "id": "/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/virtualNetworks/vnet-hub",
+            "name": "vnet-hub", "type": "microsoft.network/virtualnetworks", "location": "uksouth",
+            "resourceGroup": "rg-network", "subscriptionId": "sub-prod", "tags": {"env": "prod"},
+            "properties": {
+                "addressSpace": {"addressPrefixes": ["10.0.0.0/16"]},
+                "subnets": [
+                    {"id": "/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/gateway",
+                     "name": "gateway", "properties": {"addressPrefix": "10.0.0.0/24"}},
+                    {"id": "/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/shared",
+                     "name": "shared",
+                     "properties": {"addressPrefix": "10.0.1.0/24",
+                                    "networkSecurityGroup": {"id": "/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/networkSecurityGroups/nsg-app"}}}
+                ],
+                "virtualNetworkPeerings": [
+                    {"properties": {"remoteVirtualNetwork": {"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/virtualNetworks/vnet-app"},
+                                    "peeringState": "Connected"}}
+                ]
+            }
+        }),
+        json!({
+            "id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/virtualNetworks/vnet-app",
+            "name": "vnet-app", "type": "microsoft.network/virtualnetworks", "location": "uksouth",
+            "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "tags": {"env": "prod"},
+            "properties": {
+                "addressSpace": {"addressPrefixes": ["10.1.0.0/16"]},
+                "subnets": [
+                    {"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/virtualNetworks/vnet-app/subnets/app",
+                     "name": "app", "properties": {"addressPrefix": "10.1.0.0/24"}}
+                ],
+                "virtualNetworkPeerings": [
+                    {"properties": {"remoteVirtualNetwork": {"id": "/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/virtualNetworks/vnet-hub"},
+                                    "peeringState": "Connected"}}
+                ]
+            }
+        }),
+        json!({
+            "id": "/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/networkSecurityGroups/nsg-app",
+            "name": "nsg-app", "type": "microsoft.network/networksecuritygroups", "location": "uksouth",
+            "resourceGroup": "rg-network", "subscriptionId": "sub-prod", "tags": {"env": "prod"},
+            "properties": {"securityRules": [{"name": "allow-ssh"}]}
+        }),
+        json!({
+            "id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/virtualMachines/vm-app-01",
+            "name": "vm-app-01", "type": "microsoft.compute/virtualmachines", "location": "uksouth",
+            "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "tags": {"env": "prod"},
+            "properties": {
+                "hardwareProfile": {"vmSize": "Standard_B2s"},
+                "storageProfile": {"osDisk": {"managedDisk": {"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/disks/vm-app-01-os"}}},
+                "networkProfile": {"networkInterfaces": [{"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/networkInterfaces/vm-app-01-nic"}]}
+            }
+        }),
+        json!({
+            "id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/disks/vm-app-01-os",
+            "name": "vm-app-01-os", "type": "microsoft.compute/disks", "location": "uksouth",
+            "resourceGroup": "rg-app", "subscriptionId": "sub-prod",
+            "properties": {"diskSizeGB": 64, "diskState": "Attached", "encryption": {"type": "EncryptionAtRestWithPlatformKey"}}
+        }),
+        json!({
+            "id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/networkInterfaces/vm-app-01-nic",
+            "name": "vm-app-01-nic", "type": "microsoft.network/networkinterfaces", "location": "uksouth",
+            "resourceGroup": "rg-app", "subscriptionId": "sub-prod",
+            "properties": {
+                "virtualMachine": {"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/virtualMachines/vm-app-01"},
+                "ipConfigurations": [{"properties": {
+                    "subnet": {"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/virtualNetworks/vnet-app/subnets/app"},
+                    "publicIPAddress": {"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/publicIPAddresses/vm-app-01-pip"}
+                }}]
+            }
+        }),
+        json!({
+            "id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/publicIPAddresses/vm-app-01-pip",
+            "name": "vm-app-01-pip", "type": "microsoft.network/publicipaddresses", "location": "uksouth",
+            "resourceGroup": "rg-app", "subscriptionId": "sub-prod",
+            "properties": {"ipAddress": "20.0.0.10",
+                           "ipConfiguration": {"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/networkInterfaces/vm-app-01-nic/ipConfigurations/ipconfig1"}}
+        }),
+        json!({
+            "id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Storage/storageAccounts/stprodapp01",
+            "name": "stprodapp01", "type": "microsoft.storage/storageaccounts", "location": "uksouth",
+            "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "kind": "StorageV2",
+            "properties": {"allowBlobPublicAccess": true, "supportsHttpsTrafficOnly": true}
+        }),
+        json!({
+            "id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/privateEndpoints/pe-sql",
+            "name": "pe-sql", "type": "microsoft.network/privateendpoints", "location": "uksouth",
+            "resourceGroup": "rg-app", "subscriptionId": "sub-prod",
+            "properties": {
+                "subnet": {"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/virtualNetworks/vnet-app/subnets/app"},
+                "privateLinkServiceConnections": [{"properties": {"privateLinkServiceId": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Sql/servers/sql-prod"}}]
+            }
+        }),
+        json!({
+            "id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Sql/servers/sql-prod",
+            "name": "sql-prod", "type": "microsoft.sql/servers", "location": "uksouth",
+            "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "tags": {"env": "prod"},
+            "properties": {"publicNetworkAccess": "Disabled", "version": "12.0"}
+        }),
+        json!({
+            "id": "/subscriptions/sub-dev/resourceGroups/rg-dev/providers/Microsoft.Web/serverfarms/asp-dev",
+            "name": "asp-dev", "type": "microsoft.web/serverfarms", "location": "ukwest",
+            "resourceGroup": "rg-dev", "subscriptionId": "sub-dev",
+            "sku": {"name": "B1", "tier": "Basic"}, "properties": {"numberOfSites": 1}
+        }),
+        json!({
+            "id": "/subscriptions/sub-dev/resourceGroups/rg-dev/providers/Microsoft.Web/sites/web-dev",
+            "name": "web-dev", "type": "microsoft.web/sites", "location": "ukwest", "kind": "app,linux",
+            "resourceGroup": "rg-dev", "subscriptionId": "sub-dev",
+            "properties": {"state": "Running", "httpsOnly": false, "defaultHostName": "web-dev.azurewebsites.net"}
+        }),
+    ]
+}

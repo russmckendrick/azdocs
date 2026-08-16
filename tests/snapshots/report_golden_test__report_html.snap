@@ -1,0 +1,183 @@
+---
+source: tests/report_golden_test.rs
+expression: "std::fs::read_to_string(&out).unwrap()"
+---
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Azure Estate Report — fixture-tenant</title>
+<style>
+:root { --bg:#fff; --fg:#1a1a2e; --muted:#666; --border:#ddd; --accent:#0078d4;
+        --high:#d13438; --medium:#ff8c00; --low:#c9a900; --info:#0078d4; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#16161d; --fg:#e8e8ef; --muted:#9a9aa5; --border:#3a3a45; }
+}
+body { font: 15px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif;
+       background: var(--bg); color: var(--fg); max-width: 1100px; margin: 0 auto; padding: 2rem 1rem; }
+h1,h2,h3 { line-height: 1.2; } h2 { border-bottom: 1px solid var(--border); padding-bottom: .3rem; margin-top: 2.5rem; }
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 14px; }
+th, td { text-align: left; padding: .35rem .6rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { position: sticky; top: 0; background: var(--bg); }
+code { background: rgba(127,127,127,.12); padding: .1em .3em; border-radius: 3px; font-size: 90%; word-break: break-all; }
+.badge { display: inline-block; padding: .05em .55em; border-radius: 999px; color: #fff; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+.badge.high { background: var(--high); } .badge.medium { background: var(--medium); }
+.badge.low { background: var(--low); } .badge.info { background: var(--info); }
+.stats { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+.stat { border: 1px solid var(--border); border-radius: 8px; padding: .8rem 1.2rem; min-width: 8rem; }
+.stat b { display: block; font-size: 1.6rem; } .stat span { color: var(--muted); font-size: 13px; }
+.meta { color: var(--muted); font-size: 13px; }
+input.filter { width: 100%; max-width: 24rem; padding: .4rem .6rem; margin: .3rem 0;
+       border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); }
+details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
+</style>
+</head>
+<body>
+<h1>Azure Estate Report</h1>
+<p class="meta">Snapshot <code>[snapshot-id]</code> · collected [timestamp] · tenant <code>fixture-tenant</code> · status complete · golden fixture</p>
+
+<div class="stats">
+  <div class="stat"><b>2</b><span>subscriptions</span></div>
+  <div class="stat"><b>3</b><span>resource groups</span></div>
+  <div class="stat"><b>12</b><span>resources</span></div>
+  <div class="stat"><b>9</b><span>findings</span></div>
+  <div class="stat"><b>41%</b><span>tag coverage</span></div>
+</div>
+
+<h2>Findings</h2>
+<p>
+<span class="badge high">2 high</span>
+<span class="badge medium">0 medium</span>
+<span class="badge low">7 low</span>
+<span class="badge info">0 info</span>
+</p>
+
+<input class="filter" type="search" placeholder="Filter findings..." oninput="filterTable(this, 'findings-table')">
+<table id="findings-table">
+<thead><tr><th>Severity</th><th>Title</th><th>Category</th><th>Check</th><th>Resource</th></tr></thead>
+<tbody>
+<tr><td><span class="badge high">high</span></td>
+<td>nsg-app: rule allow-ssh allows Internet -> port 22</td><td>security</td><td><code>nsg_open_to_internet</code></td>
+<td><code>/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/networksecuritygroups/nsg-app</code></td></tr>
+<tr><td><span class="badge high">high</span></td>
+<td>stprodapp01 allows public blob access</td><td>security</td><td><code>storage_public_blob_access</code></td>
+<td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01</code></td></tr>
+<tr><td><span class="badge low">low</span></td>
+<td>asp-dev is missing tags: env</td><td>governance</td><td><code>missing_required_tags</code></td>
+<td><code>/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.web/serverfarms/asp-dev</code></td></tr>
+<tr><td><span class="badge low">low</span></td>
+<td>pe-sql is missing tags: env</td><td>governance</td><td><code>missing_required_tags</code></td>
+<td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/privateendpoints/pe-sql</code></td></tr>
+<tr><td><span class="badge low">low</span></td>
+<td>stprodapp01 is missing tags: env</td><td>governance</td><td><code>missing_required_tags</code></td>
+<td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01</code></td></tr>
+<tr><td><span class="badge low">low</span></td>
+<td>vm-app-01-nic is missing tags: env</td><td>governance</td><td><code>missing_required_tags</code></td>
+<td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/networkinterfaces/vm-app-01-nic</code></td></tr>
+<tr><td><span class="badge low">low</span></td>
+<td>vm-app-01-os is missing tags: env</td><td>governance</td><td><code>missing_required_tags</code></td>
+<td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.compute/disks/vm-app-01-os</code></td></tr>
+<tr><td><span class="badge low">low</span></td>
+<td>vm-app-01-pip is missing tags: env</td><td>governance</td><td><code>missing_required_tags</code></td>
+<td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/publicipaddresses/vm-app-01-pip</code></td></tr>
+<tr><td><span class="badge low">low</span></td>
+<td>web-dev is missing tags: env</td><td>governance</td><td><code>missing_required_tags</code></td>
+<td><code>/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.web/sites/web-dev</code></td></tr>
+</tbody>
+</table>
+
+
+<h2>Resources by type</h2>
+<table>
+<thead><tr><th>Type</th><th>Azure type</th><th>Count</th></tr></thead>
+<tbody>
+<tr><td>Virtual Network</td><td><code>microsoft.network/virtualnetworks</code></td><td>2</td></tr>
+<tr><td>Managed Disk</td><td><code>microsoft.compute/disks</code></td><td>1</td></tr>
+<tr><td>Virtual Machine</td><td><code>microsoft.compute/virtualmachines</code></td><td>1</td></tr>
+<tr><td>Network Interface</td><td><code>microsoft.network/networkinterfaces</code></td><td>1</td></tr>
+<tr><td>Network Security Group</td><td><code>microsoft.network/networksecuritygroups</code></td><td>1</td></tr>
+<tr><td>Private Endpoint</td><td><code>microsoft.network/privateendpoints</code></td><td>1</td></tr>
+<tr><td>Public IP Address</td><td><code>microsoft.network/publicipaddresses</code></td><td>1</td></tr>
+<tr><td>SQL Server</td><td><code>microsoft.sql/servers</code></td><td>1</td></tr>
+<tr><td>Storage Account</td><td><code>microsoft.storage/storageaccounts</code></td><td>1</td></tr>
+<tr><td>App Service Plan</td><td><code>microsoft.web/serverfarms</code></td><td>1</td></tr>
+<tr><td>App Service / Function App</td><td><code>microsoft.web/sites</code></td><td>1</td></tr>
+</tbody>
+</table>
+
+
+<h2>Networking</h2>
+
+<details open>
+<summary>virtual_networks (2)</summary>
+<p class="meta">Virtual networks with address spaces and DNS settings</p>
+<table>
+<thead><tr><th>id</th><th>name</th><th>location</th><th>resourceGroup</th><th>subscriptionId</th><th>addressPrefixes</th><th>dnsServers</th><th>subnetCount</th></tr></thead>
+<tbody>
+<tr><td>/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/virtualnetworks/vnet-hub</td><td>vnet-hub</td><td>uksouth</td><td>rg-network</td><td>sub-prod</td><td>["10.0.0.0/16"]</td><td>[]</td><td>2</td></tr>
+<tr><td>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/virtualnetworks/vnet-app</td><td>vnet-app</td><td>uksouth</td><td>rg-app</td><td>sub-prod</td><td>["10.1.0.0/16"]</td><td>[]</td><td>1</td></tr>
+</tbody>
+</table>
+</details>
+
+
+
+<h2>Subscriptions</h2>
+
+<h3>Development <span class="meta">(sub-dev · 2 resources)</span></h3>
+
+<details>
+<summary>rg-dev — ukwest (2)</summary>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Tags</th></tr></thead>
+<tbody>
+<tr><td>asp-dev</td><td>App Service Plan</td><td>ukwest</td><td></td></tr>
+<tr><td>web-dev</td><td>App Service / Function App</td><td>ukwest</td><td></td></tr>
+</tbody>
+</table>
+</details>
+
+
+<h3>Production <span class="meta">(sub-prod · 10 resources)</span></h3>
+
+<details>
+<summary>rg-app — uksouth (8)</summary>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Tags</th></tr></thead>
+<tbody>
+<tr><td>vm-app-01-os</td><td>Managed Disk</td><td>uksouth</td><td></td></tr>
+<tr><td>vm-app-01</td><td>Virtual Machine</td><td>uksouth</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>vm-app-01-nic</td><td>Network Interface</td><td>uksouth</td><td></td></tr>
+<tr><td>pe-sql</td><td>Private Endpoint</td><td>uksouth</td><td></td></tr>
+<tr><td>vm-app-01-pip</td><td>Public IP Address</td><td>uksouth</td><td></td></tr>
+<tr><td>vnet-app</td><td>Virtual Network</td><td>uksouth</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>sql-prod</td><td>SQL Server</td><td>uksouth</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>stprodapp01</td><td>Storage Account</td><td>uksouth</td><td></td></tr>
+</tbody>
+</table>
+</details>
+
+<details>
+<summary>rg-network — uksouth (2)</summary>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Tags</th></tr></thead>
+<tbody>
+<tr><td>nsg-app</td><td>Network Security Group</td><td>uksouth</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>vnet-hub</td><td>Virtual Network</td><td>uksouth</td><td><code>{"env":"prod"}</code></td></tr>
+</tbody>
+</table>
+</details>
+
+
+
+<p class="meta">Generated by azdocs.</p>
+<script>
+function filterTable(input, id) {
+  const needle = input.value.toLowerCase();
+  for (const row of document.getElementById(id).tBodies[0].rows) {
+    row.style.display = row.textContent.toLowerCase().includes(needle) ? "" : "none";
+  }
+}
+</script>
+</body>
+</html>

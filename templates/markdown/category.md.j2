@@ -1,0 +1,11 @@
+# {{ category.name | title }}
+
+[← index](index.md)
+
+{% for query in category.queries %}
+## {{ query.name }}
+
+{{ query.description }}
+
+{{ query.rows | md_table(query.columns) }}
+{% endfor %}

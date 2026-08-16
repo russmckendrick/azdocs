@@ -1,0 +1,18 @@
+# Findings
+
+[← index](index.md)
+
+**{{ severity_counts.high }} high · {{ severity_counts.medium }} medium · {{ severity_counts.low }} low · {{ severity_counts.info }} info**
+
+{% for sev in ["high", "medium", "low", "info"] %}
+{%- set sev_findings = findings | selectattr("severity", "eq", sev) | list %}
+{%- if sev_findings %}
+## {{ sev | title }}
+
+| Title | Category | Check | Resource |
+|---|---|---|---|
+{%- for f in sev_findings %}
+| {{ f.title | md_escape }} | {{ f.category }} | `{{ f.query_name }}` | {% if f.resource_id %}`{{ f.resource_id }}`{% endif %} |
+{%- endfor %}
+{%- endif %}
+{% endfor %}

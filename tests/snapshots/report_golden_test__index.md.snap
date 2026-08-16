@@ -1,0 +1,54 @@
+---
+source: tests/report_golden_test.rs
+expression: content
+---
+# Azure Estate Report
+
+- **Snapshot**: `[snapshot-id]`
+- **Collected**: [timestamp]
+- **Tenant**: `fixture-tenant`
+- **Status**: complete
+- **Notes**: golden fixture
+
+## Summary
+
+| Metric | Count |
+|---|---:|
+| Subscriptions | 2 |
+| Resource groups | 3 |
+| Resources | 12 |
+| Findings | 9 |
+
+**Findings by severity**: 2 high · 0 medium · 7 low · 0 info — see [findings.md](findings.md)
+
+**Tag coverage**: 41% (5 tagged, 7 untagged)
+
+## Resources by type
+
+| Type | Azure type | Count |
+|---|---|---:|
+| Virtual Network | `microsoft.network/virtualnetworks` | 2 |
+| Managed Disk | `microsoft.compute/disks` | 1 |
+| Virtual Machine | `microsoft.compute/virtualmachines` | 1 |
+| Network Interface | `microsoft.network/networkinterfaces` | 1 |
+| Network Security Group | `microsoft.network/networksecuritygroups` | 1 |
+| Private Endpoint | `microsoft.network/privateendpoints` | 1 |
+| Public IP Address | `microsoft.network/publicipaddresses` | 1 |
+| SQL Server | `microsoft.sql/servers` | 1 |
+| Storage Account | `microsoft.storage/storageaccounts` | 1 |
+| App Service Plan | `microsoft.web/serverfarms` | 1 |
+| App Service / Function App | `microsoft.web/sites` | 1 |
+
+## Resources by location
+
+| Location | Count |
+|---|---:|
+| uksouth | 10 |
+| ukwest | 2 |
+
+## Sections
+
+- [networking](networking.md)
+- [findings](findings.md)
+- [subscription: Development](subscriptions/development.md)
+- [subscription: Production](subscriptions/production.md)

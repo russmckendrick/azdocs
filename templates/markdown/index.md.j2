@@ -1,0 +1,48 @@
+# Azure Estate Report
+
+- **Snapshot**: `{{ snapshot_id }}`
+- **Collected**: {{ created_at }}
+- **Tenant**: `{{ tenant_id }}`
+- **Status**: {{ status }}
+{%- if notes %}
+- **Notes**: {{ notes }}
+{%- endif %}
+
+## Summary
+
+| Metric | Count |
+|---|---:|
+| Subscriptions | {{ totals.subscriptions }} |
+| Resource groups | {{ totals.resource_groups }} |
+| Resources | {{ totals.resources }} |
+| Findings | {{ totals.findings }} |
+
+**Findings by severity**: {{ severity_counts.high }} high · {{ severity_counts.medium }} medium · {{ severity_counts.low }} low · {{ severity_counts.info }} info — see [findings.md](findings.md)
+
+**Tag coverage**: {{ tag_coverage.percent }}% ({{ tag_coverage.tagged }} tagged, {{ tag_coverage.untagged }} untagged)
+
+## Resources by type
+
+| Type | Azure type | Count |
+|---|---|---:|
+{%- for tc in type_counts %}
+| {{ tc.display | md_escape }} | `{{ tc.azure_type }}` | {{ tc.count }} |
+{%- endfor %}
+
+## Resources by location
+
+| Location | Count |
+|---|---:|
+{%- for lc in location_counts %}
+| {{ lc.name | md_escape }} | {{ lc.count }} |
+{%- endfor %}
+
+## Sections
+
+{% for category in categories -%}
+- [{{ category.name }}]({{ category.name }}.md)
+{% endfor -%}
+- [findings](findings.md)
+{% for sub in subscriptions -%}
+- [subscription: {{ sub.display_name | md_escape }}](subscriptions/{{ sub.display_name | slug }}.md)
+{% endfor %}

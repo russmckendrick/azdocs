@@ -1,0 +1,23 @@
+# Subscription: {{ sub.display_name }}
+
+[← index](../index.md)
+
+- **Id**: `{{ sub.subscription_id }}`
+{%- if sub.state %}
+- **State**: {{ sub.state }}
+{%- endif %}
+- **Resources**: {{ sub.resource_count }}
+
+{% for rg in sub.resource_groups %}
+## {{ rg.name }}{% if rg.location %} ({{ rg.location }}){% endif %}
+
+{% if rg.resources -%}
+| Name | Type | Location |
+|---|---|---|
+{%- for r in rg.resources %}
+| {{ r.name | md_escape }} | {{ r.display_type | md_escape }} | {{ r.location or "" }} |
+{%- endfor %}
+{% else -%}
+_No resources._
+{% endif %}
+{% endfor %}

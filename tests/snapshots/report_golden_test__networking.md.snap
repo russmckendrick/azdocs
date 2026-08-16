@@ -1,0 +1,17 @@
+---
+source: tests/report_golden_test.rs
+expression: content
+---
+# Networking
+
+[← index](index.md)
+
+
+## virtual_networks
+
+Virtual networks with address spaces and DNS settings
+
+| id | name | location | resourceGroup | subscriptionId | addressPrefixes | dnsServers | subnetCount |
+|---|---|---|---|---|---|---|---|
+| /subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/virtualnetworks/vnet-hub | vnet-hub | uksouth | rg-network | sub-prod | ["10.0.0.0/16"] | [] | 2 |
+| /subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/virtualnetworks/vnet-app | vnet-app | uksouth | rg-app | sub-prod | ["10.1.0.0/16"] | [] | 1 |
