@@ -57,9 +57,9 @@ flowchart LR
 - **`.svg`** — standalone vector render (shared layout with drawio). Also
   embedded in the HTML docs site (`output/docs-html/diagrams/`).
 - **`.png`** — the SVG rasterised at 2× via resvg; needs no browser or
-  external tool. Resource icons are currently generated monogram
-  placeholders (colored by service category), not the Microsoft Azure icon
-  set.
+  external tool. SVG/PNG diagrams use the Microsoft Azure icon set embedded
+  in the binary (mapping in `assets/icon_mapping.toml`; unmapped types get
+  the generic resource icon).
 
 ## Scoping
 

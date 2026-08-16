@@ -3,15 +3,49 @@
 //!
 //! Icons render in draw.io via
 //! `image;...;image=img/lib/azure2/<category>/<Name>.svg`. The SVG emitter
-//! cannot reference draw.io's bundled art, so `svg_data_uri` serves embedded
-//! icons instead. No icon pack is vendored yet, so every type currently gets
-//! a deterministic generated placeholder (category-coloured rounded rect with
-//! a two-letter monogram); vendoring real SVGs later only changes what the
-//! data URI carries, not the API.
+//! cannot reference draw.io's bundled art, so `svg_data_uri` serves icons
+//! from the Microsoft Azure icon pack vendored under `assets/icons/`,
+//! resolved through `assets/icon_mapping.toml` (exact type, then parent
+//! type, then the mapping's fallback icon). A generated monogram tile
+//! remains the last resort so output stays deterministic even if a mapping
+//! entry points at a file the pack no longer ships.
+
+use std::collections::BTreeMap;
+use std::sync::OnceLock;
 
 use base64::Engine as _;
+use include_dir::{Dir, include_dir};
 
 use crate::model::azure_types;
+
+static ICON_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/assets/icons");
+const ICON_MAPPING: &str = include_str!("../../assets/icon_mapping.toml");
+
+struct IconMapping {
+    fallback: String,
+    types: BTreeMap<String, String>,
+}
+
+fn icon_mapping() -> &'static IconMapping {
+    static MAPPING: OnceLock<IconMapping> = OnceLock::new();
+    MAPPING.get_or_init(|| {
+        #[derive(serde::Deserialize)]
+        struct Raw {
+            fallback: String,
+            types: BTreeMap<String, String>,
+        }
+        let raw: Raw = toml::from_str(ICON_MAPPING)
+            .expect("embedded icon_mapping.toml is valid; guaranteed by unit test");
+        IconMapping {
+            fallback: raw.fallback,
+            types: raw
+                .types
+                .into_iter()
+                .map(|(key, value)| (key.to_ascii_lowercase(), value))
+                .collect(),
+        }
+    })
+}
 
 const ICONS: &[(&str, &str, &str)] = &[
     (
@@ -326,14 +360,31 @@ pub fn category_color(azure_type: &str) -> &'static str {
     }
 }
 
-/// Embeddable `data:image/svg+xml;base64,...` icon for a resource type.
-/// Currently always the generated placeholder (see module docs).
+/// Embeddable `data:image/svg+xml;base64,...` icon for a resource type,
+/// resolved per the module docs: exact type → parent type → fallback icon →
+/// generated monogram tile.
 pub fn svg_data_uri(azure_type: &str) -> String {
-    let svg = monogram_svg(azure_type);
+    let svg = pack_icon(azure_type).unwrap_or_else(|| monogram_svg(azure_type).into_bytes());
     format!(
         "data:image/svg+xml;base64,{}",
         base64::engine::general_purpose::STANDARD.encode(svg)
     )
+}
+
+/// Icon bytes from the embedded pack, or None when neither the type, its
+/// parent, nor the fallback resolve to a shipped file.
+fn pack_icon(azure_type: &str) -> Option<Vec<u8>> {
+    let mapping = icon_mapping();
+    let path = mapping
+        .types
+        .get(azure_type)
+        .or_else(|| {
+            azure_type
+                .rsplit_once('/')
+                .and_then(|(parent, _)| mapping.types.get(parent))
+        })
+        .unwrap_or(&mapping.fallback);
+    ICON_DIR.get_file(path).map(|file| file.contents().to_vec())
 }
 
 /// Placeholder icon: rounded rect in the category colour with a two-letter
@@ -409,5 +460,37 @@ mod tests {
     fn monogram_takes_word_initials_or_first_two_letters() {
         assert_eq!(monogram("Virtual Machine"), "VM");
         assert_eq!(monogram("widgets"), "WI");
+    }
+
+    #[test]
+    fn unit_resolves_every_mapping_entry_when_pack_is_embedded() {
+        let mapping = icon_mapping();
+        assert!(
+            ICON_DIR.get_file(&mapping.fallback).is_some(),
+            "fallback icon missing: {}",
+            mapping.fallback
+        );
+        for (azure_type, path) in &mapping.types {
+            assert!(
+                ICON_DIR.get_file(path).is_some(),
+                "icon for {azure_type} missing from pack: {path}"
+            );
+        }
+    }
+
+    #[test]
+    fn unit_serves_pack_icon_when_type_is_mapped() {
+        let bytes = pack_icon("microsoft.compute/virtualmachines").expect("vm icon in pack");
+        assert!(bytes.starts_with(b"<") || bytes.starts_with(b"<?xml".as_ref()));
+    }
+
+    #[test]
+    fn unit_serves_fallback_icon_when_type_is_unmapped() {
+        let unknown = pack_icon("microsoft.custom/widgets").expect("fallback icon in pack");
+        let fallback = ICON_DIR
+            .get_file(&icon_mapping().fallback)
+            .expect("fallback file")
+            .contents();
+        assert_eq!(unknown, fallback);
     }
 }

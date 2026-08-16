@@ -10,7 +10,7 @@ fn seeded() -> (ReportContext, Vec<DiagramAsset>) {
     let store = Store::open_in_memory().unwrap();
     let id = common::seed_estate(&store);
     let report = ReportContext::build(&store, &id).unwrap();
-    let diagrams = assets::build_all(&store, &id, &DiagramScope::default()).unwrap();
+    let diagrams = assets::build_overviews(&store, &id, &DiagramScope::default()).unwrap();
     (report, diagrams)
 }
 

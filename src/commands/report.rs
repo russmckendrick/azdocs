@@ -38,7 +38,7 @@ pub fn run(
         .iter()
         .any(|f| matches!(f, ReportFormat::Html | ReportFormat::Pdf))
     {
-        crate::diagram::assets::build_all(
+        crate::diagram::assets::build_overviews(
             store,
             &snapshot_id,
             &crate::diagram::DiagramScope::default(),

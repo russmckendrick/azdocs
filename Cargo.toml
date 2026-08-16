@@ -44,3 +44,20 @@ lopdf = "0.44.0"
 tempfile = "3.27.0"
 wiremock = "0.6.5"
 zip = "4"
+
+# Debug-mode rasterisation is unusably slow without optimising the pixel
+# pipeline; these only affect dev builds of the named dependencies.
+[profile.dev.package.tiny-skia]
+opt-level = 2
+[profile.dev.package.resvg]
+opt-level = 2
+[profile.dev.package.usvg]
+opt-level = 2
+[profile.dev.package.rustybuzz]
+opt-level = 2
+[profile.dev.package.ttf-parser]
+opt-level = 2
+[profile.dev.package.fontdb]
+opt-level = 2
+[profile.dev.package.png]
+opt-level = 2
