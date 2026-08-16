@@ -1,0 +1,132 @@
+---
+source: tests/report_golden_test.rs
+expression: content
+---
+# rg-app
+
+[← index](../../index.md) · [subscription: Production](../../subscriptions/production.md)
+
+- **Subscription**: Production
+- **Location**: uksouth
+- **Resources**: 8
+
+
+## vm-app-01-os
+
+**Managed Disk** (`microsoft.compute/disks`)
+
+> ⚠️ **LOW** — vm-app-01-os is missing tags: env
+
+| Setting | Value |
+|---|---|
+| Location | uksouth |
+| Disk Size GB | 64 |
+| Disk State | Attached |
+
+**Related**: vm-app-01 (attached_to)
+
+`/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/disks/vm-app-01-os`
+
+## vm-app-01
+
+**Virtual Machine** (`microsoft.compute/virtualmachines`)
+
+
+| Setting | Value |
+|---|---|
+| Location | uksouth |
+| Tags | env=prod |
+
+**Related**: vm-app-01-nic (attached_to) · vm-app-01-os (attached_to)
+
+`/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/virtualMachines/vm-app-01`
+
+## vm-app-01-nic
+
+**Network Interface** (`microsoft.network/networkinterfaces`)
+
+> ⚠️ **LOW** — vm-app-01-nic is missing tags: env
+
+| Setting | Value |
+|---|---|
+| Location | uksouth |
+
+**Related**: app (nic_in_subnet) · vm-app-01 (attached_to) · vm-app-01-pip (attached_to)
+
+`/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/networkInterfaces/vm-app-01-nic`
+
+## pe-sql
+
+**Private Endpoint** (`microsoft.network/privateendpoints`)
+
+> ⚠️ **LOW** — pe-sql is missing tags: env
+
+| Setting | Value |
+|---|---|
+| Location | uksouth |
+
+**Related**: app (nic_in_subnet) · sql-prod (private_endpoint_for)
+
+`/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/privateEndpoints/pe-sql`
+
+## vm-app-01-pip
+
+**Public IP Address** (`microsoft.network/publicipaddresses`)
+
+> ⚠️ **LOW** — vm-app-01-pip is missing tags: env
+
+| Setting | Value |
+|---|---|
+| Location | uksouth |
+| Ip Address | 20.0.0.10 |
+
+**Related**: vm-app-01-nic (attached_to)
+
+`/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/publicIPAddresses/vm-app-01-pip`
+
+## vnet-app
+
+**Virtual Network** (`microsoft.network/virtualnetworks`)
+
+
+| Setting | Value |
+|---|---|
+| Location | uksouth |
+| Tags | env=prod |
+
+**Related**: app (subnet_of) · vnet-hub (peered_with)
+
+`/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/virtualNetworks/vnet-app`
+
+## sql-prod
+
+**SQL Server** (`microsoft.sql/servers`)
+
+
+| Setting | Value |
+|---|---|
+| Location | uksouth |
+| Tags | env=prod |
+| Public Network Access | Disabled |
+| Version | 12.0 |
+
+**Related**: pe-sql (private_endpoint_for)
+
+`/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Sql/servers/sql-prod`
+
+## stprodapp01
+
+**Storage Account** (`microsoft.storage/storageaccounts`)
+
+> ⚠️ **HIGH** — stprodapp01 allows public blob access
+> ⚠️ **LOW** — stprodapp01 is missing tags: env
+
+| Setting | Value |
+|---|---|
+| Location | uksouth |
+| Kind | StorageV2 |
+| Allow Blob Public Access | true |
+| Supports Https Traffic Only | true |
+
+
+`/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Storage/storageAccounts/stprodapp01`

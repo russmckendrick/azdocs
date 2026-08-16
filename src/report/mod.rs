@@ -1,4 +1,5 @@
 pub mod csv;
+pub mod details;
 pub mod html;
 pub mod markdown;
 pub mod site;
@@ -31,6 +32,7 @@ pub struct ReportContext {
     pub categories: Vec<Category>,
     pub findings: Vec<FindingRow>,
     pub subscriptions: Vec<SubscriptionSection>,
+    pub details: Vec<details::ResourceGroupPage>,
 }
 
 #[derive(Debug, Serialize)]
@@ -106,6 +108,8 @@ pub struct SubscriptionSection {
 pub struct ResourceGroupSection {
     pub name: String,
     pub location: Option<String>,
+    /// Relative link (from docs root, no extension) to the detail page.
+    pub detail_path: String,
     pub resources: Vec<ResourceRow>,
 }
 
@@ -125,6 +129,7 @@ impl ReportContext {
         let resource_groups = store.resource_groups(snapshot_id)?;
         let resources = store.resources(snapshot_id)?;
         let findings = store.findings(snapshot_id)?;
+        let edges = store.edges(snapshot_id)?;
 
         let mut type_counts: BTreeMap<&str, usize> = BTreeMap::new();
         let mut location_counts: BTreeMap<&str, usize> = BTreeMap::new();
@@ -249,6 +254,11 @@ impl ReportContext {
                         ResourceGroupSection {
                             name: rg.name.clone(),
                             location: rg.location.clone(),
+                            detail_path: format!(
+                                "resources/{}/{}",
+                                markdown::slug(&sub.display_name),
+                                markdown::slug(&rg.name)
+                            ),
                             resources: rows,
                         }
                     })
@@ -267,6 +277,39 @@ impl ReportContext {
                 }
             })
             .collect();
+
+        let mut detail_pages = Vec::new();
+        for sub in &subscriptions {
+            for rg in resource_groups
+                .iter()
+                .filter(|rg| rg.subscription_id == sub.subscription_id)
+            {
+                let rg_lower = rg.name.to_lowercase();
+                let members: Vec<details::ResourceDetail> = resources
+                    .iter()
+                    .filter(|r| {
+                        r.subscription_id == sub.subscription_id
+                            && r.resource_group.as_deref() == Some(rg_lower.as_str())
+                    })
+                    .map(|r| details::resource_detail(r, &findings, &edges))
+                    .collect();
+                if members.is_empty() {
+                    continue;
+                }
+                detail_pages.push(details::ResourceGroupPage {
+                    path: format!(
+                        "resources/{}/{}",
+                        markdown::slug(&sub.display_name),
+                        markdown::slug(&rg.name)
+                    ),
+                    subscription_name: sub.display_name.clone(),
+                    subscription_slug: markdown::slug(&sub.display_name),
+                    resource_group: rg.name.clone(),
+                    location: rg.location.clone(),
+                    resources: members,
+                });
+            }
+        }
 
         Ok(Self {
             snapshot_id: snapshot.id.clone(),
@@ -291,6 +334,7 @@ impl ReportContext {
             categories,
             findings: finding_rows,
             subscriptions: subscription_sections,
+            details: detail_pages,
         })
     }
 }

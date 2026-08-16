@@ -13,6 +13,8 @@ expression: content
 
 ## rg-app (uksouth)
 
+[Resource details →](../resources/production/rg-app.md)
+
 | Name | Type | Location |
 |---|---|---|
 | vm-app-01-os | Managed Disk | uksouth |
@@ -26,6 +28,8 @@ expression: content
 
 
 ## rg-network (uksouth)
+
+[Resource details →](../resources/production/rg-network.md)
 
 | Name | Type | Location |
 |---|---|---|

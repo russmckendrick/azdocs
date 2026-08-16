@@ -24,6 +24,9 @@ th { background: rgba(127,127,127,.08); }
 code { background: rgba(127,127,127,.12); padding: .1em .3em; border-radius: 3px; font-size: 90%; }
 nav { font-size: 13px; color: var(--muted); margin-bottom: 1.5rem; }
 nav a { margin-right: .8rem; }
+blockquote { margin: .6rem 0; padding: .5rem .9rem; border-left: 4px solid #d13438;
+             background: rgba(209,52,56,.08); border-radius: 0 6px 6px 0; }
+blockquote p { margin: 0; }
 "#;
 
 /// Write the docs tree as HTML pages under `out_dir` (index.html, ...).
@@ -61,7 +64,9 @@ pub fn write(report: &ReportContext, out_dir: &Path) -> anyhow::Result<()> {
 fn navigation(pages: &[(String, String)]) -> Vec<(String, String)> {
     pages
         .iter()
-        .filter(|(relative, _)| !relative.starts_with("subscriptions/"))
+        .filter(|(relative, _)| {
+            !relative.starts_with("subscriptions/") && !relative.starts_with("resources/")
+        })
         .map(|(relative, _)| {
             let label = relative.trim_end_matches(".md").to_owned();
             (relative.replace(".md", ".html"), label)

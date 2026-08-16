@@ -74,6 +74,10 @@ pub fn render_pages(report: &ReportContext) -> anyhow::Result<Vec<(String, Strin
         "subscription",
         include_str!("../../templates/markdown/subscription.md.j2"),
     )?;
+    env.add_template(
+        "resource_group",
+        include_str!("../../templates/markdown/resource_group.md.j2"),
+    )?;
 
     let mut pages = Vec::new();
     pages.push((
@@ -97,6 +101,13 @@ pub fn render_pages(report: &ReportContext) -> anyhow::Result<Vec<(String, Strin
         pages.push((
             format!("subscriptions/{}.md", slug(&sub.display_name)),
             env.get_template("subscription")?.render(context! { sub })?,
+        ));
+    }
+    for page in &report.details {
+        pages.push((
+            format!("{}.md", page.path),
+            env.get_template("resource_group")?
+                .render(context! { page })?,
         ));
     }
     Ok(pages)

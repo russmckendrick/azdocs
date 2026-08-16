@@ -13,6 +13,8 @@ expression: content
 
 ## rg-dev (ukwest)
 
+[Resource details →](../resources/development/rg-dev.md)
+
 | Name | Type | Location |
 |---|---|---|
 | asp-dev | App Service Plan | ukwest |

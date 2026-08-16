@@ -1,0 +1,29 @@
+# {{ page.resource_group }}
+
+[← index](../../index.md) · [subscription: {{ page.subscription_name }}](../../subscriptions/{{ page.subscription_slug }}.md)
+
+- **Subscription**: {{ page.subscription_name }}
+{%- if page.location %}
+- **Location**: {{ page.location }}
+{%- endif %}
+- **Resources**: {{ page.resources | length }}
+
+{% for r in page.resources %}
+## {{ r.name }}
+
+**{{ r.display_type }}** (`{{ r.azure_type }}`)
+
+{% for f in r.findings -%}
+> ⚠️ **{{ f.severity | upper }}** — {{ f.title | md_escape }}
+{% endfor %}
+| Setting | Value |
+|---|---|
+{%- for s in r.settings %}
+| {{ s.key | md_escape }} | {{ s.value | md_escape }} |
+{%- endfor %}
+
+{% if r.related -%}
+**Related**: {% for rel in r.related %}{{ rel | md_escape }}{% if not loop.last %} · {% endif %}{% endfor %}
+{% endif %}
+`{{ r.arm_id }}`
+{% endfor %}

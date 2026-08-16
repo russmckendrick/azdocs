@@ -37,6 +37,7 @@ fn markdown_pages_match_golden_files() {
             "networking.md",
             "subscriptions/production.md",
             "subscriptions/development.md",
+            "resources/production/rg-app.md",
         ] {
             let content = std::fs::read_to_string(dir.path().join(page))
                 .unwrap_or_else(|_| panic!("missing page {page}"));

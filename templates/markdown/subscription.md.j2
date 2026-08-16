@@ -11,6 +11,8 @@
 {% for rg in sub.resource_groups %}
 ## {{ rg.name }}{% if rg.location %} ({{ rg.location }}){% endif %}
 
+[Resource details →](../{{ rg.detail_path }}.md)
+
 {% if rg.resources -%}
 | Name | Type | Location |
 |---|---|---|
