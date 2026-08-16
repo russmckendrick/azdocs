@@ -1,0 +1,10 @@
+name = "subscriptions"
+category = "inventory"
+kind = "inventory"
+description = "All subscriptions visible to the credential"
+kql = '''
+resourcecontainers
+| where type == "microsoft.resources/subscriptions"
+| project subscriptionId, name, state = tostring(properties.state), tags
+| order by subscriptionId asc
+'''

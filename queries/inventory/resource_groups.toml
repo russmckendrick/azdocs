@@ -1,0 +1,10 @@
+name = "resource_groups"
+category = "inventory"
+kind = "inventory"
+description = "All resource groups"
+kql = '''
+resourcecontainers
+| where type == "microsoft.resources/subscriptions/resourcegroups"
+| project id, name, subscriptionId, location, tags
+| order by id asc
+'''

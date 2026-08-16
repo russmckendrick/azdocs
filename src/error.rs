@@ -41,3 +41,35 @@ pub enum ArgError {
     #[error("invalid resource graph response: {0}")]
     InvalidResponse(String),
 }
+
+#[derive(Debug, thiserror::Error)]
+pub enum StoreError {
+    #[error("database error: {0}")]
+    Sqlite(#[from] rusqlite::Error),
+    #[error("snapshot `{0}` not found")]
+    SnapshotNotFound(String),
+    #[error("no snapshots stored yet — run `azdocs collect` first")]
+    NoSnapshots,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum QueryPackError {
+    #[error("failed to parse query definition {path}: {source}")]
+    Parse {
+        path: String,
+        source: Box<toml::de::Error>,
+    },
+    #[error("query definition {path}: {reason}")]
+    Invalid { path: String, reason: String },
+    #[error("duplicate query name `{name}` ({first} and {second})")]
+    Duplicate {
+        name: String,
+        first: String,
+        second: String,
+    },
+    #[error("failed to read user query dir {path}: {source}")]
+    ReadDir {
+        path: String,
+        source: std::io::Error,
+    },
+}

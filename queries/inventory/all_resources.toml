@@ -1,0 +1,9 @@
+name = "all_resources"
+category = "inventory"
+kind = "inventory"
+description = "Every resource with its full properties bag — the base inventory that populates the resources table"
+kql = '''
+resources
+| project id, name, type, kind, location, resourceGroup, subscriptionId, tags, sku, identity, properties
+| order by id asc
+'''

@@ -28,6 +28,20 @@ async fn main() -> Result<()> {
             let config = Config::load(cli.config.as_deref())?;
             commands::query::run(&config, &query, format, &subscriptions).await
         }
+        Command::Query(QueryCommand::List { category }) => {
+            commands::query::list(category.as_deref())
+        }
+        Command::Query(QueryCommand::Show { name }) => commands::query::show(&name),
+        Command::Collect(args) => {
+            let config = Config::load(cli.config.as_deref())?;
+            let store = open_store(&config, cli.db.as_deref())?;
+            commands::collect::run(&config, &store, &args).await
+        }
+        Command::Snapshots(subcommand) => {
+            let config = Config::load(cli.config.as_deref())?;
+            let store = open_store(&config, cli.db.as_deref())?;
+            commands::snapshots::run(&store, &subcommand)
+        }
         Command::Completions { shell } => {
             use clap::CommandFactory;
             clap_complete::generate(shell, &mut Cli::command(), "azdocs", &mut std::io::stdout());
@@ -52,17 +66,20 @@ fn init_tracing(verbosity: u8, no_color: bool) {
         .init();
 }
 
+fn open_store(
+    config: &Config,
+    db_override: Option<&std::path::Path>,
+) -> Result<azdocs::store::Store> {
+    let path = db_override.unwrap_or(&config.storage.db_path);
+    Ok(azdocs::store::Store::open(path)?)
+}
+
 fn not_yet_implemented(command: &Command) -> Result<()> {
     let name = match command {
-        Command::Collect(_) => "collect",
-        Command::Snapshots(_) => "snapshots",
         Command::Report(_) => "report",
         Command::Diagram(_) => "diagram",
-        Command::Query(_) => "query list/show",
         Command::Browse { .. } => "browse",
-        Command::Init { .. } | Command::Check | Command::Completions { .. } => {
-            unreachable!("handled in main")
-        }
+        _ => unreachable!("handled in main"),
     };
     anyhow::bail!("`azdocs {name}` is not implemented yet");
 }

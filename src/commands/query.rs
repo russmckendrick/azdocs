@@ -7,6 +7,7 @@ use serde_json::Value;
 use crate::arg::ArgClient;
 use crate::cli::QueryOutputFormat;
 use crate::config::Config;
+use crate::querypack::QueryPack;
 
 /// Run one query live against ARG and print the rows.
 pub async fn run(
@@ -57,8 +58,47 @@ fn resolve_kql(query: &str) -> anyhow::Result<String> {
         }
         return Ok(raw);
     }
-    // See task list: named lookup arrives with the query pack loader (phase 3).
-    bail!("`{query}` is not a file; named queries are not available yet — pass a file or `-`");
+    let pack = QueryPack::load()?;
+    let Some(def) = pack.get(query) else {
+        bail!("`{query}` is neither a file nor a known query name — see `azdocs query list`");
+    };
+    Ok(def.kql.clone())
+}
+
+pub fn list(category: Option<&str>) -> anyhow::Result<()> {
+    let pack = QueryPack::load()?;
+    let mut table = comfy_table::Table::new();
+    table.load_style(comfy_table::presets::UTF8_BORDERS_ONLY);
+    table.set_header(["name", "category", "kind", "severity", "description"]);
+    for def in pack.all() {
+        if category.is_some_and(|c| c != def.category) {
+            continue;
+        }
+        table.add_row([
+            def.name.clone(),
+            def.category.clone(),
+            format!("{:?}", def.kind).to_lowercase(),
+            def.severity
+                .map_or(String::new(), |s| s.as_str().to_owned()),
+            def.description.clone(),
+        ]);
+    }
+    println!("{table}");
+    if let Some(dir) = crate::querypack::user_queries_dir() {
+        println!("User queries dir: {}", dir.display());
+    }
+    Ok(())
+}
+
+pub fn show(name: &str) -> anyhow::Result<()> {
+    let pack = QueryPack::load()?;
+    let Some(def) = pack.get(name) else {
+        bail!("no query named `{name}` — see `azdocs query list`");
+    };
+    println!("# {} ({}, {:?})", def.name, def.category, def.kind);
+    println!("# {}", def.description);
+    println!("{}", def.kql.trim());
+    Ok(())
 }
 
 fn print_rows(rows: &[Value], format: QueryOutputFormat) -> anyhow::Result<()> {
