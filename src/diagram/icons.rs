@@ -364,11 +364,17 @@ pub fn category_color(azure_type: &str) -> &'static str {
 /// resolved per the module docs: exact type → parent type → fallback icon →
 /// generated monogram tile.
 pub fn svg_data_uri(azure_type: &str) -> String {
-    let svg = pack_icon(azure_type).unwrap_or_else(|| monogram_svg(azure_type).into_bytes());
     format!(
         "data:image/svg+xml;base64,{}",
-        base64::engine::general_purpose::STANDARD.encode(svg)
+        base64::engine::general_purpose::STANDARD.encode(svg_bytes(azure_type))
     )
+}
+
+/// Raw icon SVG for a resource type, resolved the same way as
+/// [`svg_data_uri`]. Emitters that embed a file rather than a URI (the PDF
+/// registers icons as virtual files; the DOCX rasterises them) use this.
+pub fn svg_bytes(azure_type: &str) -> Vec<u8> {
+    pack_icon(azure_type).unwrap_or_else(|| monogram_svg(azure_type).into_bytes())
 }
 
 /// Icon bytes from the embedded pack, or None when neither the type, its

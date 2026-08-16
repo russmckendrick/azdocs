@@ -122,7 +122,7 @@ fn xlsx_workbook_writes_all_sheets() {
     let dir = tempfile::tempdir().unwrap();
     let out = dir.path().join("azdocs.xlsx");
 
-    xlsx::write(&report, &resources, &out).unwrap();
+    xlsx::write(&report, &BrandingContext::default(), &resources, &out).unwrap();
 
     let size = std::fs::metadata(&out).unwrap().len();
     assert!(size > 4096, "workbook suspiciously small: {size} bytes");

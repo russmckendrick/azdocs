@@ -1,12 +1,14 @@
 //! The document's content, section by section. Layout decisions live in
 //! `style.rs`; this module only decides what goes in and in what order.
 
+use std::collections::HashMap;
+
 use docx_rs::{
     AlignmentType, BreakType, Docx, FieldCharType, Footer, InstrNUMPAGES, InstrPAGE, InstrText,
     Paragraph, Pic, Run,
 };
 
-use super::style::{self, Ctx, EMU_PER_TWIP, half_points, hex};
+use super::style::{self, Ctx, half_points, hex, pt_to_emu, twips_to_emu};
 use crate::diagram::assets::{DiagramAsset, DiagramAssetKind};
 use crate::report::branding::BrandingContext;
 use crate::report::theme::CoverStyle;
@@ -49,7 +51,10 @@ pub fn cover(
     let tokens = ctx.tokens;
     // Word has no full-bleed page fill, so the block cover degrades to the
     // same centred treatment as the editorial one; band keeps its left rail.
-    let centred = matches!(tokens.layout.cover, CoverStyle::Editorial | CoverStyle::Block);
+    let centred = matches!(
+        tokens.layout.cover,
+        CoverStyle::Editorial | CoverStyle::Block
+    );
     let align = if centred {
         AlignmentType::Center
     } else {
@@ -138,10 +143,11 @@ fn logo_picture(branding: &BrandingContext, ctx: &Ctx) -> Option<Run> {
         return None;
     }
 
-    // Cap the logo at a third of the text width and 2cm tall, preserving the
-    // aspect ratio, so an oversized upload cannot swallow the cover.
-    let max_width_emu = ctx.usable_twips / 3 * EMU_PER_TWIP;
-    let max_height_emu = 1134 / 2 * EMU_PER_TWIP;
+    // Cap the logo at a third of the text width and 2cm tall (1134 twips),
+    // preserving the aspect ratio, so an oversized upload cannot swallow the
+    // cover.
+    let max_width_emu = twips_to_emu(ctx.usable_twips / 3);
+    let max_height_emu = twips_to_emu(1134);
     let scale = f64::min(
         f64::from(max_width_emu) / f64::from(width),
         f64::from(max_height_emu) / f64::from(height),
@@ -163,10 +169,7 @@ pub fn summary(mut docx: Docx, ctx: &Ctx, report: &ReportContext) -> Docx {
         (report.totals.resource_groups.to_string(), "Resource groups"),
         (report.totals.resources.to_string(), "Resources"),
         (report.totals.findings.to_string(), "Findings"),
-        (
-            format!("{}%", report.tag_coverage.percent),
-            "Tag coverage",
-        ),
+        (format!("{}%", report.tag_coverage.percent), "Tag coverage"),
     ]
     .map(|(value, label)| (value, label.to_owned()));
     docx = docx.add_table(style::stat_table(ctx, &stats));
@@ -258,10 +261,7 @@ pub fn subscriptions(mut docx: Docx, ctx: &Ctx, report: &ReportContext) -> Docx 
         docx = docx.add_paragraph(style::heading(2, &sub.display_name));
         docx = docx.add_paragraph(style::muted(
             ctx,
-            &format!(
-                "{} · {} resources",
-                sub.subscription_id, sub.resource_count
-            ),
+            &format!("{} · {} resources", sub.subscription_id, sub.resource_count),
         ));
         for rg in &sub.resource_groups {
             if rg.resources.is_empty() {
@@ -290,6 +290,117 @@ pub fn subscriptions(mut docx: Docx, ctx: &Ctx, report: &ReportContext) -> Docx 
     docx
 }
 
+/// One chapter per resource type, one section per resource: the configuration
+/// detail the summary tables deliberately leave out. Mirrors the PDF's
+/// resource chapters.
+pub fn resource_types(
+    mut docx: Docx,
+    ctx: &Ctx,
+    report: &ReportContext,
+    diagrams: &[DiagramAsset],
+) -> Docx {
+    let by_resource: HashMap<&str, &DiagramAsset> = diagrams
+        .iter()
+        .filter(|asset| asset.kind == DiagramAssetKind::Resource)
+        .filter_map(|asset| Some((asset.resource_id.as_deref()?, asset)))
+        .collect();
+
+    for section in &report.resource_types {
+        // Each type starts a new page: these chapters are long, and running two
+        // types together makes the document hard to navigate.
+        docx = docx.add_paragraph(page_break());
+        docx = docx.add_table(style::type_heading(
+            ctx,
+            icon_run(ctx, &section.azure_type),
+            &section.display,
+        ));
+
+        for detail in &section.resources {
+            docx = docx.add_table(style::resource_plate(ctx, &detail.name));
+            let mut context = vec![
+                detail.display_type.clone(),
+                detail.subscription_name.clone(),
+            ];
+            context.extend(detail.resource_group.clone());
+            context.extend(detail.location.clone());
+            docx = docx.add_paragraph(style::muted(ctx, &context.join(" · ")));
+            docx = docx.add_paragraph(
+                Paragraph::new().add_run(
+                    Run::new()
+                        .add_text(style::wrappable(&detail.arm_id))
+                        .size(half_points(ctx.tokens.typography.small_pt))
+                        .color(hex(&ctx.tokens.palette.muted))
+                        .fonts(ctx.mono()),
+                ),
+            );
+
+            // ARM ids are normalized to lowercase for joins; display_id keeps
+            // the original casing, so match on the normalized form.
+            if let Some(asset) = by_resource.get(detail.arm_id.to_lowercase().as_str())
+                && let Some(run) = diagram_run(ctx, asset, 0.55)
+            {
+                docx = docx.add_paragraph(style::sub_label(ctx, "Relationships"));
+                docx =
+                    docx.add_paragraph(Paragraph::new().align(AlignmentType::Center).add_run(run));
+            }
+
+            docx = docx.add_paragraph(style::sub_label(ctx, "Settings"));
+            if detail.settings.is_empty() {
+                docx = docx.add_paragraph(style::muted(ctx, "No settings recorded."));
+            } else {
+                let settings: Vec<(String, String)> = detail
+                    .settings
+                    .iter()
+                    .map(|s| (s.key.clone(), s.value.clone()))
+                    .collect();
+                docx = docx.add_table(style::settings_table(ctx, &settings));
+            }
+
+            if !detail.findings.is_empty() {
+                docx = docx.add_paragraph(style::sub_label(ctx, "Findings"));
+                for callout in &detail.findings {
+                    docx = docx.add_table(style::callout(ctx, &callout.severity, &callout.title));
+                }
+            }
+
+            if !detail.related.is_empty() {
+                docx = docx.add_paragraph(style::sub_label(ctx, "Related resources"));
+                docx = docx.add_paragraph(style::body(&detail.related.join(" · ")));
+            }
+        }
+    }
+    docx
+}
+
+/// The type icon at heading size. Icons ship as SVG, which Word cannot place,
+/// so they go through the diagram rasteriser; a decode check keeps a bad icon
+/// from panicking `Pic::new`.
+fn icon_run(ctx: &Ctx, azure_type: &str) -> Option<Run> {
+    let svg = String::from_utf8(crate::diagram::icons::svg_bytes(azure_type)).ok()?;
+    let png = crate::diagram::png::from_svg(&svg, crate::diagram::png::DEFAULT_SCALE).ok()?;
+    image::load_from_memory(&png).ok()?;
+    let side = pt_to_emu(ctx.tokens.typography.h1_pt * style::ICON_SCALE);
+    Some(Run::new().add_image(Pic::new(&png).size(side, side)))
+}
+
+/// Scale a diagram to `fraction` of the text width, preserving aspect ratio.
+fn diagram_run(ctx: &Ctx, asset: &DiagramAsset, fraction: f64) -> Option<Run> {
+    let png = crate::diagram::png::from_svg(&asset.svg, crate::diagram::png::DEFAULT_SCALE)
+        .map_err(
+            |error| tracing::warn!(slug = %asset.slug, %error, "skipping unrenderable diagram"),
+        )
+        .ok()?;
+    let decoded = image::load_from_memory(&png).ok()?;
+    let (width, height) = image::GenericImageView::dimensions(&decoded);
+    if width == 0 || height == 0 {
+        return None;
+    }
+    let target_width = (f64::from(twips_to_emu(ctx.usable_twips)) * fraction).round() as u32;
+    let target_height =
+        (f64::from(target_width) * f64::from(height) / f64::from(width)).round() as u32;
+    Some(Run::new().add_image(Pic::new(&png).size(target_width, target_height)))
+}
+
 /// Overview diagrams, rasterised to PNG. Word cannot place an SVG, and the
 /// estate diagrams are wide, so each is scaled to the full text width.
 pub fn diagrams(mut docx: Docx, ctx: &Ctx, assets: &[DiagramAsset]) -> Docx {
@@ -298,7 +409,9 @@ pub fn diagrams(mut docx: Docx, ctx: &Ctx, assets: &[DiagramAsset]) -> Docx {
         .filter(|asset| {
             matches!(
                 asset.kind,
-                DiagramAssetKind::Hierarchy | DiagramAssetKind::Network
+                DiagramAssetKind::Hierarchy
+                    | DiagramAssetKind::Network
+                    | DiagramAssetKind::ResourceGroup
             )
         })
         .collect();
@@ -308,14 +421,14 @@ pub fn diagrams(mut docx: Docx, ctx: &Ctx, assets: &[DiagramAsset]) -> Docx {
 
     docx = docx.add_paragraph(style::heading(1, "Diagrams"));
     for asset in embeds {
-        let png = match crate::diagram::png::from_svg(&asset.svg, crate::diagram::png::DEFAULT_SCALE)
-        {
-            Ok(png) => png,
-            Err(error) => {
-                tracing::warn!(slug = %asset.slug, %error, "skipping unrenderable diagram");
-                continue;
-            }
-        };
+        let png =
+            match crate::diagram::png::from_svg(&asset.svg, crate::diagram::png::DEFAULT_SCALE) {
+                Ok(png) => png,
+                Err(error) => {
+                    tracing::warn!(slug = %asset.slug, %error, "skipping unrenderable diagram");
+                    continue;
+                }
+            };
         let Ok(decoded) = image::load_from_memory(&png) else {
             tracing::warn!(slug = %asset.slug, "skipping undecodable diagram");
             continue;
@@ -324,7 +437,7 @@ pub fn diagrams(mut docx: Docx, ctx: &Ctx, assets: &[DiagramAsset]) -> Docx {
         if width == 0 || height == 0 {
             continue;
         }
-        let target_width = ctx.usable_twips * EMU_PER_TWIP;
+        let target_width = twips_to_emu(ctx.usable_twips);
         let target_height =
             (f64::from(target_width) * f64::from(height) / f64::from(width)).round() as u32;
 

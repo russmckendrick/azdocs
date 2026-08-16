@@ -12,8 +12,15 @@ azdocs diagram --type hierarchy|resources|network|vnets|resource-groups|workbook
 | `resources` | Resource-group containers, an icon per resource, attachment edges |
 | `network` | VNets/subnets as containers, VMs placed in their subnets, dashed peering edges, NSG associations, private-endpoint links |
 | `vnets` | One diagram per VNet: its subnets and resources, plus dashed stubs to peered VNets |
-| `resource-groups` | One diagram per resource group: VNet subtrees homed there plus a "Standalone Resources" container |
+| `resource-groups` | One diagram per resource group: VNet subtrees homed there plus a "Not in a virtual network" zone |
 | `workbook` | A single multi-sheet `.drawio` file: network topology, VNet peerings, then every per-VNet and per-RG sheet |
+
+Diagrams exported here are drawn at **full detail** — every resource gets its
+own icon and name, on whatever canvas the content needs. The same graphs
+embedded in a report are **summarised** instead: resources aggregated by type
+(`Storage Account ×13`) and the canvas snapped to a quarter, third, half or
+full A4 portrait page, so they stay readable in print. See
+[Diagram standards](../reference/diagrams.md) for the full contract.
 
 `hierarchy`, `resources`, and `network` write one file
 (`output/azdocs-<type>.<ext>`). The fan-out types write one file per scope

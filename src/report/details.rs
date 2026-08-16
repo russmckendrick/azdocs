@@ -25,6 +25,11 @@ pub struct ResourceDetail {
     pub display_type: String,
     pub azure_type: String,
     pub arm_id: String,
+    /// Where the resource lives, for the by-type sections, which lose the
+    /// subscription/group context the by-group pages get from their heading.
+    pub subscription_name: String,
+    pub resource_group: Option<String>,
+    pub location: Option<String>,
     pub settings: Vec<Setting>,
     pub findings: Vec<Callout>,
     pub related: Vec<String>,
@@ -44,6 +49,7 @@ pub struct Callout {
 
 pub fn resource_detail(
     resource: &Resource,
+    subscription_name: &str,
     findings: &[Finding],
     edges: &[Edge],
 ) -> ResourceDetail {
@@ -52,6 +58,9 @@ pub fn resource_detail(
         display_type: azure_types::display_name(&resource.azure_type).to_owned(),
         azure_type: resource.azure_type.clone(),
         arm_id: resource.display_id.clone(),
+        subscription_name: subscription_name.to_owned(),
+        resource_group: resource.resource_group.clone(),
+        location: resource.location.clone(),
         settings: settings_rows(resource),
         findings: findings
             .iter()
@@ -248,7 +257,7 @@ mod tests {
             detail: None,
         }];
 
-        let detail = resource_detail(&resource, &findings, &[]);
+        let detail = resource_detail(&resource, "Production", &findings, &[]);
 
         assert_eq!(detail.findings.len(), 1);
     }

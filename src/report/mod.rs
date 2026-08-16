@@ -37,6 +37,7 @@ pub struct ReportContext {
     pub findings: Vec<FindingRow>,
     pub subscriptions: Vec<SubscriptionSection>,
     pub details: Vec<details::ResourceGroupPage>,
+    pub resource_types: Vec<ResourceTypeSection>,
 }
 
 #[derive(Debug, Serialize)]
@@ -128,6 +129,16 @@ pub struct ResourceRow {
     pub azure_type: String,
     pub location: Option<String>,
     pub tags: Option<String>,
+}
+
+/// Every resource of one Azure type, with its full detail. This is the
+/// by-type view the print formats document resource by resource; `details`
+/// holds the same resources grouped by resource group for the docs tree.
+#[derive(Debug, Serialize)]
+pub struct ResourceTypeSection {
+    pub display: String,
+    pub azure_type: String,
+    pub resources: Vec<details::ResourceDetail>,
 }
 
 impl ReportContext {
@@ -303,7 +314,7 @@ impl ReportContext {
                         r.subscription_id == sub.subscription_id
                             && r.resource_group.as_deref() == Some(rg_lower.as_str())
                     })
-                    .map(|r| details::resource_detail(r, &findings, &edges))
+                    .map(|r| details::resource_detail(r, &sub.display_name, &findings, &edges))
                     .collect();
                 if members.is_empty() {
                     continue;
@@ -322,6 +333,48 @@ impl ReportContext {
                 });
             }
         }
+
+        // The by-type view the print formats document resource by resource.
+        // Ordered by resource count then type so the biggest estates surface
+        // first, matching the "Resources by type" summary table.
+        let subscription_names: BTreeMap<&str, &str> = subscriptions
+            .iter()
+            .map(|sub| (sub.subscription_id.as_str(), sub.display_name.as_str()))
+            .collect();
+        let mut by_type: BTreeMap<&str, Vec<details::ResourceDetail>> = BTreeMap::new();
+        for resource in &resources {
+            by_type
+                .entry(resource.azure_type.as_str())
+                .or_default()
+                .push(details::resource_detail(
+                    resource,
+                    subscription_names
+                        .get(resource.subscription_id.as_str())
+                        .copied()
+                        .unwrap_or(&resource.subscription_id),
+                    &findings,
+                    &edges,
+                ));
+        }
+        let mut resource_types: Vec<ResourceTypeSection> = by_type
+            .into_iter()
+            .map(|(azure_type, mut members)| {
+                members.sort_by(|a, b| {
+                    (a.name.to_lowercase(), &a.arm_id).cmp(&(b.name.to_lowercase(), &b.arm_id))
+                });
+                ResourceTypeSection {
+                    display: azure_types::display_name(azure_type).to_owned(),
+                    azure_type: azure_type.to_owned(),
+                    resources: members,
+                }
+            })
+            .collect();
+        resource_types.sort_by(|a, b| {
+            b.resources
+                .len()
+                .cmp(&a.resources.len())
+                .then_with(|| a.display.cmp(&b.display))
+        });
 
         Ok(Self {
             snapshot_id: snapshot.id.clone(),
@@ -347,6 +400,7 @@ impl ReportContext {
             findings: finding_rows,
             subscriptions: subscription_sections,
             details: detail_pages,
+            resource_types,
         })
     }
 }

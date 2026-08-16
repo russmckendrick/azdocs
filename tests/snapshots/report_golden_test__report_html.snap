@@ -8,24 +8,41 @@ expression: "std::fs::read_to_string(&out).unwrap()"
 <meta charset="utf-8">
 <title>Azure Estate Report — fixture-tenant</title>
 <style>
-:root { --bg:#fff; --fg:#1a1a2e; --muted:#666; --border:#ddd; --accent:#0078d4;
-        --high:#d13438; --medium:#ff8c00; --low:#c9a900; --info:#0078d4; }
+/* Every colour and face below comes from the resolved theme
+   (src/report/theme.rs), so the HTML matches the PDF and DOCX. */
+:root { --bg:#ffffff; --fg:#1a1a2e;
+        --muted:#65656f; --border:#d9d9e0;
+        --accent:#0078d4; --accent-dark:#0062ae;
+        --tint:#e0effa; --zebra:#f2f8fd;
+        --on-accent:#ffffff;
+        --high:#a4262c; --high-fill:#f8cecc;
+        --medium:#8a5300; --medium-fill:#ffe6cc;
+        --low:#6f5b00; --low-fill:#fff2cc;
+        --info:#005a9f; --info-fill:#d9ebf9;
+        --radius:4.0px; }
 @media (prefers-color-scheme: dark) {
-  :root { --bg:#16161d; --fg:#e8e8ef; --muted:#9a9aa5; --border:#3a3a45; --accent:#4da3e8; }
+  :root { --bg:#16161d; --fg:#e8e8ef; --muted:#9a9aa5; --border:#3a3a45; --zebra:#1c1c25;
+          --tint:#1e2430; --accent:#4da3e8; }
 }
-body { font: 15px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif;
+/* The vendored PDF face first; an uninstalled IBM Plex falls through to the
+   platform stack rather than forcing a web-font download. */
+body { font: 15px/1.4 "IBM Plex Sans", -apple-system, "Segoe UI", Roboto, sans-serif;
        background: var(--bg); color: var(--fg); max-width: 1100px; margin: 0 auto; padding: 2rem 1rem; }
 h1,h2,h3 { line-height: 1.2; } h2 { border-bottom: 1px solid var(--border); padding-bottom: .3rem; margin-top: 2.5rem; }
 table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 14px; }
 th, td { text-align: left; padding: .35rem .6rem; border-bottom: 1px solid var(--border); vertical-align: top; }
-th { position: sticky; top: 0; background: var(--bg); }
+th { position: sticky; top: 0; background: var(--accent); color: var(--on-accent); }
+tbody tr:nth-child(even) { background: var(--zebra); }
 code { background: rgba(127,127,127,.12); padding: .1em .3em; border-radius: 3px; font-size: 90%; word-break: break-all; }
-.badge { display: inline-block; padding: .05em .55em; border-radius: 999px; color: #fff; font-size: 12px; font-weight: 600; text-transform: uppercase; }
-.badge.high { background: var(--high); } .badge.medium { background: var(--medium); }
-.badge.low { background: var(--low); } .badge.info { background: var(--info); }
+.badge { display: inline-block; padding: .05em .55em; border-radius: 999px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+.badge.high { background: var(--high-fill); color: var(--high); }
+.badge.medium { background: var(--medium-fill); color: var(--medium); }
+.badge.low { background: var(--low-fill); color: var(--low); }
+.badge.info { background: var(--info-fill); color: var(--info); }
 .stats { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
-.stat { border: 1px solid var(--border); border-radius: 8px; padding: .8rem 1.2rem; min-width: 8rem; }
-.stat b { display: block; font-size: 1.6rem; } .stat span { color: var(--muted); font-size: 13px; }
+.stat { background: var(--tint); border-top: 2px solid var(--accent);
+        border-radius: var(--radius); padding: .8rem 1.2rem; min-width: 8rem; }
+.stat b { display: block; font-size: 1.6rem; color: var(--accent-dark); } .stat span { color: var(--muted); font-size: 13px; }
 .meta { color: var(--muted); font-size: 13px; }
 input.filter { width: 100%; max-width: 24rem; padding: .4rem .6rem; margin: .3rem 0;
        border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); }

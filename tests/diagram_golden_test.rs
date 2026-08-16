@@ -2,7 +2,10 @@ mod common;
 
 use std::collections::HashSet;
 
+use azdocs::diagram::graph::NamedGraph;
+use azdocs::diagram::page::DiagramDetail;
 use azdocs::diagram::{DiagramScope, EstateGraph, drawio, mermaid, png, svg};
+use azdocs::error::StoreError;
 use azdocs::store::Store;
 use quick_xml::events::Event;
 
@@ -29,7 +32,7 @@ fn workbook_xml(store: &Store, id: &str) -> String {
     let network = EstateGraph::network(store, id, &scope).unwrap();
     let peerings = EstateGraph::peerings(store, id, &scope).unwrap();
     let vnets = EstateGraph::per_vnet(store, id, &scope).unwrap();
-    let groups = EstateGraph::per_resource_group(store, id, &scope).unwrap();
+    let groups = EstateGraph::per_resource_group(store, id, &scope, DiagramDetail::Full).unwrap();
     let mut sheets: Vec<(&str, &EstateGraph)> =
         vec![("Network Topology", &network), ("VNet Peerings", &peerings)];
     for named in &vnets {
@@ -154,7 +157,7 @@ fn svg_fan_out_graphs_match_golden_files() {
     let (store, id) = seeded();
     let scope = DiagramScope::default();
     let vnets = EstateGraph::per_vnet(&store, &id, &scope).unwrap();
-    let groups = EstateGraph::per_resource_group(&store, &id, &scope).unwrap();
+    let groups = EstateGraph::per_resource_group(&store, &id, &scope, DiagramDetail::Full).unwrap();
 
     svg_insta_settings().bind(|| {
         insta::assert_snapshot!(
@@ -173,7 +176,10 @@ fn fan_out_builders_are_deterministic_with_sorted_slugs() {
     let (store, id) = seeded();
     let scope = DiagramScope::default();
 
-    for build in [EstateGraph::per_vnet, EstateGraph::per_resource_group] {
+    type FanOut = fn(&Store, &str, &DiagramScope) -> Result<Vec<NamedGraph>, StoreError>;
+    let per_group: FanOut =
+        |store, id, scope| EstateGraph::per_resource_group(store, id, scope, DiagramDetail::Full);
+    for build in [EstateGraph::per_vnet as FanOut, per_group] {
         let first = build(&store, &id, &scope).unwrap();
         let second = build(&store, &id, &scope).unwrap();
 
@@ -238,7 +244,7 @@ fn png_renders_every_graph_at_twice_the_svg_size() {
             .map(|n| n.graph),
     );
     graphs.extend(
-        EstateGraph::per_resource_group(&store, &id, &scope)
+        EstateGraph::per_resource_group(&store, &id, &scope, DiagramDetail::Full)
             .unwrap()
             .into_iter()
             .map(|n| n.graph),

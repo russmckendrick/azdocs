@@ -113,10 +113,33 @@ impl ReportWorld {
             .filter(|asset| {
                 matches!(
                     asset.kind,
-                    DiagramAssetKind::Hierarchy | DiagramAssetKind::Network
+                    DiagramAssetKind::Hierarchy
+                        | DiagramAssetKind::Network
+                        | DiagramAssetKind::ResourceGroup
                 )
             })
             .map(|asset| serde_json::json!({ "slug": asset.slug, "title": asset.title }))
+            .collect();
+
+        // Per-resource diagrams are looked up by ARM id from the resource
+        // sections, so the template gets a map rather than a list.
+        let resource_diagrams: BTreeMap<&str, &str> = diagrams
+            .iter()
+            .filter(|asset| asset.kind == DiagramAssetKind::Resource)
+            .filter_map(|asset| Some((asset.resource_id.as_deref()?, asset.slug.as_str())))
+            .collect();
+
+        // One icon per distinct resource type, not per resource: an estate
+        // with 500 VMs needs the VM icon embedded once.
+        let icons: BTreeMap<String, String> = report
+            .resource_types
+            .iter()
+            .map(|section| {
+                (
+                    section.azure_type.clone(),
+                    format!("/icons/{}.svg", icon_slug(&section.azure_type)),
+                )
+            })
             .collect();
 
         let mut inputs = Dict::new();
@@ -136,6 +159,14 @@ impl ReportWorld {
             "theme".into(),
             Value::Str(serde_json::to_string(&branding.tokens)?.into()),
         );
+        inputs.insert(
+            "resource_diagrams".into(),
+            Value::Str(serde_json::to_string(&resource_diagrams)?.into()),
+        );
+        inputs.insert(
+            "icons".into(),
+            Value::Str(serde_json::to_string(&icons)?.into()),
+        );
 
         let mut files = BTreeMap::new();
         for asset in diagrams {
@@ -144,6 +175,14 @@ impl ReportWorld {
                 VirtualPath::new(format!("/diagrams/{}.svg", asset.slug)),
             );
             files.insert(id, Bytes::new(asset.svg.clone().into_bytes()));
+        }
+        for section in &report.resource_types {
+            let path = format!("/icons/{}.svg", icon_slug(&section.azure_type));
+            let id = FileId::new(None, VirtualPath::new(path.as_str()));
+            files.insert(
+                id,
+                Bytes::new(crate::diagram::icons::svg_bytes(&section.azure_type)),
+            );
         }
         if let Some(logo) = &branding.logo {
             let path = format!("/logo.{}", logo.extension);
@@ -203,6 +242,12 @@ impl ReportWorld {
             timestamp,
         })
     }
+}
+
+/// Virtual-file stem for a resource type's icon. ARM types contain `/` and
+/// `.`, neither of which belongs in a path segment.
+fn icon_slug(azure_type: &str) -> String {
+    crate::diagram::graph::slugify(azure_type)
 }
 
 fn snapshot_datetime(created_at: &str) -> (Option<Datetime>, Option<Timestamp>) {

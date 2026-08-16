@@ -10,6 +10,8 @@
 #let report = json(bytes(sys.inputs.report))
 #let branding = json(bytes(sys.inputs.branding))
 #let diagrams = json(bytes(sys.inputs.diagrams))
+#let resource-diagrams = json(bytes(sys.inputs.resource_diagrams))
+#let icons = json(bytes(sys.inputs.icons))
 #let logo-path = sys.inputs.at("logo", default: "")
 
 #set document(
@@ -104,6 +106,20 @@ Findings by severity:
   }
 }
 
+// ------------------------------------------------------ resource detail ----
+// One chapter per resource type, one section per resource: the configuration
+// detail the summary tables above deliberately leave out.
+#for section in report.resource_types {
+  type-chapter(section.display, icons.at(section.azure_type, default: ""))
+  for detail in section.resources {
+    let slug = resource-diagrams.at(lower(detail.arm_id), default: "")
+    resource-detail(
+      detail,
+      if slug == "" { "" } else { "/diagrams/" + slug + ".svg" },
+    )
+  }
+}
+
 // -------------------------------------------------------- subscriptions ----
 #chapter("Subscriptions")
 
@@ -125,15 +141,16 @@ Findings by severity:
 
 // ------------------------------------------------------------- diagrams ----
 #if diagrams.len() > 0 {
-  // Estate diagrams are far wider than they are tall; a portrait page shrinks
-  // them past readability, so the chapter runs landscape.
-  set page(flipped: true)
+  // Each diagram is emitted at a fixed share of an A4 portrait page (see
+  // `diagram::page`), so they are placed at their natural size and allowed to
+  // flow: two halves or three thirds share a sheet. Forcing a page break per
+  // diagram — or running the chapter landscape, as it used to — throws that away.
   chapter("Diagrams")
   for d in diagrams {
     figure(
-      block(width: 100%, height: 78%, image("/diagrams/" + d.slug + ".svg", fit: "contain")),
+      image("/diagrams/" + d.slug + ".svg", width: 100%),
       caption: text(size: typ.small_pt * 1pt, d.title),
     )
-    pagebreak(weak: true)
+    v(typ.base_pt * 0.8pt)
   }
 }

@@ -4,6 +4,8 @@ use crate::error::StoreError;
 use crate::model::{Edge, EdgeKind, Resource, azure_types};
 use crate::store::Store;
 
+use super::page::DiagramDetail;
+
 /// Diagram-neutral estate graph: typed nodes with parent containment plus
 /// styled edges. Emitters (Mermaid, draw.io) consume this without touching the
 /// store.
@@ -29,7 +31,12 @@ pub enum NodeKind {
     ResourceGroup,
     Vnet,
     Subnet,
-    Resource { azure_type: String },
+    /// Resources in the group that sit outside any virtual network. Drawn as
+    /// its own zone so the networked and unnetworked halves read apart.
+    Unnetworked,
+    Resource {
+        azure_type: String,
+    },
 }
 
 impl NodeKind {
@@ -103,6 +110,104 @@ pub fn slugify(input: &str) -> String {
 }
 
 const VNET_TYPE: &str = "microsoft.network/virtualnetworks";
+
+/// Tiles beyond this collapse into a single "Other resources" entry. Past
+/// roughly a dozen the eye stops reading a grid and starts skimming it.
+const MAX_TILES: usize = 11;
+
+/// One drawn tile in an aggregated group: either a single resource or a whole
+/// resource type collapsed to a count.
+pub(crate) struct Tile {
+    pub azure_type: String,
+    pub label: String,
+    pub sublabel: String,
+    /// `Some` only when the tile stands for exactly one resource.
+    pub resource_id: Option<String>,
+}
+
+/// Tiles for a zone at the requested detail level: aggregated for a document
+/// summary, one per resource for a standalone export.
+pub(crate) fn tiles_for(resources: &[&Resource], detail: DiagramDetail) -> Vec<Tile> {
+    if detail.aggregates() {
+        return aggregate_by_type(resources);
+    }
+    resources
+        .iter()
+        .map(|resource| Tile {
+            azure_type: resource.azure_type.clone(),
+            label: azure_types::display_name(&resource.azure_type).to_owned(),
+            sublabel: resource.name.clone(),
+            resource_id: Some(resource.id.clone()),
+        })
+        .collect()
+}
+
+/// Collapse a resource list into type tiles.
+///
+/// A resource group of 96 members drawn one icon per resource is a wall of
+/// identical glyphs that says nothing; "Storage Account ×13" says the same
+/// thing in one tile and leaves room for the group to fit a page. Singletons
+/// keep their name, because for those the name *is* the information.
+pub(crate) fn aggregate_by_type(resources: &[&Resource]) -> Vec<Tile> {
+    let mut order: Vec<&str> = Vec::new();
+    let mut by_type: HashMap<&str, Vec<&Resource>> = HashMap::new();
+    for resource in resources {
+        let entry = by_type.entry(resource.azure_type.as_str()).or_default();
+        if entry.is_empty() {
+            order.push(resource.azure_type.as_str());
+        }
+        entry.push(resource);
+    }
+    // Busiest types first, then by name, so the ordering is stable across runs
+    // and the tail that collapses is always the long thin one.
+    order.sort_by(|a, b| {
+        by_type[b]
+            .len()
+            .cmp(&by_type[a].len())
+            .then_with(|| a.cmp(b))
+    });
+
+    let collapse = order.len() > MAX_TILES;
+    let shown = if collapse { MAX_TILES - 1 } else { order.len() };
+    let mut tiles: Vec<Tile> = order
+        .iter()
+        .take(shown)
+        .map(|azure_type| {
+            let members = &by_type[azure_type];
+            let display = azure_types::display_name(azure_type).to_owned();
+            match members.as_slice() {
+                [only] => Tile {
+                    azure_type: (*azure_type).to_owned(),
+                    label: display,
+                    sublabel: only.name.clone(),
+                    resource_id: Some(only.id.clone()),
+                },
+                many => Tile {
+                    azure_type: (*azure_type).to_owned(),
+                    label: display,
+                    sublabel: format!("×{}", many.len()),
+                    resource_id: None,
+                },
+            }
+        })
+        .collect();
+
+    if collapse {
+        let rest: Vec<&&str> = order.iter().skip(shown).collect();
+        let count: usize = rest
+            .iter()
+            .map(|azure_type| by_type[**azure_type].len())
+            .sum();
+        tiles.push(Tile {
+            // The generic glyph: this tile stands for no one type.
+            azure_type: "microsoft.resources/resourcegroups".to_owned(),
+            label: "Other resources".to_owned(),
+            sublabel: format!("{} types · ×{count}", rest.len()),
+            resource_id: None,
+        });
+    }
+    tiles
+}
 
 impl EstateGraph {
     fn add_node(
@@ -515,6 +620,7 @@ impl EstateGraph {
         store: &Store,
         snapshot_id: &str,
         scope: &DiagramScope,
+        detail: DiagramDetail,
     ) -> Result<Vec<NamedGraph>, StoreError> {
         let groups = store.resource_groups(snapshot_id)?;
         let resources = scoped_resources(store, snapshot_id, scope)?;
@@ -581,21 +687,28 @@ impl EstateGraph {
                 .collect();
             if !standalone.is_empty() {
                 let container = graph.add_node(
-                    "Standalone Resources",
+                    format!(
+                        "Not in a virtual network  ·  {} resources",
+                        standalone.len()
+                    ),
                     None,
-                    NodeKind::ResourceGroup,
+                    NodeKind::Unnetworked,
                     Some(rg_node),
                 );
-                for resource in standalone {
+                for tile in tiles_for(&standalone, detail) {
                     let node = graph.add_node(
-                        &resource.name,
-                        Some(azure_types::display_name(&resource.azure_type).to_owned()),
+                        tile.label,
+                        Some(tile.sublabel),
                         NodeKind::Resource {
-                            azure_type: resource.azure_type.clone(),
+                            azure_type: tile.azure_type,
                         },
                         Some(container),
                     );
-                    node_ids.insert(resource.id.clone(), node);
+                    // Only a tile standing for exactly one resource can carry
+                    // that resource's edges; an aggregate has no single identity.
+                    if let Some(id) = tile.resource_id {
+                        node_ids.insert(id, node);
+                    }
                 }
             }
 
@@ -666,6 +779,65 @@ impl EstateGraph {
             });
         }
         Ok(graph)
+    }
+
+    /// The graph immediately around one resource: the resource itself plus
+    /// every resource one hop away, with the edges between them.
+    ///
+    /// Takes already-loaded resources and edges rather than the store, because
+    /// the report emitters build one of these per resource and re-querying per
+    /// resource would dominate the run.
+    pub fn neighbourhood(
+        resource: &Resource,
+        by_id: &HashMap<&str, &Resource>,
+        edges: &[Edge],
+    ) -> Self {
+        // No title: this diagram always sits directly under the resource's own
+        // heading in the report, so a title band would just repeat it.
+        let mut graph = Self::default();
+        let mut node_ids: HashMap<String, usize> = HashMap::new();
+
+        let add = |graph: &mut Self, node_ids: &mut HashMap<String, usize>, r: &Resource| {
+            let node = graph.add_node(
+                &r.name,
+                Some(azure_types::display_name(&r.azure_type).to_owned()),
+                NodeKind::Resource {
+                    azure_type: r.azure_type.clone(),
+                },
+                None,
+            );
+            node_ids.insert(r.id.clone(), node);
+        };
+        add(&mut graph, &mut node_ids, resource);
+
+        // Sorted by name so the layout — and therefore the golden SVG — is
+        // stable regardless of edge insertion order.
+        let mut neighbours: Vec<&Resource> = edges
+            .iter()
+            .filter_map(|edge| {
+                let other = if edge.source_id == resource.id {
+                    &edge.target_id
+                } else if edge.target_id == resource.id {
+                    &edge.source_id
+                } else {
+                    return None;
+                };
+                by_id.get(other.as_str()).copied()
+            })
+            .collect();
+        neighbours
+            .sort_by(|a, b| (a.name.to_lowercase(), &a.id).cmp(&(b.name.to_lowercase(), &b.id)));
+        neighbours.dedup_by(|a, b| a.id == b.id);
+        for neighbour in neighbours {
+            add(&mut graph, &mut node_ids, neighbour);
+        }
+
+        let by_resource_id: HashMap<&str, usize> = node_ids
+            .iter()
+            .map(|(id, &node)| (id.as_str(), node))
+            .collect();
+        graph.add_resource_edges(edges, &by_resource_id);
+        graph
     }
 
     fn add_resource_edges(&mut self, edges: &[Edge], by_resource_id: &HashMap<&str, usize>) {

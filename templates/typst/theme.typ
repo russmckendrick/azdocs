@@ -227,6 +227,134 @@
   }
 }
 
+// ------------------------------------------------------ resource detail ----
+
+/// Resource-type chapter opener. This *is* the level-1 heading — a scoped show
+/// rule adds the type's Azure icon and rule — so the title appears once and
+/// the outline and running header still see it.
+///
+/// Each type starts a new page whatever the theme: these chapters are long,
+/// and running two types together makes the document hard to navigate.
+#let type-chapter(title, icon-path) = {
+  pagebreak(weak: true)
+  [
+    #show heading.where(level: 1): it => block(
+      width: 100%,
+      above: 0em,
+      below: 1em,
+      // stack, not consecutive blocks: paragraph spacing between the title and
+      // its rule would open a gap several times the intended one.
+      stack(
+        spacing: 6pt,
+        grid(
+          columns: (auto, 1fr),
+          align: horizon,
+          gutter: 10pt,
+          if icon-path != "" {
+            image(icon-path, width: 30pt, height: 30pt, fit: "contain")
+          } else { [] },
+          text(size: typ.h1_pt * 1pt, weight: "bold", fill: primary, upper(it)),
+        ),
+        line(length: 100%, stroke: 1.5pt + primary),
+      ),
+    )
+    #heading(level: 1, title)
+  ]
+}
+
+/// Name plate above each resource's detail, so a reader scanning a long
+/// chapter can find one resource without reading the settings tables.
+#let resource-plate(name) = block(
+  width: 100%,
+  fill: if lay.table == "hairline" { none } else { primary },
+  stroke: if lay.table == "hairline" { (bottom: 1pt + primary) } else { none },
+  radius: if lay.table == "hairline" { 0pt } else { radius },
+  inset: (x: 8pt, y: 5pt),
+  above: 1.4em,
+  below: 0.7em,
+  text(
+    size: typ.h3_pt * 1pt,
+    weight: "bold",
+    fill: if lay.table == "hairline" { primary } else { on-primary },
+    upper(name),
+  ),
+)
+
+/// Small labelled rule introducing a sub-block (Settings, Findings, Related).
+#let sub-label(title) = block(width: 100%, above: 1em, below: 0.5em)[
+  #text(size: typ.small_pt * 1pt, weight: "semibold", fill: primary-dark, title)
+  #v(0.15em)
+  #line(length: 100%, stroke: rule-stroke)
+]
+
+/// Two-column key/value table used for a resource's settings.
+#let settings-table(settings) = if settings.len() == 0 {
+  block(text(size: typ.small_pt * 1pt, fill: muted, style: "italic")[No settings recorded.])
+} else {
+  block(breakable: true, table(
+    columns: (0.34fr, 0.66fr),
+    inset: lay.table_inset_pt * 1pt,
+    stroke: table-stroke,
+    fill: row-fill,
+    ..settings
+      .enumerate()
+      .map(((i, s)) => (
+        text(size: typ.table_pt * 1pt, weight: "semibold", s.key),
+        text(size: typ.table_pt * 1pt, breakable(s.value)),
+      ))
+      .flatten(),
+  ))
+}
+
+#let callout-list(callouts) = for c in callouts {
+  block(
+    width: 100%,
+    fill: sev(c.severity, "fill"),
+    stroke: (left: 2.5pt + sev(c.severity, "text")),
+    inset: (x: 7pt, y: 5pt),
+    above: 0.4em,
+    below: 0.4em,
+  )[
+    #text(size: typ.table_pt * 1pt, weight: "bold", fill: sev(c.severity, "text"))[
+      #upper(c.severity)
+    ]
+    #h(6pt)
+    #text(size: typ.table_pt * 1pt)[#c.title]
+  ]
+}
+
+/// One resource: name plate, neighbourhood diagram, settings, findings and
+/// related resources. Kept in one place so all three themes stay in step.
+#let resource-detail(detail, diagram-path) = {
+  resource-plate(detail.name)
+  block(text(size: typ.small_pt * 1pt, fill: muted)[
+    #detail.display_type · #detail.subscription_name
+    #if detail.resource_group != none [ · #detail.resource_group]
+    #if detail.location != none [ · #detail.location] \
+    #mono(breakable(detail.arm_id), size: (typ.small_pt - 0.5) * 1pt)
+  ])
+
+  if diagram-path != "" {
+    sub-label("Relationships")
+    // Fixed height rather than full width: a neighbourhood graph is one short
+    // row of nodes, so scaling it to the text width would blow the icons up.
+    align(center, block(width: 100%, height: 3.6cm, image(diagram-path, fit: "contain")))
+  }
+
+  sub-label("Settings")
+  settings-table(detail.settings)
+
+  if detail.findings.len() > 0 {
+    sub-label("Findings")
+    callout-list(detail.findings)
+  }
+
+  if detail.related.len() > 0 {
+    sub-label("Related resources")
+    block(text(size: typ.table_pt * 1pt, detail.related.join(" · ")))
+  }
+}
+
 // --------------------------------------------------------------- chrome ----
 
 #let running-header(branding) = context {
@@ -291,6 +419,11 @@
   pagebreak()
 } else {
   heading(level: 1, title)
+  // Themes without a filled table header lean on rules to separate sections.
+  if lay.table != "solid-header" {
+    v(-0.5em)
+    line(length: 100%, stroke: rule-stroke)
+  }
 }
 
 /// Document-wide rules. Applied once by report.typ via a show rule.
@@ -301,13 +434,14 @@
   set page(paper: branding.page_size, margin: eval(branding.margin))
 
   set heading(numbering: if lay.heading_numbering { "1.1" } else { none })
-  show heading.where(level: 1): it => block(above: 1.8em, below: 0.9em)[
-    #text(size: typ.h1_pt * 1pt, weight: "bold", fill: primary, it)
-    #if lay.table != "solid-header" [
-      #v(0.35em)
-      #line(length: 100%, stroke: rule-stroke)
-    ]
-  ]
+  // Text only. Rules under a level-1 heading belong to whoever opened the
+  // chapter (`chapter` / `type-chapter`); a scoped show rule *adds* to this one
+  // rather than replacing it, so drawing a rule here would double it up.
+  show heading.where(level: 1): it => block(
+    above: 1.8em,
+    below: 0.9em,
+    text(size: typ.h1_pt * 1pt, weight: "bold", fill: primary, it),
+  )
   show heading.where(level: 2): it => block(
     above: 1.5em,
     below: 0.6em,

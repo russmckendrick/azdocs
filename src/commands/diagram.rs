@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use crate::cli::{DiagramArgs, DiagramFormat, DiagramType};
 use crate::diagram::graph::NamedGraph;
+use crate::diagram::page::DiagramDetail;
 use crate::diagram::{DiagramScope, EstateGraph, drawio, mermaid, png, svg};
 use crate::store::Store;
 
@@ -34,7 +35,7 @@ pub fn run(store: &Store, args: &DiagramArgs) -> anyhow::Result<()> {
         ),
         DiagramType::ResourceGroups => fan_out(
             args,
-            &EstateGraph::per_resource_group(store, &snapshot_id, &scope)?,
+            &EstateGraph::per_resource_group(store, &snapshot_id, &scope, DiagramDetail::Full)?,
             "resource-groups",
         ),
         DiagramType::Workbook => workbook(store, &snapshot_id, &scope, args),
@@ -61,10 +62,16 @@ fn render_one(
     Ok(match format {
         DiagramFormat::Drawio => ("drawio", drawio::render(graph).into_bytes()),
         DiagramFormat::Mermaid => ("mmd", mermaid::render(graph).into_bytes()),
-        DiagramFormat::Svg => ("svg", svg::render(graph).into_bytes()),
+        DiagramFormat::Svg => (
+            "svg",
+            svg::render_for(graph, DiagramDetail::Full).into_bytes(),
+        ),
         DiagramFormat::Png => (
             "png",
-            png::from_svg(&svg::render(graph), png::DEFAULT_SCALE)?,
+            png::from_svg(
+                &svg::render_for(graph, DiagramDetail::Full),
+                png::DEFAULT_SCALE,
+            )?,
         ),
         DiagramFormat::Both | DiagramFormat::All => unreachable!("expanded by expand_formats"),
     })
@@ -151,7 +158,7 @@ fn workbook(
     let network = EstateGraph::network(store, snapshot_id, scope)?;
     let peerings = EstateGraph::peerings(store, snapshot_id, scope)?;
     let vnets = EstateGraph::per_vnet(store, snapshot_id, scope)?;
-    let groups = EstateGraph::per_resource_group(store, snapshot_id, scope)?;
+    let groups = EstateGraph::per_resource_group(store, snapshot_id, scope, DiagramDetail::Full)?;
     // (sheet name, file slug, graph): sheet names may repeat (same RG name in
     // several subscriptions) but the fan-out slugs are already deduplicated,
     // so rasters keep them — prefixed by kind — as their file stems.

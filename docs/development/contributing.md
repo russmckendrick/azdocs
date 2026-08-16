@@ -21,15 +21,29 @@
 
 ### Polish a resource type
 
-- Display name: `model/azure_types.rs` → `DISPLAY_NAMES`.
-- draw.io icon: `diagram/icons.rs` → `ICONS` (azure2 category + SVG name).
-  Unmapped types get a generic icon; this is cosmetic only.
+- Display name: `data/display_names.toml` (embedded, no recompile needed for
+  users — they can override it in their config dir).
+- Icon: `data/icon_mapping.toml`, resolved against the vendored pack in
+  `data/icons/`. Unmapped types fall back to the pack's generic icon and then
+  to a generated monogram tile; this is cosmetic only. The icon appears in
+  diagrams *and* on the resource-type chapter headings in the PDF/DOCX.
 
 ### Add a report format
 
 Write an emitter in `src/report/` consuming `ReportContext` (never the store
 directly), wire it into `commands/report.rs` and the `ReportFormat` enum,
-golden-test it from the fixture estate.
+golden-test it from the fixture estate. If it is a *styled* format, take
+`&BrandingContext` and read every colour and size from `branding.tokens` —
+never hardcode a palette.
+
+### Add a document theme
+
+Drop a TOML file into `data/themes/`. Do not add Rust: if a theme needs
+something the schema cannot express, add a new *variant* to one of the layout
+strategy enums in `report/theme.rs` and implement it in every emitter
+(`templates/typst/theme.typ`, `report/docx/style.rs`, `report/site.rs`,
+`templates/html/report.html.j2`). See
+[reference/themes.md](../reference/themes.md).
 
 ### Change the schema
 

@@ -4,24 +4,44 @@
 <meta charset="utf-8">
 <title>{{ branding.title }} — {{ tenant_id }}</title>
 <style>
-:root { --bg:#fff; --fg:#1a1a2e; --muted:#666; --border:#ddd; --accent:{{ branding.primary_color }};
-        --high:#d13438; --medium:#ff8c00; --low:#c9a900; --info:{{ branding.primary_color }}; }
+/* Every colour and face below comes from the resolved theme
+   (src/report/theme.rs), so the HTML matches the PDF and DOCX. */
+:root { --bg:{{ branding.tokens.palette.surface }}; --fg:{{ branding.tokens.palette.ink }};
+        --muted:{{ branding.tokens.palette.muted }}; --border:{{ branding.tokens.palette.rule }};
+        --accent:{{ branding.tokens.palette.primary }}; --accent-dark:{{ branding.tokens.palette.primary_dark }};
+        --tint:{{ branding.tokens.palette.primary_tint }}; --zebra:{{ branding.tokens.palette.zebra }};
+        --on-accent:{{ branding.tokens.palette.on_primary }};
+        --high:{{ branding.tokens.palette.severity.high.text }}; --high-fill:{{ branding.tokens.palette.severity.high.fill }};
+        --medium:{{ branding.tokens.palette.severity.medium.text }}; --medium-fill:{{ branding.tokens.palette.severity.medium.fill }};
+        --low:{{ branding.tokens.palette.severity.low.text }}; --low-fill:{{ branding.tokens.palette.severity.low.fill }};
+        --info:{{ branding.tokens.palette.severity.info.text }}; --info-fill:{{ branding.tokens.palette.severity.info.fill }};
+        --radius:{{ branding.tokens.layout.radius_pt|round(1) }}px; }
 @media (prefers-color-scheme: dark) {
-  :root { --bg:#16161d; --fg:#e8e8ef; --muted:#9a9aa5; --border:#3a3a45; --accent:{{ branding.accent_color }}; }
+  :root { --bg:#16161d; --fg:#e8e8ef; --muted:#9a9aa5; --border:#3a3a45; --zebra:#1c1c25;
+          --tint:#1e2430; --accent:{{ branding.accent_color }}; }
 }
-body { font: 15px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif;
+/* The vendored PDF face first; an uninstalled IBM Plex falls through to the
+   platform stack rather than forcing a web-font download. */
+body { font: 15px/{{ branding.tokens.typography.line_height|round(2) }} "{{ branding.tokens.typography.sans }}", -apple-system, "Segoe UI", Roboto, sans-serif;
        background: var(--bg); color: var(--fg); max-width: 1100px; margin: 0 auto; padding: 2rem 1rem; }
 h1,h2,h3 { line-height: 1.2; } h2 { border-bottom: 1px solid var(--border); padding-bottom: .3rem; margin-top: 2.5rem; }
 table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 14px; }
 th, td { text-align: left; padding: .35rem .6rem; border-bottom: 1px solid var(--border); vertical-align: top; }
-th { position: sticky; top: 0; background: var(--bg); }
+th { position: sticky; top: 0; background: {% if branding.tokens.layout.table == "solid-header" %}var(--accent); color: var(--on-accent){% else %}var(--tint){% endif %}; }
+{%- if branding.tokens.layout.zebra_rows %}
+tbody tr:nth-child(even) { background: var(--zebra); }
+{%- endif %}
 code { background: rgba(127,127,127,.12); padding: .1em .3em; border-radius: 3px; font-size: 90%; word-break: break-all; }
-.badge { display: inline-block; padding: .05em .55em; border-radius: 999px; color: #fff; font-size: 12px; font-weight: 600; text-transform: uppercase; }
-.badge.high { background: var(--high); } .badge.medium { background: var(--medium); }
-.badge.low { background: var(--low); } .badge.info { background: var(--info); }
+.badge { display: inline-block; padding: .05em .55em; border-radius: 999px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
+.badge.high { background: var(--high-fill); color: var(--high); }
+.badge.medium { background: var(--medium-fill); color: var(--medium); }
+.badge.low { background: var(--low-fill); color: var(--low); }
+.badge.info { background: var(--info-fill); color: var(--info); }
 .stats { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
-.stat { border: 1px solid var(--border); border-radius: 8px; padding: .8rem 1.2rem; min-width: 8rem; }
-.stat b { display: block; font-size: 1.6rem; } .stat span { color: var(--muted); font-size: 13px; }
+.stat { {% if branding.tokens.layout.stat == "card" %}background: var(--tint); border-top: 2px solid var(--accent);
+        {%- elif branding.tokens.layout.stat == "outline" %}border: 1px solid var(--border);{% endif %}
+        border-radius: var(--radius); padding: .8rem 1.2rem; min-width: 8rem; }
+.stat b { display: block; font-size: 1.6rem; color: var(--accent-dark); } .stat span { color: var(--muted); font-size: 13px; }
 .meta { color: var(--muted); font-size: 13px; }
 input.filter { width: 100%; max-width: 24rem; padding: .4rem .6rem; margin: .3rem 0;
        border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); }

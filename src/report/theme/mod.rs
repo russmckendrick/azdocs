@@ -33,7 +33,7 @@ pub fn user_themes_dir() -> Option<PathBuf> {
 
 /// One theme as parsed from TOML. Palette fields hold *expressions* until
 /// [`ThemeSpec::resolve`] turns them into literal `#rrggbb`.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ThemeSpec {
     pub description: String,
@@ -162,17 +162,6 @@ pub enum StatStyle {
 }
 
 // -------------------------------------------------------------- defaults ----
-
-impl Default for ThemeSpec {
-    fn default() -> Self {
-        Self {
-            description: String::new(),
-            palette: Palette::default(),
-            typography: Typography::default(),
-            layout: Layout::default(),
-        }
-    }
-}
 
 impl Default for Palette {
     fn default() -> Self {

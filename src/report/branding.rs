@@ -66,9 +66,11 @@ impl BrandingContext {
         let primary_color = config.primary_color.to_lowercase();
         let accent_color = config.accent_color.to_lowercase();
 
-        let mut tokens = ThemePack::load()?
-            .get(&config.theme)?
-            .resolve(&config.theme, &primary_color, &accent_color)?;
+        let mut tokens = ThemePack::load()?.get(&config.theme)?.resolve(
+            &config.theme,
+            &primary_color,
+            &accent_color,
+        )?;
         // Branding beats the theme, which beats the built-in default.
         if !config.font_family.is_empty() {
             tokens.typography.sans = config.font_family.clone();
@@ -137,7 +139,9 @@ fn load_fonts(dir: &Path, config_dir: Option<&Path>) -> Result<Vec<Vec<u8>>, Con
 
     paths
         .into_iter()
-        .map(|path| std::fs::read(&path).map_err(|source| ConfigError::FontDirRead { path, source }))
+        .map(|path| {
+            std::fs::read(&path).map_err(|source| ConfigError::FontDirRead { path, source })
+        })
         .collect()
 }
 

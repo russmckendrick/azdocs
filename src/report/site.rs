@@ -9,25 +9,34 @@ use pulldown_cmark::{Options, Parser, html};
 use super::ReportContext;
 use super::branding::BrandingContext;
 use super::markdown::render_pages;
+use super::theme::TableStyle;
 use crate::diagram::assets::{DiagramAsset, DiagramAssetKind};
 
+/// Placeholders are filled from the resolved theme in [`style`], so the docs
+/// site is the same design system as the PDF and DOCX rather than a look-alike.
 const STYLE: &str = r#"
-:root { --bg:#fff; --fg:#1a1a2e; --muted:#666; --border:#ddd; --accent:{accent}; }
+:root { --bg:{surface}; --fg:{ink}; --muted:{muted}; --border:{rule};
+        --accent:{primary}; --tint:{tint}; --zebra:{zebra}; --on-accent:{on_primary};
+        --high:{high}; --high-fill:{high_fill}; --radius:{radius}px; }
 @media (prefers-color-scheme: dark) {
-  :root { --bg:#16161d; --fg:#e8e8ef; --muted:#9a9aa5; --border:#3a3a45; --accent:{accent_dark}; }
+  :root { --bg:#16161d; --fg:#e8e8ef; --muted:#9a9aa5; --border:#3a3a45;
+          --tint:#1e2430; --zebra:#1c1c25; --accent:{accent_dark}; }
 }
-body { font: 15px/1.55 -apple-system, "Segoe UI", Roboto, sans-serif;
+body { font: 15px/{line_height} "{sans}", -apple-system, "Segoe UI", Roboto, sans-serif;
        background: var(--bg); color: var(--fg); max-width: 1050px; margin: 0 auto; padding: 2rem 1rem; }
-h1,h2,h3 { line-height: 1.2; } h2 { border-bottom: 1px solid var(--border); padding-bottom: .3rem; margin-top: 2.2rem; }
+h1,h2,h3 { line-height: 1.2; } h1,h2 { color: var(--accent); }
+h2 { border-bottom: 1px solid var(--border); padding-bottom: .3rem; margin-top: 2.2rem; }
 a { color: var(--accent); }
 table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 14px; display: block; overflow-x: auto; }
 th, td { text-align: left; padding: .35rem .6rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
-th { background: rgba(127,127,127,.08); }
-code { background: rgba(127,127,127,.12); padding: .1em .3em; border-radius: 3px; font-size: 90%; }
+th { background: var(--th-bg); color: var(--th-fg); }
+tbody tr:nth-child(even) { background: var(--zebra); }
+code { font-family: "{mono}", ui-monospace, SFMono-Regular, Menlo, monospace;
+       background: rgba(127,127,127,.12); padding: .1em .3em; border-radius: 3px; font-size: 90%; }
 nav { font-size: 13px; color: var(--muted); margin-bottom: 1.5rem; }
 nav a { margin-right: .8rem; }
-blockquote { margin: .6rem 0; padding: .5rem .9rem; border-left: 4px solid #d13438;
-             background: rgba(209,52,56,.08); border-radius: 0 6px 6px 0; }
+blockquote { margin: .6rem 0; padding: .5rem .9rem; border-left: 4px solid var(--high);
+             background: var(--high-fill); border-radius: 0 var(--radius) var(--radius) 0; }
 blockquote p { margin: 0; }
 header.brand { display: flex; align-items: center; gap: .7rem; margin-bottom: .8rem;
                color: var(--muted); font-size: 14px; }
@@ -36,11 +45,40 @@ footer.brand { margin-top: 2.5rem; border-top: 1px solid var(--border); padding-
                color: var(--muted); font-size: 13px; }
 "#;
 
-/// The docs-site stylesheet with the branding palette substituted in.
+/// The docs-site stylesheet with the resolved theme substituted in.
 fn style(branding: &BrandingContext) -> String {
+    let tokens = &branding.tokens;
+    let palette = &tokens.palette;
+    // Table headers follow the theme's table strategy, the same choice the
+    // PDF and DOCX make.
+    let (th_bg, th_fg) = match tokens.layout.table {
+        TableStyle::SolidHeader => (palette.primary.as_str(), palette.on_primary.as_str()),
+        TableStyle::Banded => (palette.primary_tint.as_str(), palette.ink.as_str()),
+        TableStyle::Hairline => ("transparent", palette.ink.as_str()),
+    };
+    let zebra = if tokens.layout.zebra_rows {
+        palette.zebra.as_str()
+    } else {
+        "transparent"
+    };
+
     STYLE
-        .replace("{accent}", &branding.primary_color)
+        .replace("{surface}", &palette.surface)
+        .replace("{ink}", &palette.ink)
+        .replace("{muted}", &palette.muted)
+        .replace("{rule}", &palette.rule)
+        .replace("{primary}", &palette.primary)
+        .replace("{tint}", &palette.primary_tint)
+        .replace("{zebra}", zebra)
+        .replace("{on_primary}", &palette.on_primary)
+        .replace("{high_fill}", &palette.severity.high.fill)
+        .replace("{high}", &palette.severity.high.text)
+        .replace("{radius}", &tokens.layout.radius_pt.to_string())
+        .replace("{line_height}", &tokens.typography.line_height.to_string())
+        .replace("{sans}", &tokens.typography.sans)
+        .replace("{mono}", &tokens.typography.mono)
         .replace("{accent_dark}", &branding.accent_color)
+        + &format!(":root {{ --th-bg:{th_bg}; --th-fg:{th_fg}; }}\n")
 }
 
 /// Site-wide header shown above the nav: logo and/or company + subtitle.
@@ -128,7 +166,9 @@ fn diagram_section(diagrams: &[DiagramAsset]) -> String {
         .filter(|asset| {
             matches!(
                 asset.kind,
-                DiagramAssetKind::Hierarchy | DiagramAssetKind::Network
+                DiagramAssetKind::Hierarchy
+                    | DiagramAssetKind::Network
+                    | DiagramAssetKind::ResourceGroup
             )
         })
         .collect();

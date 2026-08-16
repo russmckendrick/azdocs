@@ -18,9 +18,25 @@ const TWIPS_PER_INCH: f32 = 1440.0;
 /// EMU per twip, for image sizing.
 pub const EMU_PER_TWIP: u32 = 635;
 
+/// Twips per point, the other half of the twip → EMU conversion. Dropping this
+/// factor renders images at 1/20th of their intended size.
+const TWIPS_PER_POINT: f32 = 20.0;
+
 /// Word sizes runs in half-points.
 pub fn half_points(pt: f32) -> usize {
     (pt * 2.0).round().max(1.0) as usize
+}
+
+/// Points to EMU, for sizing an inline image against the type scale.
+pub fn pt_to_emu(pt: f32) -> u32 {
+    (pt * TWIPS_PER_POINT * EMU_PER_TWIP as f32)
+        .round()
+        .max(1.0) as u32
+}
+
+/// Twips to EMU, for sizing an image against the page.
+pub fn twips_to_emu(twips: u32) -> u32 {
+    twips.saturating_mul(EMU_PER_TWIP)
 }
 
 /// Word measures borders in eighths of a point.
@@ -161,7 +177,11 @@ fn heading_styles(docx: Docx, tokens: &ThemeTokens) -> Docx {
                 .bold()
                 .color(hex(color))
                 .fonts(RunFonts::new().ascii(family).hi_ansi(family).cs(family))
-                .line_spacing(LineSpacing::new().before(320 - (index as u32 * 80)).after(140)),
+                .line_spacing(
+                    LineSpacing::new()
+                        .before(320 - (index as u32 * 80))
+                        .after(140),
+                ),
         );
     }
     docx
@@ -397,9 +417,11 @@ pub fn findings_table(ctx: &Ctx, rows: &[[String; 4]]) -> Table {
         let colors = ctx.tokens.palette.severity.level(severity);
         let severity_cell = TableCell::new()
             .width(widths[0] as usize, WidthType::Dxa)
-            .shading(Shading::new().shd_type(ShdType::Clear).fill(hex(
-                colors.map_or(&ctx.tokens.palette.zebra, |c| &c.fill),
-            )))
+            .shading(
+                Shading::new()
+                    .shd_type(ShdType::Clear)
+                    .fill(hex(colors.map_or(&ctx.tokens.palette.zebra, |c| &c.fill))),
+            )
             .add_paragraph(
                 Paragraph::new().add_run(
                     Run::new()
@@ -418,6 +440,221 @@ pub fn findings_table(ctx: &Ctx, rows: &[[String; 4]]) -> Table {
         ]));
     }
     shell(ctx, &widths, table_rows)
+}
+
+/// Resource-type chapter opener: the type's icon beside the heading, over a
+/// rule — the DOCX counterpart of `type-chapter` in `templates/typst/theme.typ`.
+///
+/// A borderless two-cell table rather than an inline image, because Word sits
+/// an inline image on the text baseline and docx-rs exposes no `w:position` to
+/// offset it; a taller-than-text icon therefore floats above the words. Cell
+/// centring is the only vertical alignment available, and it is what the PDF's
+/// `grid(align: horizon)` does anyway.
+///
+/// The heading paragraph keeps its `Heading1` style inside the cell, so the TOC
+/// field and Word's navigation pane still find it.
+pub fn type_heading(ctx: &Ctx, icon: Option<Run>, display: &str) -> Table {
+    let icon_pt = ctx.tokens.typography.h1_pt * ICON_SCALE;
+    let gap_twips = 140;
+    let icon_col = match icon {
+        Some(_) => (icon_pt * TWIPS_PER_POINT).round() as u32 + gap_twips,
+        None => 0,
+    };
+    let text_col = ctx.usable_twips.saturating_sub(icon_col).max(1440);
+    let widths: Vec<u32> = if icon_col == 0 {
+        vec![text_col]
+    } else {
+        vec![icon_col, text_col]
+    };
+
+    let heading_cell = TableCell::new()
+        .width(text_col as usize, WidthType::Dxa)
+        .vertical_align(VAlignType::Center)
+        .add_paragraph(
+            Paragraph::new()
+                .style("Heading1")
+                .add_run(Run::new().add_text(display.to_uppercase())),
+        );
+    let mut cells = Vec::new();
+    if let Some(icon) = icon {
+        cells.push(
+            TableCell::new()
+                .width(icon_col as usize, WidthType::Dxa)
+                .vertical_align(VAlignType::Center)
+                .add_paragraph(Paragraph::new().add_run(icon)),
+        );
+    }
+    cells.push(heading_cell);
+
+    Table::new(vec![TableRow::new(cells)])
+        .layout(TableLayoutType::Fixed)
+        .width(ctx.usable_twips as usize, WidthType::Dxa)
+        .set_grid(widths.iter().map(|w| *w as usize).collect())
+        .set_borders(
+            TableBorders::with_empty().set(
+                TableBorder::new(TableBorderPosition::Bottom)
+                    .border_type(BorderType::Single)
+                    .size(eighths(1.5))
+                    .color(hex(&ctx.tokens.palette.primary)),
+            ),
+        )
+        // No left inset, so the icon lines up with the page's text margin.
+        .margins(TableCellMargins::new().margin(0, 0, 60, 0))
+}
+
+/// Icon size relative to the level-1 heading, shared by the PDF and DOCX.
+pub const ICON_SCALE: f32 = 1.4;
+
+/// Name plate above each resource's detail, matching the PDF: a filled band
+/// (or an underline for hairline themes) carrying the resource name.
+pub fn resource_plate(ctx: &Ctx, name: &str) -> Table {
+    let tokens = ctx.tokens;
+    let hairline = matches!(tokens.layout.table, TableStyle::Hairline);
+    let widths = [ctx.usable_twips];
+
+    let mut cell = TableCell::new()
+        .width(ctx.usable_twips as usize, WidthType::Dxa)
+        .add_paragraph(
+            Paragraph::new().add_run(
+                Run::new()
+                    .add_text(name.to_uppercase())
+                    .size(half_points(tokens.typography.h3_pt))
+                    .bold()
+                    .color(hex(if hairline {
+                        &tokens.palette.primary
+                    } else {
+                        &tokens.palette.on_primary
+                    }))
+                    .fonts(ctx.sans()),
+            ),
+        );
+    if !hairline {
+        cell = cell.shading(
+            Shading::new()
+                .shd_type(ShdType::Clear)
+                .fill(hex(&tokens.palette.primary)),
+        );
+    }
+
+    let borders = if hairline {
+        TableBorders::with_empty().set(
+            TableBorder::new(TableBorderPosition::Bottom)
+                .border_type(BorderType::Single)
+                .size(eighths(1.0))
+                .color(hex(&tokens.palette.primary)),
+        )
+    } else {
+        TableBorders::with_empty()
+    };
+
+    Table::new(vec![TableRow::new(vec![cell])])
+        .layout(TableLayoutType::Fixed)
+        .width(ctx.usable_twips as usize, WidthType::Dxa)
+        .set_grid(widths.iter().map(|w| *w as usize).collect())
+        .set_borders(borders)
+        .margins(TableCellMargins::new().margin(60, 120, 60, 120))
+}
+
+/// Small labelled rule introducing a sub-block (Settings, Findings, Related).
+pub fn sub_label(ctx: &Ctx, title: &str) -> Paragraph {
+    Paragraph::new()
+        .add_run(
+            Run::new()
+                .add_text(title)
+                .size(half_points(ctx.tokens.typography.small_pt))
+                .bold()
+                .color(hex(&ctx.tokens.palette.primary_dark))
+                .fonts(ctx.sans()),
+        )
+        .line_spacing(LineSpacing::new().before(200).after(60))
+}
+
+/// Two-column key/value table for a resource's settings.
+pub fn settings_table(ctx: &Ctx, settings: &[(String, String)]) -> Table {
+    let key_width = ctx.usable_twips / 3;
+    let widths = vec![key_width, ctx.usable_twips - key_width];
+    let zebra = ctx.tokens.layout.zebra_rows;
+
+    let rows = settings
+        .iter()
+        .enumerate()
+        .map(|(index, (key, value))| {
+            let striped = zebra && index % 2 == 1;
+            TableRow::new(vec![
+                {
+                    let mut cell = TableCell::new()
+                        .width(widths[0] as usize, WidthType::Dxa)
+                        .add_paragraph(
+                            Paragraph::new().add_run(
+                                Run::new()
+                                    .add_text(key)
+                                    .size(half_points(ctx.tokens.typography.table_pt))
+                                    .bold()
+                                    .fonts(ctx.sans()),
+                            ),
+                        );
+                    if striped {
+                        cell = cell.shading(
+                            Shading::new()
+                                .shd_type(ShdType::Clear)
+                                .fill(hex(&ctx.tokens.palette.zebra)),
+                        );
+                    }
+                    cell
+                },
+                body_cell(ctx, value, widths[1], striped, false),
+            ])
+        })
+        .collect();
+
+    shell(ctx, &widths, rows)
+}
+
+/// A finding attached to a resource: severity tag in its own tinted cell,
+/// title alongside.
+pub fn callout(ctx: &Ctx, severity: &str, title: &str) -> Table {
+    let tag_width = ctx.usable_twips / 8;
+    let widths = [tag_width, ctx.usable_twips - tag_width];
+    let colors = ctx.tokens.palette.severity.level(severity);
+    let fill = hex(colors.map_or(&ctx.tokens.palette.zebra, |c| &c.fill));
+
+    let shaded =
+        |cell: TableCell| cell.shading(Shading::new().shd_type(ShdType::Clear).fill(fill.clone()));
+    let row = TableRow::new(vec![
+        shaded(
+            TableCell::new()
+                .width(widths[0] as usize, WidthType::Dxa)
+                .add_paragraph(
+                    Paragraph::new().add_run(
+                        Run::new()
+                            .add_text(severity.to_uppercase())
+                            .size(half_points(ctx.tokens.typography.table_pt))
+                            .bold()
+                            .color(hex(colors.map_or(&ctx.tokens.palette.ink, |c| &c.text)))
+                            .fonts(ctx.sans()),
+                    ),
+                ),
+        ),
+        shaded(
+            TableCell::new()
+                .width(widths[1] as usize, WidthType::Dxa)
+                .add_paragraph(
+                    Paragraph::new().add_run(
+                        Run::new()
+                            .add_text(title)
+                            .size(half_points(ctx.tokens.typography.table_pt))
+                            .fonts(ctx.sans()),
+                    ),
+                ),
+        ),
+    ]);
+
+    Table::new(vec![row])
+        .layout(TableLayoutType::Fixed)
+        .width(ctx.usable_twips as usize, WidthType::Dxa)
+        .set_grid(widths.iter().map(|w| *w as usize).collect())
+        .set_borders(TableBorders::with_empty())
+        .margins(TableCellMargins::new().margin(50, 100, 50, 100))
 }
 
 /// The executive-summary statistics, laid out per the theme's `stat` strategy:
@@ -471,11 +708,7 @@ pub fn stat_table(ctx: &Ctx, stats: &[(String, String)]) -> Table {
                 .width(widths[index] as usize, WidthType::Dxa)
                 .add_paragraph(paragraph);
             if let Some(fill) = &fill {
-                cell = cell.shading(
-                    Shading::new()
-                        .shd_type(ShdType::Clear)
-                        .fill(fill.clone()),
-                );
+                cell = cell.shading(Shading::new().shd_type(ShdType::Clear).fill(fill.clone()));
             }
             cell
         })
@@ -569,11 +802,30 @@ mod tests {
         assert_eq!(widths, vec![9000]);
     }
 
+    /// 914400 EMU to the inch, 72 points to the inch. Getting this wrong by the
+    /// twips factor renders icons at 1/20th size, which is how it shipped once.
+    #[test]
+    fn unit_pt_to_emu_matches_the_ooxml_definition_of_a_point() {
+        assert_eq!(pt_to_emu(72.0), 914_400);
+        assert_eq!(pt_to_emu(25.2), 320_040);
+        assert!(pt_to_emu(0.0) >= 1, "a zero-sized image is not renderable");
+    }
+
+    #[test]
+    fn unit_twips_to_emu_matches_the_ooxml_definition_of_an_inch() {
+        assert_eq!(twips_to_emu(1440), 914_400);
+        // A4 text width at 2cm margins, i.e. what a full-width diagram gets.
+        assert_eq!(twips_to_emu(11906 - 2268), 6_120_130);
+    }
+
     #[test]
     fn unit_wrappable_offers_break_points_inside_arm_ids() {
         let wrapped = wrappable("/subscriptions/abc/resourceGroups/rg-app");
 
         assert!(wrapped.contains('\u{200B}'));
-        assert_eq!(wrapped.replace('\u{200B}', ""), "/subscriptions/abc/resourceGroups/rg-app");
+        assert_eq!(
+            wrapped.replace('\u{200B}', ""),
+            "/subscriptions/abc/resourceGroups/rg-app"
+        );
     }
 }

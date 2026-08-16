@@ -3,22 +3,43 @@ use std::path::Path;
 use anyhow::Context;
 use rust_xlsxwriter::{Color, Format, Workbook, Worksheet};
 
+use super::branding::BrandingContext;
+use super::theme::ThemeTokens;
 use super::{ReportContext, cell_to_string};
 use crate::model::Resource;
+
+/// `#rrggbb` from the theme as the packed integer `rust_xlsxwriter` wants.
+/// The palette is validated on the way in, so a malformed value here would be
+/// a bug rather than user input; fall back to black instead of panicking.
+fn color(hex: &str) -> Color {
+    Color::RGB(u32::from_str_radix(hex.trim_start_matches('#'), 16).unwrap_or(0))
+}
+
+/// Header format from the theme, matching the PDF and DOCX table headers.
+fn header_format(tokens: &ThemeTokens) -> Format {
+    Format::new()
+        .set_bold()
+        .set_font_name(&tokens.typography.docx_sans)
+        .set_background_color(color(&tokens.palette.primary))
+        .set_font_color(color(&tokens.palette.on_primary))
+}
 
 /// One workbook: Summary, Inventory (autofilter), Findings (severity colors),
 /// and one sheet per inventory category.
 pub fn write(
     report: &ReportContext,
+    branding: &BrandingContext,
     resources: &[Resource],
     out_path: &Path,
 ) -> anyhow::Result<()> {
     let mut workbook = Workbook::new();
-    let header = Format::new().set_bold();
+    let tokens = &branding.tokens;
+    let header = header_format(tokens);
 
     summary_sheet(
         workbook.add_worksheet().set_name("Summary")?,
         report,
+        branding,
         &header,
     )?;
     inventory_sheet(
@@ -29,6 +50,7 @@ pub fn write(
     findings_sheet(
         workbook.add_worksheet().set_name("Findings")?,
         report,
+        tokens,
         &header,
     )?;
     for category in &report.categories {
@@ -50,8 +72,33 @@ pub fn write(
 fn summary_sheet(
     sheet: &mut Worksheet,
     report: &ReportContext,
+    branding: &BrandingContext,
     header: &Format,
 ) -> anyhow::Result<()> {
+    // Branded title block above the figures, so a workbook mailed on its own
+    // still says what it is and who it is for.
+    let tokens = &branding.tokens;
+    let title = Format::new()
+        .set_bold()
+        .set_font_size(16)
+        .set_font_name(&tokens.typography.docx_sans)
+        .set_font_color(color(&tokens.palette.primary));
+    let subtitle = Format::new()
+        .set_font_name(&tokens.typography.docx_sans)
+        .set_font_color(color(&tokens.palette.muted));
+    sheet.write_with_format(0, 0, &branding.title, &title)?;
+    let mut caption = branding.company.clone();
+    if !branding.subtitle.is_empty() {
+        if !caption.is_empty() {
+            caption.push_str(" · ");
+        }
+        caption.push_str(&branding.subtitle);
+    }
+    if !caption.is_empty() {
+        sheet.write_with_format(1, 0, &caption, &subtitle)?;
+    }
+    const FIRST_ROW: u32 = 3;
+
     let rows: Vec<(&str, String)> = vec![
         ("Snapshot", report.snapshot_id.clone()),
         ("Collected", report.created_at.clone()),
@@ -67,15 +114,17 @@ fn summary_sheet(
         ("Info findings", report.severity_counts.info.to_string()),
         ("Tag coverage %", report.tag_coverage.percent.to_string()),
     ];
-    for (row, (label, value)) in rows.iter().enumerate() {
-        sheet.write_with_format(row as u32, 0, *label, header)?;
-        sheet.write(row as u32, 1, value)?;
+    for (offset, (label, value)) in rows.iter().enumerate() {
+        let row = FIRST_ROW + offset as u32;
+        sheet.write_with_format(row, 0, *label, header)?;
+        sheet.write(row, 1, value)?;
     }
 
-    sheet.write_with_format(15, 0, "Type", header)?;
-    sheet.write_with_format(15, 1, "Count", header)?;
+    let types_row = FIRST_ROW + rows.len() as u32 + 2;
+    sheet.write_with_format(types_row, 0, "Type", header)?;
+    sheet.write_with_format(types_row, 1, "Count", header)?;
     for (offset, tc) in report.type_counts.iter().enumerate() {
-        let row = 16 + offset as u32;
+        let row = types_row + 1 + offset as u32;
         sheet.write(row, 0, &tc.display)?;
         sheet.write(row, 1, tc.count as u32)?;
     }
@@ -128,26 +177,25 @@ fn inventory_sheet(
 fn findings_sheet(
     sheet: &mut Worksheet,
     report: &ReportContext,
+    tokens: &ThemeTokens,
     header: &Format,
 ) -> anyhow::Result<()> {
+    // Same severity palette as every other format, straight from the theme.
+    let severity = &tokens.palette.severity;
     let severity_formats = [
+        ("high", &severity.high),
+        ("medium", &severity.medium),
+        ("low", &severity.low),
+        ("info", &severity.info),
+    ]
+    .map(|(name, colors)| {
         (
-            "high",
-            Format::new().set_background_color(Color::RGB(0xF8CECC)),
-        ),
-        (
-            "medium",
-            Format::new().set_background_color(Color::RGB(0xFFE6CC)),
-        ),
-        (
-            "low",
-            Format::new().set_background_color(Color::RGB(0xFFF2CC)),
-        ),
-        (
-            "info",
-            Format::new().set_background_color(Color::RGB(0xDAE8FC)),
-        ),
-    ];
+            name,
+            Format::new()
+                .set_background_color(color(&colors.fill))
+                .set_font_color(color(&colors.text)),
+        )
+    });
     for (col, name) in ["severity", "category", "check", "title", "resource"]
         .iter()
         .enumerate()

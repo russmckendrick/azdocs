@@ -23,5 +23,6 @@ flowchart LR
     classDef subscription fill:#e8f1fa,stroke:#0078d4
     classDef rg fill:#f3f2f1,stroke:#8a8886
     classDef vnet fill:#e6f5e6,stroke:#107c10
-    classDef subnet fill:#f0faf0,stroke:#4c9a4c
+    classDef subnet fill:#fff,stroke:#8a8886
+    classDef unnetworked fill:#fdf6ec,stroke:#d97706
     classDef resource fill:#fff,stroke:#605e5c

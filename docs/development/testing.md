@@ -33,6 +33,7 @@ flowchart TD
 | Edge extractors | Pure-function tests incl. adversarial inputs (nulls, mixed-case ids, cross-sub peerings) | `src/collect/extractors.rs` |
 | Reports/diagrams | insta goldens from the fixture estate | `tests/report_golden_test.rs`, `tests/diagram_golden_test.rs` |
 | draw.io XML | Structural re-parse: well-formed, unique ids, resolving refs | `tests/diagram_golden_test.rs` |
+| Diagram geometry | Every canvas lands on a page fraction; every connector segment is axis-aligned; routes are deterministic | `src/diagram/svg.rs`, `src/diagram/route.rs`, `src/diagram/page.rs` |
 | TUI | `TestBackend` buffer snapshots + key-event sequences | `tests/tui_test.rs` |
 
 ## The fixture estate

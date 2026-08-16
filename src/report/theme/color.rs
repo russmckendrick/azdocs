@@ -138,9 +138,13 @@ fn eval(
         ));
     }
 
-    let (name, rest) = trimmed
-        .split_once('(')
-        .ok_or_else(|| invalid(field, whole, "expected #rrggbb, $primary, $accent, or a call"))?;
+    let (name, rest) = trimmed.split_once('(').ok_or_else(|| {
+        invalid(
+            field,
+            whole,
+            "expected #rrggbb, $primary, $accent, or a call",
+        )
+    })?;
     let inner = rest
         .strip_suffix(')')
         .ok_or_else(|| invalid(field, whole, "missing closing `)`"))?;
@@ -266,7 +270,10 @@ mod tests {
             resolved("readable_on(darken($primary, 0.25))"),
             resolved("readable_on(#005a9f)")
         );
-        assert_eq!(resolved("mix(darken(#ffffff, 1.0), #ffffff, 0.5)"), "#808080");
+        assert_eq!(
+            resolved("mix(darken(#ffffff, 1.0), #ffffff, 0.5)"),
+            "#808080"
+        );
     }
 
     #[test]

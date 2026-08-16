@@ -34,10 +34,12 @@ pub fn run(
 
     // HTML (docs site), PDF and DOCX all embed the prerendered diagram assets;
     // build them once.
-    let diagrams = if formats
-        .iter()
-        .any(|f| matches!(f, ReportFormat::Html | ReportFormat::Pdf | ReportFormat::Docx))
-    {
+    let mut diagrams = if formats.iter().any(|f| {
+        matches!(
+            f,
+            ReportFormat::Html | ReportFormat::Pdf | ReportFormat::Docx
+        )
+    }) {
         crate::diagram::assets::build_overviews(
             store,
             &snapshot_id,
@@ -46,6 +48,17 @@ pub fn run(
     } else {
         Vec::new()
     };
+    // Per-resource neighbourhood diagrams are only consumed by the print
+    // formats, and cost a layout each, so the HTML-only path skips them.
+    if formats
+        .iter()
+        .any(|f| matches!(f, ReportFormat::Pdf | ReportFormat::Docx))
+    {
+        diagrams.extend(crate::diagram::assets::build_resource_diagrams(
+            store,
+            &snapshot_id,
+        )?);
+    }
 
     for format in formats {
         match format {
@@ -75,7 +88,7 @@ pub fn run(
             }
             ReportFormat::Xlsx => {
                 let out = out_root.join("azdocs.xlsx");
-                report::xlsx::write(&context, &resources, &out)?;
+                report::xlsx::write(&context, &branding, &resources, &out)?;
                 println!("XLSX workbook -> {}", out.display());
             }
             ReportFormat::Pdf => {

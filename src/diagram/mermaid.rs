@@ -46,7 +46,8 @@ pub fn render(graph: &EstateGraph) -> String {
         "    classDef subscription fill:#e8f1fa,stroke:#0078d4\n",
         "    classDef rg fill:#f3f2f1,stroke:#8a8886\n",
         "    classDef vnet fill:#e6f5e6,stroke:#107c10\n",
-        "    classDef subnet fill:#f0faf0,stroke:#4c9a4c\n",
+        "    classDef subnet fill:#fff,stroke:#8a8886\n",
+        "    classDef unnetworked fill:#fdf6ec,stroke:#d97706\n",
         "    classDef resource fill:#fff,stroke:#605e5c\n",
     ));
     out
@@ -99,6 +100,7 @@ fn class_for(kind: &NodeKind) -> Option<&'static str> {
         NodeKind::ResourceGroup => Some("rg"),
         NodeKind::Vnet => Some("vnet"),
         NodeKind::Subnet => Some("subnet"),
+        NodeKind::Unnetworked => Some("unnetworked"),
         NodeKind::Resource { .. } => Some("resource"),
         NodeKind::Tenant => None,
     }

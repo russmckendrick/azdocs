@@ -54,7 +54,7 @@ flowchart LR
 | `src/model/` | Plain data types + `azure_types.rs` display names |
 | `src/collect/` | Runner, `ingest.rs`, `extractors.rs`, `audit.rs` |
 | `src/report/` | `ReportContext` → markdown / html / site / csv / xlsx / pdf (Typst) / docx / details emitters, themed by `BrandingContext` |
-| `src/diagram/` | `EstateGraph` builders (incl. per-VNet/per-RG fan-out) → layout → mermaid / drawio (single + workbook) / svg / png emitters |
+| `src/diagram/` | `EstateGraph` builders (incl. per-VNet/per-RG fan-out) → `page` (A4 fractions, density rungs) → `layout` (measure/justify) → `route` (orthogonal connectors) → mermaid / drawio (single + workbook) / svg / png emitters |
 | `src/tui/` | ratatui browse; `App` is a pure state machine, `ui.rs` renders it |
 
 ## Design decisions
