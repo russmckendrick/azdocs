@@ -1,0 +1,14 @@
+name = "managed_disks"
+category = "compute"
+kind = "inventory"
+description = "Managed disks with size, SKU, encryption, and attachment"
+kql = '''
+resources
+| where type == "microsoft.compute/disks"
+| project id, name, location, resourceGroup, subscriptionId,
+          sizeGb = toint(properties.diskSizeGB), sku = tostring(sku.name),
+          state = tostring(properties.diskState),
+          attachedTo = tostring(managedBy),
+          encryptionType = tostring(properties.encryption.type)
+| order by id asc
+'''

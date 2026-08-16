@@ -1,3 +1,5 @@
+pub mod audit;
+pub mod extractors;
 pub mod ingest;
 
 use std::sync::Arc;
@@ -30,6 +32,7 @@ pub struct CollectRequest {
     pub subscriptions: Vec<String>,
     pub concurrency: usize,
     pub notes: Option<String>,
+    pub required_tags: Vec<String>,
     pub quiet: bool,
 }
 
@@ -47,6 +50,7 @@ pub async fn run<P: TokenProvider + 'static>(
         subscriptions,
         concurrency,
         notes,
+        required_tags,
         quiet,
     } = request;
     let snapshot = store.create_snapshot(&tenant_id, notes.as_deref())?;
@@ -124,6 +128,19 @@ pub async fn run<P: TokenProvider + 'static>(
         progress.inc(1);
     }
     progress.finish_and_clear();
+
+    // Post-pass over stored resources: derive relationship edges and run the
+    // config-driven audits.
+    let resources = store.resources(&snapshot.id)?;
+    let edges: Vec<_> = resources.iter().flat_map(extractors::extract).collect();
+    store.insert_edges(&snapshot.id, &edges)?;
+    let tag_findings = audit::missing_required_tags(&resources, &required_tags);
+    store.insert_findings(&snapshot.id, &tag_findings)?;
+    tracing::info!(
+        edges = edges.len(),
+        tag_findings = tag_findings.len(),
+        "post-pass complete"
+    );
 
     let status = if queries_failed == 0 {
         SnapshotStatus::Complete

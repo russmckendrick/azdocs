@@ -1,0 +1,12 @@
+name = "resources_with_system_identity"
+category = "identity"
+kind = "inventory"
+description = "Resources running with a system-assigned managed identity"
+kql = '''
+resources
+| where isnotempty(identity.principalId)
+| project id, name, type, resourceGroup, subscriptionId,
+          identityType = tostring(identity.type),
+          principalId = tostring(identity.principalId)
+| order by id asc
+'''

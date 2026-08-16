@@ -182,3 +182,76 @@ fn resolve_snapshot_accepts_unambiguous_prefix() {
 
     assert_eq!(resolved, snapshot.id);
 }
+
+mod end_to_end {
+    use std::sync::Arc;
+
+    use azdocs::arg::ArgClient;
+    use azdocs::auth::StaticTokenProvider;
+    use azdocs::collect::{CollectRequest, run};
+    use serde_json::json;
+    use wiremock::matchers::method;
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    #[tokio::test]
+    async fn collect_run_stores_resources_edges_and_tag_findings() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "totalRecords": 2, "count": 2,
+                "data": [
+                    {
+                        "id": "/subscriptions/s1/resourceGroups/rg/providers/Microsoft.Network/virtualNetworks/vnet-1",
+                        "name": "vnet-1", "type": "microsoft.network/virtualnetworks",
+                        "subscriptionId": "s1", "resourceGroup": "rg",
+                        "tags": {"env": "prod"},
+                        "properties": {"subnets": [{"id": "/subscriptions/s1/resourceGroups/rg/providers/Microsoft.Network/virtualNetworks/vnet-1/subnets/app"}]}
+                    },
+                    {
+                        "id": "/subscriptions/s1/resourceGroups/rg/providers/Microsoft.Compute/virtualMachines/vm-1",
+                        "name": "vm-1", "type": "microsoft.compute/virtualmachines",
+                        "subscriptionId": "s1", "resourceGroup": "rg"
+                    }
+                ]
+            })))
+            .mount(&server)
+            .await;
+        let store = azdocs::store::Store::open_in_memory().unwrap();
+        let client = Arc::new(ArgClient::with_endpoint(
+            reqwest::Client::new(),
+            StaticTokenProvider("t".into()),
+            &server.uri(),
+        ));
+        let pack = azdocs::querypack::QueryPack::builtin().unwrap();
+        let queries = vec![pack.get("all_resources").unwrap().clone()];
+
+        let summary = run(
+            &store,
+            client,
+            CollectRequest {
+                tenant_id: "tenant-1".into(),
+                queries,
+                subscriptions: vec![],
+                concurrency: 2,
+                notes: None,
+                required_tags: vec!["env".into()],
+                quiet: true,
+            },
+        )
+        .await
+        .unwrap();
+
+        let edges = store.edges(&summary.snapshot_id).unwrap();
+        let findings = store.findings(&summary.snapshot_id).unwrap();
+        assert_eq!(
+            (
+                summary.status,
+                summary.rows_ingested,
+                edges.len(),
+                findings.len()
+            ),
+            (azdocs::model::SnapshotStatus::Complete, 2, 1, 1),
+            "edges: {edges:?}, findings: {findings:?}"
+        );
+    }
+}

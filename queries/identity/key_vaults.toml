@@ -1,0 +1,16 @@
+name = "key_vaults"
+category = "identity"
+kind = "inventory"
+description = "Key vaults with protection and network settings"
+kql = '''
+resources
+| where type == "microsoft.keyvault/vaults"
+| project id, name, location, resourceGroup, subscriptionId,
+          sku = tostring(properties.sku.name),
+          softDelete = properties.enableSoftDelete,
+          purgeProtection = properties.enablePurgeProtection,
+          rbacAuthorization = properties.enableRbacAuthorization,
+          publicNetworkAccess = tostring(properties.publicNetworkAccess),
+          defaultNetworkAction = tostring(properties.networkAcls.defaultAction)
+| order by id asc
+'''

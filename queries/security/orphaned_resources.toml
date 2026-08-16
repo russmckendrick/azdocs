@@ -1,0 +1,15 @@
+name = "orphaned_resources"
+category = "security"
+kind = "finding"
+severity = "info"
+title_field = "summary"
+description = "Unattached disks, unassociated public IPs, and orphaned NICs costing money or adding clutter"
+kql = '''
+resources
+| where (type == "microsoft.compute/disks" and tostring(properties.diskState) == "Unattached")
+     or (type == "microsoft.network/publicipaddresses" and isempty(properties.ipConfiguration.id) and isempty(properties.natGateway.id))
+     or (type == "microsoft.network/networkinterfaces" and isempty(properties.virtualMachine.id) and isempty(properties.privateEndpoint.id))
+| project id, name, type, resourceGroup, subscriptionId,
+          summary = strcat(name, " (", type, ") appears orphaned")
+| order by id asc
+'''

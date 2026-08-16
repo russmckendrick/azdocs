@@ -1,0 +1,13 @@
+name = "app_service_plans"
+category = "compute"
+kind = "inventory"
+description = "App Service plans with SKU and app counts"
+kql = '''
+resources
+| where type == "microsoft.web/serverfarms"
+| project id, name, location, resourceGroup, subscriptionId,
+          sku = tostring(sku.name), tier = tostring(sku.tier),
+          appCount = toint(properties.numberOfSites),
+          osKind = tostring(kind)
+| order by id asc
+'''

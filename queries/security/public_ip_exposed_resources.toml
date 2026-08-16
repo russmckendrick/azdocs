@@ -1,0 +1,17 @@
+name = "public_ip_exposed_resources"
+category = "security"
+kind = "finding"
+severity = "high"
+title_field = "summary"
+description = "Public IPs attached to NICs, exposing resources directly"
+kql = '''
+resources
+| where type == "microsoft.network/publicipaddresses"
+| where isnotempty(properties.ipConfiguration.id)
+  and properties.ipConfiguration.id contains "/networkinterfaces/"
+| project id, name, resourceGroup, subscriptionId,
+          ipAddress = tostring(properties.ipAddress),
+          attachedTo = tostring(properties.ipConfiguration.id),
+          summary = strcat(name, " exposes a NIC directly to the Internet")
+| order by id asc
+'''

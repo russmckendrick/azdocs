@@ -1,0 +1,15 @@
+name = "redis_caches"
+category = "databases"
+kind = "inventory"
+description = "Redis caches with SKU and TLS settings"
+kql = '''
+resources
+| where type == "microsoft.cache/redis"
+| project id, name, location, resourceGroup, subscriptionId,
+          sku = tostring(properties.sku.name),
+          capacity = toint(properties.sku.capacity),
+          minTlsVersion = tostring(properties.minimumTlsVersion),
+          nonSslPort = properties.enableNonSslPort,
+          publicNetworkAccess = tostring(properties.publicNetworkAccess)
+| order by id asc
+'''

@@ -1,0 +1,16 @@
+name = "storage_accounts"
+category = "storage"
+kind = "inventory"
+description = "Storage accounts with SKU, access tier, and network rules"
+kql = '''
+resources
+| where type == "microsoft.storage/storageaccounts"
+| project id, name, location, resourceGroup, subscriptionId,
+          sku = tostring(sku.name), kind,
+          accessTier = tostring(properties.accessTier),
+          httpsOnly = properties.supportsHttpsTrafficOnly,
+          allowBlobPublicAccess = properties.allowBlobPublicAccess,
+          publicNetworkAccess = tostring(properties.publicNetworkAccess),
+          defaultNetworkAction = tostring(properties.networkAcls.defaultAction)
+| order by id asc
+'''

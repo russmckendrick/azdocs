@@ -1,0 +1,20 @@
+name = "nsg_open_to_internet"
+category = "security"
+kind = "finding"
+severity = "high"
+title_field = "summary"
+description = "NSG rules allowing inbound traffic from the Internet"
+kql = '''
+resources
+| where type == "microsoft.network/networksecuritygroups"
+| mv-expand rule = properties.securityRules
+| where rule.properties.direction == "Inbound"
+  and rule.properties.access == "Allow"
+  and tostring(rule.properties.sourceAddressPrefix) in ("*", "0.0.0.0/0", "Internet")
+| project id, name, resourceGroup, subscriptionId,
+          ruleName = tostring(rule.name),
+          port = tostring(rule.properties.destinationPortRange),
+          priority = toint(rule.properties.priority),
+          summary = strcat(name, ": rule ", rule.name, " allows Internet -> port ", rule.properties.destinationPortRange)
+| order by id asc
+'''

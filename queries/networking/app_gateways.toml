@@ -1,0 +1,13 @@
+name = "app_gateways"
+category = "networking"
+kind = "inventory"
+description = "Application gateways with SKU, WAF state, and listener counts"
+kql = '''
+resources
+| where type == "microsoft.network/applicationgateways"
+| project id, name, location, resourceGroup, subscriptionId,
+          sku = tostring(properties.sku.name),
+          wafEnabled = properties.webApplicationFirewallConfiguration.enabled,
+          listenerCount = array_length(properties.httpListeners)
+| order by id asc
+'''

@@ -1,0 +1,15 @@
+name = "aks_clusters"
+category = "compute"
+kind = "inventory"
+description = "AKS clusters with version, node pools, and network plugin"
+kql = '''
+resources
+| where type == "microsoft.containerservice/managedclusters"
+| project id, name, location, resourceGroup, subscriptionId,
+          kubernetesVersion = tostring(properties.kubernetesVersion),
+          nodePoolCount = array_length(properties.agentPoolProfiles),
+          networkPlugin = tostring(properties.networkProfile.networkPlugin),
+          privateCluster = properties.apiServerAccessProfile.enablePrivateCluster,
+          skuTier = tostring(sku.tier)
+| order by id asc
+'''

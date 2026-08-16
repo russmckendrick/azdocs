@@ -1,0 +1,14 @@
+name = "vms_without_managed_disks"
+category = "security"
+kind = "finding"
+severity = "low"
+title_field = "summary"
+description = "VMs still using unmanaged (blob) OS disks"
+kql = '''
+resources
+| where type == "microsoft.compute/virtualmachines"
+| where isempty(properties.storageProfile.osDisk.managedDisk.id)
+| project id, name, resourceGroup, subscriptionId,
+          summary = strcat(name, " uses an unmanaged OS disk")
+| order by id asc
+'''

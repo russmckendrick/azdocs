@@ -1,0 +1,14 @@
+name = "vpn_er_gateways"
+category = "networking"
+kind = "inventory"
+description = "VPN and ExpressRoute gateways plus circuits"
+kql = '''
+resources
+| where type in ("microsoft.network/virtualnetworkgateways", "microsoft.network/expressroutecircuits", "microsoft.network/connections")
+| project id, name, type, location, resourceGroup, subscriptionId,
+          gatewayType = tostring(properties.gatewayType),
+          vpnType = tostring(properties.vpnType),
+          sku = coalesce(tostring(properties.sku.name), tostring(sku.name)),
+          connectionType = tostring(properties.connectionType)
+| order by id asc
+'''

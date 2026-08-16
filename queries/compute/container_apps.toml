@@ -1,0 +1,13 @@
+name = "container_apps"
+category = "compute"
+kind = "inventory"
+description = "Container Apps and their environments"
+kql = '''
+resources
+| where type in ("microsoft.app/containerapps", "microsoft.app/managedenvironments")
+| project id, name, type, location, resourceGroup, subscriptionId,
+          environmentId = tostring(properties.managedEnvironmentId),
+          externalIngress = properties.configuration.ingress.external,
+          fqdn = tostring(properties.configuration.ingress.fqdn)
+| order by id asc
+'''

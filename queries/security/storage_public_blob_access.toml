@@ -1,0 +1,14 @@
+name = "storage_public_blob_access"
+category = "security"
+kind = "finding"
+severity = "high"
+title_field = "summary"
+description = "Storage accounts allowing anonymous public blob access"
+kql = '''
+resources
+| where type == "microsoft.storage/storageaccounts"
+| where properties.allowBlobPublicAccess == true
+| project id, name, resourceGroup, subscriptionId,
+          summary = strcat(name, " allows public blob access")
+| order by id asc
+'''

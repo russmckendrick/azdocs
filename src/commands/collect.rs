@@ -52,6 +52,7 @@ pub async fn run(config: &Config, store: &Store, args: &CollectArgs) -> anyhow::
             subscriptions,
             concurrency,
             notes: args.notes.clone(),
+            required_tags: config.audit.required_tags.clone(),
             quiet: false,
         },
     )

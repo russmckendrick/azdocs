@@ -1,0 +1,14 @@
+name = "load_balancers"
+category = "networking"
+kind = "inventory"
+description = "Load balancers with SKU and rule counts"
+kql = '''
+resources
+| where type == "microsoft.network/loadbalancers"
+| project id, name, location, resourceGroup, subscriptionId,
+          sku = tostring(sku.name),
+          frontendCount = array_length(properties.frontendIPConfigurations),
+          backendPoolCount = array_length(properties.backendAddressPools),
+          ruleCount = array_length(properties.loadBalancingRules)
+| order by id asc
+'''

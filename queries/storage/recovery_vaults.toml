@@ -1,0 +1,11 @@
+name = "recovery_vaults"
+category = "storage"
+kind = "inventory"
+description = "Recovery Services and Backup vaults"
+kql = '''
+resources
+| where type in ("microsoft.recoveryservices/vaults", "microsoft.dataprotection/backupvaults")
+| project id, name, type, location, resourceGroup, subscriptionId,
+          sku = tostring(sku.name)
+| order by id asc
+'''

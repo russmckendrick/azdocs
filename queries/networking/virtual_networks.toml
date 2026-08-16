@@ -1,0 +1,13 @@
+name = "virtual_networks"
+category = "networking"
+kind = "inventory"
+description = "Virtual networks with address spaces and DNS settings"
+kql = '''
+resources
+| where type == "microsoft.network/virtualnetworks"
+| project id, name, location, resourceGroup, subscriptionId,
+          addressPrefixes = properties.addressSpace.addressPrefixes,
+          dnsServers = properties.dhcpOptions.dnsServers,
+          subnetCount = array_length(properties.subnets)
+| order by id asc
+'''

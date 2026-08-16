@@ -1,0 +1,15 @@
+name = "keyvault_public_access"
+category = "security"
+kind = "finding"
+severity = "medium"
+title_field = "summary"
+description = "Key vaults reachable from all networks"
+kql = '''
+resources
+| where type == "microsoft.keyvault/vaults"
+| where tolower(coalesce(tostring(properties.publicNetworkAccess), "enabled")) == "enabled"
+  and tolower(coalesce(tostring(properties.networkAcls.defaultAction), "allow")) == "allow"
+| project id, name, resourceGroup, subscriptionId,
+          summary = strcat(name, " is reachable from all networks")
+| order by id asc
+'''

@@ -1,0 +1,14 @@
+name = "keyvault_no_purge_protection"
+category = "security"
+kind = "finding"
+severity = "medium"
+title_field = "summary"
+description = "Key vaults without purge protection"
+kql = '''
+resources
+| where type == "microsoft.keyvault/vaults"
+| where properties.enablePurgeProtection != true
+| project id, name, resourceGroup, subscriptionId,
+          summary = strcat(name, " has no purge protection")
+| order by id asc
+'''

@@ -1,0 +1,14 @@
+name = "storage_http_allowed"
+category = "security"
+kind = "finding"
+severity = "medium"
+title_field = "summary"
+description = "Storage accounts accepting plain HTTP traffic"
+kql = '''
+resources
+| where type == "microsoft.storage/storageaccounts"
+| where properties.supportsHttpsTrafficOnly == false
+| project id, name, resourceGroup, subscriptionId,
+          summary = strcat(name, " accepts unencrypted HTTP traffic")
+| order by id asc
+'''

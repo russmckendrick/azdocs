@@ -1,0 +1,13 @@
+name = "cosmos_accounts"
+category = "databases"
+kind = "inventory"
+description = "Cosmos DB accounts with API kind and consistency"
+kql = '''
+resources
+| where type == "microsoft.documentdb/databaseaccounts"
+| project id, name, location, resourceGroup, subscriptionId, kind,
+          consistency = tostring(properties.consistencyPolicy.defaultConsistencyLevel),
+          publicNetworkAccess = tostring(properties.publicNetworkAccess),
+          multiRegion = array_length(properties.locations)
+| order by id asc
+'''

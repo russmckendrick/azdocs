@@ -1,0 +1,14 @@
+name = "postgres_mysql_flexible"
+category = "databases"
+kind = "inventory"
+description = "PostgreSQL and MySQL flexible servers"
+kql = '''
+resources
+| where type in ("microsoft.dbforpostgresql/flexibleservers", "microsoft.dbformysql/flexibleservers")
+| project id, name, type, location, resourceGroup, subscriptionId,
+          version = tostring(properties.version), sku = tostring(sku.name),
+          storageGb = toint(properties.storage.storageSizeGB),
+          haMode = tostring(properties.highAvailability.mode),
+          publicNetworkAccess = tostring(properties.network.publicNetworkAccess)
+| order by id asc
+'''

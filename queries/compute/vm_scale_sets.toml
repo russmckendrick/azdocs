@@ -1,0 +1,13 @@
+name = "vm_scale_sets"
+category = "compute"
+kind = "inventory"
+description = "VM scale sets with capacity and orchestration mode"
+kql = '''
+resources
+| where type == "microsoft.compute/virtualmachinescalesets"
+| project id, name, location, resourceGroup, subscriptionId,
+          sku = tostring(sku.name), capacity = toint(sku.capacity),
+          orchestrationMode = tostring(properties.orchestrationMode),
+          upgradePolicy = tostring(properties.upgradePolicy.mode)
+| order by id asc
+'''

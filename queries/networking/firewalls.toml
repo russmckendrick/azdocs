@@ -1,0 +1,13 @@
+name = "firewalls"
+category = "networking"
+kind = "inventory"
+description = "Azure Firewalls with SKU and policy"
+kql = '''
+resources
+| where type == "microsoft.network/azurefirewalls"
+| project id, name, location, resourceGroup, subscriptionId,
+          sku = tostring(properties.sku.tier),
+          firewallPolicyId = tostring(properties.firewallPolicy.id),
+          threatIntelMode = tostring(properties.threatIntelMode)
+| order by id asc
+'''

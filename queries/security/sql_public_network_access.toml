@@ -1,0 +1,14 @@
+name = "sql_public_network_access"
+category = "security"
+kind = "finding"
+severity = "high"
+title_field = "summary"
+description = "Database servers reachable from public networks"
+kql = '''
+resources
+| where type in ("microsoft.sql/servers", "microsoft.dbforpostgresql/flexibleservers", "microsoft.dbformysql/flexibleservers", "microsoft.documentdb/databaseaccounts")
+| where tolower(coalesce(tostring(properties.publicNetworkAccess), tostring(properties.network.publicNetworkAccess), "enabled")) == "enabled"
+| project id, name, type, resourceGroup, subscriptionId,
+          summary = strcat(name, " (", type, ") allows public network access")
+| order by id asc
+'''

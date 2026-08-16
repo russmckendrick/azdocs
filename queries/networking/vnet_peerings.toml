@@ -1,0 +1,16 @@
+name = "vnet_peerings"
+category = "networking"
+kind = "inventory"
+description = "VNet peerings with state and remote network"
+kql = '''
+resources
+| where type == "microsoft.network/virtualnetworks"
+| mv-expand peering = properties.virtualNetworkPeerings
+| project id = tostring(peering.id), name = tostring(peering.name),
+          vnetId = id, vnetName = name, subscriptionId,
+          remoteVnetId = tostring(peering.properties.remoteVirtualNetwork.id),
+          peeringState = tostring(peering.properties.peeringState),
+          allowForwardedTraffic = peering.properties.allowForwardedTraffic,
+          allowGatewayTransit = peering.properties.allowGatewayTransit
+| order by id asc
+'''

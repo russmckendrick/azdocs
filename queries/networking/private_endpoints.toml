@@ -1,0 +1,15 @@
+name = "private_endpoints"
+category = "networking"
+kind = "inventory"
+description = "Private endpoints and their target resources"
+kql = '''
+resources
+| where type == "microsoft.network/privateendpoints"
+| mv-expand connection = properties.privateLinkServiceConnections
+| project id, name, location, resourceGroup, subscriptionId,
+          subnetId = tostring(properties.subnet.id),
+          targetId = tostring(connection.properties.privateLinkServiceId),
+          groupIds = connection.properties.groupIds,
+          status = tostring(connection.properties.privateLinkServiceConnectionState.status)
+| order by id asc
+'''

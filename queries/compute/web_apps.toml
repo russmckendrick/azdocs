@@ -1,0 +1,15 @@
+name = "web_apps"
+category = "compute"
+kind = "inventory"
+description = "App Services and Function Apps with runtime and TLS settings"
+kql = '''
+resources
+| where type == "microsoft.web/sites"
+| project id, name, location, resourceGroup, subscriptionId, kind,
+          state = tostring(properties.state),
+          defaultHostName = tostring(properties.defaultHostName),
+          httpsOnly = properties.httpsOnly,
+          serverFarmId = tostring(properties.serverFarmId),
+          vnetIntegration = tostring(properties.virtualNetworkSubnetId)
+| order by id asc
+'''

@@ -1,0 +1,14 @@
+name = "public_ip_addresses"
+category = "networking"
+kind = "inventory"
+description = "Public IP addresses and what they are attached to"
+kql = '''
+resources
+| where type == "microsoft.network/publicipaddresses"
+| project id, name, location, resourceGroup, subscriptionId,
+          ipAddress = tostring(properties.ipAddress),
+          allocationMethod = tostring(properties.publicIPAllocationMethod),
+          attachedTo = tostring(properties.ipConfiguration.id),
+          fqdn = tostring(properties.dnsSettings.fqdn)
+| order by id asc
+'''

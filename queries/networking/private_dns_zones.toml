@@ -1,0 +1,12 @@
+name = "private_dns_zones"
+category = "networking"
+kind = "inventory"
+description = "Private DNS zones with record and VNet link counts"
+kql = '''
+resources
+| where type == "microsoft.network/privatednszones"
+| project id, name, resourceGroup, subscriptionId,
+          recordSets = properties.numberOfRecordSets,
+          vnetLinks = properties.numberOfVirtualNetworkLinks
+| order by id asc
+'''

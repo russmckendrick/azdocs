@@ -1,0 +1,15 @@
+name = "subnets"
+category = "networking"
+kind = "inventory"
+description = "Subnets expanded from every virtual network"
+kql = '''
+resources
+| where type == "microsoft.network/virtualnetworks"
+| mv-expand subnet = properties.subnets
+| project id = tostring(subnet.id), name = tostring(subnet.name),
+          vnetId = id, vnetName = name, subscriptionId, resourceGroup,
+          addressPrefix = tostring(subnet.properties.addressPrefix),
+          nsgId = tostring(subnet.properties.networkSecurityGroup.id),
+          routeTableId = tostring(subnet.properties.routeTable.id)
+| order by id asc
+'''

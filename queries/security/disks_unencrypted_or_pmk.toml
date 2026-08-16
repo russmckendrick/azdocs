@@ -1,0 +1,15 @@
+name = "disks_unencrypted_or_pmk"
+category = "security"
+kind = "finding"
+severity = "medium"
+title_field = "summary"
+description = "Managed disks without customer-managed or double encryption"
+kql = '''
+resources
+| where type == "microsoft.compute/disks"
+| where tostring(properties.encryption.type) == "EncryptionAtRestWithPlatformKey"
+| project id, name, resourceGroup, subscriptionId,
+          encryptionType = tostring(properties.encryption.type),
+          summary = strcat(name, " uses platform-managed keys only")
+| order by id asc
+'''

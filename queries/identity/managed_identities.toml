@@ -1,0 +1,12 @@
+name = "managed_identities"
+category = "identity"
+kind = "inventory"
+description = "User-assigned managed identities"
+kql = '''
+resources
+| where type == "microsoft.managedidentity/userassignedidentities"
+| project id, name, location, resourceGroup, subscriptionId,
+          clientId = tostring(properties.clientId),
+          principalId = tostring(properties.principalId)
+| order by id asc
+'''
