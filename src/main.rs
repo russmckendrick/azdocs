@@ -43,9 +43,10 @@ async fn main() -> Result<()> {
             commands::diagram::run(&store, &args)
         }
         Command::Report(args) => {
-            let config = Config::load(cli.config.as_deref())?;
+            let (config, source) = Config::load_with_source(cli.config.as_deref())?;
             let store = open_store(&config, cli.db.as_deref())?;
-            commands::report::run(&store, &args)
+            let config_dir = source.as_deref().and_then(std::path::Path::parent);
+            commands::report::run(&config, config_dir, &store, &args)
         }
         Command::Browse { snapshot } => {
             let config = Config::load(cli.config.as_deref())?;

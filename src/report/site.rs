@@ -7,13 +7,14 @@ use anyhow::Context;
 use pulldown_cmark::{Options, Parser, html};
 
 use super::ReportContext;
+use super::branding::BrandingContext;
 use super::markdown::render_pages;
 use crate::diagram::assets::{DiagramAsset, DiagramAssetKind};
 
 const STYLE: &str = r#"
-:root { --bg:#fff; --fg:#1a1a2e; --muted:#666; --border:#ddd; --accent:#0078d4; }
+:root { --bg:#fff; --fg:#1a1a2e; --muted:#666; --border:#ddd; --accent:{accent}; }
 @media (prefers-color-scheme: dark) {
-  :root { --bg:#16161d; --fg:#e8e8ef; --muted:#9a9aa5; --border:#3a3a45; --accent:#4da3e8; }
+  :root { --bg:#16161d; --fg:#e8e8ef; --muted:#9a9aa5; --border:#3a3a45; --accent:{accent_dark}; }
 }
 body { font: 15px/1.55 -apple-system, "Segoe UI", Roboto, sans-serif;
        background: var(--bg); color: var(--fg); max-width: 1050px; margin: 0 auto; padding: 2rem 1rem; }
@@ -28,16 +29,54 @@ nav a { margin-right: .8rem; }
 blockquote { margin: .6rem 0; padding: .5rem .9rem; border-left: 4px solid #d13438;
              background: rgba(209,52,56,.08); border-radius: 0 6px 6px 0; }
 blockquote p { margin: 0; }
+header.brand { display: flex; align-items: center; gap: .7rem; margin-bottom: .8rem;
+               color: var(--muted); font-size: 14px; }
+header.brand img { max-height: 40px; }
+footer.brand { margin-top: 2.5rem; border-top: 1px solid var(--border); padding-top: .7rem;
+               color: var(--muted); font-size: 13px; }
 "#;
+
+/// The docs-site stylesheet with the branding palette substituted in.
+fn style(branding: &BrandingContext) -> String {
+    STYLE
+        .replace("{accent}", &branding.primary_color)
+        .replace("{accent_dark}", &branding.accent_color)
+}
+
+/// Site-wide header shown above the nav: logo and/or company + subtitle.
+/// Empty with default branding so unbranded output keeps today's look.
+fn brand_header(branding: &BrandingContext) -> String {
+    let mut parts = Vec::new();
+    if let Some(logo) = &branding.logo {
+        parts.push(format!("<img src=\"{}\" alt=\"logo\">", logo.data_uri));
+    }
+    if !branding.company.is_empty() {
+        parts.push(format!("<b>{}</b>", html_escape(&branding.company)));
+    }
+    if !branding.subtitle.is_empty() {
+        parts.push(html_escape(&branding.subtitle));
+    }
+    if parts.is_empty() {
+        return String::new();
+    }
+    format!("<header class=\"brand\">{}</header>", parts.join(" "))
+}
 
 /// Write the docs tree as HTML pages under `out_dir` (index.html, ...),
 /// plus a `diagrams/` directory of SVGs; the overview diagrams are embedded
 /// on the index page.
 pub fn write(
     report: &ReportContext,
+    branding: &BrandingContext,
     diagrams: &[DiagramAsset],
     out_dir: &Path,
 ) -> anyhow::Result<()> {
+    let style = style(branding);
+    let header = brand_header(branding);
+    let footer = format!(
+        "<footer class=\"brand\">{}</footer>",
+        html_escape(&branding.footer)
+    );
     if !diagrams.is_empty() {
         let diagrams_dir = out_dir.join("diagrams");
         std::fs::create_dir_all(&diagrams_dir)
@@ -68,8 +107,8 @@ pub fn write(
             .collect();
         let page = format!(
             "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">\
-             <title>{title}</title><style>{STYLE}</style></head>\n\
-             <body><nav>{nav_html}</nav>\n{body}\n</body></html>\n"
+             <title>{title}</title><style>{style}</style></head>\n\
+             <body>{header}<nav>{nav_html}</nav>\n{body}\n{footer}</body></html>\n"
         );
         let path = out_dir.join(&html_relative);
         if let Some(parent) = path.parent() {

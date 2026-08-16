@@ -1,7 +1,10 @@
+pub mod branding;
 pub mod csv;
 pub mod details;
+pub mod docx;
 pub mod html;
 pub mod markdown;
+pub mod pdf;
 pub mod site;
 pub mod xlsx;
 
@@ -337,6 +340,18 @@ impl ReportContext {
             details: detail_pages,
         })
     }
+}
+
+/// Column subset for page-width emitters (DOCX; the Typst template applies
+/// the same rule): drop the raw ARM `id` column, which never fits a printed
+/// page, and cap at six. The full data lives in CSV/XLSX/HTML.
+pub(crate) fn page_columns(columns: &[String]) -> Vec<&str> {
+    columns
+        .iter()
+        .map(String::as_str)
+        .filter(|c| *c != "id")
+        .take(6)
+        .collect()
 }
 
 /// Render a JSON cell for a table: strings bare, everything else compact JSON.

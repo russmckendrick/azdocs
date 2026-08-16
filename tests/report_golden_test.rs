@@ -1,5 +1,7 @@
 mod common;
 
+use azdocs::config::BrandingConfig;
+use azdocs::report::branding::BrandingContext;
 use azdocs::report::{ReportContext, csv, html, markdown, xlsx};
 use azdocs::store::Store;
 
@@ -53,11 +55,36 @@ fn html_report_matches_golden_file() {
     let dir = tempfile::tempdir().unwrap();
     let out = dir.path().join("report.html");
 
-    html::write(&report, &out).unwrap();
+    html::write(&report, &BrandingContext::default(), &out).unwrap();
 
     insta_settings().bind(|| {
         insta::assert_snapshot!("report_html", std::fs::read_to_string(&out).unwrap());
     });
+}
+
+#[test]
+fn html_report_applies_custom_branding() {
+    let (store, id) = seeded_context();
+    let report = ReportContext::build(&store, &id).unwrap();
+    let config = BrandingConfig {
+        company: "Contoso Ltd".to_owned(),
+        title: "Contoso Cloud Review".to_owned(),
+        subtitle: "Quarterly estate audit".to_owned(),
+        primary_color: "#112233".to_owned(),
+        footer: "Contoso confidential".to_owned(),
+        ..BrandingConfig::default()
+    };
+    let branding = BrandingContext::resolve(&config, None).unwrap();
+
+    let rendered = html::render(&report, &branding).unwrap();
+
+    assert!(rendered.contains("--accent:#112233"), "custom accent color");
+    assert!(
+        rendered.contains("<h1>Contoso Cloud Review</h1>"),
+        "custom title"
+    );
+    assert!(rendered.contains("Quarterly estate audit"), "subtitle");
+    assert!(rendered.contains("Contoso confidential"), "footer");
 }
 
 #[test]

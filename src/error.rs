@@ -16,6 +16,17 @@ pub enum ConfigError {
     },
     #[error("missing required config value `{0}` (set it in azdocs.toml or via {1})")]
     MissingValue(&'static str, &'static str),
+    #[error("invalid branding color `{value}` for `{field}` (expected #rrggbb)")]
+    InvalidColor { field: &'static str, value: String },
+    #[error("failed to read branding logo {path}: {source}")]
+    LogoRead {
+        path: PathBuf,
+        source: std::io::Error,
+    },
+    #[error(
+        "unsupported branding logo format `{path}` (expected .png, .jpg, .jpeg, .gif, or .svg)"
+    )]
+    LogoFormat { path: PathBuf },
 }
 
 #[derive(Debug, thiserror::Error)]

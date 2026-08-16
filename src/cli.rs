@@ -6,8 +6,8 @@ use clap_complete::Shell;
 /// Audit and document an Azure estate using Azure Resource Graph.
 ///
 /// Collects resource data with read-only credentials into a local SQLite
-/// database, then exports reports (Markdown, HTML, CSV, XLSX) and diagrams
-/// (draw.io, Mermaid) without further network access.
+/// database, then exports reports (Markdown, HTML, CSV, XLSX, PDF, DOCX) and
+/// diagrams (draw.io, Mermaid) without further network access.
 #[derive(Debug, Parser)]
 #[command(name = "azdocs", version, propagate_version = true)]
 pub struct Cli {
@@ -165,6 +165,8 @@ pub enum ReportFormat {
     Html,
     Csv,
     Xlsx,
+    Pdf,
+    Docx,
     All,
 }
 
