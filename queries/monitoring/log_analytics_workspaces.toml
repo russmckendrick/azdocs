@@ -1,0 +1,17 @@
+name = "log_analytics_workspaces"
+category = "monitoring"
+kind = "inventory"
+description = "Log Analytics workspaces with SKU, retention, quota, and network access"
+kql = '''
+resources
+| where type == "microsoft.operationalinsights/workspaces"
+| project id, name, location, resourceGroup, subscriptionId,
+          skuName = tostring(properties.sku.name),
+          retentionInDays = toint(properties.retentionInDays),
+          dailyQuotaGb = todouble(properties.workspaceCapping.dailyQuotaGb),
+          publicNetworkAccessForIngestion = tostring(properties.publicNetworkAccessForIngestion),
+          publicNetworkAccessForQuery = tostring(properties.publicNetworkAccessForQuery),
+          disableLocalAuth = properties.features.disableLocalAuth,
+          customerId = tostring(properties.customerId)
+| order by id asc
+'''

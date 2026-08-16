@@ -1,0 +1,15 @@
+name = "synapse_workspaces"
+category = "analytics"
+kind = "inventory"
+description = "Synapse workspaces with managed VNet and network access settings"
+kql = '''
+resources
+| where type == "microsoft.synapse/workspaces"
+| project id, name, location, resourceGroup, subscriptionId,
+          managedResourceGroupName = tostring(properties.managedResourceGroupName),
+          sqlAdministratorLogin = tostring(properties.sqlAdministratorLogin),
+          managedVirtualNetwork = tostring(properties.managedVirtualNetwork),
+          publicNetworkAccess = tostring(properties.publicNetworkAccess),
+          identityType = tostring(identity.type)
+| order by id asc
+'''

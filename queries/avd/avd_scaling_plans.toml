@@ -1,0 +1,16 @@
+name = "avd_scaling_plans"
+category = "avd"
+kind = "inventory"
+description = "Azure Virtual Desktop scaling plans with schedule and host pool counts"
+kql = '''
+resources
+| where type == "microsoft.desktopvirtualization/scalingplans"
+| project id, name, location, resourceGroup, subscriptionId,
+          friendlyName = tostring(properties.friendlyName),
+          timeZone = tostring(properties.timeZone),
+          exclusionTag = tostring(properties.exclusionTag),
+          hostPoolType = tostring(properties.hostPoolType),
+          scheduleCount = array_length(properties.schedules),
+          hostPoolCount = array_length(properties.hostPoolReferences)
+| order by id asc
+'''

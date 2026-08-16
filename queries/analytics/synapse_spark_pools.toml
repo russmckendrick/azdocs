@@ -1,0 +1,20 @@
+name = "synapse_spark_pools"
+category = "analytics"
+kind = "inventory"
+description = "Synapse Spark pools with node size, autoscale, and auto-pause configuration"
+kql = '''
+resources
+| where type == "microsoft.synapse/workspaces/bigdatapools"
+| project id, name, location, resourceGroup, subscriptionId,
+          workspaceName = tostring(split(id, "/")[8]),
+          sparkVersion = tostring(properties.sparkVersion),
+          nodeSize = tostring(properties.nodeSize),
+          nodeSizeFamily = tostring(properties.nodeSizeFamily),
+          nodeCount = toint(properties.nodeCount),
+          autoScaleEnabled = properties.autoScale.enabled,
+          autoScaleMinNodeCount = toint(properties.autoScale.minNodeCount),
+          autoScaleMaxNodeCount = toint(properties.autoScale.maxNodeCount),
+          autoPauseEnabled = properties.autoPause.enabled,
+          autoPauseDelayInMinutes = toint(properties.autoPause.delayInMinutes)
+| order by id asc
+'''

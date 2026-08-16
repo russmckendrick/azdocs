@@ -1,0 +1,18 @@
+name = "app_insights_components"
+category = "monitoring"
+kind = "inventory"
+description = "Application Insights components with retention, sampling, and workspace integration"
+kql = '''
+resources
+| where type == "microsoft.insights/components"
+| project id, name, location, resourceGroup, subscriptionId, kind,
+          applicationType = tostring(properties.Application_Type),
+          retentionInDays = toint(properties.RetentionInDays),
+          samplingPercentage = todouble(properties.SamplingPercentage),
+          workspaceResourceId = tostring(properties.WorkspaceResourceId),
+          ingestionMode = tostring(properties.IngestionMode),
+          publicNetworkAccessForIngestion = tostring(properties.publicNetworkAccessForIngestion),
+          publicNetworkAccessForQuery = tostring(properties.publicNetworkAccessForQuery),
+          disableLocalAuth = properties.DisableLocalAuth
+| order by id asc
+'''

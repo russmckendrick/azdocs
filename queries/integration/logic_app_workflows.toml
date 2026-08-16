@@ -1,0 +1,15 @@
+name = "logic_app_workflows"
+category = "integration"
+kind = "inventory"
+description = "Logic App workflows with state, identity, and integration account"
+kql = '''
+resources
+| where type == "microsoft.logic/workflows"
+| project id, name, location, resourceGroup, subscriptionId,
+          state = tostring(properties.state),
+          accessEndpoint = tostring(properties.accessEndpoint),
+          integrationAccountId = tostring(properties.integrationAccount.id),
+          identityType = tostring(identity.type),
+          createdTime = tostring(properties.createdTime)
+| order by id asc
+'''

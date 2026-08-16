@@ -1,0 +1,20 @@
+name = "nsg_rules"
+category = "networking"
+kind = "inventory"
+description = "Custom NSG security rules with direction, priority, and address/port scopes"
+kql = '''
+resources
+| where type == "microsoft.network/networksecuritygroups"
+| mv-expand rule = properties.securityRules
+| project id, name, resourceGroup, subscriptionId,
+          ruleName = tostring(rule.name),
+          priority = toint(rule.properties.priority),
+          direction = tostring(rule.properties.direction),
+          access = tostring(rule.properties.access),
+          protocol = tostring(rule.properties.protocol),
+          sourceAddressPrefix = tostring(rule.properties.sourceAddressPrefix),
+          sourcePortRange = tostring(rule.properties.sourcePortRange),
+          destinationAddressPrefix = tostring(rule.properties.destinationAddressPrefix),
+          destinationPortRange = tostring(rule.properties.destinationPortRange)
+| order by id asc, direction asc, priority asc, ruleName asc
+'''

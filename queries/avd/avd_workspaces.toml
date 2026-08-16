@@ -1,0 +1,12 @@
+name = "avd_workspaces"
+category = "avd"
+kind = "inventory"
+description = "Azure Virtual Desktop workspaces with application group counts"
+kql = '''
+resources
+| where type == "microsoft.desktopvirtualization/workspaces"
+| project id, name, location, resourceGroup, subscriptionId,
+          friendlyName = tostring(properties.friendlyName),
+          appGroupCount = array_length(properties.applicationGroupReferences)
+| order by id asc
+'''

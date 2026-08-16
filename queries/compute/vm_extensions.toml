@@ -1,0 +1,21 @@
+name = "vm_extensions"
+category = "compute"
+kind = "inventory"
+description = "VM extensions with publisher, type, and owning virtual machine"
+kql = '''
+resources
+| where type == "microsoft.compute/virtualmachines/extensions"
+| extend vmId = tolower(substring(id, 0, indexof(id, "/extensions")))
+| join kind=leftouter (
+    resources
+    | where type == "microsoft.compute/virtualmachines"
+    | project vmId = tolower(id), vmName = name
+  ) on vmId
+| project id, name, resourceGroup, subscriptionId, vmName,
+          extensionType = tostring(properties.type),
+          publisher = tostring(properties.publisher),
+          typeHandlerVersion = tostring(properties.typeHandlerVersion),
+          autoUpgradeMinorVersion = properties.autoUpgradeMinorVersion,
+          provisioningState = tostring(properties.provisioningState)
+| order by id asc
+'''

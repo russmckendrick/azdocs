@@ -1,0 +1,20 @@
+name = "cognitive_services"
+category = "ai"
+kind = "inventory"
+description = "Cognitive Services and Azure OpenAI accounts with network and auth posture"
+kql = '''
+resources
+| where type == "microsoft.cognitiveservices/accounts"
+| project id, name, location, resourceGroup, subscriptionId, kind,
+          skuName = tostring(sku.name),
+          endpoint = tostring(properties.endpoint),
+          customSubDomainName = tostring(properties.customSubDomainName),
+          publicNetworkAccess = tostring(properties.publicNetworkAccess),
+          defaultNetworkAction = tostring(properties.networkAcls.defaultAction),
+          privateEndpointCount = array_length(properties.privateEndpointConnections),
+          disableLocalAuth = properties.disableLocalAuth,
+          restrictOutboundNetworkAccess = properties.restrictOutboundNetworkAccess,
+          encryptionKeySource = tostring(properties.encryption.keySource),
+          identityType = tostring(identity.type)
+| order by id asc
+'''

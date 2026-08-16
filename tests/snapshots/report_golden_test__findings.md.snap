@@ -6,7 +6,7 @@ expression: content
 
 [← index](index.md)
 
-**2 high · 0 medium · 7 low · 0 info**
+**2 high · 1 medium · 7 low · 1 info**
 
 
 ## High
@@ -16,6 +16,11 @@ expression: content
 | nsg-app: rule allow-ssh allows Internet -> port 22 | security | `nsg_open_to_internet` | `/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/networksecuritygroups/nsg-app` |
 | stprodapp01 allows public blob access | security | `storage_public_blob_access` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01` |
 
+## Medium
+
+| Title | Category | Check | Resource |
+|---|---|---|---|
+| web-dev does not enforce HTTPS-only traffic | security | `web_app_https_only_disabled` | `/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.web/sites/web-dev` |
 
 ## Low
 
@@ -28,3 +33,9 @@ expression: content
 | vm-app-01-os is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.compute/disks/vm-app-01-os` |
 | vm-app-01-pip is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/publicipaddresses/vm-app-01-pip` |
 | web-dev is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.web/sites/web-dev` |
+
+## Info
+
+| Title | Category | Check | Resource |
+|---|---|---|---|
+| nsg-unused is not associated with any subnet or NIC | security | `unassociated_nsgs` | `/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/networksecuritygroups/nsg-unused` |

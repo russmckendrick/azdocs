@@ -1,0 +1,16 @@
+name = "web_app_weak_tls_or_ftps"
+category = "security"
+kind = "finding"
+severity = "medium"
+title_field = "summary"
+description = "App Services allowing weak TLS versions or unencrypted FTP"
+kql = '''
+resources
+| where type == "microsoft.web/sites"
+| extend minTlsVersion = tostring(properties.siteConfig.minTlsVersion),
+         ftpsState = tostring(properties.siteConfig.ftpsState)
+| where minTlsVersion in ("1.0", "1.1") or ftpsState == "AllAllowed"
+| project id, name, resourceGroup, subscriptionId,
+          summary = strcat(name, " allows weak transport security (minTls=", minTlsVersion, ", ftps=", ftpsState, ")")
+| order by id asc
+'''

@@ -1,0 +1,14 @@
+name = "aks_rbac_disabled"
+category = "security"
+kind = "finding"
+severity = "high"
+title_field = "summary"
+description = "AKS clusters with Kubernetes RBAC disabled"
+kql = '''
+resources
+| where type == "microsoft.containerservice/managedclusters"
+| where properties.enableRBAC == false
+| project id, name, resourceGroup, subscriptionId,
+          summary = strcat(name, " has Kubernetes RBAC disabled")
+| order by id asc
+'''

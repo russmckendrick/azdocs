@@ -22,33 +22,39 @@ flowchart LR
             class n6 resource
             n7["vm-app-01<br/><i>Virtual Machine</i>"]
             class n7 resource
-            n8["vm-app-01-nic<br/><i>Network Interface</i>"]
+            n8["hp-prod<br/><i>hostpools</i>"]
             class n8 resource
-            n9["pe-sql<br/><i>Private Endpoint</i>"]
+            n9["vm-app-01-nic<br/><i>Network Interface</i>"]
             class n9 resource
-            n10["vm-app-01-pip<br/><i>Public IP Address</i>"]
+            n10["pe-sql<br/><i>Private Endpoint</i>"]
             class n10 resource
-            n11["vnet-app<br/><i>Virtual Network</i>"]
+            n11["vm-app-01-pip<br/><i>Public IP Address</i>"]
             class n11 resource
-            n12["sql-prod<br/><i>SQL Server</i>"]
+            n12["vnet-app<br/><i>Virtual Network</i>"]
             class n12 resource
-            n13["stprodapp01<br/><i>Storage Account</i>"]
+            n13["law-prod<br/><i>Log Analytics Workspace</i>"]
             class n13 resource
+            n14["sql-prod<br/><i>SQL Server</i>"]
+            class n14 resource
+            n15["stprodapp01<br/><i>Storage Account</i>"]
+            class n15 resource
         end
         class n5 rg
-        subgraph n14["rg-network"]
-            n15["nsg-app<br/><i>Network Security Group</i>"]
-            class n15 resource
-            n16["vnet-hub<br/><i>Virtual Network</i>"]
-            class n16 resource
+        subgraph n16["rg-network"]
+            n17["nsg-app<br/><i>Network Security Group</i>"]
+            class n17 resource
+            n18["nsg-unused<br/><i>Network Security Group</i>"]
+            class n18 resource
+            n19["vnet-hub<br/><i>Virtual Network</i>"]
+            class n19 resource
         end
-        class n14 rg
+        class n16 rg
     end
     class n4 subscription
     n6---n7
-    n8---n7
-    n9-.-|private link|n12
-    n10---n8
+    n9---n7
+    n10-.-|private link|n14
+    n11---n9
     classDef subscription fill:#e8f1fa,stroke:#0078d4
     classDef rg fill:#f3f2f1,stroke:#8a8886
     classDef vnet fill:#e6f5e6,stroke:#107c10

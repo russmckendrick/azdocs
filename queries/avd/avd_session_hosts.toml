@@ -1,0 +1,23 @@
+name = "avd_session_hosts"
+category = "avd"
+kind = "inventory"
+description = "Likely AVD session hosts: VMs sharing a resource group with a host pool"
+kql = '''
+resources
+| where type == "microsoft.desktopvirtualization/hostpools"
+| project hostPoolId = id, hostPoolName = name,
+          hostPoolRg = tolower(resourceGroup), hostPoolSub = tolower(subscriptionId),
+          hostPoolType = tostring(properties.hostPoolType)
+| join kind=inner (
+    resources
+    | where type == "microsoft.compute/virtualmachines"
+    | project vmId = id, vmName = name, location, resourceGroup, subscriptionId,
+              vmRg = tolower(resourceGroup), vmSub = tolower(subscriptionId),
+              vmSize = tostring(properties.hardwareProfile.vmSize),
+              osType = tostring(properties.storageProfile.osDisk.osType),
+              provisioningState = tostring(properties.provisioningState)
+  ) on $left.hostPoolRg == $right.vmRg and $left.hostPoolSub == $right.vmSub
+| project id = vmId, name = vmName, location, resourceGroup, subscriptionId,
+          hostPoolId, hostPoolName, hostPoolType, vmSize, osType, provisioningState
+| order by id asc, hostPoolName asc
+'''

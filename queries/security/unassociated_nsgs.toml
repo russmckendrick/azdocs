@@ -1,0 +1,14 @@
+name = "unassociated_nsgs"
+category = "security"
+kind = "finding"
+severity = "info"
+title_field = "summary"
+description = "NSGs not associated with any subnet or network interface"
+kql = '''
+resources
+| where type == "microsoft.network/networksecuritygroups"
+| where isnull(properties.networkInterfaces) and isnull(properties.subnets)
+| project id, name, resourceGroup, subscriptionId,
+          summary = strcat(name, " is not associated with any subnet or NIC")
+| order by id asc
+'''

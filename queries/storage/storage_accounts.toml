@@ -9,6 +9,7 @@ resources
           sku = tostring(sku.name), kind,
           accessTier = tostring(properties.accessTier),
           httpsOnly = properties.supportsHttpsTrafficOnly,
+          minimumTlsVersion = tostring(properties.minimumTlsVersion),
           allowBlobPublicAccess = properties.allowBlobPublicAccess,
           publicNetworkAccess = tostring(properties.publicNetworkAccess),
           defaultNetworkAction = tostring(properties.networkAcls.defaultAction)

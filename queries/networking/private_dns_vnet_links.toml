@@ -1,0 +1,15 @@
+name = "private_dns_vnet_links"
+category = "networking"
+kind = "inventory"
+description = "Private DNS zone virtual network links with registration status"
+kql = '''
+resources
+| where type == "microsoft.network/privatednszones/virtualnetworklinks"
+| project id, name, resourceGroup, subscriptionId,
+          dnsZoneName = tostring(split(id, "/")[8]),
+          virtualNetworkId = tostring(properties.virtualNetwork.id),
+          virtualNetworkName = tostring(split(tostring(properties.virtualNetwork.id), "/")[8]),
+          registrationEnabled = properties.registrationEnabled,
+          linkState = tostring(properties.virtualNetworkLinkState)
+| order by id asc
+'''

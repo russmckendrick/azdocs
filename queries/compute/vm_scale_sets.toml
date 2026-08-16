@@ -1,13 +1,21 @@
 name = "vm_scale_sets"
 category = "compute"
 kind = "inventory"
-description = "VM scale sets with capacity and orchestration mode"
+description = "VM scale sets with capacity, orchestration mode, and AKS node pool linkage"
 kql = '''
 resources
 | where type == "microsoft.compute/virtualmachinescalesets"
 | project id, name, location, resourceGroup, subscriptionId,
           sku = tostring(sku.name), capacity = toint(sku.capacity),
           orchestrationMode = tostring(properties.orchestrationMode),
-          upgradePolicy = tostring(properties.upgradePolicy.mode)
+          upgradePolicy = tostring(properties.upgradePolicy.mode),
+          osType = tostring(properties.virtualMachineProfile.storageProfile.osDisk.osType),
+          imageReference = strcat(tostring(properties.virtualMachineProfile.storageProfile.imageReference.publisher), "/",
+                                  tostring(properties.virtualMachineProfile.storageProfile.imageReference.offer), "/",
+                                  tostring(properties.virtualMachineProfile.storageProfile.imageReference.sku)),
+          zones = tostring(zones),
+          isAksManaged = isnotempty(tostring(tags["aks-managed-poolName"])),
+          aksClusterName = tostring(tags["aks-managed-clusterName"]),
+          aksPoolName = tostring(tags["aks-managed-poolName"])
 | order by id asc
 '''

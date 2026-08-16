@@ -1,13 +1,20 @@
 name = "app_gateways"
 category = "networking"
 kind = "inventory"
-description = "Application gateways with SKU, WAF state, and listener counts"
+description = "Application gateways with SKU, WAF configuration, and listener/pool/rule counts"
 kql = '''
 resources
 | where type == "microsoft.network/applicationgateways"
 | project id, name, location, resourceGroup, subscriptionId,
           sku = tostring(properties.sku.name),
+          tier = tostring(properties.sku.tier),
+          capacity = toint(properties.sku.capacity),
           wafEnabled = properties.webApplicationFirewallConfiguration.enabled,
-          listenerCount = array_length(properties.httpListeners)
+          wafMode = tostring(properties.webApplicationFirewallConfiguration.firewallMode),
+          wafRuleSetType = tostring(properties.webApplicationFirewallConfiguration.ruleSetType),
+          wafRuleSetVersion = tostring(properties.webApplicationFirewallConfiguration.ruleSetVersion),
+          listenerCount = array_length(properties.httpListeners),
+          backendPoolCount = array_length(properties.backendAddressPools),
+          routingRuleCount = array_length(properties.requestRoutingRules)
 | order by id asc
 '''

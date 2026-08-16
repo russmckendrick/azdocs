@@ -1,0 +1,14 @@
+name = "storage_weak_tls"
+category = "security"
+kind = "finding"
+severity = "medium"
+title_field = "summary"
+description = "Storage accounts permitting TLS versions below 1.2"
+kql = '''
+resources
+| where type == "microsoft.storage/storageaccounts"
+| where tostring(properties.minimumTlsVersion) in ("TLS1_0", "TLS1_1")
+| project id, name, resourceGroup, subscriptionId,
+          summary = strcat(name, " permits TLS below 1.2 (", properties.minimumTlsVersion, ")")
+| order by id asc
+'''

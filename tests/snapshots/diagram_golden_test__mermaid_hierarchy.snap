@@ -12,10 +12,10 @@ flowchart LR
             class n2 rg
         end
         class n1 subscription
-        subgraph n3["Production<br/><i>10 resources</i>"]
-            n4["rg-app<br/><i>8 resources</i>"]
+        subgraph n3["Production<br/><i>13 resources</i>"]
+            n4["rg-app<br/><i>10 resources</i>"]
             class n4 rg
-            n5["rg-network<br/><i>2 resources</i>"]
+            n5["rg-network<br/><i>3 resources</i>"]
             class n5 rg
         end
         class n3 subscription

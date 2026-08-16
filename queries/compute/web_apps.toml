@@ -9,6 +9,13 @@ resources
           state = tostring(properties.state),
           defaultHostName = tostring(properties.defaultHostName),
           httpsOnly = properties.httpsOnly,
+          minTlsVersion = tostring(properties.siteConfig.minTlsVersion),
+          ftpsState = tostring(properties.siteConfig.ftpsState),
+          clientCertEnabled = properties.clientCertEnabled,
+          publicNetworkAccess = tostring(properties.publicNetworkAccess),
+          linuxFxVersion = tostring(properties.siteConfig.linuxFxVersion),
+          alwaysOn = properties.siteConfig.alwaysOn,
+          http20Enabled = properties.siteConfig.http20Enabled,
           serverFarmId = tostring(properties.serverFarmId),
           vnetIntegration = tostring(properties.virtualNetworkSubnetId)
 | order by id asc

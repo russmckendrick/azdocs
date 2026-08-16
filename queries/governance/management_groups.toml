@@ -1,0 +1,12 @@
+name = "management_groups"
+category = "governance"
+kind = "inventory"
+description = "Management group hierarchy (may return no rows when ARG access is scoped to subscriptions only)"
+kql = '''
+resourcecontainers
+| where type == "microsoft.management/managementgroups"
+| project id, name,
+          displayName = tostring(properties.displayName),
+          parentId = tostring(properties.details.parent.id)
+| order by id asc
+'''

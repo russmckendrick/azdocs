@@ -1,14 +1,22 @@
 name = "sql_servers_and_dbs"
 category = "databases"
 kind = "inventory"
-description = "SQL servers and databases with version and public network access"
+description = "SQL servers and databases with version, TLS, auth, and network posture"
 kql = '''
 resources
 | where type in ("microsoft.sql/servers", "microsoft.sql/servers/databases")
 | project id, name, type, location, resourceGroup, subscriptionId,
           version = tostring(properties.version),
           publicNetworkAccess = tostring(properties.publicNetworkAccess),
+          minimalTlsVersion = tostring(properties.minimalTlsVersion),
+          azureADOnlyAuthentication = properties.administrators.azureADOnlyAuthentication,
+          adAdminLogin = tostring(properties.administrators.login),
+          adAdminPrincipalType = tostring(properties.administrators.principalType),
+          restrictOutboundNetworkAccess = tostring(properties.restrictOutboundNetworkAccess),
           sku = tostring(sku.name),
+          skuTier = tostring(sku.tier),
+          zoneRedundant = properties.zoneRedundant,
+          elasticPoolId = tostring(properties.elasticPoolId),
           status = tostring(properties.status)
 | order by id asc
 '''

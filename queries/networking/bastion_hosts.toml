@@ -1,0 +1,24 @@
+name = "bastion_hosts"
+category = "networking"
+kind = "inventory"
+description = "Bastion hosts with SKU, VNet placement, and public IP"
+kql = '''
+resources
+| where type == "microsoft.network/bastionhosts"
+| mv-expand ipConfig = properties.ipConfigurations
+| extend subnetId = tostring(ipConfig.properties.subnet.id),
+         publicIpId = tolower(tostring(ipConfig.properties.publicIPAddress.id))
+| join kind=leftouter (
+    resources
+    | where type == "microsoft.network/publicipaddresses"
+    | project publicIpId = tolower(id), publicIpAddress = tostring(properties.ipAddress)
+  ) on publicIpId
+| project id, name, location, resourceGroup, subscriptionId,
+          skuName = tostring(sku.name),
+          scaleUnits = toint(properties.scaleUnits),
+          dnsName = tostring(properties.dnsName),
+          vnetName = tostring(split(subnetId, "/")[8]),
+          subnetName = tostring(split(subnetId, "/")[10]),
+          publicIpAddress
+| order by id asc, subnetName asc
+'''

@@ -1,0 +1,16 @@
+name = "aks_public_api_server"
+category = "security"
+kind = "finding"
+severity = "low"
+title_field = "summary"
+description = "AKS clusters exposing a public API server with no authorized IP ranges"
+kql = '''
+resources
+| where type == "microsoft.containerservice/managedclusters"
+| where properties.apiServerAccessProfile.enablePrivateCluster != true
+  and (isnull(properties.apiServerAccessProfile.authorizedIPRanges)
+       or array_length(properties.apiServerAccessProfile.authorizedIPRanges) == 0)
+| project id, name, resourceGroup, subscriptionId,
+          summary = strcat(name, " exposes a public API server with no authorized IP ranges")
+| order by id asc
+'''

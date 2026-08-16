@@ -1,0 +1,13 @@
+name = "tag_usage"
+category = "inventory"
+kind = "inventory"
+description = "Tag keys in use across the estate with tagged resource counts"
+kql = '''
+resources
+| project tags
+| mv-expand tags
+| extend tagKey = tostring(bag_keys(tags)[0])
+| where isnotempty(tagKey)
+| summarize taggedCount = count() by tagKey
+| order by taggedCount desc, tagKey asc
+'''

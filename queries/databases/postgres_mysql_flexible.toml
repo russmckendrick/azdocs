@@ -1,7 +1,7 @@
 name = "postgres_mysql_flexible"
 category = "databases"
 kind = "inventory"
-description = "PostgreSQL and MySQL flexible servers"
+description = "PostgreSQL and MySQL flexible servers with backup, auth, and encryption settings"
 kql = '''
 resources
 | where type in ("microsoft.dbforpostgresql/flexibleservers", "microsoft.dbformysql/flexibleservers")
@@ -9,6 +9,13 @@ resources
           version = tostring(properties.version), sku = tostring(sku.name),
           storageGb = toint(properties.storage.storageSizeGB),
           haMode = tostring(properties.highAvailability.mode),
-          publicNetworkAccess = tostring(properties.network.publicNetworkAccess)
+          publicNetworkAccess = tostring(properties.network.publicNetworkAccess),
+          geoRedundantBackup = tostring(properties.backup.geoRedundantBackup),
+          backupRetentionDays = toint(properties.backup.backupRetentionDays),
+          activeDirectoryAuth = tostring(properties.authConfig.activeDirectoryAuth),
+          passwordAuth = tostring(properties.authConfig.passwordAuth),
+          dataEncryptionType = tostring(properties.dataEncryption.type),
+          availabilityZone = tostring(properties.availabilityZone),
+          delegatedSubnetResourceId = tostring(properties.network.delegatedSubnetResourceId)
 | order by id asc
 '''

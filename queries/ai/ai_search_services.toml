@@ -1,0 +1,20 @@
+name = "ai_search_services"
+category = "ai"
+kind = "inventory"
+description = "Azure AI Search services with SKU, replicas, partitions, and network posture"
+kql = '''
+resources
+| where type == "microsoft.search/searchservices"
+| project id, name, location, resourceGroup, subscriptionId,
+          skuName = tostring(sku.name),
+          status = tostring(properties.status),
+          hostingMode = tostring(properties.hostingMode),
+          replicaCount = toint(properties.replicaCount),
+          partitionCount = toint(properties.partitionCount),
+          publicNetworkAccess = tostring(properties.publicNetworkAccess),
+          privateEndpointCount = array_length(properties.privateEndpointConnections),
+          disableLocalAuth = properties.disableLocalAuth,
+          cmkEnforcement = tostring(properties.encryptionWithCmk.enforcement),
+          semanticSearch = tostring(properties.semanticSearch)
+| order by id asc
+'''

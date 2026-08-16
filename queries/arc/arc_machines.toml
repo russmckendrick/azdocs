@@ -1,0 +1,24 @@
+name = "arc_machines"
+category = "arc"
+kind = "inventory"
+description = "Azure Arc-enabled servers with OS, agent, and connectivity status"
+kql = '''
+resources
+| where type == "microsoft.hybridcompute/machines"
+| project id, name, location, resourceGroup, subscriptionId,
+          status = tostring(properties.status),
+          osType = tostring(properties.osType),
+          osName = tostring(properties.osName),
+          osVersion = tostring(properties.osVersion),
+          osSku = tostring(properties.osSku),
+          agentVersion = tostring(properties.agentVersion),
+          lastStatusChange = tostring(properties.lastStatusChange),
+          machineFqdn = tostring(properties.machineFqdn),
+          domainName = tostring(properties.domainName),
+          cloudProvider = tostring(properties.cloudMetadata.provider),
+          manufacturer = tostring(properties.detectedProperties.manufacturer),
+          model = tostring(properties.detectedProperties.model),
+          totalPhysicalMemoryGb = toint(properties.detectedProperties.totalPhysicalMemoryInBytes) / 1073741824,
+          processorCount = toint(properties.detectedProperties.processorCount)
+| order by id asc
+'''

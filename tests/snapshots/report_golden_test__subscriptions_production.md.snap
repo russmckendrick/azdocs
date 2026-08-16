@@ -8,7 +8,7 @@ expression: content
 
 - **Id**: `sub-prod`
 - **State**: Enabled
-- **Resources**: 10
+- **Resources**: 13
 
 
 ## rg-app (uksouth)
@@ -19,10 +19,12 @@ expression: content
 |---|---|---|
 | vm-app-01-os | Managed Disk | uksouth |
 | vm-app-01 | Virtual Machine | uksouth |
+| hp-prod | hostpools | uksouth |
 | vm-app-01-nic | Network Interface | uksouth |
 | pe-sql | Private Endpoint | uksouth |
 | vm-app-01-pip | Public IP Address | uksouth |
 | vnet-app | Virtual Network | uksouth |
+| law-prod | Log Analytics Workspace | uksouth |
 | sql-prod | SQL Server | uksouth |
 | stprodapp01 | Storage Account | uksouth |
 
@@ -34,4 +36,5 @@ expression: content
 | Name | Type | Location |
 |---|---|---|
 | nsg-app | Network Security Group | uksouth |
+| nsg-unused | Network Security Group | uksouth |
 | vnet-hub | Virtual Network | uksouth |

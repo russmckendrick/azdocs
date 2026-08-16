@@ -1,0 +1,17 @@
+name = "avd_host_pools"
+category = "avd"
+kind = "inventory"
+description = "Azure Virtual Desktop host pools with type, load balancing, and session limits"
+kql = '''
+resources
+| where type == "microsoft.desktopvirtualization/hostpools"
+| project id, name, location, resourceGroup, subscriptionId,
+          hostPoolType = tostring(properties.hostPoolType),
+          loadBalancerType = tostring(properties.loadBalancerType),
+          maxSessionLimit = toint(properties.maxSessionLimit),
+          validationEnvironment = properties.validationEnvironment,
+          startVMOnConnect = properties.startVMOnConnect,
+          preferredAppGroupType = tostring(properties.preferredAppGroupType),
+          friendlyName = tostring(properties.friendlyName)
+| order by id asc
+'''

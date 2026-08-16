@@ -1,0 +1,14 @@
+name = "avd_application_groups"
+category = "avd"
+kind = "inventory"
+description = "Azure Virtual Desktop application groups with their host pool"
+kql = '''
+resources
+| where type == "microsoft.desktopvirtualization/applicationgroups"
+| project id, name, location, resourceGroup, subscriptionId,
+          applicationGroupType = tostring(properties.applicationGroupType),
+          friendlyName = tostring(properties.friendlyName),
+          hostPoolId = tostring(properties.hostPoolArmPath),
+          hostPoolName = tostring(split(properties.hostPoolArmPath, "/")[8])
+| order by id asc
+'''

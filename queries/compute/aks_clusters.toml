@@ -1,7 +1,7 @@
 name = "aks_clusters"
 category = "compute"
 kind = "inventory"
-description = "AKS clusters with version, node pools, and network plugin"
+description = "AKS clusters with version, node pools, network plugin, and security posture"
 kql = '''
 resources
 | where type == "microsoft.containerservice/managedclusters"
@@ -9,7 +9,18 @@ resources
           kubernetesVersion = tostring(properties.kubernetesVersion),
           nodePoolCount = array_length(properties.agentPoolProfiles),
           networkPlugin = tostring(properties.networkProfile.networkPlugin),
+          networkPolicy = tostring(properties.networkProfile.networkPolicy),
+          outboundType = tostring(properties.networkProfile.outboundType),
           privateCluster = properties.apiServerAccessProfile.enablePrivateCluster,
+          enableRBAC = properties.enableRBAC,
+          aadManaged = properties.aadProfile.managed,
+          enableAzureRBAC = properties.aadProfile.enableAzureRBAC,
+          defenderEnabled = properties.securityProfile.defender.securityMonitoring.enabled,
+          workloadIdentityEnabled = properties.securityProfile.workloadIdentity.enabled,
+          powerState = tostring(properties.powerState.code),
+          fqdn = tostring(properties.fqdn),
+          privateFQDN = tostring(properties.privateFQDN),
+          nodeResourceGroup = tostring(properties.nodeResourceGroup),
           skuTier = tostring(sku.tier)
 | order by id asc
 '''

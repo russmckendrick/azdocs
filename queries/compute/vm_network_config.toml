@@ -1,0 +1,36 @@
+name = "vm_network_config"
+category = "compute"
+kind = "inventory"
+description = "VMs with their primary NIC, private/public IPs, and subnet"
+kql = '''
+resources
+| where type == "microsoft.compute/virtualmachines"
+| extend nicCount = array_length(properties.networkProfile.networkInterfaces)
+| mv-expand nic = properties.networkProfile.networkInterfaces
+| where nicCount == 1 or nic.properties.primary =~ "true" or isempty(nic)
+| project id, name, location, resourceGroup, subscriptionId,
+          vmSize = tostring(properties.hardwareProfile.vmSize),
+          nicId = tolower(tostring(nic.id))
+| join kind=leftouter (
+    resources
+    | where type == "microsoft.network/networkinterfaces"
+    | extend ipConfigCount = array_length(properties.ipConfigurations)
+    | mv-expand ipConfig = properties.ipConfigurations
+    | where ipConfigCount == 1 or ipConfig.properties.primary =~ "true"
+    | project nicId = tolower(id), nicName = name,
+              privateIpAddress = tostring(ipConfig.properties.privateIPAddress),
+              privateIpAllocationMethod = tostring(ipConfig.properties.privateIPAllocationMethod),
+              subnetId = tostring(ipConfig.properties.subnet.id),
+              publicIpId = tolower(tostring(ipConfig.properties.publicIPAddress.id))
+  ) on nicId
+| join kind=leftouter (
+    resources
+    | where type == "microsoft.network/publicipaddresses"
+    | project publicIpId = tolower(id), publicIpAddress = tostring(properties.ipAddress),
+              publicIpAllocationMethod = tostring(properties.publicIPAllocationMethod)
+  ) on publicIpId
+| project id, name, location, resourceGroup, subscriptionId, vmSize,
+          nicName, privateIpAddress, privateIpAllocationMethod,
+          subnetId, publicIpAddress, publicIpAllocationMethod
+| order by id asc
+'''

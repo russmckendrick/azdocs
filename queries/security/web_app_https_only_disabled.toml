@@ -1,0 +1,14 @@
+name = "web_app_https_only_disabled"
+category = "security"
+kind = "finding"
+severity = "medium"
+title_field = "summary"
+description = "App Services not enforcing HTTPS-only traffic"
+kql = '''
+resources
+| where type == "microsoft.web/sites"
+| where properties.httpsOnly != true
+| project id, name, resourceGroup, subscriptionId,
+          summary = strcat(name, " does not enforce HTTPS-only traffic")
+| order by id asc
+'''

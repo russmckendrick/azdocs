@@ -1,6 +1,7 @@
 //! Canonical fixture estate shared by report/diagram golden tests: two
 //! subscriptions, peered hub/spoke VNets, a VM with NIC + public IP, storage
-//! with findings, and a private endpoint.
+//! with findings, a private endpoint, a Log Analytics workspace, an AVD host
+//! pool, and a detached NSG.
 
 use azdocs::collect::{audit, extractors, ingest};
 use azdocs::querypack::QueryPack;
@@ -51,6 +52,24 @@ pub fn seed_estate(store: &Store) -> String {
         ],
     );
     ingest_rows(
+        "log_analytics_workspaces",
+        &[
+            json!({"id": "/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.operationalinsights/workspaces/law-prod",
+                   "name": "law-prod", "location": "uksouth", "resourceGroup": "rg-app", "subscriptionId": "sub-prod",
+                   "skuName": "PerGB2018", "retentionInDays": 30,
+                   "publicNetworkAccessForIngestion": "Enabled", "publicNetworkAccessForQuery": "Enabled"}),
+        ],
+    );
+    ingest_rows(
+        "avd_host_pools",
+        &[
+            json!({"id": "/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.desktopvirtualization/hostpools/hp-prod",
+                   "name": "hp-prod", "location": "uksouth", "resourceGroup": "rg-app", "subscriptionId": "sub-prod",
+                   "hostPoolType": "Pooled", "loadBalancerType": "BreadthFirst", "maxSessionLimit": 10,
+                   "preferredAppGroupType": "Desktop"}),
+        ],
+    );
+    ingest_rows(
         "storage_public_blob_access",
         &[
             json!({"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Storage/storageAccounts/stprodapp01",
@@ -65,6 +84,22 @@ pub fn seed_estate(store: &Store) -> String {
                  "name": "nsg-app", "resourceGroup": "rg-network", "subscriptionId": "sub-prod",
                  "ruleName": "allow-ssh", "port": "22", "priority": 100,
                  "summary": "nsg-app: rule allow-ssh allows Internet -> port 22"}),
+        ],
+    );
+    ingest_rows(
+        "web_app_https_only_disabled",
+        &[
+            json!({"id": "/subscriptions/sub-dev/resourceGroups/rg-dev/providers/Microsoft.Web/sites/web-dev",
+                 "name": "web-dev", "resourceGroup": "rg-dev", "subscriptionId": "sub-dev",
+                 "summary": "web-dev does not enforce HTTPS-only traffic"}),
+        ],
+    );
+    ingest_rows(
+        "unassociated_nsgs",
+        &[
+            json!({"id": "/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/networkSecurityGroups/nsg-unused",
+                 "name": "nsg-unused", "resourceGroup": "rg-network", "subscriptionId": "sub-prod",
+                 "summary": "nsg-unused is not associated with any subnet or NIC"}),
         ],
     );
 
@@ -123,6 +158,24 @@ fn estate_resources() -> Vec<Value> {
             "name": "nsg-app", "type": "microsoft.network/networksecuritygroups", "location": "uksouth",
             "resourceGroup": "rg-network", "subscriptionId": "sub-prod", "tags": {"env": "prod"},
             "properties": {"securityRules": [{"name": "allow-ssh"}]}
+        }),
+        json!({
+            "id": "/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/networkSecurityGroups/nsg-unused",
+            "name": "nsg-unused", "type": "microsoft.network/networksecuritygroups", "location": "uksouth",
+            "resourceGroup": "rg-network", "subscriptionId": "sub-prod", "tags": {"env": "prod"},
+            "properties": {"securityRules": []}
+        }),
+        json!({
+            "id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.OperationalInsights/workspaces/law-prod",
+            "name": "law-prod", "type": "microsoft.operationalinsights/workspaces", "location": "uksouth",
+            "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "tags": {"env": "prod"},
+            "properties": {"sku": {"name": "PerGB2018"}, "retentionInDays": 30}
+        }),
+        json!({
+            "id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.DesktopVirtualization/hostPools/hp-prod",
+            "name": "hp-prod", "type": "microsoft.desktopvirtualization/hostpools", "location": "uksouth",
+            "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "tags": {"env": "prod"},
+            "properties": {"hostPoolType": "Pooled", "loadBalancerType": "BreadthFirst", "maxSessionLimit": 10}
         }),
         json!({
             "id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/virtualMachines/vm-app-01",
