@@ -37,6 +37,11 @@ async fn main() -> Result<()> {
             let store = open_store(&config, cli.db.as_deref())?;
             commands::collect::run(&config, &store, &args).await
         }
+        Command::Diagram(args) => {
+            let config = Config::load(cli.config.as_deref())?;
+            let store = open_store(&config, cli.db.as_deref())?;
+            commands::diagram::run(&store, &args)
+        }
         Command::Report(args) => {
             let config = Config::load(cli.config.as_deref())?;
             let store = open_store(&config, cli.db.as_deref())?;
@@ -81,7 +86,6 @@ fn open_store(
 
 fn not_yet_implemented(command: &Command) -> Result<()> {
     let name = match command {
-        Command::Diagram(_) => "diagram",
         Command::Browse { .. } => "browse",
         _ => unreachable!("handled in main"),
     };

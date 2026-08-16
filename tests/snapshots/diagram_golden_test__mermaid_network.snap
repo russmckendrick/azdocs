@@ -1,0 +1,37 @@
+---
+source: tests/diagram_golden_test.rs
+expression: "mermaid::render(&graph)"
+---
+---
+title: Azure network topology
+---
+flowchart LR
+    subgraph n0["vnet-app<br/><i>10.1.0.0/16</i>"]
+        subgraph n1["app<br/><i>10.1.0.0/24</i>"]
+            n5["vm-app-01<br/><i>Virtual Machine</i>"]
+            class n5 resource
+            n6["pe-sql<br/><i>Private Endpoint</i>"]
+            class n6 resource
+        end
+        class n1 subnet
+    end
+    class n0 vnet
+    subgraph n2["vnet-hub<br/><i>10.0.0.0/16</i>"]
+        n3["gateway<br/><i>10.0.0.0/24</i>"]
+        class n3 subnet
+        n4["shared<br/><i>10.0.1.0/24</i>"]
+        class n4 subnet
+    end
+    class n2 vnet
+    n7["sql-prod<br/><i>SQL Server</i>"]
+    class n7 resource
+    n8["nsg-app<br/><i>NSG</i>"]
+    class n8 resource
+    n6-.-|private link|n7
+    n0-.-|Connected|n2
+    n8-.-n4
+    classDef subscription fill:#e8f1fa,stroke:#0078d4
+    classDef rg fill:#f3f2f1,stroke:#8a8886
+    classDef vnet fill:#e6f5e6,stroke:#107c10
+    classDef subnet fill:#f0faf0,stroke:#4c9a4c
+    classDef resource fill:#fff,stroke:#605e5c

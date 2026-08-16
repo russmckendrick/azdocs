@@ -4,6 +4,7 @@ pub mod cli;
 pub mod collect;
 pub mod commands;
 pub mod config;
+pub mod diagram;
 pub mod error;
 pub mod model;
 pub mod querypack;

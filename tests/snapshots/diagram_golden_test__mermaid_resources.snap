@@ -1,0 +1,56 @@
+---
+source: tests/diagram_golden_test.rs
+expression: "mermaid::render(&graph)"
+---
+---
+title: Azure resources
+---
+flowchart LR
+    subgraph n0["Development"]
+        subgraph n1["rg-dev"]
+            n2["asp-dev<br/><i>App Service Plan</i>"]
+            class n2 resource
+            n3["web-dev<br/><i>App Service / Function App</i>"]
+            class n3 resource
+        end
+        class n1 rg
+    end
+    class n0 subscription
+    subgraph n4["Production"]
+        subgraph n5["rg-app"]
+            n6["vm-app-01-os<br/><i>Managed Disk</i>"]
+            class n6 resource
+            n7["vm-app-01<br/><i>Virtual Machine</i>"]
+            class n7 resource
+            n8["vm-app-01-nic<br/><i>Network Interface</i>"]
+            class n8 resource
+            n9["pe-sql<br/><i>Private Endpoint</i>"]
+            class n9 resource
+            n10["vm-app-01-pip<br/><i>Public IP Address</i>"]
+            class n10 resource
+            n11["vnet-app<br/><i>Virtual Network</i>"]
+            class n11 resource
+            n12["sql-prod<br/><i>SQL Server</i>"]
+            class n12 resource
+            n13["stprodapp01<br/><i>Storage Account</i>"]
+            class n13 resource
+        end
+        class n5 rg
+        subgraph n14["rg-network"]
+            n15["nsg-app<br/><i>Network Security Group</i>"]
+            class n15 resource
+            n16["vnet-hub<br/><i>Virtual Network</i>"]
+            class n16 resource
+        end
+        class n14 rg
+    end
+    class n4 subscription
+    n6---n7
+    n8---n7
+    n9-.-|private link|n12
+    n10---n8
+    classDef subscription fill:#e8f1fa,stroke:#0078d4
+    classDef rg fill:#f3f2f1,stroke:#8a8886
+    classDef vnet fill:#e6f5e6,stroke:#107c10
+    classDef subnet fill:#f0faf0,stroke:#4c9a4c
+    classDef resource fill:#fff,stroke:#605e5c

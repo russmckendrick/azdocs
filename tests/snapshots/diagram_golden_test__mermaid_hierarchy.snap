@@ -1,0 +1,27 @@
+---
+source: tests/diagram_golden_test.rs
+expression: "mermaid::render(&graph)"
+---
+---
+title: Azure estate — tenant fixture-tenant
+---
+flowchart LR
+    subgraph n0["Tenant fixture-tenant"]
+        subgraph n1["Development<br/><i>2 resources</i>"]
+            n2["rg-dev<br/><i>2 resources</i>"]
+            class n2 rg
+        end
+        class n1 subscription
+        subgraph n3["Production<br/><i>10 resources</i>"]
+            n4["rg-app<br/><i>8 resources</i>"]
+            class n4 rg
+            n5["rg-network<br/><i>2 resources</i>"]
+            class n5 rg
+        end
+        class n3 subscription
+    end
+    classDef subscription fill:#e8f1fa,stroke:#0078d4
+    classDef rg fill:#f3f2f1,stroke:#8a8886
+    classDef vnet fill:#e6f5e6,stroke:#107c10
+    classDef subnet fill:#f0faf0,stroke:#4c9a4c
+    classDef resource fill:#fff,stroke:#605e5c
