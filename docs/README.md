@@ -16,7 +16,7 @@ flowchart LR
         diagram[azdocs diagram]
         browse[azdocs browse]
     end
-    ARG -->|41 KQL queries<br/>read-only| collect
+    ARG -->|70 KQL queries<br/>read-only| collect
     collect --> db
     db --> report
     db --> diagram
@@ -60,4 +60,4 @@ generated from the stored snapshot, never live Azure.
 
 | Page | Covers |
 |---|---|
-| [Query pack](reference/queries.md) | All 41 built-in queries and findings |
+| [Query pack](reference/queries.md) | All 70 built-in queries and findings |

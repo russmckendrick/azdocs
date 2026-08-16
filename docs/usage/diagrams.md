@@ -1,8 +1,9 @@
 # Diagrams
 
 ```sh
-azdocs diagram --type hierarchy|resources|network \
-    [--format drawio|mermaid|both] [--subscription <id>] [--resource-group <name>] [--out <path>]
+azdocs diagram --type hierarchy|resources|network|vnets|resource-groups|workbook \
+    [--format drawio|mermaid|both|svg|png|all] \
+    [--subscription <id>] [--resource-group <name>] [--out <path>]
 ```
 
 | Type | Shows |
@@ -10,6 +11,15 @@ azdocs diagram --type hierarchy|resources|network \
 | `hierarchy` | Tenant → subscriptions → resource groups with resource counts |
 | `resources` | Resource-group containers, an icon per resource, attachment edges |
 | `network` | VNets/subnets as containers, VMs placed in their subnets, dashed peering edges, NSG associations, private-endpoint links |
+| `vnets` | One diagram per VNet: its subnets and resources, plus dashed stubs to peered VNets |
+| `resource-groups` | One diagram per resource group: VNet subtrees homed there plus a "Standalone Resources" container |
+| `workbook` | A single multi-sheet `.drawio` file: network topology, VNet peerings, then every per-VNet and per-RG sheet |
+
+`hierarchy`, `resources`, and `network` write one file
+(`output/azdocs-<type>.<ext>`). The fan-out types write one file per scope
+under `output/diagrams/vnets/` and `output/diagrams/resource-groups/`
+(`--out` names the directory instead). The workbook writes
+`output/azdocs-workbook.drawio`.
 
 A `network` diagram is shaped like this (this is actual azdocs Mermaid output
 style — GitHub renders it natively):
@@ -39,9 +49,17 @@ flowchart LR
 
 - **`.drawio`** — editable in [draw.io](https://app.diagrams.net) or the
   VS Code draw.io extension. Uses the azure2 icon set, swimlane containers,
-  and automatic edge routing.
+  and automatic edge routing. The only format the multi-sheet `workbook`
+  type supports (with `--format all` it also rasterises each sheet).
 - **`.mmd`** — Mermaid text. Paste into any GitHub markdown file, wiki, or
-  docs site and it renders.
+  docs site and it renders. Not available for `workbook` — use `vnets` /
+  `resource-groups` for per-scope Mermaid.
+- **`.svg`** — standalone vector render (shared layout with drawio). Also
+  embedded in the HTML docs site (`output/docs-html/diagrams/`).
+- **`.png`** — the SVG rasterised at 2× via resvg; needs no browser or
+  external tool. Resource icons are currently generated monogram
+  placeholders (colored by service category), not the Microsoft Azure icon
+  set.
 
 ## Scoping
 
@@ -51,6 +69,8 @@ azdocs warns and suggests narrowing:
 ```sh
 azdocs diagram --type network --subscription <id>
 azdocs diagram --type resources --subscription <id> --resource-group rg-app
+azdocs diagram --type vnets --format png            # one PNG per VNet
+azdocs diagram --type workbook                      # everything, one drawio file
 ```
 
 Next: [The TUI](tui.md)

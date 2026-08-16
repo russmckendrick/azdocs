@@ -5,10 +5,12 @@ of Azure Resource Graph queries with a **read-only service principal**, stores
 everything locally in SQLite as point-in-time snapshots, then exports reports
 and diagrams of the whole estate — entirely offline once collected.
 
-- **Reports**: Markdown docs tree, self-contained HTML, CSV, XLSX
-- **Diagrams**: draw.io (azure2 icons, editable) and Mermaid — estate
-  hierarchy, per-subscription resource maps, and network topology (VNets,
-  subnets, peerings, NSGs, private endpoints)
+- **Reports**: Markdown docs tree, self-contained HTML, CSV, XLSX, plus
+  branded PDF and DOCX rendered natively (no Chromium or Pandoc needed)
+- **Diagrams**: draw.io (azure2 icons, editable), Mermaid, SVG, and PNG —
+  estate hierarchy, per-subscription resource maps, network topology (VNets,
+  subnets, peerings, NSGs, private endpoints), per-VNet and per-resource-group
+  fan-outs, and a multi-sheet draw.io workbook of everything
 - **Security findings**: public blob access, NSGs open to the Internet,
   public database endpoints, unencrypted disks, missing required tags, orphaned
   resources, and more — severity-graded
@@ -82,8 +84,8 @@ Environment overrides: `AZDOCS_TENANT_ID`, `AZDOCS_CLIENT_ID`,
 | `azdocs check` | Validate config, token, and Resource Graph access |
 | `azdocs collect` | Run the query pack into a new snapshot |
 | `azdocs snapshots list/show/diff/prune` | Manage stored snapshots |
-| `azdocs report --format md\|html\|csv\|xlsx\|all` | Export reports |
-| `azdocs diagram --type hierarchy\|resources\|network` | Export diagrams |
+| `azdocs report --format md\|html\|csv\|xlsx\|pdf\|docx\|all` | Export reports |
+| `azdocs diagram --type hierarchy\|resources\|network\|vnets\|resource-groups\|workbook` | Export diagrams |
 | `azdocs query list/show/run` | Inspect and run individual KQL queries |
 | `azdocs browse` | Interactive TUI over a stored snapshot |
 | `azdocs completions <shell>` | Shell completions |

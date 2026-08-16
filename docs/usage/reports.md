@@ -1,11 +1,12 @@
 # Reports
 
 ```sh
-azdocs report --format md|html|csv|xlsx|all  [--snapshot <id|latest>] [--out <dir>]
+azdocs report --format md|html|csv|xlsx|pdf|docx|all  [--snapshot <id|latest>] [--out <dir>]
 ```
 
-Reports are generated from the stored snapshot — no network access. Everything
-lands under `./output/` by default:
+Reports are generated from the stored snapshot — no network access, no
+external tools (PDF and DOCX are rendered natively; no Chromium, no Pandoc).
+Everything lands under `./output/` by default:
 
 | Format | Output | Contents |
 |---|---|---|
@@ -13,6 +14,13 @@ lands under `./output/` by default:
 | `html` | `output/report.html` + `output/docs-html/` | Single self-contained report **and** a multi-page HTML site |
 | `csv` | `output/inventory.csv`, `output/findings.csv` | Flat exports |
 | `xlsx` | `output/azdocs.xlsx` | Summary, Inventory (autofilter), Findings (severity colours), one sheet per category |
+| `pdf` | `output/report.pdf` | Print-ready document: cover, TOC, executive summary, findings, category tables, network/hierarchy diagrams |
+| `docx` | `output/report.docx` | The same structure as the PDF (minus diagrams), editable in Word |
+
+PDF and DOCX tables are trimmed to page width (~6 columns, no raw ARM ids) —
+the full data always lives in the CSV/XLSX/HTML outputs. All formats pick up
+the [`[branding]` config](configuration.md#branding): company name, title,
+colors, logo, and footer; HTML and the docs site are themed by it too.
 
 ## The docs tree
 

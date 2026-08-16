@@ -31,8 +31,14 @@ cli → commands → collect / report / diagram / tui → store / model ← arg 
   `store/schema.rs`; never edit an existing migration.
 - `ReportContext` (`src/report/mod.rs`) is built once from the store and
   consumed by every report emitter; emitters never query the store directly.
-- Diagrams: builders in `diagram/graph.rs` produce one `EstateGraph`, consumed
-  by both the mermaid and drawio emitters. Layout math in `diagram/layout.rs`.
+- Diagrams: builders in `diagram/graph.rs` produce `EstateGraph`s (single or
+  per-VNet/per-RG fan-out), consumed by the mermaid, drawio (single sheet +
+  workbook), and svg emitters; png rasterises the svg. Layout math in
+  `diagram/layout.rs`; `diagram/assets.rs` feeds diagrams to the HTML/PDF
+  reports.
+- Report emitters: md/html/site/csv/xlsx plus pdf (embedded Typst,
+  `templates/typst/report.typ`) and docx (docx-rs). All take
+  `&BrandingContext` (`report/branding.rs`, from `[branding]` config).
 
 ## Non-negotiable invariants
 
@@ -55,7 +61,9 @@ Built-in query pack = TOML files in `queries/<category>/`, embedded via
 `include_dir`. New audit check = new TOML file (kind `finding` requires
 `severity`), not Rust. Routing of rows to tables is in `collect/ingest.rs`:
 `all_resources`/`subscriptions`/`resource_groups` fill typed tables, other
-inventory rows go to `query_results`, findings to `findings`.
+inventory rows go to `query_results`, findings to `findings`. Resource
+display names are data too: `assets/display_names.toml` (embedded), user
+overrides at `<config dir>/azdocs/display_names.toml`.
 
 ## Testing layout
 
@@ -78,6 +86,12 @@ inventory rows go to `query_results`, findings to `findings`.
 - serde_json `preserve_order` feature is load-bearing (column order).
 - rusqlite stays `bundled`; Excel sheet names are case-insensitive/31-char
   (category sheets are suffixed `" queries"` for this reason).
+- typst/typst-pdf/typst-assets are pinned to the same minor (0.13); the World
+  impl in `report/pdf.rs` derives today()/timestamps from the snapshot so PDF
+  bytes stay deterministic. Fonts come from typst-assets, not the repo.
+- resvg and usvg are lockstep-released — always bump them together.
+- drawio single-sheet output must stay byte-identical (bare n{i}/e{i} cell
+  ids, sheet id `azdocs-0`); workbook sheets prefix ids `s{i}-`.
 
 ## Paths & outputs
 
