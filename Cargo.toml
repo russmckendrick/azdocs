@@ -1,0 +1,36 @@
+[package]
+name = "azdocs"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.104"
+chrono = { version = "0.4.45", features = ["serde"] }
+clap = { version = "4.6.6", features = ["derive", "env", "wrap_help"] }
+clap_complete = "4.6.9"
+comfy-table = "8.0.0"
+crossterm = "0.29.0"
+csv = "1.4.0"
+dialoguer = "0.12.0"
+directories = "6.0.0"
+include_dir = "0.7.4"
+indicatif = "0.18.6"
+minijinja = { version = "2.24.0", features = ["loader"] }
+quick-xml = "0.41.0"
+ratatui = "0.30.2"
+reqwest = { version = "0.13.4", default-features = false, features = ["json", "rustls", "gzip", "http2", "charset"] }
+rusqlite = { version = "0.40.2", features = ["bundled", "serde_json"] }
+rust_xlsxwriter = "0.98.1"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+thiserror = "2.0.20"
+tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "time", "sync"] }
+toml = "1.1.4"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+uuid = { version = "1.24.1", features = ["v4"] }
+
+[dev-dependencies]
+insta = { version = "1.48.0", features = ["json", "yaml", "filters"] }
+tempfile = "3.27.0"
+wiremock = "0.6.5"
