@@ -47,6 +47,11 @@ async fn main() -> Result<()> {
             let store = open_store(&config, cli.db.as_deref())?;
             commands::report::run(&store, &args)
         }
+        Command::Browse { snapshot } => {
+            let config = Config::load(cli.config.as_deref())?;
+            let store = open_store(&config, cli.db.as_deref())?;
+            azdocs::tui::run(&store, &snapshot)
+        }
         Command::Snapshots(subcommand) => {
             let config = Config::load(cli.config.as_deref())?;
             let store = open_store(&config, cli.db.as_deref())?;
@@ -57,7 +62,6 @@ async fn main() -> Result<()> {
             clap_complete::generate(shell, &mut Cli::command(), "azdocs", &mut std::io::stdout());
             Ok(())
         }
-        command => not_yet_implemented(&command),
     }
 }
 
@@ -82,12 +86,4 @@ fn open_store(
 ) -> Result<azdocs::store::Store> {
     let path = db_override.unwrap_or(&config.storage.db_path);
     Ok(azdocs::store::Store::open(path)?)
-}
-
-fn not_yet_implemented(command: &Command) -> Result<()> {
-    let name = match command {
-        Command::Browse { .. } => "browse",
-        _ => unreachable!("handled in main"),
-    };
-    anyhow::bail!("`azdocs {name}` is not implemented yet");
 }
