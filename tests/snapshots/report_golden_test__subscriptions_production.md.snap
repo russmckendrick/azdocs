@@ -19,7 +19,7 @@ expression: content
 |---|---|---|
 | vm-app-01-os | Managed Disk | uksouth |
 | vm-app-01 | Virtual Machine | uksouth |
-| hp-prod | hostpools | uksouth |
+| hp-prod | AVD Host Pool | uksouth |
 | vm-app-01-nic | Network Interface | uksouth |
 | pe-sql | Private Endpoint | uksouth |
 | vm-app-01-pip | Public IP Address | uksouth |

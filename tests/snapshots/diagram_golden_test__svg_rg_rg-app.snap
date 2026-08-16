@@ -32,7 +32,7 @@ expression: "svg::render(&groups[0].graph)"
     <text x="351" y="265" font-size="9" text-anchor="middle" fill="#605E5C">Private Endpoint</text>
     <image x="579" y="136" width="48" height="48" href="data:image/svg+xml;base64,[icon]"/>
     <text x="603" y="198" font-size="11" text-anchor="middle" fill="#323130">hp-prod</text>
-    <text x="603" y="211" font-size="9" text-anchor="middle" fill="#605E5C">hostpools</text>
+    <text x="603" y="211" font-size="9" text-anchor="middle" fill="#605E5C">AVD Host Pool</text>
     <image x="759" y="136" width="48" height="48" href="data:image/svg+xml;base64,[icon]"/>
     <text x="783" y="198" font-size="11" text-anchor="middle" fill="#323130">law-prod</text>
     <text x="783" y="211" font-size="9" text-anchor="middle" fill="#605E5C">Log Analytics Workspace</text>

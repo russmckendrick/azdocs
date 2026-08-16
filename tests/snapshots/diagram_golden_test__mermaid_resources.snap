@@ -22,7 +22,7 @@ flowchart LR
             class n6 resource
             n7["vm-app-01<br/><i>Virtual Machine</i>"]
             class n7 resource
-            n8["hp-prod<br/><i>hostpools</i>"]
+            n8["hp-prod<br/><i>AVD Host Pool</i>"]
             class n8 resource
             n9["vm-app-01-nic<br/><i>Network Interface</i>"]
             class n9 resource

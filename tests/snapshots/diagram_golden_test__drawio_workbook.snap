@@ -162,7 +162,7 @@ Private Endpoint" style="image;aspect=fixed;html=1;points=[];align=center;fontSi
           <mxGeometry x="480" y="54" width="738" height="308" as="geometry"/>
         </mxCell>
         <mxCell id="s4-n6" value="hp-prod
-hostpools" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=10;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;image=img/lib/azure2/general/All_Resources.svg;" parent="s4-n5" vertex="1">
+AVD Host Pool" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=10;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;image=img/lib/azure2/general/All_Resources.svg;" parent="s4-n5" vertex="1">
           <mxGeometry x="67" y="58" width="64" height="64" as="geometry"/>
         </mxCell>
         <mxCell id="s4-n7" value="law-prod

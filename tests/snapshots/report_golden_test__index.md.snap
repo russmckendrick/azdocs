@@ -31,7 +31,7 @@ expression: content
 | Virtual Network | `microsoft.network/virtualnetworks` | 2 |
 | Managed Disk | `microsoft.compute/disks` | 1 |
 | Virtual Machine | `microsoft.compute/virtualmachines` | 1 |
-| hostpools | `microsoft.desktopvirtualization/hostpools` | 1 |
+| AVD Host Pool | `microsoft.desktopvirtualization/hostpools` | 1 |
 | Network Interface | `microsoft.network/networkinterfaces` | 1 |
 | Private Endpoint | `microsoft.network/privateendpoints` | 1 |
 | Public IP Address | `microsoft.network/publicipaddresses` | 1 |

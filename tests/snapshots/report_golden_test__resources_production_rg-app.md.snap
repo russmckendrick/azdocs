@@ -43,7 +43,7 @@ expression: content
 
 ## hp-prod
 
-**hostpools** (`microsoft.desktopvirtualization/hostpools`)
+**AVD Host Pool** (`microsoft.desktopvirtualization/hostpools`)
 
 
 | Setting | Value |

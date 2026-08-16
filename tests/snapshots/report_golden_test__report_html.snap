@@ -101,7 +101,7 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 <tr><td>Virtual Network</td><td><code>microsoft.network/virtualnetworks</code></td><td>2</td></tr>
 <tr><td>Managed Disk</td><td><code>microsoft.compute/disks</code></td><td>1</td></tr>
 <tr><td>Virtual Machine</td><td><code>microsoft.compute/virtualmachines</code></td><td>1</td></tr>
-<tr><td>hostpools</td><td><code>microsoft.desktopvirtualization/hostpools</code></td><td>1</td></tr>
+<tr><td>AVD Host Pool</td><td><code>microsoft.desktopvirtualization/hostpools</code></td><td>1</td></tr>
 <tr><td>Network Interface</td><td><code>microsoft.network/networkinterfaces</code></td><td>1</td></tr>
 <tr><td>Private Endpoint</td><td><code>microsoft.network/privateendpoints</code></td><td>1</td></tr>
 <tr><td>Public IP Address</td><td><code>microsoft.network/publicipaddresses</code></td><td>1</td></tr>
@@ -198,7 +198,7 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 <tbody>
 <tr><td>vm-app-01-os</td><td>Managed Disk</td><td>uksouth</td><td></td></tr>
 <tr><td>vm-app-01</td><td>Virtual Machine</td><td>uksouth</td><td><code>{"env":"prod"}</code></td></tr>
-<tr><td>hp-prod</td><td>hostpools</td><td>uksouth</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>hp-prod</td><td>AVD Host Pool</td><td>uksouth</td><td><code>{"env":"prod"}</code></td></tr>
 <tr><td>vm-app-01-nic</td><td>Network Interface</td><td>uksouth</td><td></td></tr>
 <tr><td>pe-sql</td><td>Private Endpoint</td><td>uksouth</td><td></td></tr>
 <tr><td>vm-app-01-pip</td><td>Public IP Address</td><td>uksouth</td><td></td></tr>
