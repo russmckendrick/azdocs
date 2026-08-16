@@ -19,9 +19,11 @@ and diagrams of the whole estate — entirely offline once collected.
 
 ## Documentation
 
-- [Usage guide](docs/usage.md) — setup, all commands, custom queries, CI, troubleshooting
-- [Development guide](docs/development.md) — architecture, testing, common tasks, release
-- [Query pack reference](docs/queries.md) — all 41 built-in queries and findings
+Full documentation lives in [docs/](docs/README.md):
+
+- [Usage](docs/usage/README.md) — install, configure, collect, export, browse, CI
+- [Development](docs/development/README.md) — architecture, data model, testing, contributing
+- [Reference](docs/reference/README.md) — the built-in query pack
 
 ## Quick start
 
