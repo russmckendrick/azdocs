@@ -10,27 +10,27 @@ expression: "drawio::render(&graph)"
         <mxCell id="0"/>
         <mxCell id="1" parent="0"/>
         <mxCell id="n0" value="Tenant fixture-tenant" style="swimlane;html=1;startSize=30;rounded=1;arcSize=6;fillColor=#FFFFFF;strokeColor=#605E5C;fontSize=12;fontStyle=1;verticalAlign=top;horizontal=1;collapsible=0;" parent="1" vertex="1">
-          <mxGeometry x="20" y="20" width="760" height="200" as="geometry"/>
+          <mxGeometry x="24" y="24" width="804" height="216" as="geometry"/>
         </mxCell>
         <mxCell id="n1" value="Development
 2 resources" style="swimlane;html=1;startSize=30;rounded=1;arcSize=6;fillColor=#E8F1FA;strokeColor=#0078D4;fontSize=12;fontStyle=1;verticalAlign=top;horizontal=1;collapsible=0;" parent="n0" vertex="1">
-          <mxGeometry x="20" y="50" width="240" height="130" as="geometry"/>
+          <mxGeometry x="24" y="54" width="248" height="138" as="geometry"/>
         </mxCell>
         <mxCell id="n2" value="rg-dev
 2 resources" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#F3F2F1;strokeColor=#8A8886;verticalAlign=middle;fontSize=12;" parent="n1" vertex="1">
-          <mxGeometry x="20" y="50" width="200" height="60" as="geometry"/>
+          <mxGeometry x="24" y="54" width="200" height="60" as="geometry"/>
         </mxCell>
         <mxCell id="n3" value="Production
 10 resources" style="swimlane;html=1;startSize=30;rounded=1;arcSize=6;fillColor=#E8F1FA;strokeColor=#0078D4;fontSize=12;fontStyle=1;verticalAlign=top;horizontal=1;collapsible=0;" parent="n0" vertex="1">
-          <mxGeometry x="280" y="50" width="460" height="130" as="geometry"/>
+          <mxGeometry x="302" y="54" width="478" height="138" as="geometry"/>
         </mxCell>
         <mxCell id="n4" value="rg-app
 8 resources" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#F3F2F1;strokeColor=#8A8886;verticalAlign=middle;fontSize=12;" parent="n3" vertex="1">
-          <mxGeometry x="20" y="50" width="200" height="60" as="geometry"/>
+          <mxGeometry x="24" y="54" width="200" height="60" as="geometry"/>
         </mxCell>
         <mxCell id="n5" value="rg-network
 2 resources" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#F3F2F1;strokeColor=#8A8886;verticalAlign=middle;fontSize=12;" parent="n3" vertex="1">
-          <mxGeometry x="240" y="50" width="200" height="60" as="geometry"/>
+          <mxGeometry x="254" y="54" width="200" height="60" as="geometry"/>
         </mxCell>
       </root>
     </mxGraphModel>

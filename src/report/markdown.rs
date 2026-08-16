@@ -54,7 +54,9 @@ fn md_table(rows: ViaDeserialize<Vec<Value>>, columns: ViaDeserialize<Vec<String
 
 /// Write the docs/ tree: index, findings, per-category pages, and one page per
 /// subscription.
-pub fn write(report: &ReportContext, out_dir: &Path) -> anyhow::Result<()> {
+/// Render every docs page in memory as (relative path, markdown) pairs.
+/// The markdown writer and the HTML site generator both consume this.
+pub fn render_pages(report: &ReportContext) -> anyhow::Result<Vec<(String, String)>> {
     let mut env = environment();
     env.add_template(
         "index",
@@ -73,36 +75,41 @@ pub fn write(report: &ReportContext, out_dir: &Path) -> anyhow::Result<()> {
         include_str!("../../templates/markdown/subscription.md.j2"),
     )?;
 
-    std::fs::create_dir_all(out_dir.join("subscriptions"))
-        .with_context(|| format!("creating {}", out_dir.display()))?;
-
-    let write_file = |name: &str, content: String| -> anyhow::Result<()> {
-        let path = out_dir.join(name);
-        std::fs::write(&path, content).with_context(|| format!("writing {}", path.display()))
-    };
-
-    write_file(
-        "index.md",
+    let mut pages = Vec::new();
+    pages.push((
+        "index.md".to_owned(),
         env.get_template("index")?
             .render(context! { ..minijinja::Value::from_serialize(report) })?,
-    )?;
-    write_file(
-        "findings.md",
+    ));
+    pages.push((
+        "findings.md".to_owned(),
         env.get_template("findings")?
             .render(context! { ..minijinja::Value::from_serialize(report) })?,
-    )?;
+    ));
     for category in &report.categories {
-        write_file(
-            &format!("{}.md", category.name),
+        pages.push((
+            format!("{}.md", category.name),
             env.get_template("category")?
                 .render(context! { category })?,
-        )?;
+        ));
     }
     for sub in &report.subscriptions {
-        write_file(
-            &format!("subscriptions/{}.md", slug(&sub.display_name)),
+        pages.push((
+            format!("subscriptions/{}.md", slug(&sub.display_name)),
             env.get_template("subscription")?.render(context! { sub })?,
-        )?;
+        ));
+    }
+    Ok(pages)
+}
+
+pub fn write(report: &ReportContext, out_dir: &Path) -> anyhow::Result<()> {
+    for (relative, content) in render_pages(report)? {
+        let path = out_dir.join(&relative);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)
+                .with_context(|| format!("creating {}", parent.display()))?;
+        }
+        std::fs::write(&path, content).with_context(|| format!("writing {}", path.display()))?;
     }
     Ok(())
 }

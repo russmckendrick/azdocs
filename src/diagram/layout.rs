@@ -3,11 +3,11 @@
 
 use super::graph::EstateGraph;
 
-pub const LEAF_WIDTH: f64 = 110.0;
-pub const LEAF_HEIGHT: f64 = 90.0;
-const PADDING: f64 = 20.0;
+pub const LEAF_WIDTH: f64 = 150.0;
+pub const LEAF_HEIGHT: f64 = 100.0;
+const PADDING: f64 = 24.0;
 const TITLE_BAND: f64 = 30.0;
-const GAP: f64 = 20.0;
+const GAP: f64 = 30.0;
 
 /// Placement for one node, `(x, y)` relative to its parent.
 #[derive(Debug, Clone, Copy)]

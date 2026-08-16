@@ -219,7 +219,7 @@ pub fn style_for(azure_type: &str) -> String {
     format!(
         "image;aspect=fixed;html=1;points=[];align=center;fontSize=10;\
          labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;\
-         image=img/lib/azure2/{category}/{name}.svg;"
+         whiteSpace=wrap;image=img/lib/azure2/{category}/{name}.svg;"
     )
 }
 

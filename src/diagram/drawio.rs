@@ -1,7 +1,7 @@
 use quick_xml::events::{BytesDecl, BytesStart, Event};
 use quick_xml::writer::Writer;
 
-use super::graph::{EdgeStyle, EstateGraph, NodeKind};
+use super::graph::{EdgeStyle, EstateGraph, NodeKind, truncate_label};
 use super::icons;
 use super::layout::{self, Placement};
 
@@ -100,10 +100,25 @@ fn node_cell(
         .map(|p| format!("n{p}"))
         .unwrap_or_else(|| "1".to_owned());
     let label = match &node.sublabel {
-        Some(sub) => format!("{}\n{}", node.label, sub),
-        None => node.label.clone(),
+        Some(sub) => format!("{}\n{}", truncate_label(&node.label), sub),
+        None => truncate_label(&node.label),
     };
     let style = style_for_node(graph, index, node);
+
+    // Icon nodes keep a fixed 64px glyph centered in their layout slot; the
+    // slot itself only provides breathing room for the wrapped label.
+    const ICON: f64 = 64.0;
+    let is_icon = matches!(node.kind, NodeKind::Resource { .. });
+    let (x, y, width, height) = if is_icon {
+        (
+            placement.x + (placement.width - ICON) / 2.0,
+            placement.y + 4.0,
+            ICON,
+            ICON,
+        )
+    } else {
+        (placement.x, placement.y, placement.width, placement.height)
+    };
 
     let mut cell = BytesStart::new("mxCell");
     cell.push_attribute(("id", format!("n{index}").as_str()));
@@ -113,10 +128,10 @@ fn node_cell(
     cell.push_attribute(("vertex", "1"));
     with_element(writer, cell, |writer| {
         let mut geometry = BytesStart::new("mxGeometry");
-        geometry.push_attribute(("x", trim_float(placement.x).as_str()));
-        geometry.push_attribute(("y", trim_float(placement.y).as_str()));
-        geometry.push_attribute(("width", trim_float(placement.width).as_str()));
-        geometry.push_attribute(("height", trim_float(placement.height).as_str()));
+        geometry.push_attribute(("x", trim_float(x).as_str()));
+        geometry.push_attribute(("y", trim_float(y).as_str()));
+        geometry.push_attribute(("width", trim_float(width).as_str()));
+        geometry.push_attribute(("height", trim_float(height).as_str()));
         geometry.push_attribute(("as", "geometry"));
         writer
             .write_event(Event::Empty(geometry))

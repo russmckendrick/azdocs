@@ -57,9 +57,25 @@ pub struct StorageConfig {
 impl Default for StorageConfig {
     fn default() -> Self {
         Self {
-            db_path: PathBuf::from("azdocs.db"),
+            db_path: default_db_path(),
         }
     }
+}
+
+/// Platform data dir (e.g. `~/Library/Application Support/azdocs` on macOS,
+/// `~/.local/share/azdocs` on Linux), falling back to the cwd.
+pub fn default_db_path() -> PathBuf {
+    directories::ProjectDirs::from("", "", "azdocs")
+        .map(|dirs| dirs.data_dir().join("azdocs.db"))
+        .unwrap_or_else(|| PathBuf::from("azdocs.db"))
+}
+
+/// Platform config file location (e.g. `~/.config/azdocs/azdocs.toml` on
+/// Linux); `azdocs init` writes here unless `--config` overrides it.
+pub fn default_config_path() -> PathBuf {
+    directories::ProjectDirs::from("", "", "azdocs")
+        .map(|dirs| dirs.config_dir().join("azdocs.toml"))
+        .unwrap_or_else(|| PathBuf::from("azdocs.toml"))
 }
 
 /// Credentials with all required values present, ready for token acquisition.

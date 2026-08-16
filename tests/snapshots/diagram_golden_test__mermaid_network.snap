@@ -23,10 +23,13 @@ flowchart LR
         class n4 subnet
     end
     class n2 vnet
-    n7["sql-prod<br/><i>SQL Server</i>"]
-    class n7 resource
-    n8["nsg-app<br/><i>NSG</i>"]
-    class n8 resource
+    subgraph n9["Connected services<br/><i>NSGs & private-link targets</i>"]
+        n7["sql-prod<br/><i>SQL Server</i>"]
+        class n7 resource
+        n8["nsg-app<br/><i>NSG</i>"]
+        class n8 resource
+    end
+    class n9 rg
     n6-.-|private link|n7
     n0-.-|Connected|n2
     n8-.-n4

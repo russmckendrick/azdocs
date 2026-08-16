@@ -4,10 +4,4 @@ azdocs.toml
 azdocs.db
 azdocs.db-shm
 azdocs.db-wal
-/docs/
-report.html
-inventory.csv
-findings.csv
-*.xlsx
-*.drawio
-*.mmd
+/output/

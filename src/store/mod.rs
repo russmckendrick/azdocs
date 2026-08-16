@@ -20,6 +20,11 @@ pub struct Store {
 
 impl Store {
     pub fn open(path: &Path) -> Result<Self, StoreError> {
+        if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
+            // Default locations live under the platform data dir, which may
+            // not exist yet on first run.
+            let _ = std::fs::create_dir_all(parent);
+        }
         let conn = Connection::open(path)?;
         schema::migrate(&conn)?;
         Ok(Self { conn })

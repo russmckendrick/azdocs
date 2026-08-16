@@ -1,6 +1,7 @@
 pub mod csv;
 pub mod html;
 pub mod markdown;
+pub mod site;
 pub mod xlsx;
 
 use std::collections::BTreeMap;

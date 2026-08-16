@@ -3,7 +3,7 @@ use std::path::Path;
 use anyhow::{Context, bail};
 use dialoguer::{Input, Password};
 
-use crate::config::{Config, ENV_CLIENT_ID, ENV_CLIENT_SECRET, ENV_TENANT_ID};
+use crate::config::{Config, ENV_CLIENT_ID, ENV_CLIENT_SECRET, ENV_TENANT_ID, default_config_path};
 
 const SP_GUIDANCE: &str = "\
 To create a read-only service principal for azdocs:
@@ -15,7 +15,8 @@ Use the returned tenant/appId/password values here. Grant the Reader role on
 every subscription (or a management group) you want azdocs to see.";
 
 pub fn run(config_path: Option<&Path>, force: bool, non_interactive: bool) -> anyhow::Result<()> {
-    let path = config_path.unwrap_or(Path::new("azdocs.toml"));
+    let default_path = default_config_path();
+    let path = config_path.unwrap_or(&default_path);
     if path.exists() && !force {
         bail!(
             "{} already exists; pass --force to overwrite",
@@ -57,6 +58,10 @@ pub fn run(config_path: Option<&Path>, force: bool, non_interactive: bool) -> an
     }
 
     let rendered = toml::to_string_pretty(&config).context("serializing config")?;
+    if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("creating {}", parent.display()))?;
+    }
     std::fs::write(path, rendered).with_context(|| format!("writing {}", path.display()))?;
     restrict_permissions(path)?;
 

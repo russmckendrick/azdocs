@@ -42,8 +42,11 @@ pub fn run(store: &Store, args: &DiagramArgs) -> anyhow::Result<()> {
         let out = match (&args.out, formats.len()) {
             (Some(path), 1) => path.clone(),
             (Some(path), _) => path.with_extension(extension),
-            (None, _) => PathBuf::from(format!("azdocs-{type_name}.{extension}")),
+            (None, _) => PathBuf::from("output").join(format!("azdocs-{type_name}.{extension}")),
         };
+        if let Some(parent) = out.parent().filter(|p| !p.as_os_str().is_empty()) {
+            std::fs::create_dir_all(parent)?;
+        }
         std::fs::write(&out, content)?;
         println!("{type_name} diagram -> {}", out.display());
     }

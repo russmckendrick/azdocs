@@ -154,7 +154,7 @@ pub struct ReportArgs {
     #[arg(long, value_enum, default_value_t = ReportFormat::Md)]
     pub format: ReportFormat,
 
-    /// Output directory (default: ./docs for md, ./ for single files)
+    /// Output directory (default: ./output)
     #[arg(long, value_name = "DIR")]
     pub out: Option<PathBuf>,
 }
@@ -190,7 +190,7 @@ pub struct DiagramArgs {
     #[arg(long, value_name = "NAME")]
     pub resource_group: Option<String>,
 
-    /// Output file path (default: ./azdocs-<type>.<ext>)
+    /// Output file path (default: ./output/azdocs-<type>.<ext>)
     #[arg(long, value_name = "PATH")]
     pub out: Option<PathBuf>,
 }

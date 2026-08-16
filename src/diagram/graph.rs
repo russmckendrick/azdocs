@@ -56,6 +56,17 @@ pub enum EdgeStyle {
     Association,
 }
 
+/// Cap label length so long Azure resource names don't overlap neighbours.
+pub fn truncate_label(value: &str) -> String {
+    const MAX: usize = 30;
+    if value.chars().count() <= MAX {
+        return value.to_owned();
+    }
+    let mut out: String = value.chars().take(MAX - 1).collect();
+    out.push('…');
+    out
+}
+
 /// Scoping filters shared by the builders.
 #[derive(Debug, Default, Clone)]
 pub struct DiagramScope {
@@ -364,6 +375,27 @@ impl EstateGraph {
                     });
                 }
                 _ => {}
+            }
+        }
+
+        // NSGs and private-link targets arrive without a parent; group them in
+        // one container instead of scattering them around the origin.
+        let floating: Vec<usize> = graph
+            .nodes
+            .iter()
+            .enumerate()
+            .filter(|(_, node)| node.parent.is_none() && !node.kind.is_container())
+            .map(|(index, _)| index)
+            .collect();
+        if !floating.is_empty() {
+            let container = graph.add_node(
+                "Connected services",
+                Some("NSGs & private-link targets".to_owned()),
+                NodeKind::ResourceGroup,
+                None,
+            );
+            for index in floating {
+                graph.nodes[index].parent = Some(container);
             }
         }
         Ok(graph)
