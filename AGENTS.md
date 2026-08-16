@@ -19,6 +19,10 @@ cargo run -- <subcommand>                         # check/collect need real cred
 CI gates on fmt + clippy `-D warnings` + tests across Linux/macOS/Windows.
 Always run fmt and clippy before committing.
 
+A graphify knowledge graph of this repo lives in `graphify-out/` (gitignored).
+For architecture or "what calls/uses X" questions, `/graphify query` it before
+grepping; when rebuilding, exclude `data/icons/` (700+ stock SVGs).
+
 ## Architecture (one-way dependency flow)
 
 ```
