@@ -26,6 +26,17 @@ fn render_locked(
     pdf::render(report, branding, diagrams).unwrap()
 }
 
+fn render_with_warnings_locked(
+    report: &ReportContext,
+    branding: &BrandingContext,
+    diagrams: &[DiagramAsset],
+) -> (Vec<u8>, Vec<String>) {
+    let _guard = RENDER
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    pdf::render_with_warnings(report, branding, diagrams).unwrap()
+}
+
 fn seeded() -> (ReportContext, Vec<DiagramAsset>) {
     let store = Store::open_in_memory().unwrap();
     let id = common::seed_estate(&store);
@@ -67,8 +78,7 @@ fn pdf_compiles_every_theme_with_zero_diagnostics() {
     let (report, diagrams) = seeded();
 
     for theme in themes() {
-        let (bytes, warnings) =
-            pdf::render_with_warnings(&report, &themed(&theme), &diagrams).unwrap();
+        let (bytes, warnings) = render_with_warnings_locked(&report, &themed(&theme), &diagrams);
 
         assert!(
             warnings.is_empty(),

@@ -119,6 +119,60 @@
   #text(size: typ.table_pt * 1pt, weight: "semibold", fill: sev(severity, "text"), severity)
 ]
 
+#let empty-state(body) = block(
+  text(size: typ.small_pt * 1pt, fill: muted, style: "italic", body),
+)
+
+#let table-value(value, mono-value: false, strong: false) = if mono-value {
+  mono(breakable(value), size: typ.table_pt * 1pt)
+} else {
+  text(
+    size: typ.table_pt * 1pt,
+    weight: if strong { "semibold" } else { "regular" },
+    breakable(value),
+  )
+}
+
+/// Render a display-ready semantic table. Labels and JSON value formatting
+/// have already been resolved by PrintDocument, so no report logic lives here.
+#let print-table(kind, columns, rows) = {
+  if columns.len() == 0 or rows.len() == 0 {
+    return empty-state("No results.")
+  }
+  if kind == "settings" {
+    block(breakable: true, table(
+      columns: (0.34fr, 0.66fr),
+      inset: lay.table_inset_pt * 1pt,
+      stroke: table-stroke,
+      fill: row-fill,
+      ..rows
+        .map(row => (
+          table-value(row.at(0, default: ""), strong: true),
+          table-value(row.at(1, default: "")),
+        ))
+        .flatten(),
+    ))
+  } else {
+    block(breakable: true, table(
+      columns: columns.map(_ => auto),
+      inset: lay.table_inset_pt * 1pt,
+      stroke: table-stroke,
+      fill: row-fill,
+      table.header(repeat: true, ..columns.map(column => header-cell(column.label))),
+      ..rows
+        .map(row => row.enumerate().map(((index, value)) => {
+          if kind == "findings" and index == 0 {
+            severity-cell(value)
+          } else {
+            let column = columns.at(index)
+            table-value(value, mono-value: column.mono)
+          }
+        }))
+        .flatten(),
+    ))
+  }
+}
+
 // ----------------------------------------------------------------- stats ----
 
 #let stat(value, label) = {
@@ -150,9 +204,9 @@
 
 // ----------------------------------------------------------------- cover ----
 
-#let cover-meta(report) = text(size: typ.small_pt * 1pt, fill: muted)[
-  Tenant #mono(breakable(report.tenant_id)) · snapshot #mono(breakable(report.snapshot_id)) \
-  Collected #report.created_at · status #report.status
+#let cover-meta(cover) = text(size: typ.small_pt * 1pt, fill: muted)[
+  Tenant #mono(breakable(cover.tenant)) · Snapshot #mono(breakable(cover.snapshot)) \
+  Collected #cover.collected · Status #cover.status
 ]
 
 // Logos are user-supplied at any aspect ratio, so constrain both axes.
@@ -160,18 +214,18 @@
   image(logo-path, width: 6cm, height: height, fit: "contain")
 }
 
-#let cover(report, branding, logo-path) = {
+#let cover(cover, branding, logo-path) = {
   if lay.cover == "block" {
     page(footer: none, header: none, margin: 0pt, fill: band)[
       #v(1fr)
       #block(inset: (x: 3cm))[
         #if logo-path != "" [#cover-logo(logo-path) #v(0.8cm)]
-        #text(size: typ.title_pt * 1pt, weight: "bold", fill: on-band)[#branding.title]
-        #if branding.subtitle != "" [
-          \ #v(0.2cm) #text(size: typ.subtitle_pt * 1pt, fill: on-band.transparentize(20%))[#branding.subtitle]
+        #text(size: typ.title_pt * 1pt, weight: "bold", fill: on-band)[#cover.title]
+        #if cover.subtitle != "" [
+          \ #v(0.2cm) #text(size: typ.subtitle_pt * 1pt, fill: on-band.transparentize(20%))[#cover.subtitle]
         ]
-        #if branding.company != "" [
-          \ #v(0.4cm) #text(size: typ.subtitle_pt * 1pt, fill: on-band)[#branding.company]
+        #if cover.company != "" [
+          \ #v(0.4cm) #text(size: typ.subtitle_pt * 1pt, fill: on-band)[#cover.company]
         ]
       ]
       #v(1fr)
@@ -179,9 +233,9 @@
       // the block cover recolours it rather than dimming it further.
       #block(inset: (x: 3cm, bottom: 2.5cm), text(fill: on-band)[
         #text(size: typ.small_pt * 1pt)[
-          Tenant #mono(breakable(report.tenant_id)) ·
-          snapshot #mono(breakable(report.snapshot_id)) \
-          Collected #report.created_at · status #report.status
+          Tenant #mono(breakable(cover.tenant)) ·
+          Snapshot #mono(breakable(cover.snapshot)) \
+          Collected #cover.collected · Status #cover.status
         ]
       ])
     ]
@@ -190,16 +244,16 @@
       #block(width: 100%, height: lay.cover_band_pt * 1pt, fill: band)
       #block(inset: (x: 2.5cm, top: 3cm))[
         #if logo-path != "" [#cover-logo(logo-path) #v(0.8cm)]
-        #text(size: typ.title_pt * 1pt, weight: "bold", fill: primary)[#branding.title]
-        #if branding.subtitle != "" [
-          \ #v(0.2cm) #text(size: typ.subtitle_pt * 1pt, fill: muted)[#branding.subtitle]
+        #text(size: typ.title_pt * 1pt, weight: "bold", fill: primary)[#cover.title]
+        #if cover.subtitle != "" [
+          \ #v(0.2cm) #text(size: typ.subtitle_pt * 1pt, fill: muted)[#cover.subtitle]
         ]
-        #if branding.company != "" [
-          \ #v(0.4cm) #text(size: typ.subtitle_pt * 1pt, fill: ink)[#branding.company]
+        #if cover.company != "" [
+          \ #v(0.4cm) #text(size: typ.subtitle_pt * 1pt, fill: ink)[#cover.company]
         ]
       ]
       #v(1fr)
-      #block(inset: (x: 2.5cm, bottom: 2.5cm), cover-meta(report))
+      #block(inset: (x: 2.5cm, bottom: 2.5cm), cover-meta(cover))
     ]
   } else {
     page(footer: none, header: none)[
@@ -207,21 +261,21 @@
       #align(center)[
         #if logo-path != "" [#cover-logo(logo-path) #v(1cm)]
         #text(size: typ.title_pt * 1pt, weight: "semibold", fill: ink)[
-          #upper(branding.title)
+          #upper(cover.title)
         ]
         #v(0.7cm)
         #line(length: 40%, stroke: rule-stroke)
         #v(0.7cm)
-        #if branding.subtitle != "" [
-          #text(size: typ.subtitle_pt * 1pt, fill: muted)[#branding.subtitle]
+        #if cover.subtitle != "" [
+          #text(size: typ.subtitle_pt * 1pt, fill: muted)[#cover.subtitle]
           #v(0.35cm)
         ]
-        #if branding.company != "" [
-          #text(size: typ.subtitle_pt * 1pt, fill: ink)[#branding.company]
+        #if cover.company != "" [
+          #text(size: typ.subtitle_pt * 1pt, fill: ink)[#cover.company]
         ]
       ]
       #v(1fr)
-      #align(center, cover-meta(report))
+      #align(center, cover-meta(cover))
       #v(1fr)
     ]
   }
@@ -286,6 +340,56 @@
   #v(0.15em)
   #line(length: 100%, stroke: rule-stroke)
 ]
+
+#let callout(severity, title) = block(
+  width: 100%,
+  fill: sev(severity, "fill"),
+  stroke: (left: 2.5pt + sev(severity, "text")),
+  inset: (x: 7pt, y: 5pt),
+  above: 0.4em,
+  below: 0.4em,
+)[
+  #text(size: typ.table_pt * 1pt, weight: "bold", fill: sev(severity, "text"))[
+    #upper(severity)
+  ]
+  #h(6pt)
+  #text(size: typ.table_pt * 1pt)[#title]
+]
+
+/// A level-preserving heading with its Azure resource-type icon. Keeping the
+/// actual heading element in the cell preserves the outline and running header.
+#let icon-heading(level, title, icon-path) = {
+  let heading-size = if level == 1 { typ.h1_pt } else { typ.h2_pt }
+  [
+    #show heading.where(level: level): it => block(
+      width: 100%,
+      above: 0em,
+      below: 0.8em,
+      stack(
+        spacing: 5pt,
+        grid(
+          columns: (auto, 1fr),
+          align: horizon,
+          gutter: 8pt,
+          image(
+            icon-path,
+            width: heading-size * 1.4pt,
+            height: heading-size * 1.4pt,
+            fit: "contain",
+          ),
+          text(
+            size: heading-size * 1pt,
+            weight: "semibold",
+            fill: primary-dark,
+            it,
+          ),
+        ),
+        line(length: 100%, stroke: 1pt + primary),
+      ),
+    )
+    #heading(level: level, title)
+  ]
+}
 
 /// Two-column key/value table used for a resource's settings.
 #let settings-table(settings) = if settings.len() == 0 {
@@ -403,7 +507,7 @@
 /// Start a top-level chapter. Themes with divider pages get the heading alone
 /// on its own page; the heading itself moves there rather than being repeated
 /// after the divider, so the title appears once and the outline still sees it.
-#let chapter(title) = if lay.divider_pages {
+#let chapter(title, break_before: false) = if lay.divider_pages {
   pagebreak(weak: true)
   v(1fr)
   [
@@ -420,6 +524,7 @@
   v(1.7fr)
   pagebreak()
 } else {
+  if break_before { pagebreak(weak: true) }
   heading(level: 1, title)
   // Themes without a filled table header lean on rules to separate sections.
   if lay.table != "solid-header" {

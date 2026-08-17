@@ -154,6 +154,10 @@ pub struct ReportArgs {
     #[arg(long, value_enum, default_value_t = ReportFormat::Md)]
     pub format: ReportFormat,
 
+    /// Theme for styled reports (overrides [branding] theme)
+    #[arg(long, value_name = "NAME")]
+    pub theme: Option<String>,
+
     /// Output directory (default: ./output)
     #[arg(long, value_name = "DIR")]
     pub out: Option<PathBuf>,
@@ -278,5 +282,15 @@ mod tests {
     fn diagram_requires_type() {
         let result = Cli::try_parse_from(["azdocs", "diagram"]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn report_parses_theme_override() {
+        let cli = Cli::parse_from(["azdocs", "report", "--theme", "editorial"]);
+        let Command::Report(args) = cli.command else {
+            panic!("expected report subcommand");
+        };
+
+        assert_eq!(args.theme.as_deref(), Some("editorial"));
     }
 }

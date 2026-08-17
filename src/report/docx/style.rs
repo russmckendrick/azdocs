@@ -5,9 +5,10 @@
 //! does for the PDF.
 
 use docx_rs::{
-    AlignmentType, BorderType, Docx, LineSpacing, PageMargin, Paragraph, Run, RunFonts, Shading,
-    ShdType, Style, StyleType, Table, TableBorder, TableBorderPosition, TableBorders, TableCell,
-    TableCellMargins, TableLayoutType, TableRow, VAlignType, WidthType,
+    AbstractNumbering, AlignmentType, BorderType, Docx, IndentLevel, Level, LevelJc, LevelText,
+    LineSpacing, NumberFormat, Numbering, NumberingId, PageMargin, Paragraph, Run, RunFonts,
+    Shading, ShdType, Start, Style, StyleType, Table, TableBorder, TableBorderPosition,
+    TableBorders, TableCell, TableCellMargins, TableLayoutType, TableRow, VAlignType, WidthType,
 };
 
 use crate::report::branding::BrandingContext;
@@ -17,6 +18,10 @@ use crate::report::theme::{TableStyle, ThemeTokens};
 const TWIPS_PER_INCH: f32 = 1440.0;
 /// EMU per twip, for image sizing.
 pub const EMU_PER_TWIP: u32 = 635;
+
+/// Space reserved below a page-filling table for Word's mandatory trailing
+/// paragraph. The paragraph itself is collapsed by `sections::page_break`.
+pub const TABLE_TRAILING_PARAGRAPH_TWIPS: u32 = 120;
 
 /// Twips per point, the other half of the twip → EMU conversion. Dropping this
 /// factor renders images at 1/20th of their intended size.
@@ -88,6 +93,7 @@ fn length_twips(value: &str) -> Option<u32> {
 pub struct Ctx<'a> {
     pub tokens: &'a ThemeTokens,
     pub usable_twips: u32,
+    pub usable_height_twips: u32,
 }
 
 impl<'a> Ctx<'a> {
@@ -104,7 +110,7 @@ impl<'a> Ctx<'a> {
 
 /// Apply page geometry, default fonts and paragraph styles. Returns the
 /// document plus the usable text width, which the caller threads into [`Ctx`].
-pub fn document(branding: &BrandingContext) -> (Docx, u32) {
+pub fn document(branding: &BrandingContext) -> (Docx, u32, u32) {
     let tokens = &branding.tokens;
     let typography = &tokens.typography;
 
@@ -130,6 +136,7 @@ pub fn document(branding: &BrandingContext) -> (Docx, u32) {
     // Keep at least a token text column even if someone configures absurd
     // margins, so the table grid never goes negative.
     let usable = width.saturating_sub(margin * 2).max(1440);
+    let usable_height = height.saturating_sub(margin * 2).max(1440);
 
     let family = &typography.docx_sans;
     let docx = Docx::new()
@@ -149,7 +156,51 @@ pub fn document(branding: &BrandingContext) -> (Docx, u32) {
         // The cover gets no header or footer of its own.
         .title_pg();
 
-    (heading_styles(docx, tokens), usable)
+    let docx = heading_styles(docx, tokens);
+    let docx = if tokens.layout.heading_numbering {
+        heading_numbering(docx)
+    } else {
+        docx
+    };
+    (docx, usable, usable_height)
+}
+
+const HEADING_NUMBERING_ID: usize = 42;
+
+fn heading_numbering(docx: Docx) -> Docx {
+    let numbering = AbstractNumbering::new(HEADING_NUMBERING_ID)
+        .add_level(
+            Level::new(
+                0,
+                Start::new(1),
+                NumberFormat::new("decimal"),
+                LevelText::new("%1"),
+                LevelJc::new("left"),
+            )
+            .paragraph_style("Heading1"),
+        )
+        .add_level(
+            Level::new(
+                1,
+                Start::new(1),
+                NumberFormat::new("decimal"),
+                LevelText::new("%1.%2"),
+                LevelJc::new("left"),
+            )
+            .paragraph_style("Heading2"),
+        )
+        .add_level(
+            Level::new(
+                2,
+                Start::new(1),
+                NumberFormat::new("decimal"),
+                LevelText::new("%1.%2.%3"),
+                LevelJc::new("left"),
+            )
+            .paragraph_style("Heading3"),
+        );
+    docx.add_abstract_numbering(numbering)
+        .add_numbering(Numbering::new(HEADING_NUMBERING_ID, HEADING_NUMBERING_ID))
 }
 
 fn heading_styles(docx: Docx, tokens: &ThemeTokens) -> Docx {
@@ -184,28 +235,93 @@ fn heading_styles(docx: Docx, tokens: &ThemeTokens) -> Docx {
                 ),
         );
     }
-    docx
+    docx.add_style(
+        Style::new("Caption", StyleType::Paragraph)
+            .name("Caption")
+            .based_on("Normal")
+            .next("Normal")
+            .size(half_points(typography.small_pt))
+            .italic()
+            .color(hex(&tokens.palette.muted))
+            .fonts(
+                RunFonts::new()
+                    .ascii(&typography.docx_sans)
+                    .hi_ansi(&typography.docx_sans)
+                    .cs(&typography.docx_sans),
+            ),
+    )
 }
 
 // ------------------------------------------------------------ paragraphs ----
 
-pub fn heading(level: usize, text: &str) -> Paragraph {
-    Paragraph::new()
+pub fn heading(ctx: &Ctx, level: usize, text: &str) -> Paragraph {
+    let paragraph = Paragraph::new()
         .style(&format!("Heading{level}"))
-        .add_run(Run::new().add_text(text))
+        .keep_next(true)
+        .keep_lines(true)
+        .add_run(Run::new().add_text(text));
+    if ctx.tokens.layout.heading_numbering {
+        paragraph.numbering(
+            NumberingId::new(HEADING_NUMBERING_ID),
+            IndentLevel::new(level.saturating_sub(1)),
+        )
+    } else {
+        paragraph
+    }
 }
 
-pub fn body(text: &str) -> Paragraph {
-    Paragraph::new().add_run(Run::new().add_text(text))
-}
-
-pub fn muted(ctx: &Ctx, text: &str) -> Paragraph {
+pub fn empty_state(ctx: &Ctx, text: &str) -> Paragraph {
     Paragraph::new().add_run(
         Run::new()
             .add_text(text)
             .size(half_points(ctx.tokens.typography.small_pt))
-            .color(hex(&ctx.tokens.palette.muted)),
+            .italic()
+            .color(hex(&ctx.tokens.palette.muted))
+            .fonts(ctx.sans()),
     )
+}
+
+pub fn caption(ctx: &Ctx, text: &str) -> Paragraph {
+    Paragraph::new()
+        .style("Caption")
+        .align(AlignmentType::Center)
+        .add_run(
+            Run::new()
+                .add_text(text)
+                .size(half_points(ctx.tokens.typography.small_pt))
+                .italic()
+                .color(hex(&ctx.tokens.palette.muted))
+                .fonts(ctx.sans()),
+        )
+}
+
+pub fn divider(ctx: &Ctx, title: &str) -> Table {
+    let cell = TableCell::new()
+        .width(ctx.usable_twips as usize, WidthType::Dxa)
+        .vertical_align(VAlignType::Center)
+        .add_paragraph(heading(ctx, 1, title));
+    let row = TableRow::new(vec![cell])
+        .row_height(
+            ctx.usable_height_twips
+                .saturating_sub(TABLE_TRAILING_PARAGRAPH_TWIPS) as f32,
+        )
+        .height_rule(docx_rs::HeightRule::Exact);
+    let rule = |position| {
+        TableBorder::new(position)
+            .border_type(BorderType::Single)
+            .size(eighths(1.5))
+            .color(hex(&ctx.tokens.palette.primary))
+    };
+    Table::new(vec![row])
+        .layout(TableLayoutType::Fixed)
+        .width(ctx.usable_twips as usize, WidthType::Dxa)
+        .set_grid(vec![ctx.usable_twips as usize])
+        .set_borders(
+            TableBorders::with_empty()
+                .set(rule(TableBorderPosition::Top))
+                .set(rule(TableBorderPosition::Bottom)),
+        )
+        .margins(TableCellMargins::new().margin(120, 160, 120, 160))
 }
 
 /// Word breaks lines at spaces and hyphens but not at `/`, so an ARM id would
@@ -393,13 +509,13 @@ pub fn data_table(
 
 /// The findings table: same shell, but the severity cell carries the severity
 /// colours from the theme.
-pub fn findings_table(ctx: &Ctx, rows: &[[String; 4]]) -> Table {
-    let headers: Vec<String> = ["Severity", "Title", "Category", "Check"]
-        .iter()
-        .map(|s| (*s).to_owned())
-        .collect();
-    let plain: Vec<Vec<String>> = rows.iter().map(|r| r.to_vec()).collect();
-    let widths = column_widths(&headers, &plain, ctx.usable_twips);
+pub fn findings_table(
+    ctx: &Ctx,
+    headers: &[String],
+    rows: &[Vec<String>],
+    mono_columns: &[usize],
+) -> Table {
+    let widths = column_widths(headers, rows, ctx.usable_twips);
 
     let mut table_rows = vec![
         TableRow::new(
@@ -434,16 +550,15 @@ pub fn findings_table(ctx: &Ctx, rows: &[[String; 4]]) -> Table {
             );
         table_rows.push(TableRow::new(vec![
             severity_cell,
-            body_cell(ctx, &row[1], widths[1], zebra, false),
-            body_cell(ctx, &row[2], widths[2], zebra, false),
-            body_cell(ctx, &row[3], widths[3], zebra, true),
+            body_cell(ctx, &row[1], widths[1], zebra, mono_columns.contains(&1)),
+            body_cell(ctx, &row[2], widths[2], zebra, mono_columns.contains(&2)),
+            body_cell(ctx, &row[3], widths[3], zebra, mono_columns.contains(&3)),
         ]));
     }
     shell(ctx, &widths, table_rows)
 }
 
-/// Resource-type chapter opener: the type's icon beside the heading, over a
-/// rule — the DOCX counterpart of `type-chapter` in `templates/typst/theme.typ`.
+/// Heading with an Azure type icon beside it and a rule below.
 ///
 /// A borderless two-cell table rather than an inline image, because Word sits
 /// an inline image on the text baseline and docx-rs exposes no `w:position` to
@@ -451,10 +566,15 @@ pub fn findings_table(ctx: &Ctx, rows: &[[String; 4]]) -> Table {
 /// centring is the only vertical alignment available, and it is what the PDF's
 /// `grid(align: horizon)` does anyway.
 ///
-/// The heading paragraph keeps its `Heading1` style inside the cell, so the TOC
+/// The heading paragraph keeps its heading style inside the cell, so the TOC
 /// field and Word's navigation pane still find it.
-pub fn type_heading(ctx: &Ctx, icon: Option<Run>, display: &str) -> Table {
-    let icon_pt = ctx.tokens.typography.h1_pt * ICON_SCALE;
+pub fn icon_heading(ctx: &Ctx, level: usize, icon: Option<Run>, display: &str) -> Table {
+    let heading_pt = if level == 1 {
+        ctx.tokens.typography.h1_pt
+    } else {
+        ctx.tokens.typography.h2_pt
+    };
+    let icon_pt = heading_pt * ICON_SCALE;
     let gap_twips = 140;
     let icon_col = match icon {
         Some(_) => (icon_pt * TWIPS_PER_POINT).round() as u32 + gap_twips,
@@ -470,11 +590,7 @@ pub fn type_heading(ctx: &Ctx, icon: Option<Run>, display: &str) -> Table {
     let heading_cell = TableCell::new()
         .width(text_col as usize, WidthType::Dxa)
         .vertical_align(VAlignType::Center)
-        .add_paragraph(
-            Paragraph::new()
-                .style("Heading1")
-                .add_run(Run::new().add_text(display.to_uppercase())),
-        );
+        .add_paragraph(heading(ctx, level, display));
     let mut cells = Vec::new();
     if let Some(icon) = icon {
         cells.push(
@@ -570,7 +686,7 @@ pub fn sub_label(ctx: &Ctx, title: &str) -> Paragraph {
 }
 
 /// Two-column key/value table for a resource's settings.
-pub fn settings_table(ctx: &Ctx, settings: &[(String, String)]) -> Table {
+pub fn settings_table(ctx: &Ctx, settings: &[Vec<String>]) -> Table {
     let key_width = ctx.usable_twips / 3;
     let widths = vec![key_width, ctx.usable_twips - key_width];
     let zebra = ctx.tokens.layout.zebra_rows;
@@ -578,8 +694,10 @@ pub fn settings_table(ctx: &Ctx, settings: &[(String, String)]) -> Table {
     let rows = settings
         .iter()
         .enumerate()
-        .map(|(index, (key, value))| {
+        .map(|(index, row)| {
             let striped = zebra && index % 2 == 1;
+            let key = row.first().map(String::as_str).unwrap_or("");
+            let value = row.get(1).map(String::as_str).unwrap_or("");
             TableRow::new(vec![
                 {
                     let mut cell = TableCell::new()
@@ -647,7 +765,8 @@ pub fn callout(ctx: &Ctx, severity: &str, title: &str) -> Table {
                     ),
                 ),
         ),
-    ]);
+    ])
+    .cant_split();
 
     Table::new(vec![row])
         .layout(TableLayoutType::Fixed)

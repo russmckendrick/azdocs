@@ -1,5 +1,5 @@
-//! Native DOCX report via `docx-rs`: cover, TOC field (Word offers to update
-//! it on open), executive summary, findings with severity shading, capped
+//! Native DOCX report via `docx-rs`: cover, TOC field (marked for refresh when
+//! Word lays out the document), executive summary, findings with severity shading, capped
 //! per-category tables, subscriptions, rasterised overview diagrams and a
 //! branded footer. No external binaries.
 //!
@@ -20,6 +20,7 @@ use docx_rs::TableOfContents;
 
 use super::ReportContext;
 use super::branding::BrandingContext;
+use super::document::PrintDocument;
 use crate::diagram::assets::DiagramAsset;
 
 /// Render the DOCX report and write it to `out_path`.
@@ -40,31 +41,48 @@ pub fn render(
     branding: &BrandingContext,
     diagrams: &[DiagramAsset],
 ) -> anyhow::Result<Vec<u8>> {
-    let (mut docx, usable_twips) = style::document(branding);
+    let document = PrintDocument::build(report, branding, diagrams);
+    let (mut docx, usable_twips, usable_height_twips) = style::document(branding);
     let ctx = style::Ctx {
         tokens: &branding.tokens,
         usable_twips,
+        usable_height_twips,
     };
 
-    docx = docx.footer(sections::footer(branding));
-    docx = sections::cover(docx, &ctx, report, branding);
+    docx = docx.footer(sections::footer(branding, &ctx));
+    if branding.tokens.layout.running_header {
+        docx = docx.header(sections::header(branding, &ctx));
+    }
+    docx = sections::cover(docx, &ctx, &document.cover, branding);
     docx = docx.add_table_of_contents(
         TableOfContents::new()
-            .heading_styles_range(1, 3)
+            .heading_styles_range(1, document.toc_depth as usize)
             .alias("Contents")
-            .auto(),
+            .auto()
+            .dirty(),
     );
     docx = docx.add_paragraph(sections::page_break());
-    docx = sections::summary(docx, &ctx, report);
-    docx = sections::findings(docx, &ctx, report);
-    docx = sections::categories(docx, &ctx, report);
-    docx = sections::type_index(docx, &ctx, report);
-    docx = sections::estate(docx, &ctx, report, diagrams);
-    docx = sections::diagrams(docx, &ctx, diagrams);
+    docx = sections::render(docx, &ctx, &document.blocks, diagrams);
+
+    let mut package = docx.build();
+    // Word owns the final pagination, so cached TOC page references cannot be
+    // correct at generation time. docx-rs has no update-fields setting yet;
+    // add the standard OOXML request before packing the native package.
+    let settings =
+        std::str::from_utf8(&package.settings).context("reading generated DOCX settings XML")?;
+    let closing_tag = "</w:settings>";
+    if !settings.contains(closing_tag) {
+        anyhow::bail!("generated DOCX settings XML has no closing settings tag");
+    }
+    package.settings = settings
+        .replacen(
+            closing_tag,
+            "<w:updateFields w:val=\"true\" /></w:settings>",
+            1,
+        )
+        .into_bytes();
 
     let mut cursor = Cursor::new(Vec::new());
-    docx.build()
-        .pack(&mut cursor)
-        .context("packing DOCX archive")?;
+    package.pack(&mut cursor).context("packing DOCX archive")?;
     Ok(cursor.into_inner())
 }

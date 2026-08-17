@@ -1,7 +1,7 @@
 # Reports
 
 ```sh
-azdocs report --format md|html|csv|xlsx|pdf|docx|all  [--snapshot <id|latest>] [--out <dir>]
+azdocs report --format md|html|csv|xlsx|pdf|docx|all [--theme <name>] [--snapshot <id|latest>] [--out <dir>]
 ```
 
 Reports are generated from the stored snapshot — no network access, no
@@ -22,11 +22,16 @@ no raw ARM ids) — the full data always lives in the CSV/XLSX/HTML outputs.
 
 ## The PDF and DOCX
 
-Both are built from the same content and the same
-[theme](../reference/themes.md), so they are one document in two containers:
+Both consume the same internal `PrintDocument` and the same
+[theme](../reference/themes.md), so they are one document in two containers.
+Content, order, heading levels, table labels and values, captions, icons and
+diagram selection are composed once:
 
 1. **Cover** — logo, title, subtitle, company, snapshot metadata.
-2. **Contents** — a real TOC; in Word it is a field, so it renumbers on edit.
+2. **Contents** — a real TOC. The DOCX marks it for refresh so Word recalculates
+   its page numbers after laying out the document. If an editor or security
+   policy suppresses automatic field updates, select the TOC and choose
+   **Update Field** (or press `Ctrl+A`, then `F9` in desktop Word).
 3. **Executive summary** — KPI figures, severity breakdown, resources by type.
 4. **Findings** — every finding, colour-coded by severity.
 5. **Category tables** — the inventory query results, trimmed to page width.
@@ -34,6 +39,7 @@ Both are built from the same content and the same
    subscription, group and location. The body below is grouped the way Azure
    is, which scatters one type across many groups; this restores the
    compliance sweep ("every storage account") without repeating the detail.
+   Each type is a level-2 heading with its Azure icon.
 7. **The estate** — laid out as Azure itself is: **subscription → resource
    group → resource**. Each group opens with its own summarised diagram, then
    documents every resource inside it: a name plate, a **relationship diagram**
@@ -52,9 +58,16 @@ Resources with no relationships get no diagram — a lone box says nothing the
 settings table does not. Per-resource diagrams are capped at 250 for a single
 report; passing the cap is logged.
 
+Pagination can differ because Typst lays out a fixed print document while Word
+keeps the DOCX editable and reflows it using locally installed fonts. Word also
+cannot repeat table headers with the DOCX library used here and approximates a
+full-bleed block cover inside the printable page area. Those native constraints
+do not change the report's content or hierarchy.
+
 ## Themes
 
-`[branding] theme` picks the look. All formats pick up the
+`[branding] theme` picks the look. Override it for one export with, for
+example, `azdocs report --format all --theme editorial`. All formats pick up the
 [`[branding]` config](configuration.md#branding) — company name, title,
 colours, logo and footer — and the theme derives its palette from your two
 brand colours.

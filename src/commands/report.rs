@@ -1,7 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use crate::cli::{ReportArgs, ReportFormat};
-use crate::config::Config;
+use crate::config::{BrandingConfig, Config};
+use crate::error::ConfigError;
 use crate::report::branding::BrandingContext;
 use crate::report::{self, ReportContext};
 use crate::store::Store;
@@ -16,7 +17,7 @@ pub fn run(
     std::fs::create_dir_all(&out_root)?;
     let snapshot_id = store.resolve_snapshot(&args.snapshot)?;
     let context = ReportContext::build(store, &snapshot_id)?;
-    let branding = BrandingContext::resolve(&config.branding, config_dir)?;
+    let branding = resolve_branding(&config.branding, config_dir, args.theme.as_deref())?;
     let resources = store.resources(&snapshot_id)?;
     let findings = store.findings(&snapshot_id)?;
 
@@ -105,4 +106,35 @@ pub fn run(
         }
     }
     Ok(())
+}
+
+fn resolve_branding(
+    config: &BrandingConfig,
+    config_dir: Option<&Path>,
+    theme_override: Option<&str>,
+) -> Result<BrandingContext, ConfigError> {
+    let Some(theme) = theme_override else {
+        return BrandingContext::resolve(config, config_dir);
+    };
+
+    let mut overridden = config.clone();
+    overridden.theme = theme.to_owned();
+    BrandingContext::resolve(&overridden, config_dir)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unit_resolve_branding_prefers_cli_theme_when_present() {
+        let config = BrandingConfig {
+            theme: "fluent".to_owned(),
+            ..BrandingConfig::default()
+        };
+
+        let branding = resolve_branding(&config, None, Some("editorial")).unwrap();
+
+        assert_eq!(branding.tokens.name, "editorial");
+    }
 }

@@ -26,7 +26,7 @@
 - Icon: `data/icon_mapping.toml`, resolved against the vendored pack in
   `data/icons/`. Unmapped types fall back to the pack's generic icon and then
   to a generated monogram tile; this is cosmetic only. The icon appears in
-  diagrams *and* on the resource-type chapter headings in the PDF/DOCX.
+  diagrams *and* on the level-2 resource-type index headings in the PDF/DOCX.
 
 ### Add a report format
 
@@ -36,11 +36,26 @@ golden-test it from the fixture estate. If it is a *styled* format, take
 `&BrandingContext` and read every colour and size from `branding.tokens` —
 never hardcode a palette.
 
+### Change the PDF/DOCX report
+
+Edit the composition once in `src/report/document.rs`. Its `PrintDocument`
+builder owns the cover metadata, TOC depth, chapter order, shared labels,
+display-ready table values, icon references, captions and diagram placement.
+The Typst and DOCX backends are exhaustive renderers of those blocks and must
+not reconstruct report-specific loops or lookup maps.
+
+Reordering content or adding content made from an existing block changes only
+the shared builder. Adding a genuinely new visual primitive requires a new
+exhaustive block variant plus implementations in both
+`templates/typst/report.typ`/`theme.typ` and `report/docx/sections.rs`/`style.rs`.
+Add a semantic-model test and extend the rendered parity/OOXML tests whenever
+the block stream changes.
+
 ### Add a document theme
 
 Drop a TOML file into `data/themes/`. Do not add Rust: if a theme needs
 something the schema cannot express, add a new *variant* to one of the layout
-strategy enums in `report/theme.rs` and implement it in every emitter
+strategy enums in `report/theme/mod.rs` and implement it in every emitter
 (`templates/typst/theme.typ`, `report/docx/style.rs`, `report/site.rs`,
 `templates/html/report.html.j2`). See
 [reference/themes.md](../reference/themes.md).

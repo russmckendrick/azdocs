@@ -19,7 +19,8 @@ use typst_pdf::{PdfOptions, PdfStandards, Timestamp};
 
 use super::ReportContext;
 use super::branding::BrandingContext;
-use crate::diagram::assets::{DiagramAsset, DiagramAssetKind};
+use super::document::PrintDocument;
+use crate::diagram::assets::DiagramAsset;
 
 static TYPST_TEMPLATES: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/templates/typst");
 
@@ -60,7 +61,8 @@ pub fn render_with_warnings(
     branding: &BrandingContext,
     diagrams: &[DiagramAsset],
 ) -> anyhow::Result<(Vec<u8>, Vec<String>)> {
-    let world = ReportWorld::new(report, branding, diagrams)?;
+    let document = PrintDocument::build(report, branding, diagrams);
+    let world = ReportWorld::new(&document, branding, diagrams)?;
     let Warned { output, warnings } = typst::compile::<PagedDocument>(&world);
     let document = output.map_err(|diags| diagnostics_error("compiling PDF report", &diags))?;
     let options = PdfOptions {
@@ -102,76 +104,28 @@ struct ReportWorld {
 
 impl ReportWorld {
     fn new(
-        report: &ReportContext,
+        document: &PrintDocument<'_>,
         branding: &BrandingContext,
         diagrams: &[DiagramAsset],
     ) -> anyhow::Result<Self> {
-        // Only the estate overviews go in the Diagrams chapter. Per-group
-        // diagrams are placed at the head of their own resource-group section,
-        // where they describe what the reader is looking at.
-        let embeds: Vec<serde_json::Value> = diagrams
+        let icon_types: std::collections::BTreeSet<&str> = document.icon_types().collect();
+        let icons: BTreeMap<&str, String> = icon_types
             .iter()
-            .filter(|asset| {
-                matches!(
-                    asset.kind,
-                    DiagramAssetKind::Hierarchy | DiagramAssetKind::Network
-                )
-            })
-            .map(|asset| serde_json::json!({ "slug": asset.slug, "title": asset.title }))
-            .collect();
-
-        // Per-group diagrams, keyed the way a detail page is filed.
-        let group_diagrams: BTreeMap<&str, &str> = diagrams
-            .iter()
-            .filter(|asset| asset.kind == DiagramAssetKind::ResourceGroup)
-            .filter_map(|asset| Some((asset.group_key.as_deref()?, asset.slug.as_str())))
-            .collect();
-
-        // Per-resource diagrams are looked up by ARM id from the resource
-        // sections, so the template gets a map rather than a list.
-        let resource_diagrams: BTreeMap<&str, &str> = diagrams
-            .iter()
-            .filter(|asset| asset.kind == DiagramAssetKind::Resource)
-            .filter_map(|asset| Some((asset.resource_id.as_deref()?, asset.slug.as_str())))
-            .collect();
-
-        // One icon per distinct resource type, not per resource: an estate
-        // with 500 VMs needs the VM icon embedded once.
-        let icons: BTreeMap<String, String> = report
-            .resource_types
-            .iter()
-            .map(|section| {
-                (
-                    section.azure_type.clone(),
-                    format!("/icons/{}.svg", icon_slug(&section.azure_type)),
-                )
-            })
+            .map(|azure_type| (*azure_type, format!("/icons/{}.svg", icon_slug(azure_type))))
             .collect();
 
         let mut inputs = Dict::new();
         inputs.insert(
-            "report".into(),
-            Value::Str(serde_json::to_string(report)?.into()),
+            "document".into(),
+            Value::Str(serde_json::to_string(document)?.into()),
         );
         inputs.insert(
             "branding".into(),
             Value::Str(serde_json::to_string(branding)?.into()),
         );
         inputs.insert(
-            "diagrams".into(),
-            Value::Str(serde_json::to_string(&embeds)?.into()),
-        );
-        inputs.insert(
             "theme".into(),
             Value::Str(serde_json::to_string(&branding.tokens)?.into()),
-        );
-        inputs.insert(
-            "resource_diagrams".into(),
-            Value::Str(serde_json::to_string(&resource_diagrams)?.into()),
-        );
-        inputs.insert(
-            "group_diagrams".into(),
-            Value::Str(serde_json::to_string(&group_diagrams)?.into()),
         );
         inputs.insert(
             "icons".into(),
@@ -186,13 +140,10 @@ impl ReportWorld {
             );
             files.insert(id, Bytes::new(asset.svg.clone().into_bytes()));
         }
-        for section in &report.resource_types {
-            let path = format!("/icons/{}.svg", icon_slug(&section.azure_type));
+        for azure_type in icon_types {
+            let path = format!("/icons/{}.svg", icon_slug(azure_type));
             let id = FileId::new(None, VirtualPath::new(path.as_str()));
-            files.insert(
-                id,
-                Bytes::new(crate::diagram::icons::svg_bytes(&section.azure_type)),
-            );
+            files.insert(id, Bytes::new(crate::diagram::icons::svg_bytes(azure_type)));
         }
         if let Some(logo) = &branding.logo {
             let path = format!("/logo.{}", logo.extension);
@@ -239,7 +190,7 @@ impl ReportWorld {
 
         // Both the `datetime.today()` value and the PDF creation timestamp
         // come from the snapshot so rendering is reproducible byte-for-byte.
-        let (today, timestamp) = snapshot_datetime(&report.created_at);
+        let (today, timestamp) = snapshot_datetime(&document.cover.collected);
 
         Ok(Self {
             library: LazyHash::new(Library::builder().with_inputs(inputs).build()),

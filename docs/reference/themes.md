@@ -8,8 +8,11 @@ theme is a new TOML file, never new Rust.
 ```toml
 # azdocs.toml
 [branding]
-theme = "fluent"
+theme = "dashboard"
 ```
+
+`dashboard` is the default when `theme` is omitted. Set another built-in or
+custom theme explicitly to override it.
 
 Built-in themes live in `data/themes/` and are embedded in the binary. Drop
 files into `<config dir>/azdocs/themes/` to add your own or replace a built-in
@@ -21,7 +24,7 @@ that lists the names that do exist.
 |---|---|
 | `fluent` | Azure-native. Colour band cover, filled table headers, zebra rows. |
 | `editorial` | Consultancy audit report. Centred cover, chapter divider pages, hairline tables. |
-| `dashboard` | Modern tech. Full-bleed colour block cover, tinted KPI cards, banded tables. |
+| `dashboard` | Modern tech. Colour block cover, tinted KPI cards, banded tables. |
 
 Themes drive the PDF, DOCX, HTML report, docs site and XLSX. The Markdown and
 CSV outputs are deliberately unstyled.
@@ -116,7 +119,7 @@ implements all of the variants; a theme picks one.
 |---|---|---|
 | `cover` | `band` | Colour band across the top, content left-aligned below |
 | | `editorial` | Centred type with a hairline rule, no fills |
-| | `block` | Full-bleed colour block with a reversed-out title |
+| | `block` | Colour block with a reversed-out title |
 | `table` | `solid-header` | Filled header with reversed text, full grid |
 | | `hairline` | Horizontal hairlines only, no header fill |
 | | `banded` | Tinted header, horizontal rules only |
@@ -146,6 +149,23 @@ nobody has installed lands back at a Word default. The shipped themes
 therefore set `docx_sans = "Calibri"` and `docx_mono = "Consolas"`, which come
 with Office on Windows and macOS. If your organisation deploys its own
 typeface, override those two keys in a user theme.
+
+## Native renderer differences
+
+PDF and DOCX receive the same semantic `PrintDocument`, including heading
+numbering intent, divider chapters, running headers, captions and severity
+roles. Their layout engines still have unavoidable differences:
+
+- Typst embeds the configured fonts; Word resolves `docx_sans` and
+  `docx_mono` locally and may reflow the document after editing.
+- The PDF block cover can fill the physical sheet. DOCX represents the same
+  strategy as a reversed colour block over the printable area because Word
+  does not expose a true full-bleed page background here.
+- PDF tables repeat their header on later pages. The current DOCX library has
+  no repeating-header support, so Word keeps the header row intact but does
+  not repeat it.
+- Page breaks and total page counts may consequently differ; content,
+  hierarchy, labels, captions and diagram selection do not.
 
 ## Adding a theme
 

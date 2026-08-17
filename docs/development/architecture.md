@@ -22,6 +22,10 @@ flowchart TD
     tui --> store
     collect --> qp[querypack/*]
     store --- model[model/*]
+    report --> context[ReportContext]
+    context --> print[PrintDocument<br/>PDF + DOCX composition]
+    print --> pdf[Typst PDF renderer]
+    print --> docx[OOXML DOCX renderer]
 ```
 
 The load-bearing rule: **report, diagram, and TUI code read only from SQLite,
@@ -53,7 +57,7 @@ flowchart LR
 | `src/store/` | All SQL. Versioned migrations, snapshot-scoped tables, cascade delete |
 | `src/model/` | Plain data types + `azure_types.rs` display names |
 | `src/collect/` | Runner, `ingest.rs`, `extractors.rs`, `audit.rs` |
-| `src/report/` | `ReportContext` → markdown / html / site / csv / xlsx / pdf (Typst) / docx / details emitters, themed by `BrandingContext` |
+| `src/report/` | `ReportContext` → all report data; `document.rs` composes one semantic `PrintDocument` for PDF + DOCX, while markdown / html / site / csv / xlsx consume `ReportContext` directly. Styled outputs use `BrandingContext`. |
 | `src/diagram/` | `EstateGraph` builders (incl. per-VNet/per-RG fan-out) → `page` (A4 fractions, density rungs) → `layout` (measure/justify) → `route` (orthogonal connectors) → mermaid / drawio (single + workbook) / svg / png emitters |
 | `src/tui/` | ratatui browse; `App` is a pure state machine, `ui.rs` renders it |
 
@@ -80,4 +84,9 @@ inventory rows land in `query_results` for report tables, finding rows become
 
 **One graph, many emitters.** Diagram builders produce a single `EstateGraph`
 (typed nodes with parent containment + styled edges); the Mermaid and draw.io
-emitters both consume it. Report emitters likewise share one `ReportContext`.
+emitters both consume it. Report emitters share one `ReportContext`. The two
+native print formats go one step further: `report/document.rs` turns that data,
+branding and diagram bundle into an ordered `PrintDocument`, then the Typst and
+OOXML backends render the same exhaustive block stream. Content, hierarchy,
+labels, captions and asset placement therefore have one edit point; only
+native layout mechanics remain renderer-specific.

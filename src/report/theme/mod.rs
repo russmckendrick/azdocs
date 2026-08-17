@@ -21,7 +21,7 @@ use color::{ColorVars, Rgb};
 static BUILTIN_THEMES: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/data/themes");
 
 /// The theme used when `[branding] theme` is unset.
-pub const DEFAULT_THEME: &str = "fluent";
+pub const DEFAULT_THEME: &str = "dashboard";
 
 /// `<platform config dir>/azdocs/themes`, the drop-in directory for user
 /// themes (same pattern as `querypack::loader::user_queries_dir`).

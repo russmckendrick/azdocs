@@ -9,6 +9,8 @@ pub mod site;
 pub mod theme;
 pub mod xlsx;
 
+mod document;
+
 use std::collections::BTreeMap;
 
 use serde::Serialize;
