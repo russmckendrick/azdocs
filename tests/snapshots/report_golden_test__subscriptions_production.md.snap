@@ -8,7 +8,7 @@ expression: content
 
 - **Id**: `sub-prod`
 - **State**: Enabled
-- **Resources**: 13
+- **Resources**: 14
 
 
 ## rg-app (uksouth)
@@ -26,6 +26,7 @@ expression: content
 | vnet-app | Virtual Network | uksouth |
 | law-prod | Log Analytics Workspace | uksouth |
 | sql-prod | SQL Server | uksouth |
+| app-db | SQL Database | uksouth |
 | stprodapp01 | Storage Account | uksouth |
 
 

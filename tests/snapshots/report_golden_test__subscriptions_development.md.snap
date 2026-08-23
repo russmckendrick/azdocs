@@ -8,7 +8,7 @@ expression: content
 
 - **Id**: `sub-dev`
 - **State**: Enabled
-- **Resources**: 2
+- **Resources**: 3
 
 
 ## rg-dev (ukwest)
@@ -17,5 +17,6 @@ expression: content
 
 | Name | Type | Location |
 |---|---|---|
+| id-web-dev | Managed Identity | ukwest |
 | asp-dev | App Service Plan | ukwest |
 | web-dev | App Service / Function App | ukwest |

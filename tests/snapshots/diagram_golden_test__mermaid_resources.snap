@@ -8,53 +8,58 @@ title: Azure resources
 flowchart LR
     subgraph n0["Development"]
         subgraph n1["rg-dev"]
-            n2["asp-dev<br/><i>App Service Plan</i>"]
+            n2["id-web-dev<br/><i>Managed Identity</i>"]
             class n2 resource
-            n3["web-dev<br/><i>App Service / Function App</i>"]
+            n3["asp-dev<br/><i>App Service Plan</i>"]
             class n3 resource
+            n4["web-dev<br/><i>App Service / Function App</i>"]
+            class n4 resource
         end
         class n1 rg
     end
     class n0 subscription
-    subgraph n4["Production"]
-        subgraph n5["rg-app"]
-            n6["vm-app-01-os<br/><i>Managed Disk</i>"]
-            class n6 resource
-            n7["vm-app-01<br/><i>Virtual Machine</i>"]
+    subgraph n5["Production"]
+        subgraph n6["rg-app"]
+            n7["vm-app-01-os<br/><i>Managed Disk</i>"]
             class n7 resource
-            n8["hp-prod<br/><i>AVD Host Pool</i>"]
+            n8["vm-app-01<br/><i>Virtual Machine</i>"]
             class n8 resource
-            n9["vm-app-01-nic<br/><i>Network Interface</i>"]
+            n9["hp-prod<br/><i>AVD Host Pool</i>"]
             class n9 resource
-            n10["pe-sql<br/><i>Private Endpoint</i>"]
+            n10["vm-app-01-nic<br/><i>Network Interface</i>"]
             class n10 resource
-            n11["vm-app-01-pip<br/><i>Public IP Address</i>"]
+            n11["pe-sql<br/><i>Private Endpoint</i>"]
             class n11 resource
-            n12["vnet-app<br/><i>Virtual Network</i>"]
+            n12["vm-app-01-pip<br/><i>Public IP Address</i>"]
             class n12 resource
-            n13["law-prod<br/><i>Log Analytics Workspace</i>"]
+            n13["vnet-app<br/><i>Virtual Network</i>"]
             class n13 resource
-            n14["sql-prod<br/><i>SQL Server</i>"]
+            n14["law-prod<br/><i>Log Analytics Workspace</i>"]
             class n14 resource
-            n15["stprodapp01<br/><i>Storage Account</i>"]
+            n15["sql-prod<br/><i>SQL Server</i>"]
             class n15 resource
-        end
-        class n5 rg
-        subgraph n16["rg-network"]
-            n17["nsg-app<br/><i>Network Security Group</i>"]
+            n16["app-db<br/><i>SQL Database</i>"]
+            class n16 resource
+            n17["stprodapp01<br/><i>Storage Account</i>"]
             class n17 resource
-            n18["nsg-unused<br/><i>Network Security Group</i>"]
-            class n18 resource
-            n19["vnet-hub<br/><i>Virtual Network</i>"]
-            class n19 resource
         end
-        class n16 rg
+        class n6 rg
+        subgraph n18["rg-network"]
+            n19["nsg-app<br/><i>Network Security Group</i>"]
+            class n19 resource
+            n20["nsg-unused<br/><i>Network Security Group</i>"]
+            class n20 resource
+            n21["vnet-hub<br/><i>Virtual Network</i>"]
+            class n21 resource
+        end
+        class n18 rg
     end
-    class n4 subscription
-    n6---n7
-    n9---n7
-    n10-.-|private link|n14
-    n11---n9
+    class n5 subscription
+    n7---n8
+    n10---n8
+    n11-.-|private link|n15
+    n12---n10
+    n16---n15
     classDef subscription fill:#e8f1fa,stroke:#0078d4
     classDef rg fill:#f3f2f1,stroke:#8a8886
     classDef vnet fill:#e6f5e6,stroke:#107c10

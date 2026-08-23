@@ -207,11 +207,15 @@ vm-app-01-pip" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=
         </mxCell>
         <mxCell id="s5-n2" value="App Service Plan
 asp-dev" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=10;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;image=img/lib/azure2/app_services/App_Service_Plans.svg;" parent="s5-n1" vertex="1">
-          <mxGeometry x="132" y="44" width="64" height="64" as="geometry"/>
+          <mxGeometry x="79.3" y="44" width="64" height="64" as="geometry"/>
         </mxCell>
-        <mxCell id="s5-n3" value="App Service / Function App
+        <mxCell id="s5-n3" value="Managed Identity
+id-web-dev" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=10;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;image=img/lib/azure2/identity/Managed_Identities.svg;" parent="s5-n1" vertex="1">
+          <mxGeometry x="290" y="44" width="64" height="64" as="geometry"/>
+        </mxCell>
+        <mxCell id="s5-n4" value="App Service / Function App
 web-dev" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=10;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;image=img/lib/azure2/app_services/App_Services.svg;" parent="s5-n1" vertex="1">
-          <mxGeometry x="448" y="44" width="64" height="64" as="geometry"/>
+          <mxGeometry x="500.7" y="44" width="64" height="64" as="geometry"/>
         </mxCell>
       </root>
     </mxGraphModel>

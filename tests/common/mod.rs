@@ -1,7 +1,8 @@
 //! Canonical fixture estate shared by report/diagram golden tests: two
 //! subscriptions, peered hub/spoke VNets, a VM with NIC + public IP, storage
-//! with findings, a private endpoint, a Log Analytics workspace, an AVD host
-//! pool, and a detached NSG.
+//! with findings, a private endpoint, a SQL server with a database child, a
+//! web app on its plan with a user-assigned identity, a Log Analytics
+//! workspace, an AVD host pool, and a detached NSG.
 
 use azdocs::collect::{audit, extractors, ingest};
 use azdocs::querypack::QueryPack;
@@ -234,6 +235,12 @@ fn estate_resources() -> Vec<Value> {
             "properties": {"publicNetworkAccess": "Disabled", "version": "12.0"}
         }),
         json!({
+            "id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Sql/servers/sql-prod/databases/app-db",
+            "name": "app-db", "type": "microsoft.sql/servers/databases", "location": "uksouth",
+            "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "tags": {"env": "prod"},
+            "properties": {"status": "Online", "currentServiceObjectiveName": "S0"}
+        }),
+        json!({
             "id": "/subscriptions/sub-dev/resourceGroups/rg-dev/providers/Microsoft.Web/serverfarms/asp-dev",
             "name": "asp-dev", "type": "microsoft.web/serverfarms", "location": "ukwest",
             "resourceGroup": "rg-dev", "subscriptionId": "sub-dev",
@@ -243,7 +250,16 @@ fn estate_resources() -> Vec<Value> {
             "id": "/subscriptions/sub-dev/resourceGroups/rg-dev/providers/Microsoft.Web/sites/web-dev",
             "name": "web-dev", "type": "microsoft.web/sites", "location": "ukwest", "kind": "app,linux",
             "resourceGroup": "rg-dev", "subscriptionId": "sub-dev",
-            "properties": {"state": "Running", "httpsOnly": false, "defaultHostName": "web-dev.azurewebsites.net"}
+            "identity": {"type": "UserAssigned",
+                         "userAssignedIdentities": {"/subscriptions/sub-dev/resourceGroups/rg-dev/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-web-dev": {}}},
+            "properties": {"state": "Running", "httpsOnly": false, "defaultHostName": "web-dev.azurewebsites.net",
+                           "serverFarmId": "/subscriptions/sub-dev/resourceGroups/rg-dev/providers/Microsoft.Web/serverfarms/asp-dev"}
+        }),
+        json!({
+            "id": "/subscriptions/sub-dev/resourceGroups/rg-dev/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-web-dev",
+            "name": "id-web-dev", "type": "microsoft.managedidentity/userassignedidentities", "location": "ukwest",
+            "resourceGroup": "rg-dev", "subscriptionId": "sub-dev",
+            "properties": {"clientId": "00000000-0000-0000-0000-000000000000"}
         }),
     ]
 }

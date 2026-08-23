@@ -16,12 +16,12 @@ expression: content
 |---|---:|
 | Subscriptions | 2 |
 | Resource groups | 3 |
-| Resources | 15 |
-| Findings | 11 |
+| Resources | 17 |
+| Findings | 12 |
 
-**Findings by severity**: 2 high · 1 medium · 7 low · 1 info — see [findings.md](findings.md)
+**Findings by severity**: 2 high · 1 medium · 8 low · 1 info — see [findings.md](findings.md)
 
-**Tag coverage**: 53% (8 tagged, 7 untagged)
+**Tag coverage**: 52% (9 tagged, 8 untagged)
 
 ## Resources by type
 
@@ -32,11 +32,13 @@ expression: content
 | Managed Disk | `microsoft.compute/disks` | 1 |
 | Virtual Machine | `microsoft.compute/virtualmachines` | 1 |
 | AVD Host Pool | `microsoft.desktopvirtualization/hostpools` | 1 |
+| Managed Identity | `microsoft.managedidentity/userassignedidentities` | 1 |
 | Network Interface | `microsoft.network/networkinterfaces` | 1 |
 | Private Endpoint | `microsoft.network/privateendpoints` | 1 |
 | Public IP Address | `microsoft.network/publicipaddresses` | 1 |
 | Log Analytics Workspace | `microsoft.operationalinsights/workspaces` | 1 |
 | SQL Server | `microsoft.sql/servers` | 1 |
+| SQL Database | `microsoft.sql/servers/databases` | 1 |
 | Storage Account | `microsoft.storage/storageaccounts` | 1 |
 | App Service Plan | `microsoft.web/serverfarms` | 1 |
 | App Service / Function App | `microsoft.web/sites` | 1 |
@@ -45,8 +47,8 @@ expression: content
 
 | Location | Count |
 |---|---:|
-| uksouth | 13 |
-| ukwest | 2 |
+| uksouth | 14 |
+| ukwest | 3 |
 
 ## Sections
 

@@ -86,7 +86,7 @@ fn filter_narrows_resource_list() {
         .iter()
         .map(|r| r.name.as_str())
         .collect();
-    assert_eq!(names, vec!["web-dev"]);
+    assert_eq!(names, vec!["id-web-dev", "web-dev"]);
 }
 
 #[test]

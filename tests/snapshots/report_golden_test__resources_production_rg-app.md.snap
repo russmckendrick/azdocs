@@ -8,7 +8,7 @@ expression: content
 
 - **Subscription**: Production
 - **Location**: uksouth
-- **Resources**: 10
+- **Resources**: 11
 
 
 ## vm-app-01-os
@@ -140,9 +140,25 @@ expression: content
 | Public Network Access | Disabled |
 | Version | 12.0 |
 
-**Related**: pe-sql (private_endpoint_for)
+**Related**: app-db (attached_to) · pe-sql (private_endpoint_for)
 
 `/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Sql/servers/sql-prod`
+
+## app-db
+
+**SQL Database** (`microsoft.sql/servers/databases`)
+
+
+| Setting | Value |
+|---|---|
+| Location | uksouth |
+| Tags | env=prod |
+| Status | Online |
+| Current Service Objective Name | S0 |
+
+**Related**: sql-prod (attached_to)
+
+`/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Sql/servers/sql-prod/databases/app-db`
 
 ## stprodapp01
 

@@ -7,13 +7,13 @@ title: Azure estate — tenant fixture-tenant
 ---
 flowchart LR
     subgraph n0["Tenant fixture-tenant"]
-        subgraph n1["Development<br/><i>2 resources</i>"]
-            n2["rg-dev<br/><i>2 resources</i>"]
+        subgraph n1["Development<br/><i>3 resources</i>"]
+            n2["rg-dev<br/><i>3 resources</i>"]
             class n2 rg
         end
         class n1 subscription
-        subgraph n3["Production<br/><i>13 resources</i>"]
-            n4["rg-app<br/><i>10 resources</i>"]
+        subgraph n3["Production<br/><i>14 resources</i>"]
+            n4["rg-app<br/><i>11 resources</i>"]
             class n4 rg
             n5["rg-network<br/><i>3 resources</i>"]
             class n5 rg

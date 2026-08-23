@@ -91,7 +91,7 @@ pub struct Edge {
     pub properties: Option<Value>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum EdgeKind {
     SubnetOf,
     InVnet,
@@ -102,6 +102,10 @@ pub enum EdgeKind {
     PrivateEndpointFor,
     DnsLinked,
     DependsOn,
+    RunsOn,
+    UsesIdentity,
+    LogsTo,
+    Monitors,
 }
 
 impl EdgeKind {
@@ -116,6 +120,10 @@ impl EdgeKind {
             Self::PrivateEndpointFor => "private_endpoint_for",
             Self::DnsLinked => "dns_linked",
             Self::DependsOn => "depends_on",
+            Self::RunsOn => "runs_on",
+            Self::UsesIdentity => "uses_identity",
+            Self::LogsTo => "logs_to",
+            Self::Monitors => "monitors",
         }
     }
 
@@ -130,6 +138,10 @@ impl EdgeKind {
             "private_endpoint_for" => Some(Self::PrivateEndpointFor),
             "dns_linked" => Some(Self::DnsLinked),
             "depends_on" => Some(Self::DependsOn),
+            "runs_on" => Some(Self::RunsOn),
+            "uses_identity" => Some(Self::UsesIdentity),
+            "logs_to" => Some(Self::LogsTo),
+            "monitors" => Some(Self::Monitors),
             _ => None,
         }
     }
@@ -207,6 +219,10 @@ mod tests {
             EdgeKind::PrivateEndpointFor,
             EdgeKind::DnsLinked,
             EdgeKind::DependsOn,
+            EdgeKind::RunsOn,
+            EdgeKind::UsesIdentity,
+            EdgeKind::LogsTo,
+            EdgeKind::Monitors,
         ] {
             assert_eq!(EdgeKind::parse(kind.as_str()), Some(kind));
         }
