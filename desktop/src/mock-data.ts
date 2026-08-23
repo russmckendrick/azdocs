@@ -139,10 +139,10 @@ const findings: Finding[] = [
 const edges: Edge[] = [
   { sourceId: ids.vnetHub, targetId: ids.vnetApp, kind: "peered_with" },
   { sourceId: ids.nsg, targetId: ids.vnetHub, kind: "nsg_attached" },
-  { sourceId: ids.vm, targetId: ids.nic, kind: "attached_to" },
-  { sourceId: ids.vm, targetId: ids.disk, kind: "attached_to" },
+  { sourceId: ids.nic, targetId: ids.vm, kind: "attached_to" },
+  { sourceId: ids.disk, targetId: ids.vm, kind: "attached_to" },
   { sourceId: ids.nic, targetId: ids.vnetApp, kind: "nic_in_subnet" },
-  { sourceId: ids.nic, targetId: ids.pip, kind: "attached_to" },
+  { sourceId: ids.pip, targetId: ids.nic, kind: "attached_to" },
   { sourceId: ids.privateEndpoint, targetId: ids.sql, kind: "private_endpoint_for" },
   { sourceId: ids.privateEndpoint, targetId: ids.vnetApp, kind: "in_vnet" },
   { sourceId: ids.web, targetId: ids.plan, kind: "depends_on" },

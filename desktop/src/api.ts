@@ -1,12 +1,15 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { mockBootstrap, mockEstate } from "./mock-data";
+import { buildFallbackTopology } from "./components/topology-fallback";
 import type {
   AppBootstrap,
   CollectionEvent,
   CollectResult,
   EstateSnapshot,
   SnapshotComparison,
+  TopologyGraph,
+  TopologyRequest,
 } from "./types";
 
 export const isTauri = "__TAURI_INTERNALS__" in window;
@@ -24,6 +27,12 @@ export async function getSnapshot(snapshotId?: string): Promise<EstateSnapshot> 
   if (isTauri) return invoke<EstateSnapshot>("load_snapshot", { snapshotId });
   await pause(340);
   return { ...mockEstate, id: snapshotId ?? mockEstate.id };
+}
+
+export async function getTopology(request: TopologyRequest): Promise<TopologyGraph> {
+  if (isTauri) return invoke<TopologyGraph>("topology_graph", { request });
+  await pause(120);
+  return buildFallbackTopology(mockEstate, request);
 }
 
 export async function chooseDatabase(): Promise<AppBootstrap | undefined> {

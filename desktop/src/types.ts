@@ -125,6 +125,86 @@ export interface ScopeSelection {
   resourceGroup?: string;
 }
 
+export type TopologyNodeKind =
+  | "resource"
+  | "resource-group"
+  | "subscription"
+  | "vnet"
+  | "subnet"
+  | "aggregate"
+  | "external";
+
+export interface TopologyLane {
+  subscriptionId: string;
+  name: string;
+  expanded: boolean;
+  groupCount: number;
+  resourceCount: number;
+  findingCount: number;
+}
+
+export interface TopologyNode {
+  id: string;
+  kind: TopologyNodeKind;
+  name: string;
+  subtitle: string;
+  azureType?: string;
+  lane?: string;
+  parentId?: string;
+  zone?: "core" | "unconnected" | "external";
+  hop?: number;
+  memberIds: string[];
+  count: number;
+  findingCount: number;
+  resourceId?: string;
+  groupId?: string;
+}
+
+export interface TopologyLink {
+  sourceId: string;
+  targetId: string;
+  label: string;
+  kindClass: string;
+  count: number;
+}
+
+export interface TopologyCounts {
+  total: number;
+  drawn: number;
+  folded: number;
+  aggregated: number;
+  external: number;
+  hiddenByFilter: number;
+  totalLinks: number;
+  drawnLinks: number;
+}
+
+export interface TopologyGraph {
+  level: "estate" | "group" | "neighbourhood";
+  lanes: TopologyLane[];
+  nodes: TopologyNode[];
+  links: TopologyLink[];
+  kindClasses: Array<{ class: string; count: number }>;
+  counts: TopologyCounts;
+}
+
+export type TopologyMode =
+  | { kind: "estate"; expandedSubscriptions?: string[] }
+  | { kind: "group"; groupId: string }
+  | { kind: "neighbourhood"; resourceId: string; depth?: number; kindClasses?: string[] };
+
+export interface TopologyScope {
+  subscriptions?: string[];
+  azureTypes?: string[];
+  showUnconnected?: boolean;
+}
+
+export interface TopologyRequest {
+  snapshotId?: string;
+  mode: TopologyMode;
+  scope?: TopologyScope;
+}
+
 export type CollectionEvent =
   | { event: "phase"; data: { message: string } }
   | { event: "complete"; data: { snapshotId: string } }

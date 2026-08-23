@@ -341,7 +341,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="workspace">
+      <main className={view === "topology" ? "workspace workspace-immersive" : "workspace"}>
         {collectionMessage ? (
           <div className="collection-strip" role="status">
             <LoaderCircle className={collecting ? "spin" : ""} size={16} />

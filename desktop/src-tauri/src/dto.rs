@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 use azdocs::model::{Edge, Finding, QueryRun, Resource, ResourceGroup, Subscription};
 use azdocs::report::{ReportContext, SeverityCounts};
@@ -315,6 +315,8 @@ impl EstateSnapshot {
                 *finding_counts.entry(resource_id.clone()).or_insert(0) += 1;
             }
         }
+        let known_ids: HashSet<String> = resources.iter().map(|r| r.id.clone()).collect();
+        let edges = resolve_subnet_endpoints(edges, &known_ids);
         let mut edge_counts = BTreeMap::new();
         for edge in &edges {
             *edge_counts.entry(edge.source_id.clone()).or_insert(0) += 1;
@@ -375,6 +377,130 @@ impl EstateSnapshot {
             query_runs: query_runs.into_iter().map(Into::into).collect(),
             previous_diff,
         }
+    }
+}
+
+/// Subnets are not rows in `resources` (ARG's resources table does not return
+/// them), so edges that end on a subnet id would dangle and the frontend would
+/// drop them. Collapse those endpoints onto the owning VNet — which is a row —
+/// keeping the subnet name in the edge properties, and dedupe what collapsing
+/// merges together. Self-loops (subnet→its own VNet) disappear entirely.
+fn resolve_subnet_endpoints(edges: Vec<Edge>, known_ids: &HashSet<String>) -> Vec<Edge> {
+    let mut resolved = Vec::new();
+    let mut seen = HashSet::new();
+    for mut edge in edges {
+        let mut notes = Vec::new();
+        for (endpoint, role) in [
+            (&mut edge.source_id, "sourceSubnet"),
+            (&mut edge.target_id, "targetSubnet"),
+        ] {
+            if !known_ids.contains(endpoint.as_str())
+                && let Some((vnet_id, subnet_name)) = split_subnet_id(endpoint)
+            {
+                notes.push((role, subnet_name));
+                *endpoint = vnet_id;
+            }
+        }
+        if edge.source_id == edge.target_id {
+            continue;
+        }
+        if !notes.is_empty() {
+            let props = edge
+                .properties
+                .get_or_insert_with(|| Value::Object(serde_json::Map::new()));
+            if let Some(map) = props.as_object_mut() {
+                for (role, subnet_name) in notes {
+                    map.insert(role.to_owned(), Value::String(subnet_name));
+                }
+            }
+        }
+        if seen.insert((edge.source_id.clone(), edge.target_id.clone(), edge.kind)) {
+            resolved.push(edge);
+        }
+    }
+    resolved
+}
+
+/// `…/virtualnetworks/<vnet>/subnets/<name>` → the VNet id and subnet name.
+/// Ids are already normalized to lowercase by the model layer.
+fn split_subnet_id(id: &str) -> Option<(String, String)> {
+    let (vnet_id, subnet_name) = id.split_once("/subnets/")?;
+    if !vnet_id.contains("/virtualnetworks/") || subnet_name.is_empty() {
+        return None;
+    }
+    Some((vnet_id.to_owned(), subnet_name.to_owned()))
+}
+
+#[cfg(test)]
+mod tests {
+    use azdocs::model::EdgeKind;
+
+    use super::*;
+
+    fn subnet_edge(source: &str, target: &str, kind: EdgeKind) -> Edge {
+        Edge {
+            source_id: source.to_owned(),
+            target_id: target.to_owned(),
+            kind,
+            properties: None,
+        }
+    }
+
+    const VNET: &str =
+        "/subscriptions/s1/resourcegroups/rg/providers/microsoft.network/virtualnetworks/vnet-1";
+
+    #[test]
+    fn resolve_collapses_dangling_subnet_endpoints_onto_the_vnet() {
+        let nic = "/subscriptions/s1/resourcegroups/rg/providers/microsoft.network/networkinterfaces/nic-1";
+        let subnet = format!("{VNET}/subnets/app");
+        let known = HashSet::from([nic.to_owned(), VNET.to_owned()]);
+
+        let resolved = resolve_subnet_endpoints(
+            vec![subnet_edge(nic, &subnet, EdgeKind::NicInSubnet)],
+            &known,
+        );
+
+        assert_eq!(resolved.len(), 1);
+        assert_eq!(resolved[0].target_id, VNET);
+        assert_eq!(
+            resolved[0].properties.as_ref().unwrap()["targetSubnet"],
+            "app"
+        );
+    }
+
+    #[test]
+    fn resolve_drops_self_loops_and_merged_duplicates() {
+        let known = HashSet::from([VNET.to_owned()]);
+        let subnet_a = format!("{VNET}/subnets/a");
+        let subnet_b = format!("{VNET}/subnets/b");
+
+        let resolved = resolve_subnet_endpoints(
+            vec![
+                subnet_edge(&subnet_a, VNET, EdgeKind::SubnetOf),
+                subnet_edge(&subnet_b, VNET, EdgeKind::SubnetOf),
+            ],
+            &known,
+        );
+
+        assert!(resolved.is_empty(), "subnet→own-vnet edges are self-loops");
+    }
+
+    #[test]
+    fn resolve_leaves_real_resource_endpoints_alone() {
+        let pe =
+            "/subscriptions/s1/resourcegroups/rg/providers/microsoft.network/privateendpoints/pe-1";
+        let sql = "/subscriptions/s1/resourcegroups/rg/providers/microsoft.sql/servers/sql-1";
+        let known = HashSet::from([pe.to_owned(), sql.to_owned()]);
+
+        let resolved = resolve_subnet_endpoints(
+            vec![subnet_edge(pe, sql, EdgeKind::PrivateEndpointFor)],
+            &known,
+        );
+
+        assert_eq!(resolved.len(), 1);
+        assert_eq!(resolved[0].source_id, pe);
+        assert_eq!(resolved[0].target_id, sql);
+        assert!(resolved[0].properties.is_none());
     }
 }
 

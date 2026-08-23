@@ -1,6 +1,7 @@
 mod commands;
 mod dto;
 mod error;
+pub mod topology;
 
 use std::path::PathBuf;
 use std::sync::RwLock;
@@ -36,6 +37,7 @@ pub fn run() {
             commands::bootstrap,
             commands::open_database,
             commands::load_snapshot,
+            commands::topology_graph,
             commands::compare_snapshots,
             commands::collect_snapshot,
         ])

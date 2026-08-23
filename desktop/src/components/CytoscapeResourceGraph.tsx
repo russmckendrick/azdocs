@@ -1,237 +1,181 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import cytoscape, { type Core, type ElementDefinition, type StylesheetJson } from "cytoscape";
-import type { Edge, EstateSnapshot, Resource } from "../types";
-import {
-  RESOURCE_GROUP_ICON,
-  GRAPH_NODE_LIMITS,
-  buildResourceGroupTopology,
-  edgesWithinResources,
-  resourceGroupNodeId,
-  resourcesInGroup,
-  type ResourceGroupSummary,
-} from "./topology-model";
+import type { EstateSnapshot, TopologyGraph, TopologyNode } from "../types";
+import { RESOURCE_GROUP_ICON, SUBSCRIPTION_ICON, VNET_ICON } from "./topology-model";
 
 export type GraphMode = "neighbourhood" | "estate";
 
-type GraphLevel = "resource-groups" | "resources";
-
-interface GraphNode {
-  id: string;
-  name: string;
-  kind: "resource" | "resource-group";
-  resource?: Resource;
-  resourceGroup?: ResourceGroupSummary;
-}
-
-interface GraphLink {
-  sourceId: string;
-  targetId: string;
-  label: string;
-  count: number;
-}
-
-interface GraphData {
-  level: GraphLevel;
-  nodes: GraphNode[];
-  links: GraphLink[];
-  roots: string[];
-}
-
 interface CytoscapeResourceGraphProps {
+  graph: TopologyGraph;
   estate: EstateSnapshot;
-  selectedResourceId: string;
-  selectedResourceGroupId?: string;
-  resourceGroupId?: string;
-  mode: GraphMode;
+  focusedNodeId: string;
   motionEnabled: boolean;
   focusNonce: number;
   onSelectResource: (id: string) => void;
   onSelectResourceGroup: (id: string) => void;
   onOpenResourceGroup: (id: string) => void;
+  onExpandLane: (subscriptionId: string) => void;
+  onSelectAggregate: (nodeId: string) => void;
 }
 
-const NODE_WIDTH = 172;
-const NODE_HEIGHT = 76;
+const RESOURCE_W = 172;
+const RESOURCE_H = 76;
+const GROUP_W = 244;
+const GROUP_H = 118;
+const AGGREGATE_W = 188;
+const AGGREGATE_H = 60;
+const LANE_BAR_W = 860;
+const LANE_BAR_H = 56;
 
-function stableCompare(left: string, right: string) {
-  return left < right ? -1 : left > right ? 1 : 0;
+const KIND_CLASS_COLORS: Record<string, string> = {
+  network: "#6fd3ff",
+  structure: "#4a9cc5",
+  data: "#8ce8b4",
+  identity: "#d9a9ff",
+  monitoring: "#f2c069",
+};
+
+export function kindClassColor(kindClass: string) {
+  return KIND_CLASS_COLORS[kindClass] ?? "#4a9cc5";
 }
 
-function sortedResources(resources: Resource[]) {
-  return [...resources].sort((left, right) =>
-    stableCompare(left.name, right.name) || stableCompare(left.id, right.id),
+interface Placement {
+  x: number;
+  y: number;
+}
+
+/// Deterministic positions for every positionable node. Containers (lane,
+/// vnet, subnet compounds) are not positioned — cytoscape fits them around
+/// their children.
+function layoutPositions(graph: TopologyGraph): Map<string, Placement> {
+  const positions = new Map<string, Placement>();
+  if (graph.level === "estate") return layoutEstate(graph, positions);
+  if (graph.level === "group") return layoutGroup(graph, positions);
+  return layoutNeighbourhood(graph, positions);
+}
+
+function grid(count: number, columns: number, index: number, width: number, height: number, gapX: number, gapY: number) {
+  const column = index % columns;
+  const row = Math.floor(index / columns);
+  return { x: column * (width + gapX), y: row * (height + gapY), rows: Math.ceil(count / columns) };
+}
+
+function layoutEstate(graph: TopologyGraph, positions: Map<string, Placement>) {
+  const gapX = 56;
+  const gapY = 58;
+  // Wide lanes: enough columns that even a busy lane stays shallower than it
+  // is wide, so zoom-to-fit keeps cards legible.
+  const largestLane = Math.max(
+    1,
+    ...graph.lanes
+      .filter((lane) => lane.expanded)
+      .map((lane) => graph.nodes.filter((node) => node.kind === "resource-group" && node.lane === lane.subscriptionId).length),
   );
-}
-
-function sortedEdges(edges: Edge[]) {
-  return [...edges].sort((left, right) =>
-    stableCompare(left.kind, right.kind)
-      || stableCompare(left.sourceId, right.sourceId)
-      || stableCompare(left.targetId, right.targetId),
-  );
-}
-
-function directedRoots(nodes: GraphNode[], links: GraphLink[]) {
-  const nodeMap = new Map(nodes.map((node) => [node.id, node]));
-  const adjacency = new Map(nodes.map((node) => [node.id, [] as string[]]));
-  const incoming = new Map(nodes.map((node) => [node.id, 0]));
-  for (const link of links) {
-    if (!nodeMap.has(link.sourceId) || !nodeMap.has(link.targetId)) continue;
-    adjacency.get(link.sourceId)?.push(link.targetId);
-    adjacency.get(link.targetId)?.push(link.sourceId);
-    incoming.set(link.targetId, (incoming.get(link.targetId) ?? 0) + 1);
-  }
-  adjacency.forEach((neighbors) => neighbors.sort());
-
-  const remaining = new Set(nodes.map((node) => node.id));
-  const roots: string[] = [];
-  while (remaining.size > 0) {
-    const first = [...remaining].sort()[0];
-    const queue = [first];
-    const component: string[] = [];
-    remaining.delete(first);
-    while (queue.length > 0) {
-      const current = queue.shift();
-      if (!current) continue;
-      component.push(current);
-      for (const neighbor of adjacency.get(current) ?? []) {
-        if (!remaining.delete(neighbor)) continue;
-        queue.push(neighbor);
-      }
-    }
-    const sourceRoots = component.filter((id) => (incoming.get(id) ?? 0) === 0);
-    const candidates = sourceRoots.length > 0 ? sourceRoots : component;
-    candidates.sort((left, right) => {
-      const degreeDifference = (adjacency.get(right)?.length ?? 0) - (adjacency.get(left)?.length ?? 0);
-      return degreeDifference
-        || stableCompare(nodeMap.get(left)?.name ?? left, nodeMap.get(right)?.name ?? right)
-        || stableCompare(left, right);
+  const columns = Math.min(6, Math.max(3, Math.ceil(Math.sqrt(largestLane * 2.2))));
+  const laneWidth = columns * (GROUP_W + gapX);
+  let cursorY = 0;
+  for (const lane of graph.lanes.filter((candidate) => candidate.expanded)) {
+    const cards = graph.nodes.filter((node) => node.kind === "resource-group" && node.lane === lane.subscriptionId);
+    if (cards.length === 0) continue;
+    let rows = 1;
+    cards.forEach((card, index) => {
+      const cell = grid(cards.length, columns, index, GROUP_W, GROUP_H, gapX, gapY);
+      rows = cell.rows;
+      positions.set(card.id, { x: cell.x, y: cursorY + cell.y });
     });
-    roots.push(...candidates);
+    cursorY += rows * (GROUP_H + gapY) + 96;
   }
-  return roots;
+  for (const node of graph.nodes.filter((candidate) => candidate.kind === "subscription")) {
+    positions.set(node.id, { x: Math.max(laneWidth, LANE_BAR_W) / 2 - LANE_BAR_W / 2, y: cursorY });
+    cursorY += LANE_BAR_H + 34;
+  }
+  return positions;
 }
 
-function orderGroupNodes(nodes: GraphNode[], links: GraphLink[]) {
-  const incoming = new Map(nodes.map((node) => [node.id, 0]));
-  const outgoing = new Map(nodes.map((node) => [node.id, 0]));
-  const degree = new Map(nodes.map((node) => [node.id, 0]));
-  for (const link of links) {
-    incoming.set(link.targetId, (incoming.get(link.targetId) ?? 0) + 1);
-    outgoing.set(link.sourceId, (outgoing.get(link.sourceId) ?? 0) + 1);
-    degree.set(link.sourceId, (degree.get(link.sourceId) ?? 0) + 1);
-    degree.set(link.targetId, (degree.get(link.targetId) ?? 0) + 1);
+function layoutGroup(graph: TopologyGraph, positions: Map<string, Placement>) {
+  const childrenOf = new Map<string, TopologyNode[]>();
+  for (const node of graph.nodes) {
+    if (!node.parentId) continue;
+    childrenOf.set(node.parentId, [...(childrenOf.get(node.parentId) ?? []), node]);
   }
-  return [...nodes].sort((left, right) =>
-    Number((degree.get(left.id) ?? 0) === 0) - Number((degree.get(right.id) ?? 0) === 0)
-      || (incoming.get(left.id) ?? 0) - (incoming.get(right.id) ?? 0)
-      || (outgoing.get(right.id) ?? 0) - (outgoing.get(left.id) ?? 0)
-      || stableCompare(left.name, right.name)
-      || stableCompare(left.id, right.id),
+
+  // VNet blocks down the left edge: subnets stacked, members in a grid.
+  let vnetY = 0;
+  let vnetColumnWidth = 0;
+  for (const vnet of graph.nodes.filter((node) => node.kind === "vnet")) {
+    let subnetY = vnetY + 64;
+    for (const subnet of childrenOf.get(vnet.id) ?? []) {
+      const members = childrenOf.get(subnet.id) ?? [];
+      if (members.length === 0) {
+        positions.set(subnet.id, { x: 190, y: subnetY + 20 });
+        subnetY += 78;
+        continue;
+      }
+      const columns = Math.min(3, Math.max(1, Math.ceil(Math.sqrt(members.length))));
+      let rows = 1;
+      members.forEach((member, index) => {
+        const cell = grid(members.length, columns, index, RESOURCE_W, RESOURCE_H, 36, 30);
+        rows = cell.rows;
+        positions.set(member.id, { x: 60 + cell.x, y: subnetY + 44 + cell.y });
+      });
+      const width = 60 + columns * (RESOURCE_W + 36) + 40;
+      vnetColumnWidth = Math.max(vnetColumnWidth, width);
+      subnetY += rows * (RESOURCE_H + 30) + 96;
+    }
+    vnetY = subnetY + 110;
+  }
+  if (vnetColumnWidth === 0 && graph.nodes.some((node) => node.kind === "vnet")) vnetColumnWidth = 460;
+
+  // Ghost stubs for other groups' resources sit in their own column on the
+  // left, so cross-group traffic reads as arriving from outside.
+  const externals = graph.nodes.filter((node) => node.zone === "external");
+  const externalShift = externals.length > 0 ? RESOURCE_W + 220 : 0;
+  externals.forEach((node, index) => {
+    positions.set(node.id, { x: -externalShift, y: index * (RESOURCE_H + 40) });
+  });
+
+  // Free connected nodes flow in a grid beside the VNet column.
+  const freeX = vnetColumnWidth > 0 ? vnetColumnWidth + 140 : 0;
+  const free = graph.nodes.filter(
+    (node) => node.kind === "resource" && !node.parentId && node.zone === "core",
   );
+  const freeColumns = Math.min(4, Math.max(1, Math.ceil(Math.sqrt(free.length * 1.6))));
+  free.forEach((node, index) => {
+    const cell = grid(free.length, freeColumns, index, RESOURCE_W, RESOURCE_H, 64, 64);
+    positions.set(node.id, { x: freeX + cell.x, y: cell.y });
+  });
+
+  // The unconnected shelf: a compact grid to the right of everything.
+  const shelf = graph.nodes.filter((node) => node.zone === "unconnected");
+  const shelfColumns = shelf.length > 6 ? 2 : 1;
+  const shelfX = Math.max(freeX + freeColumns * (RESOURCE_W + 64) + 120, vnetColumnWidth + 140);
+  shelf.forEach((node, index) => {
+    const column = index % shelfColumns;
+    const row = Math.floor(index / shelfColumns);
+    positions.set(node.id, {
+      x: shelfX + column * (AGGREGATE_W + 40),
+      y: row * (AGGREGATE_H + 26),
+    });
+  });
+  return positions;
 }
 
-function resourceGraphNodes(resources: Resource[]): GraphNode[] {
-  return resources.map((resource) => ({
-    id: resource.id,
-    name: resource.name,
-    kind: "resource",
-    resource,
-  }));
-}
-
-function resourceGraphLinks(edges: Edge[]): GraphLink[] {
-  return sortedEdges(edges).map((edge) => ({
-    sourceId: edge.sourceId,
-    targetId: edge.targetId,
-    label: edge.kind.replaceAll("_", " "),
-    count: 1,
-  }));
-}
-
-function buildGraphData(
-  estate: EstateSnapshot,
-  selectedResourceId: string,
-  mode: GraphMode,
-  resourceGroupId?: string,
-): GraphData {
-  const resources = sortedResources(estate.resources);
-  const selected = resources.find((resource) => resource.id === selectedResourceId) ?? resources[0];
-  if (!selected) return { level: "resources", nodes: [], links: [], roots: [] };
-
-  if (mode === "neighbourhood") {
-    const touchingEdges = sortedEdges(estate.edges.filter(
-      (edge) => edge.sourceId === selected.id || edge.targetId === selected.id,
-    ));
-    const neighborIds = new Set(touchingEdges.flatMap((edge) => [edge.sourceId, edge.targetId]));
-    const neighbors = resources
-      .filter((resource) => resource.id !== selected.id && neighborIds.has(resource.id))
-      .slice(0, GRAPH_NODE_LIMITS.neighbourhood - 1);
-    const visibleResources = [selected, ...neighbors];
-    const visibleIds = new Set(visibleResources.map((resource) => resource.id));
-    const nodes = resourceGraphNodes(visibleResources);
-    const links = resourceGraphLinks(
-      touchingEdges.filter((edge) => visibleIds.has(edge.sourceId) && visibleIds.has(edge.targetId)),
-    );
-    return {
-      level: "resources",
-      nodes,
-      links,
-      roots: [selected.id],
-    };
+function layoutNeighbourhood(graph: TopologyGraph, positions: Map<string, Placement>) {
+  const subject = graph.nodes.find((node) => node.hop === 0);
+  const ring = (hop: number) => graph.nodes.filter((node) => (node.hop ?? 0) === hop && node.hop !== 0);
+  if (subject) positions.set(subject.id, { x: 0, y: 0 });
+  for (const hop of [1, 2]) {
+    const members = ring(hop);
+    const perColumn = Math.max(1, Math.ceil(members.length / 2));
+    members.forEach((node, index) => {
+      const side = index % 2 === 0 ? 1 : -1;
+      const rank = Math.floor(index / 2);
+      const x = side * hop * 340;
+      const y = (rank - (perColumn - 1) / 2) * (RESOURCE_H + 44);
+      positions.set(node.id, { x, y });
+    });
   }
-
-  const topology = buildResourceGroupTopology(estate);
-  if (!resourceGroupId) {
-    const unorderedNodes: GraphNode[] = topology.groups.map((group) => ({
-      id: resourceGroupNodeId(group.id),
-      name: group.name,
-      kind: "resource-group",
-      resourceGroup: group,
-    }));
-    const links: GraphLink[] = topology.links.map((link) => ({
-      sourceId: resourceGroupNodeId(link.sourceId),
-      targetId: resourceGroupNodeId(link.targetId),
-      label: `${link.count} cross-group link${link.count === 1 ? "" : "s"}`,
-      count: link.count,
-    }));
-    const nodes = orderGroupNodes(unorderedNodes, links);
-    return {
-      level: "resource-groups",
-      nodes,
-      links,
-      roots: directedRoots(nodes, links),
-    };
-  }
-
-  const group = topology.groups.find((candidate) => candidate.id === resourceGroupId);
-  const groupResources = resourcesInGroup(estate, group);
-  const preferred = groupResources
-    .filter((resource) => resource.id !== selectedResourceId)
-    .sort((left, right) =>
-      right.edgeCount - left.edgeCount
-        || right.findingCount - left.findingCount
-        || stableCompare(left.name, right.name)
-        || stableCompare(left.id, right.id),
-    );
-  const selectedInGroup = groupResources.find((resource) => resource.id === selectedResourceId);
-  const visibleResources = [
-    ...(selectedInGroup ? [selectedInGroup] : []),
-    ...preferred,
-  ].slice(0, GRAPH_NODE_LIMITS.resourceGroup)
-    .sort((left, right) => stableCompare(left.name, right.name) || stableCompare(left.id, right.id));
-  const visibleIds = new Set(visibleResources.map((resource) => resource.id));
-  const visibleEdges = edgesWithinResources(estate.edges, groupResources).filter(
-    (edge) => visibleIds.has(edge.sourceId) && visibleIds.has(edge.targetId),
-  );
-  const nodes = resourceGraphNodes(visibleResources);
-  const links = resourceGraphLinks(visibleEdges);
-  return {
-    level: "resources",
-    nodes,
-    links,
-    roots: directedRoots(nodes, links),
-  };
+  return positions;
 }
 
 function graphStyles(): StylesheetJson {
@@ -239,8 +183,8 @@ function graphStyles(): StylesheetJson {
     {
       selector: "node.resource-node",
       style: {
-        width: NODE_WIDTH,
-        height: NODE_HEIGHT,
+        width: RESOURCE_W,
+        height: RESOURCE_H,
         shape: "round-rectangle",
         "corner-radius": "12px",
         "background-color": "#102338",
@@ -257,8 +201,8 @@ function graphStyles(): StylesheetJson {
     {
       selector: "node.resource-group-node",
       style: {
-        width: 244,
-        height: 118,
+        width: GROUP_W,
+        height: GROUP_H,
         shape: "round-rectangle",
         "corner-radius": "15px",
         "background-color": "#10283e",
@@ -267,10 +211,119 @@ function graphStyles(): StylesheetJson {
         "border-color": "#3b7397",
         "border-opacity": 0.78,
         "overlay-opacity": 0,
-        "underlay-opacity": 0,
         label: "",
         "z-index": 8,
       },
+    },
+    {
+      selector: "node.aggregate-node",
+      style: {
+        width: AGGREGATE_W,
+        height: AGGREGATE_H,
+        shape: "round-rectangle",
+        "corner-radius": "12px",
+        "background-color": "#0d2237",
+        "background-opacity": 0.66,
+        "border-width": 1,
+        "border-color": "#3b6d8f",
+        "border-style": "dashed",
+        "border-opacity": 0.8,
+        "overlay-opacity": 0,
+        label: "",
+        "z-index": 8,
+      },
+    },
+    {
+      selector: "node.external-node",
+      style: {
+        width: RESOURCE_W,
+        height: RESOURCE_H,
+        shape: "round-rectangle",
+        "corner-radius": "12px",
+        "background-color": "#0b1b2c",
+        "background-opacity": 0.45,
+        "border-width": 1,
+        "border-color": "#3b6d8f",
+        "border-style": "dashed",
+        "border-opacity": 0.6,
+        "overlay-opacity": 0,
+        label: "",
+        "z-index": 6,
+      },
+    },
+    {
+      selector: "node.lane-bar-node",
+      style: {
+        width: LANE_BAR_W,
+        height: LANE_BAR_H,
+        shape: "round-rectangle",
+        "corner-radius": "14px",
+        "background-color": "#0d2237",
+        "background-opacity": 0.6,
+        "border-width": 1,
+        "border-color": "#3b6d8f",
+        "border-style": "dashed",
+        "border-opacity": 0.72,
+        "overlay-opacity": 0,
+        label: "",
+        "z-index": 8,
+      },
+    },
+    {
+      selector: "node.lane-frame, node.vnet-frame, node.subnet-frame",
+      style: {
+        shape: "round-rectangle",
+        "corner-radius": "18px",
+        "background-color": "#10416b",
+        "background-opacity": 0.08,
+        "border-width": 1.5,
+        "border-style": "dashed",
+        "border-color": "#4d8fc0",
+        "border-opacity": 0.5,
+        "overlay-opacity": 0,
+        label: "",
+        "z-index": 1,
+        // Room for the DOM header label above the children.
+        "padding-top": "52px",
+        "padding-left": "22px",
+        "padding-right": "22px",
+        "padding-bottom": "22px",
+      },
+    },
+    {
+      selector: "node.vnet-frame",
+      style: { "border-color": "#51cfff", "border-opacity": 0.55 },
+    },
+    {
+      selector: "node.subnet-frame",
+      style: {
+        "corner-radius": "12px",
+        "border-color": "#6eb4e0",
+        "border-opacity": 0.4,
+        "background-opacity": 0.14,
+        "padding-top": "42px",
+      },
+    },
+    {
+      selector: "node.subnet-empty",
+      style: {
+        width: 260,
+        height: 44,
+        shape: "round-rectangle",
+        "corner-radius": "10px",
+        "background-color": "#10416b",
+        "background-opacity": 0.14,
+        "border-width": 1,
+        "border-style": "dashed",
+        "border-color": "#6eb4e0",
+        "border-opacity": 0.4,
+        label: "",
+        "z-index": 4,
+      },
+    },
+    {
+      selector: "node.hop-dim",
+      style: { "background-opacity": 0.3, "border-opacity": 0.4 },
     },
     {
       selector: "node.focused",
@@ -285,43 +338,27 @@ function graphStyles(): StylesheetJson {
     },
     {
       selector: "node.hovered",
-      style: {
-        "background-opacity": 0.78,
-        "border-width": 1.5,
-        "border-color": "#67c9ec",
-      },
+      style: { "background-opacity": 0.78, "border-width": 1.5, "border-color": "#67c9ec" },
     },
     {
-      selector: "node:grabbed",
-      style: {
-        "background-opacity": 0.86,
-        "border-width": 2,
-        "border-color": "#8ce7ff",
-      },
-    },
-    {
-      selector: "node.keyboard-focus",
-      style: {
-        "background-opacity": 0.86,
-        "border-width": 2,
-        "border-color": "#8ce7ff",
-      },
+      selector: "node:grabbed, node.keyboard-focus",
+      style: { "background-opacity": 0.86, "border-width": 2, "border-color": "#8ce7ff" },
     },
     {
       selector: "edge.relationship-edge",
       style: {
-        width: 1.35,
+        width: "mapData(weight, 1, 20, 1.35, 3.4)",
         "curve-style": "round-taxi",
         "taxi-direction": "horizontal",
         "taxi-turn": "50%",
         "taxi-turn-min-distance": "28px",
         "taxi-radius": 9,
         "edge-distances": "intersection",
-        "line-color": "#4a9cc5",
-        "line-opacity": 0.72,
+        "line-color": "data(color)",
+        "line-opacity": 0.62,
         "line-cap": "round",
         "target-arrow-shape": "triangle",
-        "target-arrow-color": "#77dfff",
+        "target-arrow-color": "data(color)",
         "arrow-scale": 0.72,
         "source-distance-from-node": "5px",
         "target-distance-from-node": "7px",
@@ -333,10 +370,10 @@ function graphStyles(): StylesheetJson {
     {
       selector: "edge.relationship-edge.related",
       style: {
-        width: 1.8,
-        "line-color": "#63c9ed",
-        "line-opacity": 0.9,
-        "target-arrow-color": "#9cecff",
+        width: 2,
+        "line-opacity": 0.95,
+        "line-style": "dashed",
+        "line-dash-pattern": [7, 5],
       },
     },
     {
@@ -357,141 +394,139 @@ function graphStyles(): StylesheetJson {
         "text-border-width": 1,
       },
     },
-    {
-      selector: "edge.group-link",
-      style: {
-        width: "mapData(weight, 1, 20, 1.3, 3.4)",
-        "line-color": "#3f91bd",
-        "line-opacity": 0.68,
-        "target-arrow-color": "#73d8fa",
-        "arrow-scale": 0.68,
-        color: "#8fc8e6",
-        "font-size": 8,
-        "text-background-padding": "6px",
-        "text-background-opacity": 0.9,
-      },
-    },
-    {
-      selector: "edge.flow-edge",
-      style: {
-        width: 1.15,
-        "curve-style": "round-taxi",
-        "taxi-direction": "horizontal",
-        "taxi-turn": "50%",
-        "taxi-turn-min-distance": "28px",
-        "taxi-radius": 9,
-        "edge-distances": "intersection",
-        "line-style": "dashed",
-        "line-dash-pattern": [2, 14],
-        "line-color": "#9beaff",
-        "line-opacity": 0.76,
-        "source-distance-from-node": "5px",
-        "target-distance-from-node": "7px",
-        "target-arrow-shape": "none",
-        "overlay-opacity": 0,
-        events: "no",
-        "z-index": 3,
-      },
-    },
   ];
 }
 
-function graphElements(graph: GraphData, focusedNodeId: string, mode: GraphMode): ElementDefinition[] {
-  const elements: ElementDefinition[] = graph.nodes.map((node) => ({
-    group: "nodes",
-    data: {
-      id: node.id,
-      kind: node.kind,
-      resourceId: node.resource?.id,
-      resourceGroupId: node.resourceGroup?.id,
-    },
-    classes: [
-      node.kind === "resource-group" ? "resource-group-node" : "resource-node",
-      node.id === focusedNodeId ? "focused" : "",
-    ].filter(Boolean).join(" "),
-  }));
+/// Fit must never zoom IN past ~1:1 — a three-node graph blown up to fill the
+/// stage reads as broken, not sparse.
+const MAX_FIT_ZOOM = 0.95;
+
+function clampFitZoom(cy: Core, around?: cytoscape.CollectionReturnValue) {
+  if (cy.zoom() > MAX_FIT_ZOOM) {
+    cy.zoom(MAX_FIT_ZOOM);
+    cy.center(around && around.nonempty() ? around : cy.elements());
+  }
+}
+
+function nodeClasses(node: TopologyNode, focusedNodeId: string) {
+  const classes: string[] = [];
+  if (node.kind === "resource") classes.push("resource-node");
+  if (node.kind === "resource-group") classes.push("resource-group-node");
+  if (node.kind === "aggregate") classes.push("aggregate-node");
+  if (node.kind === "external") classes.push("external-node");
+  if (node.kind === "subscription") classes.push("lane-bar-node");
+  if (node.kind === "vnet") classes.push("vnet-frame");
+  if (node.kind === "subnet") classes.push("subnet-frame");
+  if ((node.hop ?? 0) > 1) classes.push("hop-dim");
+  if (node.id === focusedNodeId) classes.push("focused");
+  return classes.join(" ");
+}
+
+function graphElements(graph: TopologyGraph, focusedNodeId: string): ElementDefinition[] {
+  const childCount = new Map<string, number>();
+  for (const node of graph.nodes) {
+    if (node.parentId) childCount.set(node.parentId, (childCount.get(node.parentId) ?? 0) + 1);
+  }
+  const laneHasCards = new Set(
+    graph.nodes.filter((node) => node.kind === "resource-group" && node.lane).map((node) => node.lane as string),
+  );
+  const elements: ElementDefinition[] = [];
+  for (const lane of graph.lanes.filter((candidate) => candidate.expanded)) {
+    if (!laneHasCards.has(lane.subscriptionId)) continue;
+    elements.push({
+      group: "nodes",
+      data: { id: `lane:${lane.subscriptionId}`, kind: "lane" },
+      classes: "lane-frame",
+      selectable: false,
+      grabbable: false,
+    });
+  }
+  for (const node of graph.nodes) {
+    const isEmptySubnet = node.kind === "subnet" && (childCount.get(node.id) ?? 0) === 0;
+    const parent =
+      node.parentId ??
+      (graph.level === "estate" && node.kind === "resource-group" && node.lane && laneHasCards.has(node.lane)
+        ? `lane:${node.lane}`
+        : undefined);
+    elements.push({
+      group: "nodes",
+      data: {
+        id: node.id,
+        kind: node.kind,
+        parent,
+        resourceId: node.resourceId,
+        groupId: node.groupId,
+        lane: node.lane,
+      },
+      classes: isEmptySubnet ? "subnet-empty" : nodeClasses(node, focusedNodeId),
+      selectable: node.kind !== "vnet" && node.kind !== "subnet",
+      grabbable: node.kind === "resource" || node.kind === "aggregate" || node.kind === "external",
+    });
+  }
   graph.links.forEach((link, index) => {
     const related = link.sourceId === focusedNodeId || link.targetId === focusedNodeId;
-    const groupLink = graph.level === "resource-groups";
-    const edgeClass = [
-      "relationship-edge",
-      related ? "related" : "",
-      mode === "neighbourhood" || groupLink ? "labelled" : "",
-      groupLink ? "group-link" : "",
-    ]
-      .filter(Boolean)
-      .join(" ");
     elements.push({
       group: "edges",
       data: {
         id: `relationship-${index}`,
         source: link.sourceId,
         target: link.targetId,
-        label: link.label,
+        label: link.count > 1 && graph.level === "estate" ? `${link.count} links` : link.label,
         weight: link.count,
+        color: kindClassColor(link.kindClass),
       },
-      classes: edgeClass,
-    });
-    elements.push({
-      group: "edges",
-      data: { id: `flow-${index}`, source: link.sourceId, target: link.targetId },
-      classes: "flow-edge",
+      classes: [
+        "relationship-edge",
+        related ? "related" : "",
+        graph.level !== "group" || related ? "labelled" : "",
+      ]
+        .filter(Boolean)
+        .join(" "),
     });
   });
   return elements;
 }
 
 export function CytoscapeResourceGraph({
+  graph,
   estate,
-  selectedResourceId,
-  selectedResourceGroupId,
-  resourceGroupId,
-  mode,
+  focusedNodeId,
   motionEnabled,
   focusNonce,
   onSelectResource,
   onSelectResourceGroup,
   onOpenResourceGroup,
+  onExpandLane,
+  onSelectAggregate,
 }: CytoscapeResourceGraphProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
-  const labelRefs = useRef(new Map<string, HTMLButtonElement>());
+  const labelRefs = useRef(new Map<string, HTMLElement>());
   const cyRef = useRef<Core | undefined>(undefined);
-  const selectRef = useRef(onSelectResource);
-  const selectGroupRef = useRef(onSelectResourceGroup);
-  const openGroupRef = useRef(onOpenResourceGroup);
+  const callbacksRef = useRef({ onSelectResource, onSelectResourceGroup, onOpenResourceGroup, onExpandLane, onSelectAggregate });
   const motionRef = useRef(motionEnabled);
   const [rendererError, setRendererError] = useState<string>();
-  const graph = useMemo(
-    () => buildGraphData(estate, selectedResourceId, mode, resourceGroupId),
-    [estate, mode, resourceGroupId, selectedResourceId],
-  );
-  const focusedNodeId = graph.level === "resource-groups" && selectedResourceGroupId
-    ? resourceGroupNodeId(selectedResourceGroupId)
-    : selectedResourceId;
-  const graphStructureKey = useMemo(() => JSON.stringify({
-    mode,
-    level: graph.level,
-    nodes: graph.nodes.map((node) => node.id),
-    links: graph.links.map((link) => [link.sourceId, link.targetId, link.label, link.count]),
-  }), [graph.level, graph.links, graph.nodes, mode]);
   const typeMap = useMemo(
     () => new Map(estate.resourceTypes.map((type) => [type.azureType, type])),
     [estate.resourceTypes],
   );
+  const graphStructureKey = useMemo(
+    () =>
+      [
+        graph.level,
+        graph.nodes.map((node) => `${node.id}~${node.parentId ?? ""}~${node.kind}`).join("|"),
+        graph.links.map((link) => `${link.sourceId}~${link.targetId}~${link.kindClass}~${link.count}`).join("|"),
+        graph.lanes.map((lane) => `${lane.subscriptionId}~${lane.expanded}`).join("|"),
+      ].join("\n"),
+    [graph],
+  );
 
   useEffect(() => {
-    selectRef.current = onSelectResource;
-  }, [onSelectResource]);
-
-  useEffect(() => {
-    selectGroupRef.current = onSelectResourceGroup;
-    openGroupRef.current = onOpenResourceGroup;
-  }, [onOpenResourceGroup, onSelectResourceGroup]);
+    callbacksRef.current = { onSelectResource, onSelectResourceGroup, onOpenResourceGroup, onExpandLane, onSelectAggregate };
+  }, [onExpandLane, onOpenResourceGroup, onSelectAggregate, onSelectResource, onSelectResourceGroup]);
 
   useEffect(() => {
     motionRef.current = motionEnabled;
-    cyRef.current?.edges(".flow-edge").style("display", motionEnabled ? "element" : "none");
   }, [motionEnabled]);
 
   useEffect(() => {
@@ -516,11 +551,12 @@ export function CytoscapeResourceGraph({
     cy.stop();
     if (reduceMotion) {
       cy.fit(selected, 150);
+      clampFitZoom(cy, selected);
       return;
     }
     cy.animate(
       { fit: { eles: selected, padding: 150 } },
-      { duration: 420, easing: "ease-out-cubic" },
+      { duration: 420, easing: "ease-out-cubic", complete: () => clampFitZoom(cy, selected) },
     );
   }, [focusNonce, focusedNodeId]);
 
@@ -534,17 +570,16 @@ export function CytoscapeResourceGraph({
     try {
       cy = cytoscape({
         container: surface,
-        elements: graphElements(graph, focusedNodeId, mode),
+        elements: graphElements(graph, focusedNodeId),
         style: graphStyles(),
         layout: { name: "preset" },
-        minZoom: 0.34,
+        minZoom: 0.1,
         maxZoom: 2.2,
         boxSelectionEnabled: true,
         selectionType: "single",
         pixelRatio: "auto",
       });
       cyRef.current = cy;
-      cy.edges(".flow-edge").style("display", motionRef.current ? "element" : "none");
       setRendererError(undefined);
     } catch (error) {
       setRendererError(error instanceof Error ? error.message : "The relationship graph could not be initialised.");
@@ -558,16 +593,27 @@ export function CytoscapeResourceGraph({
     let dashOffset = 0;
     let visible = document.visibilityState === "visible";
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const frameIds = new Set(
+      graph.nodes.filter((node) => node.kind === "vnet" || node.kind === "subnet").map((node) => node.id),
+    );
+    for (const lane of graph.lanes.filter((candidate) => candidate.expanded)) frameIds.add(`lane:${lane.subscriptionId}`);
 
     function syncLabels() {
       labelFrame = 0;
       const zoom = cy.zoom();
-      for (const graphNode of graph.nodes) {
-        const label = labelRefs.current.get(graphNode.id);
-        const node = cy.getElementById(graphNode.id);
-        if (!label || node.empty()) continue;
-        const point = node.renderedPosition();
-        label.style.transform = `translate3d(${point.x}px, ${point.y}px, 0) translate(-50%, -50%) scale(${zoom})`;
+      // Frame headers (lane, vnet, subnet) stay readable when zoomed out —
+      // they name whole regions, so they get a scale floor.
+      const frameLabelScale = Math.max(zoom, 0.72);
+      for (const [id, label] of labelRefs.current) {
+        const node = cy.getElementById(id);
+        if (node.empty()) continue;
+        if (frameIds.has(id) && !node.hasClass("subnet-empty")) {
+          const box = node.renderedBoundingBox({ includeLabels: false, includeOverlays: false });
+          label.style.transform = `translate3d(${box.x1 + 14 * zoom}px, ${box.y1 + 6 * zoom}px, 0) scale(${frameLabelScale})`;
+        } else {
+          const point = node.renderedPosition();
+          label.style.transform = `translate3d(${point.x}px, ${point.y}px, 0) translate(-50%, -50%) scale(${zoom})`;
+        }
       }
     }
 
@@ -580,8 +626,8 @@ export function CytoscapeResourceGraph({
       motionFrame = window.requestAnimationFrame(animateFlow);
       if (!visible || reduceMotion.matches || !motionRef.current || time - lastMotionPaint < 38) return;
       lastMotionPaint = time;
-      dashOffset = (dashOffset - 0.7) % 16;
-      cy.edges(".flow-edge").style("line-dash-offset", dashOffset);
+      dashOffset = (dashOffset - 0.7) % 12;
+      cy.edges(".relationship-edge.related").style("line-dash-offset", dashOffset);
     }
 
     function handleVisibility() {
@@ -589,19 +635,38 @@ export function CytoscapeResourceGraph({
     }
 
     function handleTap(event: cytoscape.EventObject) {
-      if (event.target.data("kind") === "resource-group") {
-        selectGroupRef.current(event.target.data("resourceGroupId"));
+      const kind = event.target.data("kind");
+      if (kind === "resource-group") {
+        callbacksRef.current.onSelectResourceGroup(event.target.data("groupId"));
         return;
       }
-      selectRef.current(event.target.data("resourceId") ?? event.target.id());
+      if (kind === "subscription") {
+        callbacksRef.current.onExpandLane(event.target.data("lane"));
+        return;
+      }
+      if (kind === "aggregate") {
+        callbacksRef.current.onSelectAggregate(event.target.id());
+        return;
+      }
+      if (kind === "external") {
+        const resourceId = event.target.data("resourceId");
+        if (resourceId) callbacksRef.current.onSelectResource(resourceId);
+        else callbacksRef.current.onSelectAggregate(event.target.id());
+        return;
+      }
+      if (kind === "resource" || kind === "vnet") {
+        const resourceId = event.target.data("resourceId");
+        if (resourceId) callbacksRef.current.onSelectResource(resourceId);
+      }
     }
 
     function handleDoubleTap(event: cytoscape.EventObject) {
-      const groupId = event.target.data("resourceGroupId");
-      if (groupId) openGroupRef.current(groupId);
+      const groupId = event.target.data("groupId");
+      if (groupId) callbacksRef.current.onOpenResourceGroup(groupId);
     }
 
     function handleNodeOver(event: cytoscape.EventObject) {
+      if (frameIds.has(event.target.id())) return;
       event.target.addClass("hovered");
       activeHost.style.cursor = "pointer";
     }
@@ -611,130 +676,46 @@ export function CytoscapeResourceGraph({
       activeHost.style.cursor = "grab";
     }
 
-    function handleGrab() {
-      activeHost.style.cursor = "grabbing";
-    }
-
-    function handleFree() {
-      activeHost.style.cursor = "pointer";
-    }
-
     cy.on("tap", "node", handleTap);
     cy.on("dbltap", "node.resource-group-node", handleDoubleTap);
     cy.on("mouseover", "node", handleNodeOver);
     cy.on("mouseout", "node", handleNodeOut);
-    cy.on("grab", "node", handleGrab);
-    cy.on("free", "node", handleFree);
+    cy.on("grab", "node", () => {
+      activeHost.style.cursor = "grabbing";
+    });
+    cy.on("free", "node", () => {
+      activeHost.style.cursor = "pointer";
+    });
     cy.on("pan zoom position resize", queueLabelSync);
     document.addEventListener("visibilitychange", handleVisibility);
 
-    const nodeMap = new Map(graph.nodes.map((node) => [node.id, node]));
-    const compareNodes = (left: cytoscape.NodeSingular | null, right: cytoscape.NodeSingular | null) => {
-      if (!left) return right ? 1 : 0;
-      if (!right) return -1;
-      return stableCompare(
-        nodeMap.get(left.id())?.name ?? left.id(),
-        nodeMap.get(right.id())?.name ?? right.id(),
-      ) || stableCompare(left.id(), right.id());
+    // Until the user pans or zooms themselves, keep the graph fitted and
+    // centred through container resizes — the stage often settles its final
+    // size a frame after the graph mounts.
+    let userAdjusted = false;
+    const markUserAdjusted = () => {
+      userAdjusted = true;
     };
+    surface.addEventListener("pointerdown", markUserAdjusted);
+    surface.addEventListener("wheel", markUserAdjusted, { passive: true });
 
     try {
-      if (mode === "neighbourhood") {
-        cy.layout({
-          name: "breadthfirst",
-          roots: graph.roots,
-          directed: false,
-          direction: "rightward",
-          circle: false,
-          grid: true,
-          maximal: true,
-          avoidOverlap: true,
-          nodeDimensionsIncludeLabels: false,
-          spacingFactor: 1.35,
-          padding: 112,
-          fit: true,
-          animate: false,
-          depthSort: compareNodes,
-          stop: queueLabelSync,
-        }).run();
-      } else {
-        const structuralElements = cy.nodes().union(cy.edges(".relationship-edge"));
-        const components = structuralElements.components();
-        const connectedComponents = components
-          .filter((component) => component.nodes().length > 1)
-          .sort((left, right) => {
-            const countDifference = right.nodes().length - left.nodes().length;
-            if (countDifference !== 0) return countDifference;
-            const leftKey = left.nodes()
-              .map((node) => `${nodeMap.get(node.id())?.name ?? node.id()}\0${node.id()}`)
-              .sort(stableCompare)[0] ?? "";
-            const rightKey = right.nodes()
-              .map((node) => `${nodeMap.get(node.id())?.name ?? node.id()}\0${node.id()}`)
-              .sort(stableCompare)[0] ?? "";
-            return stableCompare(leftKey, rightKey);
-          });
-        const isolatedNodes = cy.nodes().filter((node) => node.degree(false) === 0);
-
-        let cursorX = 0;
-        let cursorY = 0;
-        let rowHeight = 0;
-        const shelfWidth = 940;
-        const componentGap = 96;
-        const rowGap = 88;
-
-        for (const component of connectedComponents) {
-          const componentIds = new Set(component.nodes().map((node) => node.id()));
-          const componentNodes = graph.nodes.filter((node) => componentIds.has(node.id));
-          const componentLinks = graph.links.filter(
-            (link) => componentIds.has(link.sourceId) && componentIds.has(link.targetId),
-          );
-          component.layout({
-            name: "breadthfirst",
-            roots: directedRoots(componentNodes, componentLinks),
-            directed: true,
-            direction: "rightward",
-            circle: false,
-            grid: true,
-            maximal: true,
-            avoidOverlap: true,
-            nodeDimensionsIncludeLabels: false,
-            spacingFactor: 1.28,
-            fit: false,
-            animate: false,
-            depthSort: compareNodes,
-          }).run();
-          const bounds = component.boundingBox();
-          if (cursorX > 0 && cursorX + bounds.w > shelfWidth) {
-            cursorX = 0;
-            cursorY += rowHeight + rowGap;
-            rowHeight = 0;
-          }
-          component.nodes().shift({ x: cursorX - bounds.x1, y: cursorY - bounds.y1 });
-          cursorX += bounds.w + componentGap;
-          rowHeight = Math.max(rowHeight, bounds.h);
+      const positions = layoutPositions(graph);
+      cy.batch(() => {
+        for (const [id, placement] of positions) {
+          const node = cy.getElementById(id);
+          if (!node.empty() && !node.isParent()) node.position({ x: placement.x, y: placement.y });
         }
-
-        if (isolatedNodes.length > 0) {
-          cursorY += rowHeight + rowGap;
-          isolatedNodes.layout({
-            name: "grid",
-            cols: Math.min(5, Math.ceil(Math.sqrt(isolatedNodes.length * 1.6))),
-            condense: true,
-            avoidOverlap: true,
-            avoidOverlapPadding: 34,
-            fit: false,
-            animate: false,
-            sort: compareNodes,
-          }).run();
-          const isolateBounds = isolatedNodes.boundingBox();
-          isolatedNodes.shift({ x: -isolateBounds.x1, y: cursorY - isolateBounds.y1 });
-        }
-        cy.fit(cy.elements(), 94);
-        queueLabelSync();
-      }
-      if (focusNonce > 0 && graph.level === "resources") {
+      });
+      cy.fit(cy.elements(), 90);
+      clampFitZoom(cy);
+      queueLabelSync();
+      if (focusNonce > 0 && graph.level !== "estate") {
         const selected = cy.getElementById(focusedNodeId);
-        if (!selected.empty()) cy.fit(selected, 150);
+        if (!selected.empty()) {
+          cy.fit(selected, 150);
+          clampFitZoom(cy, selected);
+        }
       }
     } catch (error) {
       setRendererError(error instanceof Error ? error.message : "The relationship layout could not be calculated.");
@@ -748,7 +729,10 @@ export function CytoscapeResourceGraph({
       window.cancelAnimationFrame(resizeFrame);
       resizeFrame = window.requestAnimationFrame(() => {
         resizeFrame = 0;
-        if (graph.level === "resource-groups") cy.fit(cy.elements(), 94);
+        if (!userAdjusted) {
+          cy.fit(cy.elements(), 90);
+          clampFitZoom(cy);
+        }
         queueLabelSync();
       });
     });
@@ -761,103 +745,204 @@ export function CytoscapeResourceGraph({
       window.cancelAnimationFrame(resizeFrame);
       window.cancelAnimationFrame(motionFrame);
       resizeObserver.disconnect();
+      surface.removeEventListener("pointerdown", markUserAdjusted);
+      surface.removeEventListener("wheel", markUserAdjusted);
       document.removeEventListener("visibilitychange", handleVisibility);
       cyRef.current = undefined;
       cy.destroy();
     };
-  }, [graphStructureKey, mode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [graphStructureKey]);
+
+  const registerLabel = (id: string) => (element: HTMLElement | null) => {
+    if (element) labelRefs.current.set(id, element);
+    else labelRefs.current.delete(id);
+  };
+
+  function typeIcon(azureType?: string) {
+    const type = azureType ? typeMap.get(azureType) : undefined;
+    return type?.icon;
+  }
+
+  function typeName(azureType?: string) {
+    const type = azureType ? typeMap.get(azureType) : undefined;
+    return type?.displayName ?? azureType ?? "Resource";
+  }
 
   return (
     <div className="cytoscape-graph" ref={hostRef}>
       <div className="graph-aurora" aria-hidden="true" />
       <div className="cytoscape-surface" ref={surfaceRef} aria-hidden="true" />
       <div className="graph-label-layer">
+        {graph.lanes
+          .filter((lane) => lane.expanded && graph.nodes.some((node) => node.kind === "resource-group" && node.lane === lane.subscriptionId))
+          .map((lane) => (
+            <span key={`lane:${lane.subscriptionId}`} ref={registerLabel(`lane:${lane.subscriptionId}`)} className="graph-container-label">
+              <img src={SUBSCRIPTION_ICON} alt="" />
+              <strong>{lane.name}</strong>
+              <small>
+                {lane.groupCount} groups · {lane.resourceCount} resources
+              </small>
+            </span>
+          ))}
         {graph.nodes.map((node) => {
-          if (node.kind === "resource-group" && node.resourceGroup) {
-            const group = node.resourceGroup;
+          if (node.kind === "vnet") {
+            return (
+              <span key={node.id} ref={registerLabel(node.id)} className="graph-container-label graph-vnet-label">
+                <img src={VNET_ICON} alt="" />
+                <strong>{node.name}</strong>
+                <small>{node.subtitle}</small>
+              </span>
+            );
+          }
+          if (node.kind === "subnet") {
+            return (
+              <span key={node.id} ref={registerLabel(node.id)} className="graph-container-label graph-subnet-label">
+                <strong>{node.name}</strong>
+                <small>{node.subtitle}</small>
+              </span>
+            );
+          }
+          if (node.kind === "subscription") {
+            return (
+              <button
+                key={node.id}
+                ref={registerLabel(node.id)}
+                className="graph-lane-bar-label"
+                onClick={() => onExpandLane(node.lane ?? "")}
+                aria-label={`${node.name}, collapsed subscription. Press Enter to expand.`}
+              >
+                <img src={SUBSCRIPTION_ICON} alt="" />
+                <span className="graph-node-copy">
+                  <strong>{node.name}</strong>
+                  <small>{node.subtitle}</small>
+                </span>
+                {node.findingCount > 0 ? <em>{node.findingCount}</em> : null}
+                <i className="graph-lane-expand">Expand ›</i>
+              </button>
+            );
+          }
+          if (node.kind === "aggregate") {
+            return (
+              <button
+                key={node.id}
+                ref={registerLabel(node.id)}
+                className="graph-aggregate-label"
+                onClick={() => onSelectAggregate(node.id)}
+                aria-label={`${node.count} ${typeName(node.azureType)}, aggregated. Press Enter to list them.`}
+              >
+                {typeIcon(node.azureType) ? <img src={typeIcon(node.azureType)} alt="" /> : null}
+                <span className="graph-node-copy">
+                  <strong>{typeName(node.azureType)}</strong>
+                  <small>{node.zone === "unconnected" ? "not linked yet" : `${node.hop ?? 1} hop${(node.hop ?? 1) === 1 ? "" : "s"} away`}</small>
+                </span>
+                <b>{node.subtitle}</b>
+                {node.findingCount > 0 ? <em>{node.findingCount}</em> : null}
+              </button>
+            );
+          }
+          if (node.kind === "external") {
+            return (
+              <button
+                key={node.id}
+                ref={registerLabel(node.id)}
+                className="graph-node-label ghost"
+                onClick={() => (node.resourceId ? onSelectResource(node.resourceId) : onSelectAggregate(node.id))}
+                aria-label={`${node.name}, in another resource group`}
+              >
+                <span className="graph-node-icon">
+                  {typeIcon(node.azureType) ? <img src={typeIcon(node.azureType)} alt="" /> : null}
+                </span>
+                <span className="graph-node-copy">
+                  <strong>{node.count > 1 ? typeName(node.azureType) : node.name}</strong>
+                  <small>{node.subtitle || "in another group"}</small>
+                </span>
+              </button>
+            );
+          }
+          if (node.kind === "resource-group") {
             const selected = node.id === focusedNodeId;
             return (
               <button
                 key={node.id}
-                ref={(element) => {
-                  if (element) labelRefs.current.set(node.id, element);
-                  else labelRefs.current.delete(node.id);
-                }}
+                ref={registerLabel(node.id)}
                 className={selected ? "graph-resource-group-label selected" : "graph-resource-group-label"}
-                onClick={() => onSelectResourceGroup(group.id)}
-                onDoubleClick={() => onOpenResourceGroup(group.id)}
+                onClick={() => onSelectResourceGroup(node.groupId ?? "")}
+                onDoubleClick={() => onOpenResourceGroup(node.groupId ?? "")}
                 onKeyDown={(event) => {
                   if (event.key !== "Enter") return;
                   event.preventDefault();
-                  openGroupRef.current(group.id);
+                  onOpenResourceGroup(node.groupId ?? "");
                 }}
                 onFocus={() => cyRef.current?.getElementById(node.id).addClass("keyboard-focus")}
                 onBlur={() => cyRef.current?.getElementById(node.id).removeClass("keyboard-focus")}
-                aria-label={`${group.name}, ${group.resourceCount} resources in ${group.subscriptionName}. Press Enter to open.`}
+                aria-label={`${node.name}, ${node.count} resources. Press Enter to open.`}
               >
                 <span className="graph-group-heading">
-                  <span className="graph-group-icon"><img src={RESOURCE_GROUP_ICON} alt="" /></span>
-                  <span className="graph-group-copy">
-                    <strong>{group.name}</strong>
-                    <small>{group.subscriptionName}</small>
+                  <span className="graph-group-icon">
+                    <img src={RESOURCE_GROUP_ICON} alt="" />
                   </span>
-                  {group.findingCount > 0 ? <em>{group.findingCount}</em> : null}
-                </span>
-                <span className="graph-group-stats">
-                  <span><strong>{group.resourceCount}</strong> resources</span>
-                  <i />
-                  <span><strong>{group.connectedGroupCount}</strong> connected groups</span>
+                  <span className="graph-group-copy">
+                    <strong>{node.name}</strong>
+                    <small>{node.subtitle}</small>
+                  </span>
+                  {node.findingCount > 0 ? <em>{node.findingCount}</em> : null}
                 </span>
                 <span className="graph-group-types" aria-hidden="true">
-                  {group.resourceTypes.slice(0, 4).map(({ azureType, count }) => {
-                    const type = typeMap.get(azureType);
-                    return type ? <span key={azureType}><img src={type.icon} alt="" /><b>{count}</b></span> : null;
-                  })}
                   <span className="graph-group-open">Select group</span>
                 </span>
               </button>
             );
           }
-          const resource = node.resource;
-          if (!resource) return null;
-          const type = typeMap.get(resource.azureType);
-          const selected = node.id === focusedNodeId;
-          return (
-            <button
-              key={node.id}
-              ref={(element) => {
-                if (element) labelRefs.current.set(node.id, element);
-                else labelRefs.current.delete(node.id);
-              }}
-              className={selected ? "graph-node-label selected" : "graph-node-label"}
-              onClick={() => onSelectResource(resource.id)}
-              onFocus={() => {
-                cyRef.current?.getElementById(node.id).addClass("keyboard-focus");
-              }}
-              onBlur={() => cyRef.current?.getElementById(node.id).removeClass("keyboard-focus")}
-              aria-label={`${resource.name}, ${type?.displayName ?? resource.azureType}`}
-            >
-              <span className="graph-node-icon">
-                {type ? <img src={type.icon} alt="" /> : null}
-              </span>
-              <span className="graph-node-copy">
-                <strong>{resource.name}</strong>
-                <small>{type?.displayName ?? resource.azureType}</small>
-              </span>
-              {resource.findingCount > 0 ? <em>{resource.findingCount}</em> : null}
-            </button>
-          );
+          if (node.kind === "resource") {
+            const selected = node.id === focusedNodeId;
+            const dim = (node.hop ?? 0) > 1;
+            return (
+              <button
+                key={node.id}
+                ref={registerLabel(node.id)}
+                className={[
+                  "graph-node-label",
+                  selected ? "selected" : "",
+                  dim ? "dimmed" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                onClick={() => onSelectResource(node.resourceId ?? node.id)}
+                onFocus={() => cyRef.current?.getElementById(node.id).addClass("keyboard-focus")}
+                onBlur={() => cyRef.current?.getElementById(node.id).removeClass("keyboard-focus")}
+                aria-label={`${node.name}, ${typeName(node.azureType)}`}
+              >
+                <span className="graph-node-icon">
+                  {typeIcon(node.azureType) ? <img src={typeIcon(node.azureType)} alt="" /> : null}
+                </span>
+                <span className="graph-node-copy">
+                  <strong>{node.name}</strong>
+                  <small>{node.subtitle || typeName(node.azureType)}</small>
+                </span>
+                {node.findingCount > 0 ? <em>{node.findingCount}</em> : null}
+              </button>
+            );
+          }
+          return null;
         })}
       </div>
       <div className="graph-controls-hint" aria-hidden="true">
-        <span>{graph.level === "resource-groups" ? "Select a group · Enter to open" : "Drag nodes"}</span>
-        <i /> <span>Drag canvas to pan</span><i /> <span>Scroll to zoom</span>
+        <span>
+          {graph.level === "estate"
+            ? "Select a group · Enter to open · click a lane bar to expand"
+            : graph.level === "group"
+              ? "Drag nodes · aggregated tiles list their members"
+              : "Drag nodes"}
+        </span>
+        <i /> <span>Drag canvas to pan</span>
+        <i /> <span>Scroll to zoom</span>
       </div>
       {graph.nodes.length === 0 ? (
         <div className="graph-empty-state" role="status">
           <img src={RESOURCE_GROUP_ICON} alt="" />
-          <strong>No resources in this group</strong>
-          <span>The stored snapshot contains the resource group, but no resource records belong to it.</span>
+          <strong>Nothing to draw</strong>
+          <span>The current scope contains no stored resources.</span>
         </div>
       ) : null}
       {rendererError ? (

@@ -2643,3 +2643,259 @@ body {
   box-shadow: none;
   filter: drop-shadow(0 8px 12px rgb(31 80 115 / 18%));
 }
+
+/* Topology at scale: lanes, containers, aggregates and honest controls. */
+
+.graph-depth-switch {
+  display: flex;
+  padding: 3px;
+  background: rgb(255 255 255 / 5%);
+  border: 1px solid rgb(134 194 230 / 13%);
+  border-radius: 10px;
+}
+
+.graph-depth-switch button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 31px;
+  padding: 0 10px;
+  color: #8fa8bd;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.graph-depth-switch button.active {
+  color: #f3fbff;
+  background: rgb(43 158 225 / 8%);
+  box-shadow: inset 0 -2px #51cfff;
+}
+
+.topology-kind-chips {
+  position: absolute;
+  z-index: 10;
+  top: 88px;
+  left: 20px;
+  display: flex;
+  gap: 6px;
+  padding: 5px 7px;
+  background: rgb(7 20 34 / 78%);
+  border: 1px solid rgb(112 190 238 / 14%);
+  border-radius: 11px;
+  backdrop-filter: blur(14px);
+}
+
+.kind-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 0 10px;
+  color: #8fa8bd;
+  background: transparent;
+  border: 1px solid rgb(134 194 230 / 14%);
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.kind-chip.active {
+  color: #f3fbff;
+  background: rgb(43 158 225 / 10%);
+  border-color: rgb(88 199 255 / 30%);
+}
+
+.kind-chip i {
+  display: inline-block;
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.kind-chip b {
+  color: #9edcff;
+  font-family: "Plex Mono", monospace;
+  font-size: 9px;
+}
+
+.graph-container-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #bcdcf2;
+  pointer-events: none;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 700;
+  transform-origin: top left;
+  will-change: transform;
+}
+
+.graph-container-label img { width: 18px; height: 18px; }
+.graph-container-label strong { color: #e8f4fd; font-weight: 650; }
+.graph-container-label small { color: #6f91aa; font-size: 8px; font-weight: 600; }
+.graph-vnet-label strong { color: #7bdbff; }
+.graph-subnet-label { font-size: 9px; }
+.graph-subnet-label strong { color: #9ec9e1; }
+
+.graph-lane-bar-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  width: 860px;
+  height: 56px;
+  padding: 8px 18px;
+  color: #dceaf6;
+  background: transparent;
+  border: 0;
+  pointer-events: none;
+  text-align: left;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.graph-lane-bar-label img { width: 20px; height: 20px; }
+.graph-lane-bar-label strong { color: #e8f4fd; font-size: 11px; font-weight: 650; }
+.graph-lane-bar-label small { display: block; margin-top: 3px; color: #6f91aa; font-size: 8px; }
+
+.graph-lane-bar-label em {
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  color: #ffffff;
+  background: #e14e35;
+  border: 2px solid #14253b;
+  border-radius: 10px;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.graph-lane-expand {
+  padding: 4px 10px;
+  color: #9edcff;
+  background: rgb(43 158 225 / 10%);
+  border: 1px solid rgb(88 199 255 / 26%);
+  border-radius: 8px;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.graph-aggregate-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  width: 188px;
+  height: 60px;
+  padding: 8px 12px;
+  color: #dceaf6;
+  background: transparent;
+  border: 0;
+  pointer-events: none;
+  text-align: left;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.graph-aggregate-label img { width: 26px; height: 26px; filter: drop-shadow(0 9px 14px rgb(0 0 0 / 34%)); }
+.graph-aggregate-label strong {
+  display: block;
+  overflow: hidden;
+  color: #eff8ff;
+  font-size: 10px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.graph-aggregate-label small { display: block; margin-top: 2px; color: #7896ad; font-size: 8px; }
+.graph-aggregate-label b {
+  color: #9edcff;
+  font-family: "Plex Mono", monospace;
+  font-size: 12px;
+  font-weight: 700;
+}
+.graph-aggregate-label em {
+  position: absolute;
+  top: -6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  color: #ffffff;
+  background: #e14e35;
+  border: 2px solid #14253b;
+  border-radius: 9px;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.graph-node-label.dimmed { opacity: 0.45; }
+
+.graph-lane-bar-label:focus-visible,
+.graph-aggregate-label:focus-visible {
+  outline-color: #73d9ff;
+  outline-offset: 5px;
+  border-radius: 12px;
+}
+
+/* Command bar, breadcrumb and option chips flow in one column so a taller
+   (wrapped) bar can never hide what sits under it. */
+.topology-overlays {
+  position: absolute;
+  z-index: 12;
+  top: 14px;
+  right: 14px;
+  left: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+  pointer-events: none;
+}
+
+.topology-overlays > * { pointer-events: auto; }
+.topology-overlays .topology-commandbar {
+  position: static;
+  top: auto;
+  right: auto;
+  left: auto;
+  align-self: stretch;
+  flex-wrap: wrap;
+}
+.topology-overlays .topology-breadcrumb,
+.topology-overlays .topology-kind-chips {
+  position: static;
+  top: auto;
+  left: auto;
+}
+
+/* Ghost stubs for resources that live in other groups. */
+.graph-node-label.ghost { opacity: 0.66; }
+.graph-node-label.ghost .graph-node-icon { filter: none; opacity: 0.8; }
+.graph-node-label.ghost strong { color: #b8d3e6; }
+.graph-node-label.ghost small { color: #86a8bf; font-style: italic; }
+
+/* The relationship view is a dark canvas edge-to-edge; the light workspace
+   ground would ring its two panels with a pale frame, so it goes dark here. */
+.workspace-immersive {
+  background: #07121f;
+}

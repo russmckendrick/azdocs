@@ -34,7 +34,8 @@ export interface ResourceGroupTopology {
 }
 
 export const RESOURCE_GROUP_ICON = "/icons/general/10007-icon-service-Resource-Groups.svg";
-export const GRAPH_NODE_LIMITS = { neighbourhood: 13, resourceGroup: 80 } as const;
+export const SUBSCRIPTION_ICON = "/icons/general/10002-icon-service-Subscriptions.svg";
+export const VNET_ICON = "/icons/networking/10061-icon-service-Virtual-Networks.svg";
 
 function stableCompare(left: string, right: string) {
   return left < right ? -1 : left > right ? 1 : 0;

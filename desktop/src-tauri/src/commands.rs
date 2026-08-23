@@ -16,6 +16,7 @@ use crate::dto::{
     SnapshotComparison, SnapshotSummary,
 };
 use crate::error::AppError;
+use crate::topology::{self, TopologyGraphDto, TopologyRequest};
 
 fn database_path(state: &State<'_, AppState>) -> Result<PathBuf, AppError> {
     state
@@ -132,6 +133,36 @@ pub fn load_snapshot(
         edges,
         query_runs,
         previous_diff,
+    ))
+}
+
+#[tauri::command]
+pub fn topology_graph(
+    request: TopologyRequest,
+    state: State<'_, AppState>,
+) -> Result<TopologyGraphDto, AppError> {
+    let store = Store::open(&database_path(&state)?)?;
+    let snapshot_id = store.resolve_snapshot(request.snapshot_id.as_deref().unwrap_or("latest"))?;
+    let subscriptions = store.subscriptions(&snapshot_id)?;
+    let resource_groups = store.resource_groups(&snapshot_id)?;
+    let resources = store.resources(&snapshot_id)?;
+    let edges = store.edges(&snapshot_id)?;
+    let findings = store.findings(&snapshot_id)?;
+    let mut finding_counts = std::collections::BTreeMap::new();
+    for finding in &findings {
+        if let Some(resource_id) = &finding.resource_id {
+            *finding_counts.entry(resource_id.clone()).or_insert(0) += 1;
+        }
+    }
+    Ok(topology::build(
+        &request,
+        &topology::TopologyInput {
+            subscriptions: &subscriptions,
+            resource_groups: &resource_groups,
+            resources: &resources,
+            edges: &edges,
+            finding_counts: &finding_counts,
+        },
     ))
 }
 

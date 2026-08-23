@@ -13,15 +13,18 @@ import {
   ScanSearch,
   X,
 } from "lucide-react";
-import type { EstateSnapshot } from "../types";
-import { CytoscapeResourceGraph, type GraphMode } from "./CytoscapeResourceGraph";
+import type { EstateSnapshot, TopologyGraph, TopologyNode, TopologyRequest } from "../types";
+import { getTopology } from "../api";
+import { CytoscapeResourceGraph, kindClassColor, type GraphMode } from "./CytoscapeResourceGraph";
 import {
-  GRAPH_NODE_LIMITS,
   RESOURCE_GROUP_ICON,
   buildResourceGroupTopology,
+  resourceGroupNodeId,
   resourcesInGroup,
   type ResourceGroupSummary,
 } from "./topology-model";
+
+const ALL_KIND_CLASSES = ["network", "structure", "data", "identity", "monitoring"] as const;
 
 function relationLabel(kind: string) {
   return kind.replaceAll("_", " ");
@@ -52,10 +55,18 @@ export function TopologyView({
   const [activeResourceGroupId, setActiveResourceGroupId] = useState<string>();
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [motionReduced, setMotionReduced] = useState(false);
+  const [depth, setDepth] = useState<1 | 2>(1);
+  const [excludedClasses, setExcludedClasses] = useState<string[]>([]);
+  const [expandedOverride, setExpandedOverride] = useState<string[]>();
+  const [showUnconnected, setShowUnconnected] = useState(true);
+  const [topology, setTopology] = useState<TopologyGraph>();
+  const [topologyStale, setTopologyStale] = useState(false);
+  const [aggregateNodeId, setAggregateNodeId] = useState<string>();
   const detailsTriggerRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const returnFocusRef = useRef<HTMLElement | undefined>(undefined);
   const lastFocusRequestRef = useRef(0);
+  const requestTokenRef = useRef(0);
   const typeMap = useMemo(() => new Map(estate.resourceTypes.map((type) => [type.azureType, type])), [estate.resourceTypes]);
   const resourceGroupTopology = useMemo(() => buildResourceGroupTopology(estate), [estate]);
   const selectedResourceGroup = resourceGroupTopology.groups.find(
@@ -70,7 +81,10 @@ export function TopologyView({
   const selectedIsInActiveGroup = Boolean(
     selected && activeResourceGroup?.resourceIds.includes(selected.id),
   );
-  const groupInspectorVisible = mode === "estate" && (!activeResourceGroup || !selectedIsInActiveGroup);
+  const aggregateNode = aggregateNodeId
+    ? topology?.nodes.find((node) => node.id === aggregateNodeId)
+    : undefined;
+  const groupInspectorVisible = !aggregateNode && mode === "estate" && (!activeResourceGroup || !selectedIsInActiveGroup);
   const inspectorResourceGroup = activeResourceGroup ?? selectedResourceGroup;
   const relationships = useMemo(() => {
     if (!selected) return [];
@@ -82,15 +96,56 @@ export function TopologyView({
         return { edge, outbound, resource };
       });
   }, [estate.edges, estate.resources, selected]);
-  const neighbourhoodNodeCount = useMemo(() => {
-    if (!selected) return 0;
-    const ids = new Set([selected.id]);
-    relationships.forEach(({ edge }) => {
-      ids.add(edge.sourceId);
-      ids.add(edge.targetId);
-    });
-    return ids.size;
-  }, [relationships, selected]);
+
+  // Fetch the graph whenever anything that shapes it changes. The previous
+  // graph stays on screen (marked stale) so the canvas never flashes empty.
+  useEffect(() => {
+    if (!selected) return;
+    const request: TopologyRequest = {
+      snapshotId: estate.id,
+      mode:
+        mode === "neighbourhood"
+          ? {
+              kind: "neighbourhood",
+              resourceId: selected.id,
+              depth,
+              kindClasses:
+                excludedClasses.length > 0
+                  ? ALL_KIND_CLASSES.filter((kindClass) => !excludedClasses.includes(kindClass))
+                  : [],
+            }
+          : activeResourceGroupId
+            ? { kind: "group", groupId: activeResourceGroupId }
+            : { kind: "estate", expandedSubscriptions: expandedOverride ?? [] },
+      scope: { showUnconnected },
+    };
+    const token = requestTokenRef.current + 1;
+    requestTokenRef.current = token;
+    setTopologyStale(true);
+    getTopology(request)
+      .then((graph) => {
+        if (requestTokenRef.current !== token) return;
+        setTopology(graph);
+        setTopologyStale(false);
+      })
+      .catch(() => {
+        if (requestTokenRef.current !== token) return;
+        setTopologyStale(false);
+      });
+  }, [
+    activeResourceGroupId,
+    depth,
+    estate.id,
+    excludedClasses,
+    expandedOverride,
+    mode,
+    selected,
+    showUnconnected,
+  ]);
+
+  useEffect(() => {
+    setAggregateNodeId(undefined);
+  }, [mode, activeResourceGroupId, selectedResourceId]);
 
   useEffect(() => {
     setSelectedResourceGroupId((current) => {
@@ -144,19 +199,11 @@ export function TopologyView({
 
   if (!selected) return null;
   const selectedType = typeMap.get(selected.azureType);
-  const groupResources = resourcesInGroup(estate, activeResourceGroup);
-  const graphTotal = mode === "neighbourhood"
-    ? neighbourhoodNodeCount
-    : activeResourceGroup
-      ? groupResources.length
-      : resourceGroupTopology.groups.length;
-  const graphVisible = mode === "neighbourhood"
-    ? Math.min(graphTotal, GRAPH_NODE_LIMITS.neighbourhood)
-    : activeResourceGroup
-      ? Math.min(graphTotal, GRAPH_NODE_LIMITS.resourceGroup)
-      : graphTotal;
-  const graphTruncated = graphVisible < graphTotal;
-  const graphUnit = mode === "estate" && !activeResourceGroup ? "resource groups" : "resources";
+  const focusedNodeId = mode === "estate" && !activeResourceGroup
+    ? (selectedResourceGroup ? resourceGroupNodeId(selectedResourceGroup.id) : "")
+    : selected.id;
+  const counts = topology?.counts;
+  const graphUnit = topology?.level === "estate" ? "groups" : "resources";
 
   function selectGraphResource(id: string) {
     rememberReturnFocus();
@@ -196,6 +243,21 @@ export function TopologyView({
     setInspectorOpen(false);
   }
 
+  function expandLane(subscriptionId: string) {
+    const alreadyExpanded = topology?.lanes
+      .filter((lane) => lane.expanded)
+      .map((lane) => lane.subscriptionId) ?? [];
+    setExpandedOverride([...new Set([...alreadyExpanded, subscriptionId])]);
+  }
+
+  function toggleClass(kindClass: string) {
+    setExcludedClasses((current) =>
+      current.includes(kindClass)
+        ? current.filter((candidate) => candidate !== kindClass)
+        : [...current, kindClass],
+    );
+  }
+
   function rememberReturnFocus(candidate?: HTMLElement) {
     const active = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
     returnFocusRef.current = candidate ?? active ?? detailsTriggerRef.current ?? undefined;
@@ -209,6 +271,7 @@ export function TopologyView({
   function closeInspector() {
     const returnTarget = returnFocusRef.current ?? detailsTriggerRef.current;
     setInspectorOpen(false);
+    setAggregateNodeId(undefined);
     window.requestAnimationFrame(() => returnTarget?.focus());
   }
 
@@ -220,24 +283,44 @@ export function TopologyView({
     event.currentTarget.querySelector<HTMLButtonElement>(`[data-graph-mode="${nextMode}"]`)?.focus();
   }
 
+  const classCounts = new Map((topology?.kindClasses ?? []).map((entry) => [entry.class, entry.count]));
+
   return (
     <div className="topology-workspace">
       <section
         className="topology-stage"
         aria-label={mode === "estate" && !activeResourceGroup
-          ? "Interactive Azure estate map grouped by resource group"
+          ? "Interactive Azure estate map grouped by subscription and resource group"
           : `Interactive relationship graph centered on ${selected.name}`}
       >
+        <div className="topology-overlays">
         <header className="topology-commandbar">
           <div className="topology-title">
             <span className="topology-title-icon"><GitBranch size={18} /></span>
             <div>
-              <h1>{mode === "estate" && !activeResourceGroup ? "Resource group map" : "Azure relationships"}</h1>
+              <h1>{mode === "estate" && !activeResourceGroup ? "Estate map" : activeResourceGroup && mode === "estate" ? activeResourceGroup.name : "Neighbourhood"}</h1>
               <span>{mode === "estate" && !activeResourceGroup
                 ? `${resourceGroupTopology.groups.length} groups · ${estate.resources.length.toLocaleString()} resources`
-                : activeResourceGroup?.name ?? `${selected.name} neighbourhood`}</span>
+                : activeResourceGroup && mode === "estate"
+                  ? `${activeResourceGroup.subscriptionName} · ${activeResourceGroup.resourceCount} resources`
+                  : `${selected.name} · ${counts ? `${counts.total} in reach` : "…"}`}</span>
             </div>
           </div>
+          {mode === "neighbourhood" ? (
+            <div className="graph-depth-switch" role="radiogroup" aria-label="Neighbourhood depth">
+              {[1, 2].map((value) => (
+                <button
+                  key={value}
+                  role="radio"
+                  aria-checked={depth === value}
+                  className={depth === value ? "active" : ""}
+                  onClick={() => setDepth(value as 1 | 2)}
+                >
+                  {value} hop{value === 1 ? "" : "s"}
+                </button>
+              ))}
+            </div>
+          ) : null}
           <div className="graph-mode-switch" role="radiogroup" aria-label="Graph scope" onKeyDown={handleGraphModeKeyDown}>
             <button data-graph-mode="neighbourhood" role="radio" aria-checked={mode === "neighbourhood"} tabIndex={mode === "neighbourhood" ? 0 : -1} className={mode === "neighbourhood" ? "active" : ""} onClick={() => setMode("neighbourhood")}>
               <ScanSearch size={14} /> Neighbourhood
@@ -280,31 +363,101 @@ export function TopologyView({
           </nav>
         ) : null}
 
-        <CytoscapeResourceGraph
-          estate={estate}
-          selectedResourceId={selected.id}
-          selectedResourceGroupId={selectedResourceGroup?.id}
-          resourceGroupId={mode === "estate" ? activeResourceGroup?.id : undefined}
-          mode={mode}
-          motionEnabled={motionEnabled}
-          focusNonce={focusNonce}
-          onSelectResource={selectGraphResource}
-          onSelectResourceGroup={selectResourceGroup}
-          onOpenResourceGroup={openResourceGroup}
-        />
+        {mode === "neighbourhood" ? (
+          <div className="topology-kind-chips" role="group" aria-label="Relationship kinds">
+            {ALL_KIND_CLASSES.map((kindClass) => {
+              const active = !excludedClasses.includes(kindClass);
+              const count = classCounts.get(kindClass);
+              return (
+                <button
+                  key={kindClass}
+                  className={active ? "kind-chip active" : "kind-chip"}
+                  aria-pressed={active}
+                  onClick={() => toggleClass(kindClass)}
+                >
+                  <i style={{ background: kindClassColor(kindClass) }} />
+                  {kindClass}
+                  {count !== undefined ? <b>{count}</b> : null}
+                </button>
+              );
+            })}
+          </div>
+        ) : null}
+        {mode === "estate" && activeResourceGroup ? (
+          <div className="topology-kind-chips" role="group" aria-label="Group view options">
+            <button
+              className={showUnconnected ? "kind-chip active" : "kind-chip"}
+              aria-pressed={showUnconnected}
+              onClick={() => setShowUnconnected((current) => !current)}
+            >
+              Unlinked shelf
+            </button>
+            {expandedOverride ? null : null}
+          </div>
+        ) : null}
+        {mode === "estate" && !activeResourceGroup && expandedOverride ? (
+          <div className="topology-kind-chips" role="group" aria-label="Lane options">
+            <button className="kind-chip" onClick={() => setExpandedOverride(undefined)}>
+              Reset lanes
+            </button>
+          </div>
+        ) : null}
+        </div>
+
+        {topology ? (
+          <CytoscapeResourceGraph
+            graph={topology}
+            estate={estate}
+            focusedNodeId={focusedNodeId}
+            motionEnabled={motionEnabled}
+            focusNonce={focusNonce}
+            onSelectResource={selectGraphResource}
+            onSelectResourceGroup={selectResourceGroup}
+            onOpenResourceGroup={openResourceGroup}
+            onExpandLane={expandLane}
+            onSelectAggregate={(nodeId) => {
+              setAggregateNodeId(nodeId);
+              setInspectorOpen(true);
+            }}
+          />
+        ) : (
+          <div className="graph-empty-state" role="status">
+            <img src={RESOURCE_GROUP_ICON} alt="" />
+            <strong>Building the relationship graph…</strong>
+          </div>
+        )}
 
         <div className="graph-snapshot-chip" role="status">
           <Activity size={13} />
-          <span><strong>{graphVisible}</strong> of {graphTotal} {graphUnit} rendered</span>
+          {counts ? (
+            <span>
+              All <strong>{counts.total}</strong> {graphUnit} represented
+              {counts.folded > 0 ? <> · {counts.folded} folded</> : null}
+              {counts.aggregated > 0 ? <> · {counts.aggregated} aggregated</> : null}
+              {counts.external > 0 ? <> · {counts.external} neighbours in other groups</> : null}
+              {counts.hiddenByFilter > 0 ? <> · <strong>{counts.hiddenByFilter} hidden by filters</strong></> : null}
+            </span>
+          ) : (
+            <span>Building…</span>
+          )}
           <i />
-          <span><strong>{estate.edges.length}</strong> links in snapshot</span>
+          <span><strong>{counts?.drawnLinks ?? 0}</strong> of {counts?.totalLinks ?? 0} links drawn</span>
           <i />
-          <span>Snapshot {estate.id.slice(0, 8)}</span>
-          {graphTruncated ? <span className="graph-limit-note">Group detail capped for legibility · search any resource to focus it</span> : null}
+          <span>Snapshot {estate.id.slice(0, 8)}{topologyStale ? " · updating…" : ""}</span>
         </div>
       </section>
 
-      {groupInspectorVisible && inspectorResourceGroup ? (
+      {aggregateNode ? (
+        <AggregateInspector
+          node={aggregateNode}
+          estate={estate}
+          open={inspectorOpen}
+          typeMap={typeMap}
+          closeButtonRef={closeButtonRef}
+          onClose={closeInspector}
+          onSelect={selectInspectorResource}
+        />
+      ) : groupInspectorVisible && inspectorResourceGroup ? (
         <ResourceGroupInspector
           group={inspectorResourceGroup}
           estate={estate}
@@ -372,12 +525,78 @@ export function TopologyView({
           </section>
 
           <footer className="topology-legend">
-            <div><i className="legend-flow" /><span>Arrow shows direction; small moving dashes show flow</span></div>
+            <div><i className="legend-flow" /><span>Arrow shows direction; colours group relationship kinds</span></div>
             <p>Relationships are deterministic post-passes over the selected SQLite snapshot. No live Azure calls are made here.</p>
           </footer>
         </aside>
       )}
     </div>
+  );
+}
+
+function AggregateInspector({
+  node,
+  estate,
+  open,
+  typeMap,
+  closeButtonRef,
+  onClose,
+  onSelect,
+}: {
+  node: TopologyNode;
+  estate: EstateSnapshot;
+  open: boolean;
+  typeMap: Map<string, EstateSnapshot["resourceTypes"][number]>;
+  closeButtonRef: React.RefObject<HTMLButtonElement | null>;
+  onClose: () => void;
+  onSelect: (id: string) => void;
+}) {
+  const type = node.azureType ? typeMap.get(node.azureType) : undefined;
+  const members = node.memberIds
+    .map((id) => estate.resources.find((resource) => resource.id === id))
+    .filter((resource): resource is NonNullable<typeof resource> => Boolean(resource))
+    .sort((left, right) => stableCompare(left.name, right.name));
+  return (
+    <aside
+      id="topology-inspector"
+      className={open ? "topology-inspector topology-group-inspector open" : "topology-inspector topology-group-inspector"}
+      aria-labelledby="topology-inspector-title"
+    >
+      <div className="topology-inspector-glow" style={{ "--service-color": type?.color ?? "#47c8ff" } as React.CSSProperties} />
+      <header className="topology-resource-hero topology-group-hero">
+        <button ref={closeButtonRef} className="topology-inspector-close" onClick={onClose} aria-label="Close aggregated tile details"><X size={17} /></button>
+        <div className="topology-resource-icon">{type ? <img src={type.icon} alt="" /> : <Layers3 size={32} />}</div>
+        <div>
+          <span className="inspector-eyebrow">Aggregated tile</span>
+          <h2 id="topology-inspector-title">{type?.displayName ?? node.name}</h2>
+          <p>{node.count} resources drawn as one tile</p>
+        </div>
+      </header>
+
+      <section className="relationship-section">
+        <div className="relationship-heading">
+          <div><small>Members</small><strong>{members.length}</strong></div>
+          <span>Select one to focus it</span>
+        </div>
+        <div className="relationship-list">
+          {members.map((resource) => (
+            <button key={resource.id} onClick={() => onSelect(resource.id)}>
+              <span className="relationship-resource-icon">
+                {type ? <img src={type.icon} alt="" /> : <Layers3 size={18} />}
+              </span>
+              <span className="relationship-copy">
+                <strong>{resource.name}</strong>
+                <small>{resource.location ?? "global"}{resource.findingCount > 0 ? ` · ${resource.findingCount} findings` : ""}</small>
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <footer className="topology-legend">
+        <p>These resources have no drawn relationships yet, so they share one tile instead of being hidden.</p>
+      </footer>
+    </aside>
   );
 }
 
