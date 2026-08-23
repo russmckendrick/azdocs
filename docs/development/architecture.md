@@ -14,6 +14,8 @@ flowchart TD
     commands --> report[report/*]
     commands --> diagram[diagram/*]
     commands --> tui[tui/*]
+    desktop[desktop/src-tauri<br/>typed Tauri IPC] --> store
+    desktop --> collect
     collect --> arg[arg/*<br/>Resource Graph client]
     arg --> auth[auth/*<br/>TokenProvider]
     collect --> store[(store/*<br/>SQLite)]
@@ -60,6 +62,8 @@ flowchart LR
 | `src/report/` | `ReportContext` → all report data; `document.rs` composes one semantic `PrintDocument` for PDF + DOCX, while markdown / html / site / csv / xlsx consume `ReportContext` directly. Styled outputs use `BrandingContext`. |
 | `src/diagram/` | `EstateGraph` builders (incl. per-VNet/per-RG fan-out) → `page` (A4 fractions, density rungs) → `layout` (measure/justify) → `route` (orthogonal connectors) → mermaid / drawio (single + workbook) / svg / png emitters |
 | `src/tui/` | ratatui browse; `App` is a pure state machine, `ui.rs` renders it |
+| `desktop/src-tauri/` | Thin Tauri v2 boundary; opens the shared `Store` per command and maps core models to serialisable DTOs |
+| `desktop/src/` | React/TypeScript estate explorer and lazy-loaded Cytoscape.js relationship canvas; no direct file, database, credential, or Azure access |
 
 ## Design decisions
 

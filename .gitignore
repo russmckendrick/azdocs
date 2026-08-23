@@ -8,6 +8,12 @@ azdocs.db-shm
 azdocs.db-wal
 /output/
 
+# Desktop web and Rust build artifacts
+/desktop/node_modules/
+/desktop/dist/
+/desktop/src-tauri/target/
+/desktop/src-tauri/gen/schemas/
+
 # Graphify knowledge graph (rebuildable via /graphify)
 /graphify-out/
 

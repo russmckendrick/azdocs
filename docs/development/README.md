@@ -5,6 +5,11 @@ cargo test                                        # full suite — no Azure/netw
 cargo clippy --all-targets --locked -- -D warnings
 cargo fmt --check
 cargo insta review                                # accept intended golden-output changes
+
+cd desktop
+npm ci
+npm run build
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings
 ```
 
 | Page | Covers |

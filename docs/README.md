@@ -15,15 +15,18 @@ flowchart LR
         report[azdocs report]
         diagram[azdocs diagram]
         browse[azdocs browse]
+        desktop[azdocs desktop]
     end
     ARG -->|70 KQL queries<br/>read-only| collect
     collect --> db
     db --> report
     db --> diagram
     db --> browse
+    db --> desktop
     report --> docs_out[Markdown · HTML · CSV · XLSX]
     diagram --> diag_out[draw.io · Mermaid]
     browse --> tui[Interactive TUI]
+    desktop --> gui[Resource explorer · topology · findings]
 ```
 
 Everything right of the database works offline — reports and diagrams are
@@ -41,6 +44,7 @@ generated from the stored snapshot, never live Azure.
 | [Reports](usage/reports.md) | Markdown, HTML, CSV, XLSX outputs |
 | [Diagrams](usage/diagrams.md) | draw.io and Mermaid diagram types |
 | [The TUI](usage/tui.md) | Browsing snapshots interactively |
+| [Desktop explorer](usage/desktop.md) | Tauri app, estate navigation, findings, topology |
 | [Snapshots](usage/snapshots.md) | Listing, diffing, pruning |
 | [Queries](usage/queries.md) | Ad-hoc KQL and custom query packs |
 | [CI](usage/ci.md) | Running azdocs in pipelines |

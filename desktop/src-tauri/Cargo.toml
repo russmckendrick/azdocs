@@ -1,0 +1,22 @@
+[package]
+name = "azdocs-desktop"
+version = "0.1.0"
+description = "Desktop explorer for azdocs Azure estate snapshots"
+authors = ["azdocs contributors"]
+edition = "2024"
+
+[lib]
+name = "azdocs_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+azdocs = { path = "../.." }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+thiserror = "2"
+tokio = { version = "1", features = ["rt-multi-thread"] }

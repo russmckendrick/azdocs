@@ -1,0 +1,281 @@
+import type {
+  AppBootstrap,
+  Edge,
+  EstateSnapshot,
+  Finding,
+  Resource,
+  ResourceType,
+  Severity,
+} from "./types";
+
+const ids = {
+  vnetHub: "/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/virtualnetworks/vnet-hub",
+  vnetApp: "/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/virtualnetworks/vnet-app",
+  nsg: "/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/networksecuritygroups/nsg-app",
+  nsgUnused: "/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/networksecuritygroups/nsg-unused",
+  vm: "/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-app-01",
+  disk: "/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.compute/disks/vm-app-01-os",
+  nic: "/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/networkinterfaces/vm-app-01-nic",
+  pip: "/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/publicipaddresses/vm-app-01-pip",
+  storage: "/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01",
+  privateEndpoint: "/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/privateendpoints/pe-sql",
+  sql: "/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.sql/servers/sql-prod",
+  logs: "/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.operationalinsights/workspaces/law-prod",
+  hostPool: "/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.desktopvirtualization/hostpools/hp-prod",
+  web: "/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.web/sites/web-dev",
+  plan: "/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.web/serverfarms/asp-dev",
+};
+
+const typeNames: Record<string, string> = {
+  "microsoft.network/virtualnetworks": "Virtual Network",
+  "microsoft.network/networksecuritygroups": "Network Security Group",
+  "microsoft.compute/virtualmachines": "Virtual Machine",
+  "microsoft.compute/disks": "Managed Disk",
+  "microsoft.network/networkinterfaces": "Network Interface",
+  "microsoft.network/publicipaddresses": "Public IP Address",
+  "microsoft.storage/storageaccounts": "Storage Account",
+  "microsoft.network/privateendpoints": "Private Endpoint",
+  "microsoft.sql/servers": "SQL Server",
+  "microsoft.operationalinsights/workspaces": "Log Analytics Workspace",
+  "microsoft.desktopvirtualization/hostpools": "AVD Host Pool",
+  "microsoft.web/sites": "App Service",
+  "microsoft.web/serverfarms": "App Service Plan",
+};
+
+const typeColors: Record<string, string> = {
+  "microsoft.network": "#159455",
+  "microsoft.compute": "#1874d1",
+  "microsoft.storage": "#c38b00",
+  "microsoft.sql": "#a34bb7",
+  "microsoft.operationalinsights": "#0f858d",
+  "microsoft.desktopvirtualization": "#6554c0",
+  "microsoft.web": "#dc5a1f",
+};
+
+const typeIcons: Record<string, string> = {
+  "microsoft.compute/disks": "/icons/compute/10032-icon-service-Disks.svg",
+  "microsoft.compute/virtualmachines": "/icons/compute/10021-icon-service-Virtual-Machine.svg",
+  "microsoft.desktopvirtualization/hostpools": "/icons/compute/00328-icon-service-Host-Pools.svg",
+  "microsoft.network/networkinterfaces": "/icons/networking/10080-icon-service-Network-Interfaces.svg",
+  "microsoft.network/networksecuritygroups": "/icons/networking/10067-icon-service-Network-Security-Groups.svg",
+  "microsoft.network/privateendpoints": "/icons/other/02579-icon-service-Private-Endpoints.svg",
+  "microsoft.network/publicipaddresses": "/icons/networking/10069-icon-service-Public-IP-Addresses.svg",
+  "microsoft.network/virtualnetworks": "/icons/networking/10061-icon-service-Virtual-Networks.svg",
+  "microsoft.operationalinsights/workspaces": "/icons/monitor/00009-icon-service-Log-Analytics-Workspaces.svg",
+  "microsoft.sql/servers": "/icons/databases/10132-icon-service-SQL-Server.svg",
+  "microsoft.storage/storageaccounts": "/icons/storage/10086-icon-service-Storage-Accounts.svg",
+  "microsoft.web/serverfarms": "/icons/app services/00046-icon-service-App-Service-Plans.svg",
+  "microsoft.web/sites": "/icons/app services/10035-icon-service-App-Services.svg",
+};
+
+function typeColor(azureType: string) {
+  const prefix = Object.keys(typeColors).find((key) => azureType.startsWith(key));
+  return prefix ? typeColors[prefix] : "#526273";
+}
+
+function iconData(azureType: string) {
+  return typeIcons[azureType] ?? "/icons/general/10001-icon-service-All-Resources.svg";
+}
+
+function resource(
+  id: string,
+  name: string,
+  azureType: string,
+  resourceGroup: string,
+  subscriptionId: string,
+  options: Partial<Resource> = {},
+): Resource {
+  return {
+    id,
+    displayId: id,
+    name,
+    azureType,
+    resourceGroup,
+    subscriptionId,
+    location: subscriptionId === "sub-dev" ? "ukwest" : "uksouth",
+    tags: subscriptionId === "sub-prod" ? { env: "prod", owner: "platform" } : undefined,
+    findingCount: 0,
+    edgeCount: 0,
+    properties: {},
+    ...options,
+  };
+}
+
+const findings: Finding[] = [
+  {
+    queryName: "storage_public_blob_access",
+    category: "storage",
+    severity: "high",
+    resourceId: ids.storage,
+    title: "Public blob access is enabled",
+    detail: { summary: "stprodapp01 allows anonymous public blob access." },
+  },
+  {
+    queryName: "nsg_open_to_internet",
+    category: "networking",
+    severity: "high",
+    resourceId: ids.nsg,
+    title: "SSH is open to the Internet",
+    detail: { ruleName: "allow-ssh", port: "22", priority: 100 },
+  },
+  {
+    queryName: "web_app_https_only_disabled",
+    category: "app services",
+    severity: "medium",
+    resourceId: ids.web,
+    title: "HTTPS-only traffic is not enforced",
+    detail: { summary: "web-dev accepts unencrypted HTTP traffic." },
+  },
+  {
+    queryName: "unassociated_nsgs",
+    category: "networking",
+    severity: "low",
+    resourceId: ids.nsgUnused,
+    title: "Network security group is not associated",
+    detail: { summary: "nsg-unused has no subnet or NIC association." },
+  },
+];
+
+const edges: Edge[] = [
+  { sourceId: ids.vnetHub, targetId: ids.vnetApp, kind: "peered_with" },
+  { sourceId: ids.nsg, targetId: ids.vnetHub, kind: "nsg_attached" },
+  { sourceId: ids.vm, targetId: ids.nic, kind: "attached_to" },
+  { sourceId: ids.vm, targetId: ids.disk, kind: "attached_to" },
+  { sourceId: ids.nic, targetId: ids.vnetApp, kind: "nic_in_subnet" },
+  { sourceId: ids.nic, targetId: ids.pip, kind: "attached_to" },
+  { sourceId: ids.privateEndpoint, targetId: ids.sql, kind: "private_endpoint_for" },
+  { sourceId: ids.privateEndpoint, targetId: ids.vnetApp, kind: "in_vnet" },
+  { sourceId: ids.web, targetId: ids.plan, kind: "depends_on" },
+];
+
+const resources: Resource[] = [
+  resource(ids.vnetHub, "vnet-hub", "microsoft.network/virtualnetworks", "rg-network", "sub-prod", {
+    properties: { addressSpace: { addressPrefixes: ["10.0.0.0/16"] }, subnetCount: 2, peeringState: "Connected" },
+  }),
+  resource(ids.vnetApp, "vnet-app", "microsoft.network/virtualnetworks", "rg-app", "sub-prod", {
+    properties: { addressSpace: { addressPrefixes: ["10.1.0.0/16"] }, subnetCount: 1, peeringState: "Connected" },
+  }),
+  resource(ids.nsg, "nsg-app", "microsoft.network/networksecuritygroups", "rg-network", "sub-prod", {
+    properties: { securityRules: [{ name: "allow-ssh", source: "Internet", destinationPort: "22", access: "Allow" }] },
+  }),
+  resource(ids.nsgUnused, "nsg-unused", "microsoft.network/networksecuritygroups", "rg-network", "sub-prod"),
+  resource(ids.vm, "vm-app-01", "microsoft.compute/virtualmachines", "rg-app", "sub-prod", {
+    properties: { hardwareProfile: { vmSize: "Standard_B2s" }, provisioningState: "Succeeded", zones: ["1"] },
+    identity: { type: "SystemAssigned" },
+  }),
+  resource(ids.disk, "vm-app-01-os", "microsoft.compute/disks", "rg-app", "sub-prod", {
+    properties: { diskSizeGB: 64, diskState: "Attached", encryption: { type: "EncryptionAtRestWithPlatformKey" } },
+    sku: { name: "Premium_LRS" },
+  }),
+  resource(ids.nic, "vm-app-01-nic", "microsoft.network/networkinterfaces", "rg-app", "sub-prod", {
+    properties: { privateIPAddress: "10.1.0.4", enableAcceleratedNetworking: false },
+  }),
+  resource(ids.pip, "vm-app-01-pip", "microsoft.network/publicipaddresses", "rg-app", "sub-prod", {
+    properties: { ipAddress: "20.0.0.10", publicIPAllocationMethod: "Static" },
+    sku: { name: "Standard" },
+  }),
+  resource(ids.storage, "stprodapp01", "microsoft.storage/storageaccounts", "rg-app", "sub-prod", {
+    kind: "StorageV2",
+    properties: { allowBlobPublicAccess: true, supportsHttpsTrafficOnly: true, minimumTlsVersion: "TLS1_2" },
+    sku: { name: "Standard_GRS" },
+  }),
+  resource(ids.privateEndpoint, "pe-sql", "microsoft.network/privateendpoints", "rg-app", "sub-prod", {
+    properties: { provisioningState: "Succeeded", customDnsConfigs: [{ ipAddresses: ["10.1.0.7"] }] },
+  }),
+  resource(ids.sql, "sql-prod", "microsoft.sql/servers", "rg-app", "sub-prod", {
+    properties: { version: "12.0", publicNetworkAccess: "Disabled", minimalTlsVersion: "1.2" },
+  }),
+  resource(ids.logs, "law-prod", "microsoft.operationalinsights/workspaces", "rg-app", "sub-prod", {
+    properties: { retentionInDays: 30, publicNetworkAccessForQuery: "Enabled", sku: { name: "PerGB2018" } },
+  }),
+  resource(ids.hostPool, "hp-prod", "microsoft.desktopvirtualization/hostpools", "rg-app", "sub-prod", {
+    properties: { hostPoolType: "Pooled", loadBalancerType: "BreadthFirst", maxSessionLimit: 10 },
+  }),
+  resource(ids.plan, "asp-dev", "microsoft.web/serverfarms", "rg-dev", "sub-dev", {
+    properties: { numberOfSites: 1, reserved: true },
+    sku: { name: "B1", tier: "Basic" },
+  }),
+  resource(ids.web, "web-dev", "microsoft.web/sites", "rg-dev", "sub-dev", {
+    kind: "app,linux",
+    properties: { state: "Running", httpsOnly: false, defaultHostName: "web-dev.azurewebsites.net" },
+  }),
+];
+
+for (const item of resources) {
+  item.findingCount = findings.filter((finding) => finding.resourceId === item.id).length;
+  item.edgeCount = edges.filter((edge) => edge.sourceId === item.id || edge.targetId === item.id).length;
+}
+
+const resourceTypes: ResourceType[] = Object.entries(
+  resources.reduce<Record<string, number>>((counts, item) => {
+    counts[item.azureType] = (counts[item.azureType] ?? 0) + 1;
+    return counts;
+  }, {}),
+)
+  .map(([azureType, count]) => ({
+    azureType,
+    displayName: typeNames[azureType] ?? azureType.split("/").at(-1) ?? azureType,
+    count,
+    icon: iconData(azureType),
+    color: typeColor(azureType),
+  }))
+  .sort((a, b) => b.count - a.count || a.displayName.localeCompare(b.displayName));
+
+export const mockBootstrap: AppBootstrap = {
+  databasePath: "/Users/demo/Library/Application Support/azdocs/azdocs.db",
+  configPath: "/Users/demo/Library/Application Support/azdocs/azdocs.toml",
+  configFound: true,
+  hasCredentials: true,
+  latestSnapshotId: "a7f21f53-2026",
+  snapshots: [
+    { id: "a7f21f53-2026", createdAt: "2026-08-23T09:42:00Z", tenantId: "tenant-golden", status: "complete", notes: "Weekly estate review", subscriptions: 2, resources: 15, findings: 4 },
+    { id: "9d12c813-2026", createdAt: "2026-08-16T09:40:00Z", tenantId: "tenant-golden", status: "complete", notes: "Before platform release", subscriptions: 2, resources: 14, findings: 5 },
+    { id: "7b42e150-2026", createdAt: "2026-08-09T09:39:00Z", tenantId: "tenant-golden", status: "partial", notes: "One monitoring query failed", subscriptions: 2, resources: 14, findings: 5 },
+  ],
+};
+
+export const mockEstate: EstateSnapshot = {
+  id: "a7f21f53-2026",
+  createdAt: "2026-08-23T09:42:00Z",
+  tenantId: "tenant-golden",
+  status: "complete",
+  notes: "Weekly estate review",
+  totals: { subscriptions: 2, resourceGroups: 3, resources: resources.length, findings: findings.length },
+  tagCoverage: { tagged: 10, untagged: 5, percent: 66 },
+  severityCounts: findings.reduce<Record<Severity, number>>(
+    (counts, finding) => ({ ...counts, [finding.severity]: counts[finding.severity] + 1 }),
+    { high: 0, medium: 0, low: 0, info: 0 },
+  ),
+  subscriptions: [
+    { id: "sub-prod", displayName: "Production", state: "Enabled" },
+    { id: "sub-dev", displayName: "Development", state: "Enabled" },
+  ],
+  resourceGroups: [
+    { id: "/subscriptions/sub-prod/resourcegroups/rg-network", name: "rg-network", subscriptionId: "sub-prod", location: "uksouth" },
+    { id: "/subscriptions/sub-prod/resourcegroups/rg-app", name: "rg-app", subscriptionId: "sub-prod", location: "uksouth" },
+    { id: "/subscriptions/sub-dev/resourcegroups/rg-dev", name: "rg-dev", subscriptionId: "sub-dev", location: "ukwest" },
+  ],
+  resources,
+  resourceTypes,
+  locations: [
+    { name: "uksouth", count: 13 },
+    { name: "ukwest", count: 2 },
+  ],
+  findings,
+  edges,
+  queryRuns: [
+    { queryName: "all_resources", category: "core", rowCount: 15, durationMs: 382 },
+    { queryName: "subscriptions", category: "core", rowCount: 2, durationMs: 144 },
+    { queryName: "resource_groups", category: "core", rowCount: 3, durationMs: 164 },
+    { queryName: "virtual_networks", category: "networking", rowCount: 2, durationMs: 277 },
+    { queryName: "storage_public_blob_access", category: "storage", rowCount: 1, durationMs: 219 },
+    { queryName: "nsg_open_to_internet", category: "networking", rowCount: 1, durationMs: 251 },
+  ],
+  previousDiff: {
+    baseSnapshotId: "9d12c813-2026",
+    targetSnapshotId: "a7f21f53-2026",
+    added: [ids.privateEndpoint, ids.sql],
+    removed: ["/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.compute/disks/old-test-disk"],
+    changed: [ids.web, ids.storage, ids.nsg],
+  },
+};

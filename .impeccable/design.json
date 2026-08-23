@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-23T00:00:00Z",
+  "title": "Design System: azdocs Desktop",
+  "extensions": {
+    "colorMeta": {
+      "azure-command": { "role": "primary", "displayName": "Azure Command", "canonical": "#0078d4", "tonalRamp": ["#00253f", "#003c66", "#00538f", "#006bb8", "#1689df", "#54a8ea", "#a9d5f4", "#edf8ff"] },
+      "spectral-cyan": { "role": "primary", "displayName": "Spectral Cyan", "canonical": "#4bd5ff", "tonalRamp": ["#062d39", "#07506a", "#08769a", "#109fc9", "#4bd5ff", "#80e1ff", "#b7edff", "#edfbff"] },
+      "signal-coral": { "role": "secondary", "displayName": "Signal Coral", "canonical": "#d7492f", "tonalRamp": ["#3c120b", "#672016", "#922e21", "#bd3d2b", "#d7492f", "#e57c69", "#f2b7aa", "#fff2ee"] },
+      "live-green": { "role": "secondary", "displayName": "Live Green", "canonical": "#38d58c", "tonalRamp": ["#072f21", "#0c5238", "#117651", "#1b9c6c", "#38d58c", "#72e2b0", "#afeed3", "#edfcf5"] },
+      "midnight-shell": { "role": "neutral", "displayName": "Midnight Shell", "canonical": "#07121f", "tonalRamp": ["#050b12", "#07121f", "#13283d", "#294158", "#526a80", "#8698a8", "#c2cbd3", "#f0f3f5"] },
+      "graph-ink": { "role": "neutral", "displayName": "Graph Ink", "canonical": "#071321", "tonalRamp": ["#040a10", "#071321", "#10263b", "#29445c", "#536c81", "#8799a9", "#c2cbd3", "#f1f4f6"] },
+      "paper": { "role": "neutral", "displayName": "Paper", "canonical": "#ffffff", "tonalRamp": ["#202326", "#40454a", "#656b70", "#8c9297", "#b2b7bb", "#d7dadc", "#f0f1f2", "#ffffff"] },
+      "pale-workspace": { "role": "neutral", "displayName": "Pale Workspace", "canonical": "#eaf1f7", "tonalRamp": ["#1d252c", "#37444f", "#556675", "#778997", "#9cabb7", "#c3cdd5", "#eaf1f7", "#f8fbfd"] }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "Headline", "purpose": "Resource and view titles." },
+      "title": { "displayName": "Title", "purpose": "Panel and topology titles." },
+      "body": { "displayName": "Body", "purpose": "Descriptions and supporting evidence." },
+      "label": { "displayName": "Label", "purpose": "Controls, metadata, and status language." },
+      "evidence": { "displayName": "Evidence", "purpose": "ARM IDs, tags, and machine-shaped values." }
+    },
+    "shadows": [
+      { "name": "evidence-lift", "value": "0 18px 44px rgb(44 72 96 / 9%)", "purpose": "Separates pale evidence panes from the workspace." },
+      { "name": "immersive-lift", "value": "0 24px 55px rgb(8 35 56 / 24%)", "purpose": "Holds topology surfaces above the shell." },
+      { "name": "focus-halo", "value": "0 0 0 3px rgb(29 145 220 / 14%)", "purpose": "Reinforces focus without replacing the visible outline." }
+    ],
+    "motion": [
+      { "name": "state-fast", "value": "140ms ease", "purpose": "Hover, active, border, and selection state transitions." },
+      { "name": "relationship-flow", "value": "26fps moving 2px/14px dash", "purpose": "Quietly communicates relationship direction; pauses when hidden or reduced motion is requested." }
+    ],
+    "breakpoints": [
+      { "name": "wide-desktop", "value": "1260px" },
+      { "name": "compact-desktop", "value": "1060px" },
+      { "name": "narrow-window", "value": "800px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Command Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Use for the single principal command in a toolbar.",
+      "html": "<button class=\"ds-button-primary\">Collect snapshot</button>",
+      "css": ".ds-button-primary{min-height:38px;padding:0 14px;color:#fff;background:linear-gradient(135deg,#0785df,#006abd);border:1px solid #1895e8;border-radius:10px;box-shadow:0 8px 24px rgb(0 105 183 / 30%),inset 0 1px rgb(255 255 255 / 18%);font:600 11px 'Segoe UI',sans-serif;transition:filter 140ms ease}.ds-button-primary:hover{filter:brightness(1.08)}.ds-button-primary:focus-visible{outline:2px solid #168ee5;outline-offset:2px}.ds-button-primary:active{filter:brightness(.94)}"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Use for secondary toolbar actions on dark chrome.",
+      "html": "<button class=\"ds-button-quiet\">Open data</button>",
+      "css": ".ds-button-quiet{min-height:36px;padding:0 12px;color:#c5d7e8;background:rgb(255 255 255 / 5%);border:1px solid rgb(137 190 227 / 18%);border-radius:10px;font:600 10px 'Segoe UI',sans-serif;transition:background-color 140ms ease,border-color 140ms ease}.ds-button-quiet:hover{color:#fff;background:rgb(54 133 191 / 17%);border-color:rgb(95 187 242 / 30%)}.ds-button-quiet:focus-visible{outline:2px solid #168ee5;outline-offset:2px}.ds-button-quiet:active{background:rgb(54 133 191 / 24%)}"
+    },
+    {
+      "name": "Global Search",
+      "kind": "input",
+      "refersTo": null,
+      "description": "Searches resources from the persistent top bar.",
+      "html": "<label class=\"ds-search\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"m20 20-4-4\"/></svg><input placeholder=\"Search resources, types\"></label>",
+      "css": ".ds-search{display:flex;align-items:center;gap:8px;height:40px;padding:0 11px;color:#c8d9e8;background:rgb(255 255 255 / 6%);border:1px solid rgb(137 190 227 / 13%);border-radius:12px}.ds-search:focus-within{background:rgb(8 28 47 / 94%);border-color:#258fd8;box-shadow:0 0 0 3px rgb(29 145 220 / 14%)}.ds-search svg{width:16px;fill:none;stroke:#758da5;stroke-width:2}.ds-search input{min-width:220px;color:#eaf5ff;background:transparent;border:0;outline:0;font:400 11px 'Segoe UI',sans-serif}.ds-search input::placeholder{color:#758da5}"
+    },
+    {
+      "name": "Mode Switch",
+      "kind": "nav",
+      "refersTo": null,
+      "description": "Switches the graph between neighbourhood and estate layouts.",
+      "html": "<nav class=\"ds-mode\" aria-label=\"Graph mode\"><button>Neighbourhood</button><button class=\"active\">Estate map</button></nav>",
+      "css": ".ds-mode{display:inline-flex;padding:3px;background:rgb(255 255 255 / 5%);border:1px solid rgb(134 194 230 / 13%);border-radius:10px}.ds-mode button{min-height:31px;padding:0 10px;color:#8fa8bd;background:transparent;border:0;border-radius:7px;font:600 10px 'Segoe UI',sans-serif}.ds-mode button:hover{color:#fff;background:rgb(55 147 207 / 14%)}.ds-mode button:focus-visible{outline:2px solid #168ee5;outline-offset:1px}.ds-mode button.active{color:#f3fbff;background:rgb(43 158 225 / 8%);box-shadow:inset 0 -2px #51cfff}"
+    },
+    {
+      "name": "Evidence Panel",
+      "kind": "card",
+      "refersTo": "panel-evidence",
+      "description": "Contains inventory, findings, and stored snapshot evidence.",
+      "html": "<section class=\"ds-panel\"><h3>Azure estate</h3><p>Stored snapshot evidence</p></section>",
+      "css": ".ds-panel{width:280px;padding:20px;color:#11213b;background:rgb(255 255 255 / 94%);border:1px solid rgb(194 209 222 / 78%);border-radius:17px;box-shadow:0 18px 44px rgb(44 72 96 / 9%),inset 0 1px #fff;font-family:'Segoe UI',sans-serif}.ds-panel h3{margin:0;font-size:18px;font-weight:650}.ds-panel p{margin:6px 0 0;color:#65758b;font-size:10px}"
+    },
+    {
+      "name": "Status Chip",
+      "kind": "chip",
+      "refersTo": null,
+      "description": "Communicates stored, healthy, or finding state without dominating the resource.",
+      "html": "<span class=\"ds-status\"><i></i>Stored resource</span>",
+      "css": ".ds-status{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;color:#8fd8b5;background:rgb(26 148 91 / 13%);border:1px solid rgb(75 198 138 / 16%);border-radius:7px;font:600 9px 'Segoe UI',sans-serif}.ds-status i{width:6px;height:6px;background:#38d58c;border-radius:50%;box-shadow:0 0 8px #38d58c}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Spatial Azure Observatory",
+    "overview": "azdocs pairs a bright, evidence-dense Azure inventory with a nocturnal spatial explorer. The application feels like a professional desktop instrument: calm around stored facts, vivid only where selection, direction, risk, or live state needs attention. The topology is the authored focal surface; native Microsoft Azure service artwork provides recognition, spectral cyan explains relationships, and restrained tonal layering separates tools from evidence.",
+    "keyCharacteristics": [
+      "Desktop-dense information with a clear pane hierarchy.",
+      "Native Azure artwork on transparent icon surfaces.",
+      "Dark spatial graph beside pale evidence workspaces.",
+      "Fine boundary-anchored connectors with restrained directional motion.",
+      "State communicated through color, stroke, and text—not decoration alone."
+    ],
+    "rules": [
+      { "name": "The Accent Rationing Rule", "body": "Azure blue drives actions; cyan explains topology. Do not flood neutral evidence surfaces with either accent.", "section": "colors" },
+      { "name": "The Semantic Signal Rule", "body": "Coral denotes findings and green denotes healthy or complete state. Neither is decorative.", "section": "colors" },
+      { "name": "The Evidence Voice Rule", "body": "Use monospace only when the content is machine-shaped; resource names and actions remain sans serif.", "section": "typography" },
+      { "name": "The Focal Surface Rule", "body": "Let the topology consume the available work area; command chrome and legends float at its edges rather than shrinking it into a card within a card.", "section": "layout" },
+      { "name": "The Tonal-First Rule", "body": "Establish hierarchy with surface tone and borders before adding shadow.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do use the supplied Microsoft Azure icon for every known service type.",
+      "Do keep graph ordering and layout deterministic for the same stored snapshot.",
+      "Do anchor connectors to node boundaries and make arrow direction legible.",
+      "Do preserve user graph state while selection and inspection change.",
+      "Do keep compact overlays keyboard-operable and their long evidence lists scrollable."
+    ],
+    "donts": [
+      "Don't put icons or ordinary controls on opaque white rounded backplates.",
+      "Don't use oversized pulsing halos or large animated flow marks.",
+      "Don't draw straight center-to-center relationship lines or containment edges.",
+      "Don't let navigation labels, tags, ARM IDs, or inspector content clip silently.",
+      "Don't make the topology webview fetch Azure or query SQLite directly; it renders typed snapshot data from the Tauri boundary."
+    ]
+  }
+}

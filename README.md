@@ -1,9 +1,10 @@
 # azdocs
 
-Audit and document an Azure estate from the command line. `azdocs` runs a pack
-of Azure Resource Graph queries with a **read-only service principal**, stores
-everything locally in SQLite as point-in-time snapshots, then exports reports
-and diagrams of the whole estate — entirely offline once collected.
+Audit, explore, and document an Azure estate from a desktop application or the
+command line. `azdocs` runs a pack of Azure Resource Graph queries with a
+**read-only service principal**, stores everything locally in SQLite as
+point-in-time snapshots, then lets you investigate resources, findings, and
+relationships or export the whole estate — entirely offline once collected.
 
 - **Reports**: Markdown docs tree, self-contained HTML, CSV, XLSX, plus
   branded PDF and DOCX rendered natively (no Chromium or Pandoc needed)
@@ -15,6 +16,10 @@ and diagrams of the whole estate — entirely offline once collected.
   public database endpoints, unencrypted disks, missing required tags, orphaned
   resources, and more — severity-graded
 - **Snapshots**: diff estates over time, prune old runs
+- **Desktop explorer**: Tauri app with a subscription/resource-group tree,
+  searchable resource ledger, property inspector, findings, snapshot history,
+  and a Cytoscape.js Azure-icon relationship graph — all backed by the same local
+  database
 - **TUI**: browse the stored estate interactively (`azdocs browse`)
 - Single static binary for macOS, Linux, and Windows; no OpenSSL, no system
   SQLite, no Azure CLI required
@@ -23,7 +28,7 @@ and diagrams of the whole estate — entirely offline once collected.
 
 Full documentation lives in [docs/](docs/README.md):
 
-- [Usage](docs/usage/README.md) — install, configure, collect, export, browse, CI
+- [Usage](docs/usage/README.md) — install, configure, collect, explore, export, browse, CI
 - [Development](docs/development/README.md) — architecture, data model, testing, contributing
 - [Reference](docs/reference/README.md) — the built-in query pack
 
@@ -49,6 +54,11 @@ azdocs diagram --type network --format both
 
 # 6. Browse it
 azdocs browse
+
+# Or launch the desktop explorer from a source checkout
+cd desktop
+npm install
+npm run tauri dev
 ```
 
 ## Configuration
@@ -122,6 +132,11 @@ not exposed through ARG; the audit covers control-plane configuration only.
 ```sh
 cargo test          # unit + integration + golden-file tests (no Azure needed)
 cargo insta review  # accept intentional report/diagram output changes
+
+cd desktop
+npm install
+npm run build       # TypeScript + production web assets
+npm run tauri dev   # desktop app with the shared Rust core
 ```
 
 ## Credits
