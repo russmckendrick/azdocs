@@ -67,10 +67,14 @@ Azure observatory: resource icons appear in their native artwork without white
 button backplates, relationship space is deep and luminous, and interaction
 state is expressed with line, light, and motion instead of filled UI chrome.
 
-The relationship explorer uses Cytoscape.js for a deterministic resource-group
-overview, group-to-resource drill-down, and one-hop resource neighbourhoods,
-with node dragging, pan, zoom, selection, boundary-anchored orthogonal edges,
-and directional flow dashes. Nonessential motion is user-controllable, stops
+The relationship explorer uses Cytoscape.js to render graphs the Rust side
+builds deterministically: an estate map of resource-group cards in
+subscription lanes, group drill-downs with VNet/subnet containment, host
+folding, ×N aggregation and cross-group ghost stubs, and 1–2-hop resource
+neighbourhoods with relationship-kind filters — always with node dragging,
+pan, zoom, selection, boundary-anchored orthogonal edges, and directional
+flow dashes. Every resource in scope is drawn, folded, or aggregated, and the
+view states the arithmetic; nothing is silently truncated. Nonessential motion is user-controllable, stops
 while the window is hidden, and is removed when the operating system requests
 reduced motion.
 

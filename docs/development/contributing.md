@@ -13,11 +13,19 @@
 
 ### Add an edge kind
 
-1. Add the variant to `model::EdgeKind` (+ `as_str`/`parse`).
+1. Add the variant to `model::EdgeKind` (+ `as_str`/`parse` and the
+   round-trip test).
 2. Write the extractor in `collect/extractors.rs`; register the resource type
    in `extract()`.
 3. Unit-test with realistic property JSON, including a malformed variant.
-4. Diagrams (`diagram/graph.rs`) and detail-page "Related" lists pick it up.
+4. The desktop's `kind_class` match (`desktop/src-tauri/src/topology.rs`) is
+   exhaustive, so the compiler makes you assign the kind to a filter family
+   (network / structure / data / identity / monitoring); mirror it in
+   `desktop/src/components/topology-fallback.ts` for the browser preview.
+5. Detail-page "Related" lists and the desktop graphs pick it up
+   automatically; the CLI diagram (`diagram/graph.rs::add_resource_edges`)
+   draws only its own whitelist — extend that deliberately if the kind should
+   appear in printed diagrams.
 
 ### Polish a resource type
 

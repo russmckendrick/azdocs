@@ -35,12 +35,14 @@ flowchart TD
 | draw.io XML | Structural re-parse: well-formed, unique ids, resolving refs | `tests/diagram_golden_test.rs` |
 | Diagram geometry | Every canvas lands on a page fraction; every connector segment is axis-aligned; routes are deterministic | `src/diagram/svg.rs`, `src/diagram/route.rs`, `src/diagram/page.rs` |
 | TUI | `TestBackend` buffer snapshots + key-event sequences | `tests/tui_test.rs` |
+| Desktop topology | Pure-function tests over a synthetic 1,000-resource estate: drawn + folded + aggregated always equals total, deterministic output, fan-out folding, scope filters counted | `desktop/src-tauri/src/topology.rs` |
 
 ## The fixture estate
 
 `tests/common/mod.rs` seeds the canonical estate every golden test renders:
 two subscriptions, peered hub/spoke VNets, a VM with NIC + public IP, a
-storage account with findings, a private endpoint → SQL server.
+storage account with findings, a private endpoint → SQL server with a
+database child, and a web app on its plan carrying a user-assigned identity.
 
 **When you add a feature, extend the fixture so goldens exercise it**, then
 regenerate and review:

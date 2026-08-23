@@ -113,9 +113,14 @@ cross-resource context a single query can't see:
 |---|---|---|
 | `missing_required_tags` | 🟡 low | `collect/audit.rs`, driven by `[audit] required_tags` |
 
-Relationship **edges** (subnets, peerings, NSG associations, NIC/VM/disk
-attachment, private endpoints, DNS links) are likewise derived in Rust
-(`collect/extractors.rs`) rather than queried — see
+Relationship **edges** are likewise derived in Rust (`collect/extractors.rs`)
+rather than queried: the network/compute chain (subnets, peerings, NSG
+associations, NIC/VM/disk attachment, private endpoints, DNS links, load
+balancers, application gateways, Bastion, VMSS), platform ties (App Service →
+plan, SQL VM registration, AKS node pools), monitoring (data collection rules,
+solutions and App Insights → workspace, alert-rule scopes, Event Grid system
+topics), plus two generic passes — child resources → their ARM parent, and
+`identity.userAssignedIdentities` → the managed identity — see
 [development/architecture.md](../development/architecture.md#design-decisions).
 
 ## Display names

@@ -126,6 +126,24 @@ Density rungs (`comfortable`/`compact`/`dense`) are chosen once per graph from
 its box count, so one resource type is never drawn at two sizes in a picture.
 Chrome decays with nesting depth; fonts and leaf sizes never do.
 
+## Desktop topology
+
+The Tauri explorer's relationship graphs are built in Rust
+(`desktop/src-tauri/src/topology.rs`, command `topology_graph`), not in the
+frontend — Cytoscape only renders the DTO. The invariant, enforced by unit
+tests over a synthetic 1,000-resource estate: **drawn + folded + aggregated
+== total, never a silent cap** (the old slice-based node limits are gone for
+good). NICs/disks fold into their VM and child types into their ARM parent;
+unlinked resources aggregate into ×N shelf tiles; other groups' neighbours
+appear as ghost "external" stubs; whole subscriptions collapse into
+expandable lanes past the card budget; anything a filter hides is counted in
+`counts.hidden_by_filter`. Edge kinds map to filter families via the
+exhaustive `kind_class` match — a new `EdgeKind` forces a classification
+(mirror it in `desktop/src/components/topology-fallback.ts`, the
+browser-preview stand-in). Subnets are not resource rows, so
+`desktop/src-tauri/src/dto.rs` collapses subnet-ended edges onto the owning
+VNet before they reach the frontend.
+
 ## Testing layout
 
 - `tests/common/mod.rs` — canonical fixture estate (2 subs, peered VNets,

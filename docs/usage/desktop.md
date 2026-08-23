@@ -1,11 +1,14 @@
 # Desktop explorer
 
 The Tauri desktop app explores the same SQLite snapshots as the CLI and TUI.
-Its relationship view is an interactive Cytoscape.js canvas that starts with
-resource groups, drills into one group's resources, and provides a one-hop
-resource neighbourhood. Resource nodes are draggable, the canvas supports pan
-and zoom, links are boundary-anchored and orthogonal, and directional flow
-motion is optional.
+Its relationship view is an interactive Cytoscape.js canvas whose graphs are
+built by the Rust side (`topology_graph`) with one non-negotiable rule:
+**every resource in scope is represented** — drawn as its own node, folded
+into its host (NICs and disks into their VM, child resources into their ARM
+parent), or aggregated into a ×N tile — and the status chip states the exact
+arithmetic. Nothing is silently truncated. Resource nodes are draggable, the
+canvas supports pan and zoom, links are boundary-anchored and orthogonal, and
+directional flow motion is optional.
 Every resource uses the vendored Microsoft Azure service icon resolved for its
 ARM type.
 It does not maintain a second inventory and it does not query Azure while you
@@ -42,12 +45,20 @@ npm run tauri build
 - **Estate** keeps the subscription/resource-group hierarchy, searchable
   resource ledger, and resource inspector visible together. Filter by scope,
   type, location, resource name, ARM type, group, or tags.
-- **Relationships** starts with every resource group as an aggregate containing
-  resource, finding, type, and cross-group connection counts. Select a group to
-  inspect it, then open it to render the contained resources and internal
-  links. The selected resource's one-hop neighbourhood can cross group
-  boundaries. Relationships are the Rust post-pass edges already stored in
-  SQLite; opening this view does not add API calls.
+- **Relationships** has two modes. The **estate map** lays resource-group
+  cards out in subscription lanes with cross-group links bundled into counted
+  pills; past the card budget, whole subscriptions collapse into lane bars you
+  expand with a click. Opening a group renders its resources with VNet →
+  subnet containment drawn as frames, NICs/disks folded into their VM, child
+  resources folded into their parent, unlinked resources aggregated by type on
+  an expandable shelf, and neighbours from *other* groups shown as dashed
+  ghost stubs so a peering-heavy group never looks empty. The
+  **neighbourhood** mode walks 1 or 2 hops from the selected resource with
+  relationship-kind filter chips (network / structure / data / identity /
+  monitoring); wide same-type fan-outs fold into one ×N node. Anything hidden
+  by a filter is counted in the status chip. Relationships are the Rust
+  post-pass edges already stored in SQLite; opening this view does not add
+  API calls.
 - **Findings** orders stored audit evidence by severity and links every
   resource-scoped result back to its resource properties.
 - **Snapshots** shows collection history, query health, and added, changed, or

@@ -62,7 +62,7 @@ flowchart LR
 | `src/report/` | `ReportContext` → all report data; `document.rs` composes one semantic `PrintDocument` for PDF + DOCX, while markdown / html / site / csv / xlsx consume `ReportContext` directly. Styled outputs use `BrandingContext`. |
 | `src/diagram/` | `EstateGraph` builders (incl. per-VNet/per-RG fan-out) → `page` (A4 fractions, density rungs) → `layout` (measure/justify) → `route` (orthogonal connectors) → mermaid / drawio (single + workbook) / svg / png emitters |
 | `src/tui/` | ratatui browse; `App` is a pure state machine, `ui.rs` renders it |
-| `desktop/src-tauri/` | Thin Tauri v2 boundary; opens the shared `Store` per command and maps core models to serialisable DTOs |
+| `desktop/src-tauri/` | Thin Tauri v2 boundary; opens the shared `Store` per command and maps core models to serialisable DTOs. `topology.rs` builds the explorer's view-ready relationship graphs (estate lanes, group drill-in with folding, ×N aggregation and cross-group ghost stubs, bounded-depth neighbourhoods) with honest drawn/folded/aggregated counts |
 | `desktop/src/` | React/TypeScript estate explorer and lazy-loaded Cytoscape.js relationship canvas; no direct file, database, credential, or Azure access |
 
 ## Design decisions
@@ -73,9 +73,14 @@ casing kept in `display_id`. Skipping this creates phantom duplicate
 resources — the classic Azure inventory bug.
 
 **Edges are derived in Rust, not queried.** `collect/extractors.rs` walks the
-already-stored properties JSON (vnet → subnets/peerings, NIC → subnet/NSG/VM,
-private endpoint → target). Zero extra API calls, retroactive on old
-snapshots, and each extractor is a pure `fn(&Resource) -> Vec<Edge>`.
+already-stored properties JSON: per-type handlers for the network/compute
+chain (VNet → subnets/peerings, NIC → subnet/NSG/VM, private endpoint →
+target, load balancer, application gateway, VMSS, AKS, App Service, storage
+and key-vault network ACLs) plus two generic passes that apply to every
+resource — child types link to the ARM parent their id nests under, and
+`identity.userAssignedIdentities` links to the managed identity. Zero extra
+API calls, retroactive on old snapshots, and each extractor is a pure
+`fn(&Resource) -> Vec<Edge>`.
 
 **Auth is ~80 hand-rolled lines on purpose.** The client-credentials flow is
 one POST. `azure_identity` was rejected for API churn and unneeded surface.
