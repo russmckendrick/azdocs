@@ -17,12 +17,14 @@ import {
   Tags,
 } from "lucide-react";
 import { chooseDatabase, collectEstate, getBootstrap, getSnapshot, isTauri } from "./api";
+import { ALL_RESOURCES_ICON } from "./azure-icons";
 import { EstateExplorer } from "./components/EstateExplorer";
 import { FindingsView } from "./components/FindingsView";
 import { GovernanceView } from "./components/GovernanceView";
 import { HistoryView } from "./components/HistoryView";
 import { InventoryView } from "./components/InventoryView";
 import { OverviewView } from "./components/OverviewView";
+import { ResourceDetailView } from "./components/ResourceDetailView";
 import { SettingsView } from "./components/SettingsView";
 import type {
   AppBootstrap,
@@ -81,6 +83,7 @@ export default function App() {
   const [view, setView] = useState<ViewId>("overview");
   const [scope, setScope] = useState<ScopeSelection>({});
   const [selectedResourceId, setSelectedResourceId] = useState<string>();
+  const [resourceReturnView, setResourceReturnView] = useState<ViewId>("estate");
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [activeSearchIndex, setActiveSearchIndex] = useState(0);
@@ -123,12 +126,7 @@ export default function App() {
     try {
       const next = await getSnapshot(snapshotId);
       setEstate(next);
-      setSelectedResourceId((current) =>
-        current && next.resources.some((resource) => resource.id === current)
-          ? current
-          : next.resources.find((resource) => resource.findingCount > 0)?.id ??
-            next.resources[0]?.id,
-      );
+      setSelectedResourceId(undefined);
     } catch (caught) {
       setError(errorMessage(caught));
     } finally {
@@ -148,10 +146,7 @@ export default function App() {
           const nextEstate = await getSnapshot(nextBootstrap.latestSnapshotId);
           if (!active) return;
           setEstate(nextEstate);
-          setSelectedResourceId(
-            nextEstate.resources.find((resource) => resource.findingCount > 0)?.id ??
-              nextEstate.resources[0]?.id,
-          );
+          setSelectedResourceId(undefined);
         }
       } catch (caught) {
         if (active) setError(errorMessage(caught));
@@ -205,7 +200,10 @@ export default function App() {
     if (!resource) return;
     setSelectedResourceId(resource.id);
     if (view === "topology") setTopologyFocusRequest((current) => current + 1);
-    else setView("estate");
+    else {
+      setResourceReturnView(view);
+      setView("estate");
+    }
     setSearch("");
     setSearchOpen(false);
     setActiveSearchIndex(0);
@@ -267,9 +265,19 @@ export default function App() {
   }
 
   function openResource(resourceId: string, destination: ViewId = "estate") {
+    if (destination === "estate") setResourceReturnView(view);
     setSelectedResourceId(resourceId);
     setView(destination);
     if (destination === "topology") setTopologyFocusRequest((current) => current + 1);
+  }
+
+  function closeResourceRecord() {
+    if (resourceReturnView === "topology") {
+      setView("topology");
+      return;
+    }
+    setSelectedResourceId(undefined);
+    setView(resourceReturnView);
   }
 
   return (
@@ -332,7 +340,7 @@ export default function App() {
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => chooseSearchResult(index)}
                   >
-                    {type ? <img src={type.icon} alt="" /> : <Boxes size={20} />}
+                    <img src={type?.icon ?? ALL_RESOURCES_ICON} alt="" />
                     <span><strong>{resource.name}</strong><small>{type?.displayName ?? resource.azureType} · {resource.resourceGroup}</small></span>
                   </button>
                 );
@@ -367,7 +375,10 @@ export default function App() {
               <button
                 key={item.id}
                 className={view === item.id ? "nav-row active" : "nav-row"}
-                onClick={() => setView(item.id)}
+                onClick={() => {
+                  setView(item.id);
+                  if (item.id !== "topology") setSelectedResourceId(undefined);
+                }}
                 aria-current={view === item.id ? "page" : undefined}
                 title={item.label}
               >
@@ -429,21 +440,40 @@ export default function App() {
                 <OverviewView
                   bootstrap={bootstrap}
                   estate={estate}
-                  onOpenView={setView}
+                  onOpenView={(nextView) => {
+                    setSelectedResourceId(undefined);
+                    setView(nextView);
+                  }}
                   onOpenResource={(id) => openResource(id)}
                 />
               ) : null}
               {view === "estate" ? (
-                <EstateExplorer
-                  estate={estate}
-                  search={search}
-                  scope={scope}
-                  onScopeChange={setScope}
-                  selectedResourceId={selectedResourceId}
-                  onSelectResource={setSelectedResourceId}
-                  onOpenTopology={(id) => openResource(id, "topology")}
-                  onOpenFinding={() => setView("findings")}
-                />
+                selectedResource ? (
+                  <ResourceDetailView
+                    resource={selectedResource}
+                    type={resourceTypeMap.get(selectedResource.azureType)}
+                    estate={estate}
+                    backLabel={resourceReturnView === "estate" ? "Back to estate" : `Back to ${resourceReturnView === "settings" ? "Settings" : views.find((item) => item.id === resourceReturnView)?.label ?? "estate"}`}
+                    onBack={closeResourceRecord}
+                    onSelectResource={setSelectedResourceId}
+                    onOpenTopology={() => openResource(selectedResource.id, "topology")}
+                    onOpenFindings={() => {
+                      setSelectedResourceId(undefined);
+                      setView("findings");
+                    }}
+                  />
+                ) : (
+                  <EstateExplorer
+                    estate={estate}
+                    search={search}
+                    scope={scope}
+                    onScopeChange={setScope}
+                    onSelectResource={(id) => {
+                      setResourceReturnView("estate");
+                      setSelectedResourceId(id);
+                    }}
+                  />
+                )
               ) : null}
               {view === "topology" ? (
                 <Suspense fallback={<LoadingWorkspace />}>

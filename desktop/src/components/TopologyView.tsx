@@ -15,9 +15,9 @@ import {
 } from "lucide-react";
 import type { EstateSnapshot, TopologyGraph, TopologyNode, TopologyRequest } from "../types";
 import { getTopology } from "../api";
+import { ALL_RESOURCES_ICON, RESOURCE_GROUP_ICON } from "../azure-icons";
 import { CytoscapeResourceGraph, kindClassColor, type GraphMode } from "./CytoscapeResourceGraph";
 import {
-  RESOURCE_GROUP_ICON,
   buildResourceGroupTopology,
   resourceGroupNodeId,
   resourcesInGroup,
@@ -481,7 +481,7 @@ export function TopologyView({
           <header className="topology-resource-hero">
             <button ref={closeButtonRef} className="topology-inspector-close" onClick={closeInspector} aria-label="Close relationship details"><X size={17} /></button>
             <div className="topology-resource-icon">
-              {selectedType ? <img src={selectedType.icon} alt="" /> : <GitBranch size={32} />}
+              <img src={selectedType?.icon ?? ALL_RESOURCES_ICON} alt="" />
             </div>
             <div>
               <span className="inspector-eyebrow">{selectedType?.displayName ?? selected.azureType}</span>
@@ -515,7 +515,7 @@ export function TopologyView({
                     <span className="relationship-direction" title={outbound ? "Outbound relationship" : "Inbound relationship"}>
                       {outbound ? <ArrowUpRight size={13} /> : <ArrowDownLeft size={13} />}
                     </span>
-                    <span className="relationship-resource-icon">{type ? <img src={type.icon} alt="" /> : <GitBranch size={18} />}</span>
+                    <span className="relationship-resource-icon"><img src={type?.icon ?? ALL_RESOURCES_ICON} alt="" /></span>
                     <span className="relationship-copy">
                       <strong>{resource?.name ?? "Unknown resource"}</strong>
                       <small>{relationLabel(edge.kind)}</small>
@@ -568,7 +568,7 @@ function AggregateInspector({
       <div className="topology-inspector-glow" style={{ "--service-color": type?.color ?? "#47c8ff" } as React.CSSProperties} />
       <header className="topology-resource-hero topology-group-hero">
         <button ref={closeButtonRef} className="topology-inspector-close" onClick={onClose} aria-label="Close aggregated tile details"><X size={17} /></button>
-        <div className="topology-resource-icon">{type ? <img src={type.icon} alt="" /> : <Layers3 size={32} />}</div>
+        <div className="topology-resource-icon"><img src={type?.icon ?? ALL_RESOURCES_ICON} alt="" /></div>
         <div>
           <span className="inspector-eyebrow">Aggregated tile</span>
           <h2 id="topology-inspector-title">{type?.displayName ?? node.name}</h2>
@@ -585,7 +585,7 @@ function AggregateInspector({
           {members.map((resource) => (
             <button key={resource.id} onClick={() => onSelect(resource.id)}>
               <span className="relationship-resource-icon">
-                {type ? <img src={type.icon} alt="" /> : <Layers3 size={18} />}
+                <img src={type?.icon ?? ALL_RESOURCES_ICON} alt="" />
               </span>
               <span className="relationship-copy">
                 <strong>{resource.name}</strong>
@@ -667,13 +667,13 @@ function ResourceGroupInspector({
         </div>
         <div className="topology-group-type-list">
           {group.resourceTypes.length === 0 ? (
-            <div className="relationship-empty"><Layers3 size={20} /><span>No resource records are stored in this group.</span></div>
+            <div className="relationship-empty"><img src={ALL_RESOURCES_ICON} alt="" /><span>No resource records are stored in this group.</span></div>
           ) : group.resourceTypes.map(({ azureType, count }) => {
             const type = typeMap.get(azureType);
             return (
               <div key={azureType}>
                 <span className="relationship-resource-icon">
-                  {type ? <img src={type.icon} alt="" /> : <Layers3 size={18} />}
+                  <img src={type?.icon ?? ALL_RESOURCES_ICON} alt="" />
                 </span>
                 <span><strong>{type?.displayName ?? azureType}</strong><small>{azureType}</small></span>
                 <b>{count}</b>

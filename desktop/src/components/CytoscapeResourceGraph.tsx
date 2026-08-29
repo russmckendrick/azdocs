@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import cytoscape, { type Core, type ElementDefinition, type StylesheetJson } from "cytoscape";
+import { RESOURCE_GROUP_ICON, SUBSCRIPTION_ICON, VNET_ICON } from "../azure-icons";
 import type { EstateSnapshot, TopologyGraph, TopologyNode } from "../types";
-import { RESOURCE_GROUP_ICON, SUBSCRIPTION_ICON, VNET_ICON } from "./topology-model";
 
 export type GraphMode = "neighbourhood" | "estate";
 

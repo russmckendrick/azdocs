@@ -93,13 +93,39 @@ one product family. Serif Regular/SemiBold is bundled with the frontend
 - **2px ink rule** anchors mastheads, stat strips and footers; **1px strong
   hairline** for panel edges and column splits; **1px hairline** for rows.
   Tone and rules build hierarchy before shadow does.
-- Spacing rhythm `4 · 8 · 12 · 20 · 32`; radii `3px` (chips, controls) and
-  `6px` (panels) — near-square, print-like.
-- The **stat strip** is the summary idiom: serif numerals between rules, one
-  cell per measure, coral only when the measure is a risk.
+- Spacing rhythm `4 · 8 · 12 · 20 · 32`; radii `3px` (controls and tag chips),
+  `6px` (panels), and `999px` for the deliberately rounded summary capsule.
+  The rest of the interface stays near-square and print-like.
+- The **stat strip** remains the summary idiom when metrics are primary page
+  content: serif numerals between rules, one cell per measure, coral only when
+  the measure is a risk. Use **summary capsules** instead when two to six
+  secondary orientation facts can occupy spare header or toolbar space without
+  competing with the title. The group wraps as a unit before it squeezes
+  identity or action text.
 - Side navigation is a slim IDE-style list (~176px): icon + label rows,
   tree subtrees with guide lines, Settings pinned to the bottom, a mono coral
   count as the Findings badge.
+- Estate disclosure and scope selection are independent. Subscriptions open to
+  resource groups and groups open to resource rows without changing the active
+  scope. Azure entities use the vendored Azure artwork throughout; generic
+  interface glyphs are reserved for controls, navigation, and signals.
+- **One working surface per route.** Estate keeps its hierarchy rail because
+  scope is part of browsing. A resource opens as a dedicated evidence sheet:
+  all stored properties, SKU, identity, tags, findings, edge properties, ARM
+  identifiers, and provenance are rendered without tabs or truncation. A
+  shape-driven evidence renderer presents scalar and nested fields as compact
+  property rows, and collections as real data tables rather than raw JSON or
+  an embedded object inspector. Resource context is part of that linear
+  evidence flow, never a fixed side column that taxes the width of long tables.
+  Location, kind, finding, relationship, and tag summaries occupy compact
+  header capsules instead of a second full-width stat band.
+  Finding evidence and topology details remain on-demand drawers. Overview
+  scrolls as one document rather than splitting into independently scrolling
+  columns. History gives the comparison ledger more room than the snapshot
+  selector, and long query-run evidence stays collapsed until requested.
+- Large collections must not make navigation grow without bound. Resource
+  types and inventory queries use labelled selectors; lists and tables own
+  their scroll area, while detail never permanently narrows them.
 
 ## Components
 
@@ -109,6 +135,13 @@ one product family. Serif Regular/SemiBold is bundled with the frontend
   underlines; navigation never does).
 - **Tag chip**: mono on evidence fill; a **missing** required tag is a dashed
   coral outline.
+- **Summary capsule**: a short, read-only label/value pair for orientation
+  facts such as location, kind, scope, status, or count. It uses a transparent
+  paper surface, one strong hairline, and a fully rounded silhouette (`999px`):
+  11px tracked Sans for the label and 13.5px semibold Serif for the value.
+  Keep two to six together in a header or toolbar; colour only a signal value,
+  never the capsule chrome. Do not use capsules for actions, filters, long IDs,
+  primary dashboard metrics, or as a substitute for tables and ledgers.
 - **Evidence blocks** (stored JSON, ARM ids): mono on `--evidence` with a
   hairline border, never a dark backplate in light mode.
 - **Charts**: horizontal bars direct-labelled with the value; one hue for one

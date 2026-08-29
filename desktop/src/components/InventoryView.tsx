@@ -3,6 +3,8 @@ import { Table2 } from "lucide-react";
 import { getQueryPackMetadata, getQueryRows } from "../api";
 import type { EstateSnapshot, QueryDefMeta, QueryRows } from "../types";
 
+const ROW_BATCH = 250;
+
 /// Category dot colours follow the design language: chart slots for the big
 /// categories, the wider category_color() family for the rest, neutral
 /// otherwise.
@@ -40,6 +42,7 @@ export function InventoryView({ estate, search }: { estate: EstateSnapshot; sear
   const [queryName, setQueryName] = useState<string>();
   const [result, setResult] = useState<QueryRows>();
   const [rowsLoading, setRowsLoading] = useState(false);
+  const [visibleRowCount, setVisibleRowCount] = useState(ROW_BATCH);
 
   const runByName = useMemo(
     () => new Map(estate.queryRuns.map((run) => [run.queryName, run])),
@@ -114,6 +117,9 @@ export function InventoryView({ estate, search }: { estate: EstateSnapshot; sear
     return rows.filter((row) => Object.values(row).some((value) => cellText(value).toLowerCase().includes(needle)));
   }, [result, search]);
   const run = activeQuery ? runByName.get(activeQuery) : undefined;
+  const visibleRows = filteredRows.slice(0, visibleRowCount);
+
+  useEffect(() => setVisibleRowCount(ROW_BATCH), [activeQuery, search]);
 
   if (packError) {
     return (
@@ -173,18 +179,18 @@ export function InventoryView({ estate, search }: { estate: EstateSnapshot; sear
           </nav>
 
           <section className="inv-main">
-            <div className="query-tabs" role="tablist" aria-label="Queries in this category">
-              {queries.map((def) => (
-                <button
-                  key={def.name}
-                  role="tab"
-                  aria-selected={def.name === activeQuery}
-                  className={def.name === activeQuery ? "active" : ""}
-                  onClick={() => setQueryName(def.name)}
-                >
-                  {def.name.replaceAll("_", " ")} · {runByName.get(def.name)?.rowCount ?? 0}
-                </button>
-              ))}
+            <div className="query-picker">
+              <label>
+                <span>Table</span>
+                <select value={activeQuery ?? ""} onChange={(event) => setQueryName(event.target.value)}>
+                  {queries.map((def) => (
+                    <option key={def.name} value={def.name}>
+                      {def.name.replaceAll("_", " ")} · {runByName.get(def.name)?.rowCount ?? 0} rows
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <span className="query-position">{queries.findIndex((def) => def.name === activeQuery) + 1} of {queries.length} in {activeCategory}</span>
             </div>
             <div className="query-description">
               {activeDef?.description}
@@ -208,7 +214,7 @@ export function InventoryView({ estate, search }: { estate: EstateSnapshot; sear
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredRows.map((row, index) => (
+                    {visibleRows.map((row, index) => (
                       <tr key={index}>
                         {columns.map((column) => (
                           <td key={column} className={isMachineShaped(column) ? "mono-cell" : undefined} title={cellText(row[column])}>
@@ -224,10 +230,15 @@ export function InventoryView({ estate, search }: { estate: EstateSnapshot; sear
 
             <div className="grid-footer">
               <span>
-                {filteredRows.length} row{filteredRows.length === 1 ? "" : "s"}
+                {visibleRows.length < filteredRows.length ? `${visibleRows.length.toLocaleString()} of ` : ""}{filteredRows.length.toLocaleString()} row{filteredRows.length === 1 ? "" : "s"}
                 {search.trim() ? ` matching “${search.trim()}”` : ""}
                 {run?.durationMs !== undefined ? ` · collected in ${run.durationMs} ms` : ""}
               </span>
+              {visibleRows.length < filteredRows.length ? (
+                <button className="load-more inline" onClick={() => setVisibleRowCount((current) => current + ROW_BATCH)}>
+                  Show {Math.min(ROW_BATCH, filteredRows.length - visibleRows.length)} more
+                </button>
+              ) : null}
               <span className="mono" style={{ marginLeft: "auto", color: "var(--faintest)" }}>
                 queries/{activeCategory}/{activeQuery}.toml
               </span>

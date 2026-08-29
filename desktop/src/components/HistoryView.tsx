@@ -3,6 +3,8 @@ import { CheckCircle2, CircleDashed, GitCompareArrows, Rows3 } from "lucide-reac
 import { compareSnapshots } from "../api";
 import type { AppBootstrap, EstateSnapshot, SnapshotComparison } from "../types";
 
+const CHANGE_BATCH = 250;
+
 function dateTime(value: string) {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
@@ -19,6 +21,7 @@ export function HistoryView({ bootstrap, estate, onLoadSnapshot }: { bootstrap: 
   const [baseId, setBaseId] = useState<string>();
   const [comparison, setComparison] = useState<SnapshotComparison | undefined>(estate.previousDiff);
   const [comparing, setComparing] = useState(false);
+  const [visibleChangeCount, setVisibleChangeCount] = useState(CHANGE_BATCH);
   const resourceById = useMemo(
     () => new Map(estate.resources.map((resource) => [resource.id, resource])),
     [estate.resources],
@@ -69,6 +72,10 @@ export function HistoryView({ bootstrap, estate, onLoadSnapshot }: { bootstrap: 
       ...comparison.removed.map((id) => describe(id, "removed")),
     ];
   }, [comparison, resourceById]);
+  const failedQueries = estate.queryRuns.filter((run) => run.error).length;
+  const visibleChanges = changes.slice(0, visibleChangeCount);
+
+  useEffect(() => setVisibleChangeCount(CHANGE_BATCH), [comparison?.baseSnapshotId, comparison?.targetSnapshotId]);
 
   return (
     <div className="history-workspace">
@@ -125,13 +132,27 @@ export function HistoryView({ bootstrap, estate, onLoadSnapshot }: { bootstrap: 
                 <div className="removed"><strong>{comparison.removed.length}</strong><span>Removed</span></div>
               </div>
               <div className="change-list">
-                {changes.map((item) => (
+                {visibleChanges.map((item) => (
                   <div key={`${item.kind}-${item.id}`}><i className={item.kind} /><span><strong>{item.name}</strong><small>{item.detail}</small></span><em>{item.kind}</em></div>
                 ))}
+                {visibleChanges.length < changes.length ? (
+                  <button className="load-more" onClick={() => setVisibleChangeCount((current) => current + CHANGE_BATCH)}>
+                    Show {Math.min(CHANGE_BATCH, changes.length - visibleChanges.length)} more
+                    <span>{visibleChanges.length.toLocaleString()} of {changes.length.toLocaleString()} loaded</span>
+                  </button>
+                ) : null}
               </div>
             </>
           ) : <p className="muted-copy">There is no older snapshot to compare against.</p>}
-          <section className="query-health"><h3>Collection health</h3>{estate.queryRuns.map((run) => <div key={run.queryName}><span><i className={run.error ? "failed" : "complete"} />{run.queryName}</span><small>{run.error ?? `${run.rowCount ?? 0} rows · ${run.durationMs ?? 0} ms`}</small></div>)}</section>
+          <details className="query-health">
+            <summary>
+              Collection health
+              <span>{estate.queryRuns.length - failedQueries} of {estate.queryRuns.length} queries succeeded</span>
+            </summary>
+            <div className="query-health-list">
+              {estate.queryRuns.map((run) => <div key={run.queryName}><span><i className={run.error ? "failed" : "complete"} />{run.queryName}</span><small>{run.error ?? `${run.rowCount ?? 0} rows · ${run.durationMs ?? 0} ms`}</small></div>)}
+            </div>
+          </details>
         </aside>
       </div>
     </div>

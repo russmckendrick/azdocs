@@ -36,20 +36,17 @@ export function OverviewView({
     () => [...bootstrap.snapshots].reverse(),
     [bootstrap.snapshots],
   );
-  const topTypes = estate.resourceTypes.slice(0, 8);
+  const topTypes = estate.resourceTypes.slice(0, 6);
   const maxTypeCount = Math.max(1, ...topTypes.map((type) => type.count));
-  const topLocations = estate.locations.slice(0, 6);
+  const topLocations = estate.locations.slice(0, 5);
   const maxLocationCount = Math.max(1, ...topLocations.map((location) => location.count));
   const attention = useMemo(
     () =>
       [...estate.findings]
         .sort((a, b) => severityRank(a.severity) - severityRank(b.severity))
-        .slice(0, 4),
+        .slice(0, 5),
     [estate.findings],
   );
-  const previous = series.length > 1 ? series[series.length - 2] : undefined;
-  const findingDelta = previous ? estate.totals.findings - previous.findings : 0;
-  const failedQueries = estate.queryRuns.filter((run) => run.error).length;
   const growth = series.length > 1 ? sparkPath(series.map((entry) => entry.resources), 560, 120) : undefined;
 
   return (
@@ -182,32 +179,7 @@ export function OverviewView({
             </div>
           </section>
 
-          <section>
-            <h2>Severity ledger</h2>
-            <div className="severity-ledger">
-              {(["high", "medium", "low", "info"] as const).map((severity) => (
-                <div key={severity}>
-                  <span className="swatch" style={{ background: SEVERITY_SWATCH[severity] }} />
-                  <span>{severity[0].toUpperCase() + severity.slice(1)}</span>
-                  <b>{estate.severityCounts[severity]}</b>
-                </div>
-              ))}
-            </div>
-            {previous && findingDelta !== 0 ? (
-              <p className="trend-note" style={findingDelta > 0 ? { color: "var(--coral)" } : undefined}>
-                {findingDelta > 0 ? `▲ ${findingDelta} more` : `▾ ${Math.abs(findingDelta)} fewer`} than the previous
-                snapshot
-              </p>
-            ) : null}
-          </section>
-
-          <section>
-            <h2>Collection health</h2>
-            <p className="muted-copy" style={{ margin: "6px 0 0" }}>
-              {estate.queryRuns.length - failedQueries} of {estate.queryRuns.length} queries succeeded
-              {failedQueries > 0 ? ` · ${failedQueries} failed` : ""} — the full ledger lives under Changes.
-            </p>
-          </section>
+          <button className="overview-all-findings" onClick={() => onOpenView("findings")}>Review all findings</button>
         </div>
       </div>
     </div>

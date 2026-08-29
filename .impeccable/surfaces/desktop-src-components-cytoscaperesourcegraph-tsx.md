@@ -26,7 +26,9 @@ related_targets: ["desktop/src/components/TopologyView.tsx","desktop/src/App.tsx
 - Interaction: resource-group estate overview, explicit group drill-down,
   one-hop resource mode, node dragging, pan, zoom, group and resource
   selection, breadcrumbs, recentering, keyboard-reachable DOM node labels,
-  global search, filters, and evidence inspection.
+  global search, filters, and evidence inspection. The graph always owns the
+  full workspace; group, aggregate and resource evidence opens in the shared
+  on-demand drawer rather than reserving a permanent inspector column.
 - Constraints: deterministic ordering; lowercase ARM IDs as join keys; no
   containment edges; orthogonal boundary-anchored connectors; no credentials,
   file access, database access, or Azure calls in the webview.

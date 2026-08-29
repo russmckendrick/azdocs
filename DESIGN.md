@@ -62,6 +62,7 @@ typography:
 rounded:
   control: "3px"
   panel: "6px"
+  capsule: "999px"
 spacing:
   xs: "4px"
   sm: "8px"
@@ -85,6 +86,11 @@ components:
     textColor: "{colors.ink}"
     border: "1px solid {colors.hairline-strong}"
     rounded: "{rounded.panel}"
+  summary-capsule:
+    backgroundColor: "{colors.paper}"
+    textColor: "{colors.ink}"
+    rounded: "{rounded.capsule}"
+    padding: "5px 8px 6px"
 ---
 
 # Design System: azdocs Desktop
@@ -110,17 +116,40 @@ implemented once in [desktop/src/styles.css](desktop/src/styles.css).
   `category_color()` slots, CVD-validated per surface); signals wear the
   severity set, always paired with the word. Chrome stays paper-and-ink.
 - **Rules over boxes, tone over shadow.** A 2px ink rule anchors mastheads
-  and stat strips; hairlines separate everything else. Radii are 3px/6px —
-  near-square, print-like.
+  and stat strips; hairlines separate everything else. Controls and panels
+  remain near-square at 3px/6px. Short, read-only summary capsules are the one
+  deliberately fully rounded exception.
 - **Nothing below 11px.** Density comes from rhythm, not from shrinking type.
+- **Summary capsules orient; they do not operate.** Use a compact capsule for a
+  short label/value fact such as location, kind, count, scope, or status when
+  two to six supporting facts can share spare header or toolbar space. Keep
+  the label in 11px tracked Sans, the value in 13.5px semibold Serif, and the
+  boundary to one strong hairline. Colour may touch only a signal value. Never
+  use this pattern for actions, filters, long identifiers, primary metrics, or
+  as a replacement for a table.
 
 ## Layout
 
 A masthead (brand, snapshot picker, search, actions) over a slim IDE-style
 side navigation (~176px: icon+label rows, tree subtrees, Settings pinned to
-the bottom) beside the workspace, with a status footer. Evidence views keep
-the three-pane pattern at wide sizes and collapse the inspector into an
-overlay below 1060px.
+the bottom) beside the workspace, with a status footer. Every route owns one
+primary working surface. The Estate hierarchy is the only persistent
+secondary rail. A selected resource opens a dedicated, scrollable evidence
+sheet with its complete stored properties, identity, findings, relationships,
+and identifiers. Identity, tags, ARM identifiers, and snapshot provenance sit
+inline before the property evidence rather than occupying a fixed side column,
+so every long table retains the full sheet width. The five resource summary
+facts sit in quiet, compact header capsules rather than a separate stat band.
+Capsules wrap together below the identity block when the header narrows; they
+do not squeeze the title or force action labels to wrap.
+Shape-driven rendering turns
+fields into inline property rows and collections into data tables instead of
+exposing JSON or an object tree. It never narrows the estate table. Finding, aggregate, and
+topology inspectors remain on-demand drawers that preserve the working context
+beneath them. Subscription and resource-group disclosure is independent from
+selection; an opened group reveals its resources in place. Azure entities use
+the vendored Azure artwork at every depth, with Lucide reserved for controls,
+navigation, and signals.
 
 ## Theme behaviour
 

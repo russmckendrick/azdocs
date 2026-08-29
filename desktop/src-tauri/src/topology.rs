@@ -16,7 +16,7 @@ use serde_json::Value;
 
 /// How many resource-group cards the estate view draws before whole
 /// subscriptions collapse into expandable lane bars.
-const ESTATE_CARD_BUDGET: usize = 48;
+const ESTATE_CARD_BUDGET: usize = 24;
 /// Same-type neighbours beyond this fold into one ×N node in a neighbourhood.
 const NEIGHBOUR_FANOUT_LIMIT: usize = 6;
 

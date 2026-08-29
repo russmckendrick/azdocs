@@ -15,6 +15,7 @@ import type {
 import { buildResourceGroupTopology, resourceGroupNodeId } from "./topology-model";
 
 const NEIGHBOUR_FANOUT_LIMIT = 6;
+const ESTATE_CARD_BUDGET = 24;
 
 export function edgeKindClass(kind: string): string {
   switch (kind) {
@@ -66,12 +67,12 @@ export function buildFallbackTopology(estate: EstateSnapshot, request: TopologyR
   if (mode.kind === "neighbourhood") {
     return neighbourhoodGraph(estate, mode.resourceId, mode.depth ?? 1, mode.kindClasses ?? []);
   }
-  return estateGraph(estate);
+  return estateGraph(estate, mode.expandedSubscriptions ?? []);
 }
 
-function estateGraph(estate: EstateSnapshot): TopologyGraph {
+function estateGraph(estate: EstateSnapshot, expandedSubscriptions: string[]): TopologyGraph {
   const topology = buildResourceGroupTopology(estate);
-  const lanes: TopologyLane[] = estate.subscriptions
+  const laneSummaries = estate.subscriptions
     .map((subscription) => {
       const groups = topology.groups.filter((group) => group.subscriptionId === subscription.id);
       return {
@@ -81,28 +82,92 @@ function estateGraph(estate: EstateSnapshot): TopologyGraph {
         groupCount: groups.length,
         resourceCount: groups.reduce((total, group) => total + group.resourceCount, 0),
         findingCount: groups.reduce((total, group) => total + group.findingCount, 0),
+        linkCount: groups.reduce((total, group) => total + group.externalLinkCount, 0),
       };
     })
+    .filter((lane) => lane.groupCount > 0)
     .sort((left, right) => (left.name < right.name ? -1 : 1));
+  const expanded = new Set(expandedSubscriptions);
+  if (expanded.size === 0) {
+    let budget = ESTATE_CARD_BUDGET;
+    const ranked = [...laneSummaries].sort((left, right) =>
+      right.linkCount - left.linkCount
+        || right.resourceCount - left.resourceCount
+        || (left.name < right.name ? -1 : 1),
+    );
+    for (const lane of ranked) {
+      if (expanded.size === 0 || lane.groupCount <= budget) {
+        expanded.add(lane.subscriptionId);
+        budget = Math.max(0, budget - lane.groupCount);
+      }
+    }
+  }
+  const lanes: TopologyLane[] = laneSummaries.map((lane) => ({
+    subscriptionId: lane.subscriptionId,
+    name: lane.name,
+    expanded: expanded.has(lane.subscriptionId),
+    groupCount: lane.groupCount,
+    resourceCount: lane.resourceCount,
+    findingCount: lane.findingCount,
+  }));
+  const groupById = new Map(topology.groups.map((group) => [group.id, group]));
+  const nodeIdForGroup = (groupId: string) => {
+    const group = groupById.get(groupId);
+    if (!group || expanded.has(group.subscriptionId)) return resourceGroupNodeId(groupId);
+    return `subscription:${group.subscriptionId}`;
+  };
 
-  const nodes: TopologyNode[] = topology.groups.map((group) => ({
-    id: resourceGroupNodeId(group.id),
-    kind: "resource-group",
-    name: group.name,
-    subtitle: `${group.resourceCount} resources`,
-    lane: group.subscriptionId,
-    memberIds: group.resourceIds,
-    count: group.resourceCount,
-    findingCount: group.findingCount,
-    groupId: group.id,
-  }));
-  const links: TopologyLink[] = topology.links.map((link) => ({
-    sourceId: resourceGroupNodeId(link.sourceId),
-    targetId: resourceGroupNodeId(link.targetId),
-    label: `${link.count} link${link.count === 1 ? "" : "s"}`,
-    kindClass: edgeKindClass(link.kinds[0] ?? ""),
-    count: link.count,
-  }));
+  const nodes: TopologyNode[] = [
+    ...topology.groups
+      .filter((group) => expanded.has(group.subscriptionId))
+      .map((group) => ({
+        id: resourceGroupNodeId(group.id),
+        kind: "resource-group" as const,
+        name: group.name,
+        subtitle: `${group.resourceCount} resources`,
+        lane: group.subscriptionId,
+        memberIds: group.resourceIds,
+        count: group.resourceCount,
+        findingCount: group.findingCount,
+        groupId: group.id,
+      })),
+    ...lanes
+      .filter((lane) => !lane.expanded)
+      .map((lane) => ({
+        id: `subscription:${lane.subscriptionId}`,
+        kind: "subscription" as const,
+        name: lane.name,
+        subtitle: `${lane.groupCount} groups · ${lane.resourceCount} resources`,
+        lane: lane.subscriptionId,
+        memberIds: [],
+        count: lane.groupCount,
+        findingCount: lane.findingCount,
+      })),
+  ];
+  const mergedLinks = new Map<string, TopologyLink>();
+  for (const link of topology.links) {
+    const sourceId = nodeIdForGroup(link.sourceId);
+    const targetId = nodeIdForGroup(link.targetId);
+    if (sourceId === targetId) continue;
+    const kindClass = edgeKindClass(link.kinds[0] ?? "");
+    const key = `${sourceId}\u0000${targetId}\u0000${kindClass}`;
+    const current = mergedLinks.get(key);
+    const count = (current?.count ?? 0) + link.count;
+    mergedLinks.set(key, {
+      sourceId,
+      targetId,
+      label: `${count} link${count === 1 ? "" : "s"}`,
+      kindClass,
+      count,
+    });
+  }
+  const links = [...mergedLinks.values()].sort((left, right) =>
+    left.sourceId.localeCompare(right.sourceId)
+      || left.targetId.localeCompare(right.targetId)
+      || left.kindClass.localeCompare(right.kindClass),
+  );
+  const drawn = lanes.filter((lane) => lane.expanded).reduce((total, lane) => total + lane.groupCount, 0);
+  const aggregated = topology.groups.length - drawn;
 
   return {
     level: "estate",
@@ -112,12 +177,12 @@ function estateGraph(estate: EstateSnapshot): TopologyGraph {
     kindClasses: classCounts(links),
     counts: {
       total: topology.groups.length,
-      drawn: topology.groups.length,
+      drawn,
       folded: 0,
-      aggregated: 0,
+      aggregated,
       external: 0,
       hiddenByFilter: 0,
-      totalLinks: links.reduce((total, link) => total + link.count, 0),
+      totalLinks: topology.links.reduce((total, link) => total + link.count, 0),
       drawnLinks: links.length,
     },
   };
