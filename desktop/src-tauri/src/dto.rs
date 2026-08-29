@@ -1,8 +1,6 @@
 use std::collections::{BTreeMap, HashSet};
 
-use azdocs::model::{
-    Edge, Finding, QueryRun, Resource, ResourceGroup, Subscription, azure_values,
-};
+use azdocs::model::{Edge, Finding, QueryRun, Resource, ResourceGroup, Subscription, azure_values};
 use azdocs::report::{ReportContext, SeverityCounts};
 use azdocs::store::{SnapshotCounts, SnapshotDiff};
 use serde::Serialize;
