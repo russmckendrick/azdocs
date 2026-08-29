@@ -2,22 +2,24 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   AlertTriangle,
+  ArrowLeft,
   ChevronDown,
   ChevronRight,
-  Focus,
+  CircleHelp,
   GitBranch,
-  HelpCircle,
-  Layers3,
-  Maximize2,
-  Minus,
-  MoreHorizontal,
-  Pause,
-  Play,
-  Plus,
+  LocateFixed,
+  PauseCircle,
+  PlayCircle,
   RotateCcw,
-  ScanSearch,
+  Scan,
+  SlidersHorizontal,
+  Unplug,
+  Waypoints,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import type { EstateSnapshot, TopologyGraph, TopologyRequest } from "../types";
+import type { RelationshipWorkspaceState } from "../navigation-state";
 import { getTopology } from "../api";
 import { RESOURCE_GROUP_ICON } from "../azure-icons";
 import {
@@ -26,7 +28,6 @@ import {
   type GraphActivation,
   type GraphCameraMode,
   type GraphCameraRequest,
-  type GraphMode,
 } from "./CytoscapeResourceGraph";
 import { buildResourceGroupTopology } from "./topology-model";
 import {
@@ -38,16 +39,6 @@ import {
 } from "./topology-view-state";
 
 const ALL_KIND_CLASSES = ["network", "structure", "data", "identity", "monitoring"] as const;
-
-interface ViewControls {
-  mode: GraphMode;
-  activeResourceGroupId?: string;
-  depth: 1 | 2;
-  excludedClasses: string[];
-  expandedOverride?: string[];
-  showUnconnected: boolean;
-  selectedResourceId?: string;
-}
 
 interface TopologyError {
   message: string;
@@ -63,28 +54,42 @@ function errorMessage(error: unknown) {
 export function TopologyView({
   estate,
   theme,
-  selectedResourceId,
-  focusRequestNonce,
-  onSelectResource,
+  workspace,
+  active,
+  backLabel,
+  onBack,
+  onNavigate,
+  onWorkspaceChange,
   onInspect,
 }: {
   estate: EstateSnapshot;
   theme: "light" | "dark";
-  selectedResourceId?: string;
-  focusRequestNonce: number;
-  onSelectResource: (id: string) => void;
+  workspace: RelationshipWorkspaceState;
+  active: boolean;
+  backLabel?: string;
+  onBack?: () => void;
+  onNavigate: (workspace: RelationshipWorkspaceState) => void;
+  onWorkspaceChange: (workspace: RelationshipWorkspaceState) => void;
   onInspect: (id: string) => void;
 }) {
-  const selected = estate.resources.find((resource) => resource.id === selectedResourceId);
-  const [mode, setMode] = useState<GraphMode>("estate");
+  const location = workspace.location;
+  const mode = location.kind === "neighbourhood" ? "neighbourhood" : "estate";
+  const selectedResourceId = location.kind === "neighbourhood" ? location.resourceId : undefined;
+  const selected = selectedResourceId
+    ? estate.resources.find((resource) => resource.id === selectedResourceId)
+    : undefined;
+  const activeResourceGroupId = location.kind === "group"
+    ? location.groupId
+    : undefined;
+  const {
+    depth,
+    excludedClasses,
+    expandedSubscriptions,
+    showUnconnected,
+    expandedAggregateId,
+  } = workspace;
   const [motionEnabled, setMotionEnabled] = useState(true);
   const [motionReduced, setMotionReduced] = useState(false);
-  const [depth, setDepth] = useState<1 | 2>(1);
-  const [excludedClasses, setExcludedClasses] = useState<string[]>([]);
-  const [expandedOverride, setExpandedOverride] = useState<string[]>();
-  const [showUnconnected, setShowUnconnected] = useState(true);
-  const [activeResourceGroupId, setActiveResourceGroupId] = useState<string>();
-  const [expandedAggregateId, setExpandedAggregateId] = useState<string>();
   const [toolsOpen, setToolsOpen] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
   const [camera, setCamera] = useState<GraphCameraRequest>({ mode: "core", nonce: 0 });
@@ -92,31 +97,50 @@ export function TopologyView({
   const [topologyStale, setTopologyStale] = useState(false);
   const [topologyError, setTopologyError] = useState<TopologyError>();
   const [retryNonce, setRetryNonce] = useState(0);
-  const lastFocusRequestRef = useRef(0);
+  const lastLocationRef = useRef("");
   const requestTokenRef = useRef(0);
-  const successfulControlsRef = useRef<ViewControls | undefined>(undefined);
+  const successfulControlsRef = useRef<RelationshipWorkspaceState | undefined>(undefined);
 
   const resourceGroupTopology = useMemo(() => buildResourceGroupTopology(estate), [estate]);
   const activeResourceGroup = resourceGroupTopology.groups.find((group) => group.id === activeResourceGroupId);
+  const selectedResourceGroupId = selected
+    ? resourceGroupTopology.resourceGroupByResourceId.get(selected.id)
+    : undefined;
+  const selectedResourceGroup = resourceGroupTopology.groups.find(
+    (group) => group.id === selectedResourceGroupId,
+  );
   const selectedNodeId = mode === "neighbourhood" ? selected?.id : undefined;
 
+  function nextWorkspace(update: Partial<RelationshipWorkspaceState>) {
+    return { ...workspace, ...update };
+  }
+
+  function replaceWorkspace(update: Partial<RelationshipWorkspaceState>) {
+    onWorkspaceChange(nextWorkspace(update));
+  }
+
+  function navigateWorkspace(update: Partial<RelationshipWorkspaceState>) {
+    onNavigate(nextWorkspace(update));
+  }
+
   useEffect(() => {
-    if (mode === "neighbourhood" && !selected) setMode("estate");
-  }, [mode, selected]);
+    if (workspace.location.kind === "neighbourhood" && !selected) {
+      replaceWorkspace({ location: { kind: "estate" }, expandedAggregateId: undefined });
+    }
+    // The workspace callback is intentionally driven by the controlled location.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, workspace.location]);
 
   // Keep the previous successful graph visible while a replacement is being
   // built. A failed replacement can then be retried or reverted without
   // losing spatial context.
   useEffect(() => {
     if (mode === "neighbourhood" && !selected) return;
-    const controls: ViewControls = {
-      mode,
-      activeResourceGroupId,
-      depth,
+    const controls: RelationshipWorkspaceState = {
+      ...workspace,
+      location: { ...workspace.location },
       excludedClasses: [...excludedClasses],
-      expandedOverride: expandedOverride ? [...expandedOverride] : undefined,
-      showUnconnected,
-      selectedResourceId: selected?.id,
+      expandedSubscriptions: expandedSubscriptions ? [...expandedSubscriptions] : undefined,
     };
     const request: TopologyRequest = {
       snapshotId: estate.id,
@@ -132,7 +156,7 @@ export function TopologyView({
             }
           : activeResourceGroupId
             ? { kind: "group", groupId: activeResourceGroupId }
-            : { kind: "estate", expandedSubscriptions: expandedOverride ?? [] },
+            : { kind: "estate", expandedSubscriptions: expandedSubscriptions ?? [] },
       scope: { showUnconnected },
     };
     const token = requestTokenRef.current + 1;
@@ -162,7 +186,7 @@ export function TopologyView({
     depth,
     estate.id,
     excludedClasses,
-    expandedOverride,
+    expandedSubscriptions,
     mode,
     retryNonce,
     selected?.id,
@@ -170,12 +194,13 @@ export function TopologyView({
   ]);
 
   useEffect(() => {
-    setActiveResourceGroupId((current) =>
-      current && resourceGroupTopology.groups.some((group) => group.id === current)
-        ? current
-        : undefined,
-    );
-  }, [resourceGroupTopology]);
+    if (workspace.location.kind !== "group") return;
+    const groupId = workspace.location.groupId;
+    if (resourceGroupTopology.groups.some((group) => group.id === groupId)) return;
+    replaceWorkspace({ location: { kind: "estate" }, expandedAggregateId: undefined });
+    // The workspace callback is intentionally driven by the controlled location.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resourceGroupTopology, workspace.location]);
 
   useEffect(() => {
     const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -186,13 +211,27 @@ export function TopologyView({
   }, []);
 
   useEffect(() => {
-    if (focusRequestNonce === 0 || focusRequestNonce === lastFocusRequestRef.current || !selected) return;
-    lastFocusRequestRef.current = focusRequestNonce;
-    setMode("neighbourhood");
-    setActiveResourceGroupId(undefined);
-    setExpandedAggregateId(undefined);
-    requestCamera("selection");
-  }, [focusRequestNonce, selected]);
+    const locationKey = workspace.location.kind === "estate"
+      ? "estate"
+      : workspace.location.kind === "group"
+        ? `group:${workspace.location.groupId}`
+        : `neighbourhood:${workspace.location.resourceId}`;
+    if (!lastLocationRef.current) {
+      lastLocationRef.current = locationKey;
+      requestCamera("core");
+      return;
+    }
+    if (lastLocationRef.current === locationKey) return;
+    lastLocationRef.current = locationKey;
+    requestCamera("core");
+  }, [workspace.location]);
+
+  useEffect(() => {
+    if (!active) return;
+    requestCamera("core");
+    // Reopening the relationship surface must refit after the record overlay is removed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
 
   const counts = topology?.counts;
   const graphUnit = topology?.level === "estate" ? "groups" : "resources";
@@ -215,24 +254,33 @@ export function TopologyView({
   function openResourceGroup(id: string) {
     const group = resourceGroupTopology.groups.find((candidate) => candidate.id === id);
     if (!group) return;
-    setMode("estate");
-    setActiveResourceGroupId(id);
-    setExpandedAggregateId(undefined);
+    navigateWorkspace({ location: { kind: "group", groupId: id }, expandedAggregateId: undefined });
     setToolsOpen(false);
-    requestCamera("core");
   }
 
   function showResourceGroups() {
-    setActiveResourceGroupId(undefined);
-    setExpandedAggregateId(undefined);
-    requestCamera("core");
+    navigateWorkspace({ location: { kind: "estate" }, expandedAggregateId: undefined });
+  }
+
+  function openNeighbourhood(resourceId: string) {
+    navigateWorkspace({
+      location: { kind: "neighbourhood", resourceId },
+      expandedAggregateId: undefined,
+    });
+    setToolsOpen(false);
   }
 
   function toggleLane(subscriptionId: string) {
     const drawnExpanded = topology?.lanes
       .filter((lane) => lane.expanded)
       .map((lane) => lane.subscriptionId) ?? [];
-    setExpandedOverride((current) => toggleSubscriptionLane(current, drawnExpanded, subscriptionId));
+    replaceWorkspace({
+      expandedSubscriptions: toggleSubscriptionLane(
+        expandedSubscriptions,
+        drawnExpanded,
+        subscriptionId,
+      ),
+    });
     requestCamera("core");
   }
 
@@ -245,6 +293,10 @@ export function TopologyView({
       openResourceGroup(activation.groupId);
       return;
     }
+    if (activation.kind === "resource-neighbourhood") {
+      openNeighbourhood(activation.resourceId);
+      return;
+    }
     if (activation.kind === "aggregate") {
       const aggregate = topology?.nodes.find((node) => node.id === activation.nodeId);
       if (!aggregate) return;
@@ -253,98 +305,97 @@ export function TopologyView({
         onInspect(next.resourceId);
         return;
       }
-      setExpandedAggregateId(next.expandedId);
+      replaceWorkspace({ expandedAggregateId: next.expandedId });
       return;
     }
     onInspect(activation.resourceId);
   }
 
   function toggleClass(kindClass: string) {
-    setExcludedClasses((current) => current.includes(kindClass)
-      ? current.filter((candidate) => candidate !== kindClass)
-      : [...current, kindClass]);
-  }
-
-  function setGraphMode(nextMode: GraphMode) {
-    if (nextMode === "neighbourhood" && !selected) return;
-    setMode(nextMode);
-    setExpandedAggregateId(undefined);
-    setToolsOpen(false);
-    requestCamera(nextMode === "neighbourhood" ? "selection" : "core");
-  }
-
-  function handleGraphModeKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
-    event.preventDefault();
-    const wantsNeighbourhood = event.key === "ArrowRight" || event.key === "ArrowDown" || event.key === "End";
-    const nextMode: GraphMode = wantsNeighbourhood && selected ? "neighbourhood" : "estate";
-    setGraphMode(nextMode);
-    event.currentTarget.querySelector<HTMLButtonElement>(`[data-graph-mode="${nextMode}"]`)?.focus();
+    replaceWorkspace({
+      excludedClasses: excludedClasses.includes(kindClass)
+        ? excludedClasses.filter((candidate) => candidate !== kindClass)
+        : [...excludedClasses, kindClass],
+    });
   }
 
   function handleDepthKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
     if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
     event.preventDefault();
     const nextDepth = event.key === "ArrowLeft" || event.key === "ArrowUp" || event.key === "Home" ? 1 : 2;
-    setDepth(nextDepth);
+    replaceWorkspace({ depth: nextDepth });
     event.currentTarget.querySelector<HTMLButtonElement>(`[data-depth="${nextDepth}"]`)?.focus();
   }
 
   function revertGraph() {
     const controls = successfulControlsRef.current;
     if (!controls) return;
-    setMode(controls.mode);
-    setActiveResourceGroupId(controls.activeResourceGroupId);
-    setDepth(controls.depth);
-    setExcludedClasses([...controls.excludedClasses]);
-    setExpandedOverride(controls.expandedOverride ? [...controls.expandedOverride] : undefined);
-    setShowUnconnected(controls.showUnconnected);
-    if (controls.selectedResourceId) onSelectResource(controls.selectedResourceId);
+    onWorkspaceChange({
+      ...controls,
+      location: { ...controls.location },
+      excludedClasses: [...controls.excludedClasses],
+      expandedSubscriptions: controls.expandedSubscriptions
+        ? [...controls.expandedSubscriptions]
+        : undefined,
+    });
     setTopologyError(undefined);
     setTopologyStale(false);
     requestCamera("core");
   }
 
   return (
-    <div className="topology-workspace">
+    <div className={active ? "topology-workspace" : "topology-workspace covered"} aria-hidden={!active}>
       <section className="topology-stage" aria-label={mode === "neighbourhood"
         ? `Relationship neighbourhood for ${selected?.name ?? "no selected resource"}`
         : activeResourceGroup
           ? `Relationship map for resource group ${activeResourceGroup.name}`
           : "Azure estate relationship map"}>
         <header className="topology-commandbar">
+          {backLabel && onBack ? (
+            <button className="topology-return" onClick={onBack}>
+              <ArrowLeft size={15} /> <span>{backLabel}</span>
+            </button>
+          ) : null}
           <div className="topology-title">
             <span className="topology-title-icon"><GitBranch size={18} /></span>
             <div>
-              <div className="topology-scope-line">
-                <strong>Relationships</strong>
-                {activeResourceGroup && mode === "estate" ? (
+              <nav className="topology-scope-line" aria-label="Relationship location">
+                <button onClick={showResourceGroups}>Relationships</button>
+                {workspace.location.kind !== "estate" ? (
                   <>
                     <ChevronRight size={12} aria-hidden="true" />
-                    <button onClick={showResourceGroups}>Estate map</button>
-                    <ChevronRight size={12} aria-hidden="true" />
-                    <span>{activeResourceGroup.subscriptionName}</span>
+                    <button onClick={showResourceGroups}>Estate</button>
                   </>
                 ) : null}
-              </div>
+                {activeResourceGroup ? (
+                  <>
+                    <ChevronRight size={12} aria-hidden="true" />
+                    <span>{activeResourceGroup.subscriptionName}</span>
+                    <ChevronRight size={12} aria-hidden="true" />
+                    <span aria-current="page">{activeResourceGroup.name}</span>
+                  </>
+                ) : null}
+                {mode === "neighbourhood" && selectedResourceGroup ? (
+                  <>
+                    <ChevronRight size={12} aria-hidden="true" />
+                    <span>{selectedResourceGroup.subscriptionName}</span>
+                    <ChevronRight size={12} aria-hidden="true" />
+                    <button onClick={() => openResourceGroup(selectedResourceGroup.id)}>{selectedResourceGroup.name}</button>
+                    <ChevronRight size={12} aria-hidden="true" />
+                    <span aria-current="page">{selected?.name}</span>
+                  </>
+                ) : null}
+              </nav>
               <h1>{contextTitle}</h1>
               <span>{contextSubtitle}</span>
             </div>
           </div>
 
-          <div className="graph-mode-switch" role="radiogroup" aria-label="Graph scope" onKeyDown={handleGraphModeKeyDown}>
-            <button data-graph-mode="estate" role="radio" aria-checked={mode === "estate"} tabIndex={mode === "estate" ? 0 : -1} className={mode === "estate" ? "active" : ""} onClick={() => setGraphMode("estate")}>
-              <Layers3 size={14} /> Estate map
-            </button>
-            <button data-graph-mode="neighbourhood" role="radio" aria-checked={mode === "neighbourhood"} tabIndex={mode === "neighbourhood" ? 0 : -1} className={mode === "neighbourhood" ? "active" : ""} onClick={() => setGraphMode("neighbourhood")} disabled={!selected} title={!selected ? "Select a resource before opening its neighbourhood" : undefined}>
-              <ScanSearch size={14} /> Neighbourhood
-            </button>
-          </div>
-
           {mode === "neighbourhood" ? (
             <div className="graph-depth-switch" role="radiogroup" aria-label="Neighbourhood depth" onKeyDown={handleDepthKeyDown}>
+              <span className="graph-depth-label" aria-hidden="true"><Waypoints size={14} /> Reach</span>
               {[1, 2].map((value) => (
-                <button key={value} data-depth={value} role="radio" aria-checked={depth === value} tabIndex={depth === value ? 0 : -1} className={depth === value ? "active" : ""} onClick={() => setDepth(value as 1 | 2)}>
+                <button key={value} data-depth={value} role="radio" aria-checked={depth === value} tabIndex={depth === value ? 0 : -1} className={depth === value ? "active" : ""} onClick={() => replaceWorkspace({ depth: value as 1 | 2 })}>
                   {value} hop{value === 1 ? "" : "s"}
                 </button>
               ))}
@@ -352,30 +403,30 @@ export function TopologyView({
           ) : null}
 
           {mode === "estate" && activeResourceGroup ? (
-            <button className={showUnconnected ? "topology-inline-toggle active" : "topology-inline-toggle"} aria-pressed={showUnconnected} onClick={() => setShowUnconnected((current) => !current)}>
-              Include resources without drawn relationships
+            <button className={showUnconnected ? "topology-inline-toggle active" : "topology-inline-toggle"} aria-pressed={showUnconnected} aria-label="Include resources without drawn relationships" title="Include resources without drawn relationships" onClick={() => replaceWorkspace({ showUnconnected: !showUnconnected })}>
+              <Unplug size={15} /><span>Unconnected</span>
             </button>
           ) : null}
 
           <div className="topology-tools">
-            <button aria-label={selectedNodeId ? "Recenter the selected item" : "Recenter the readable core"} onClick={() => requestCamera(selectedNodeId ? "selection" : "core")} title={selectedNodeId ? "Recenter the selected item" : "Recenter the readable core"}>
-              <Focus size={15} /><span>Recenter</span>
+            <button className="topology-recenter" aria-label={selectedNodeId ? "Recenter the selected item" : "Recenter the readable core"} onClick={() => requestCamera(selectedNodeId ? "selection" : "core")} title={selectedNodeId ? "Recenter the selected item" : "Recenter the readable core"}>
+              <LocateFixed size={16} /><span>Recenter</span>
             </button>
             <div className="topology-more">
               <button className="topology-more-trigger" aria-label="More graph controls" onClick={() => setToolsOpen((current) => !current)} aria-haspopup="menu" aria-expanded={toolsOpen} aria-controls="topology-more-menu">
-                <MoreHorizontal size={17} /><span>More</span>
+                <SlidersHorizontal size={16} /><span>Controls</span>
               </button>
               {toolsOpen ? (
                 <div id="topology-more-menu" className="topology-more-menu" role="menu">
-                  <button role="menuitem" onClick={() => { requestCamera("all"); setToolsOpen(false); }}><Maximize2 size={15} /><span><strong>Fit all</strong><small>Show every represented region</small></span></button>
-                  <button role="menuitem" onClick={() => requestCamera("zoom-in")}><Plus size={15} /><span><strong>Zoom in</strong><small>Keyboard: +</small></span></button>
-                  <button role="menuitem" onClick={() => requestCamera("zoom-out")}><Minus size={15} /><span><strong>Zoom out</strong><small>Keyboard: −</small></span></button>
+                  <button role="menuitem" onClick={() => { requestCamera("all"); setToolsOpen(false); }}><Scan size={16} /><span><strong>Fit all</strong><small>Show every represented region</small></span></button>
+                  <button role="menuitem" onClick={() => requestCamera("zoom-in")}><ZoomIn size={16} /><span><strong>Zoom in</strong><small>Keyboard: +</small></span></button>
+                  <button role="menuitem" onClick={() => requestCamera("zoom-out")}><ZoomOut size={16} /><span><strong>Zoom out</strong><small>Keyboard: −</small></span></button>
                   <button role="menuitem" onClick={() => setMotionEnabled((current) => !current)} disabled={motionReduced}>
-                    {motionEnabled && !motionReduced ? <Pause size={15} /> : <Play size={15} />}
+                    {motionEnabled && !motionReduced ? <PauseCircle size={16} /> : <PlayCircle size={16} />}
                     <span><strong>{motionReduced ? "Motion reduced" : motionEnabled ? "Pause selected path" : "Play selected path"}</strong><small>{motionReduced ? "Uses your system preference" : "Only the selected path animates"}</small></span>
                   </button>
-                  {expandedOverride ? <button role="menuitem" onClick={() => { setExpandedOverride(undefined); setToolsOpen(false); }}><RotateCcw size={15} /><span><strong>Reset subscription lanes</strong><small>Restore the snapshot default</small></span></button> : null}
-                  <div className="topology-help" role="note"><HelpCircle size={15} /><p><strong>Graph controls</strong><span>Click or press Enter to open an item. Aggregate tiles expand in place. Arrow keys move spatially; drag to pan; scroll to zoom; 0 recentres.</span></p></div>
+                  {expandedSubscriptions ? <button role="menuitem" onClick={() => { replaceWorkspace({ expandedSubscriptions: undefined }); setToolsOpen(false); }}><RotateCcw size={16} /><span><strong>Reset subscription lanes</strong><small>Restore the snapshot default</small></span></button> : null}
+                  <div className="topology-help" role="note"><CircleHelp size={16} /><p><strong>Graph controls</strong><span>Enter opens a record; R explores its relationships. Aggregate tiles expand in place. Arrow keys move spatially; drag to pan; scroll to zoom; 0 recentres.</span></p></div>
                 </div>
               ) : null}
             </div>
@@ -392,7 +443,7 @@ export function TopologyView({
         ) : null}
 
         {topology ? (
-          <CytoscapeResourceGraph graph={topology} estate={estate} theme={theme} selectedNodeId={selectedNodeId} expandedAggregateId={expandedAggregateId} motionEnabled={motionEnabled && !motionReduced} camera={camera} onActivate={activateGraphItem} />
+          <CytoscapeResourceGraph graph={topology} estate={estate} theme={theme} selectedNodeId={selectedNodeId} expandedAggregateId={expandedAggregateId} motionEnabled={active && motionEnabled && !motionReduced} camera={camera} onActivate={activateGraphItem} />
         ) : topologyError ? (
           <div className="graph-empty-state" role="status"><AlertTriangle size={24} /><strong>No relationship graph is available</strong><span>Retry the request or return to the estate after checking the stored snapshot.</span></div>
         ) : (

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import cytoscape, { type Core, type ElementDefinition, type StylesheetJson } from "cytoscape";
+import { GitBranch } from "lucide-react";
 import { RESOURCE_GROUP_ICON, SUBSCRIPTION_ICON, VNET_ICON } from "../azure-icons";
 import type { EstateSnapshot, TopologyGraph, TopologyNode } from "../types";
 import {
@@ -25,6 +26,7 @@ export interface GraphCameraRequest {
 
 export type GraphActivation =
   | { kind: "resource"; resourceId: string }
+  | { kind: "resource-neighbourhood"; resourceId: string }
   | { kind: "resource-group"; groupId: string }
   | { kind: "aggregate"; nodeId: string }
   | { kind: "subscription"; subscriptionId: string };
@@ -714,7 +716,9 @@ export function CytoscapeResourceGraph({
 
     let activationPending = false;
     function activateWithCamera(activation: GraphActivation, nodeId?: string) {
-      const navigates = activation.kind === "resource" || activation.kind === "resource-group";
+      const navigates = activation.kind === "resource"
+        || activation.kind === "resource-neighbourhood"
+        || activation.kind === "resource-group";
       const node = nodeId ? cy.getElementById(nodeId) : cy.collection();
       if (!navigates || node.empty() || reduceMotion.matches) {
         activateRef.current(activation);
@@ -771,7 +775,19 @@ export function CytoscapeResourceGraph({
       return;
     }
 
+    let previousHostSize = {
+      width: activeHost.clientWidth,
+      height: activeHost.clientHeight,
+    };
     const resizeObserver = new ResizeObserver(() => {
+      const nextHostSize = {
+        width: activeHost.clientWidth,
+        height: activeHost.clientHeight,
+      };
+      const viewportChanged = Math.abs(nextHostSize.width - previousHostSize.width) >= 48
+        || Math.abs(nextHostSize.height - previousHostSize.height) >= 48;
+      previousHostSize = nextHostSize;
+      if (viewportChanged) userAdjusted = false;
       cy.resize();
       window.cancelAnimationFrame(resizeFrame);
       resizeFrame = window.requestAnimationFrame(() => {
@@ -892,6 +908,26 @@ export function CytoscapeResourceGraph({
       onBlur: () => cyRef.current?.getElementById(id).removeClass("keyboard-focus"),
       onKeyDown: (event: ReactKeyboardEvent<HTMLButtonElement>) => handleGraphButtonKeyDown(id, event),
       "data-graph-roving": true,
+    };
+  }
+
+  function resourceButtonProps(id: string, resourceId: string, relationshipCount: number) {
+    const props = graphButtonProps(id);
+    return {
+      ...props,
+      "aria-keyshortcuts": "R",
+      onKeyDown: (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+        if (relationshipCount > 0
+          && event.key.toLowerCase() === "r"
+          && !event.metaKey
+          && !event.ctrlKey
+          && !event.altKey) {
+          event.preventDefault();
+          requestActivation({ kind: "resource-neighbourhood", resourceId }, id);
+          return;
+        }
+        props.onKeyDown(event);
+      },
     };
   }
 
@@ -1082,35 +1118,57 @@ export function CytoscapeResourceGraph({
           if (node.kind === "resource") {
             const selected = node.id === selectedNodeId;
             const dim = (node.hop ?? 0) > 1;
+            const resourceId = node.resourceId ?? node.id;
+            const relationshipCount = resourceMap.get(resourceId)?.edgeCount ?? 0;
             return (
-              <button
+              <div
                 key={node.id}
                 ref={registerLabel(node.id)}
                 className={[
                   "graph-node-label",
+                  "graph-node-actions",
                   selected ? "selected" : "",
                   dim ? "dimmed" : "",
                 ]
                   .filter(Boolean)
                   .join(" ")}
-                onClick={() => requestActivation(
-                  { kind: "resource", resourceId: node.resourceId ?? node.id },
-                  node.id,
-                )}
-                aria-pressed={selected}
-                aria-label={`${node.name}, ${typeName(node.azureType)}${findingText(node)}. Open resource record.`}
                 title={node.name}
-                {...graphButtonProps(node.id)}
               >
-                <span className="graph-node-icon">
-                  {typeIcon(node.azureType) ? <img src={typeIcon(node.azureType)} alt="" /> : null}
-                </span>
-                <span className="graph-node-copy">
-                  <strong>{node.name}</strong>
-                  <small>{node.subtitle || typeName(node.azureType)}</small>
-                </span>
-                {node.findingCount > 0 ? <em aria-label={`${node.findingCount} findings`}>{node.findingCount}</em> : null}
-              </button>
+                <button
+                  className="graph-node-primary"
+                  onClick={() => requestActivation({ kind: "resource", resourceId }, node.id)}
+                  aria-pressed={selected}
+                  aria-label={`${node.name}, ${typeName(node.azureType)}${findingText(node)}. Open resource record.${relationshipCount > 0 ? ` Press R to explore ${relationshipCount} relationships.` : " No relationships to explore."}`}
+                  {...resourceButtonProps(node.id, resourceId, relationshipCount)}
+                >
+                  <span className="graph-node-icon">
+                    {typeIcon(node.azureType) ? <img src={typeIcon(node.azureType)} alt="" /> : null}
+                  </span>
+                  <span className="graph-node-copy">
+                    <strong>{node.name}</strong>
+                    <small>{node.subtitle || typeName(node.azureType)}</small>
+                  </span>
+                  {node.findingCount > 0 ? <em aria-label={`${node.findingCount} findings`}>{node.findingCount}</em> : null}
+                </button>
+                <button
+                  className="graph-node-relationships"
+                  tabIndex={-1}
+                  disabled={relationshipCount === 0}
+                  onClick={() => requestActivation(
+                    { kind: "resource-neighbourhood", resourceId },
+                    node.id,
+                  )}
+                  aria-label={relationshipCount > 0
+                    ? `Explore ${relationshipCount} relationships for ${node.name}`
+                    : `${node.name} has no relationships to explore`}
+                  title={relationshipCount > 0
+                    ? `Explore ${relationshipCount} relationships`
+                    : "No relationships to explore"}
+                >
+                  <GitBranch size={13} aria-hidden="true" />
+                  <span>{relationshipCount}</span>
+                </button>
+              </div>
             );
           }
           return null;

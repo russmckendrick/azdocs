@@ -1,0 +1,32 @@
+{
+  "name": "azdocs",
+  "identity": "folded-topology-a",
+  "status": "candidate-production-assets",
+  "palette": {
+    "azureBlue": "#0078d4",
+    "accent": "#0b5da8",
+    "darkNodeBlue": "#5aa7e8",
+    "ink": "#1c2430",
+    "paper": "#faf8f4",
+    "evidencePaper": "#f3efe7",
+    "charcoal": "#14181d",
+    "hairline": "#d8d2c6",
+    "darkHairline": "#3a4048"
+  },
+  "assets": {
+    "markPrimary": "assets/azdocs-mark-primary.svg",
+    "markReversed": "assets/azdocs-mark-reversed.svg",
+    "markMonoInk": "assets/azdocs-mark-mono-ink.svg",
+    "markMonoPaper": "assets/azdocs-mark-mono-paper.svg",
+    "appIconLight": "assets/azdocs-app-icon-light.svg",
+    "appIconDark": "assets/azdocs-app-icon-dark.svg",
+    "lockupPrimary": "assets/azdocs-lockup-primary.svg",
+    "lockupReversed": "assets/azdocs-lockup-reversed.svg",
+    "backgroundLight": "assets/azdocs-background-light.svg",
+    "backgroundDark": "assets/azdocs-background-dark.svg"
+  },
+  "concepts": {
+    "options": "concepts/azdocs-options.png",
+    "selectedHybrid": "concepts/azdocs-selected-hybrid.png"
+  }
+}

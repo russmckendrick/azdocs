@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">azdocs light app icon</title>
+  <desc id="desc">The azdocs folded topology mark on a warm paper tile.</desc>
+  <rect x="16" y="16" width="480" height="480" rx="104" fill="#faf8f4" stroke="#d8d2c6" stroke-width="4" />
+  <g transform="translate(46 46) scale(.82)">
+    <path
+      fill="#0078d4"
+      d="M40 448 188 64h112v60q0 20 20 20h14l142 304H352l-96-262-92 262Z"
+    />
+    <path
+      fill="#0b5da8"
+      d="M256 64h44v60q0 20 20 20h14l142 304H352l-96-262Z"
+    />
+    <path
+      fill="none"
+      stroke="#1c2430"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      stroke-width="16"
+      d="m256 270-41 80h82Z"
+    />
+    <g fill="#0078d4">
+      <circle cx="256" cy="270" r="23" />
+      <circle cx="215" cy="350" r="23" />
+      <circle cx="297" cy="350" r="23" />
+    </g>
+    <path fill="#f3efe7" d="M300 64v60q0 20 20 20h14Z" />
+    <path
+      fill="none"
+      stroke="#d8d2c6"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      stroke-width="3"
+      d="M300 64v60q0 20 20 20h14"
+    />
+  </g>
+</svg>

@@ -66,3 +66,11 @@ generated from the stored snapshot, never live Azure.
 | Page | Covers |
 |---|---|
 | [Query pack](reference/queries.md) | All 70 built-in queries and findings |
+
+### [Marks](marks/README.md)
+
+| Page | Covers |
+|---|---|
+| [Asset index](marks/README.md) | azdocs mark, icon, lockup and background SVGs |
+| [Usage guide](marks/USAGE.md) | Clear space, sizing, colour, placement and export rules |
+| [Prompts and design record](marks/PROMPTS.md) | Concept prompts, selected direction and redraw invariants |

@@ -118,8 +118,10 @@ export function ResourceDetailView({
                 <AlertTriangle size={15} /> Review findings
               </button>
             ) : null}
-            <button className="quiet-button" onClick={onOpenTopology}>
-              <GitBranch size={15} /> Open topology
+            <button className="quiet-button" onClick={onOpenTopology} disabled={relatedEdges.length === 0}>
+              <GitBranch size={15} /> {relatedEdges.length > 0
+                ? `Explore ${relatedEdges.length} relationship${relatedEdges.length === 1 ? "" : "s"}`
+                : "No relationships to explore"}
             </button>
           </div>
         </div>

@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">azdocs light background motif</title>
+  <desc id="desc">A warm paper background with an oversized, softly tinted crop of the azdocs mark.</desc>
+  <rect width="1600" height="900" fill="#faf8f4" />
+  <path d="M0 742h870v-96h170" fill="none" stroke="#d8d2c6" stroke-width="2" />
+  <circle cx="870" cy="742" r="8" fill="#d8d2c6" />
+  <circle cx="1040" cy="646" r="8" fill="#d8d2c6" />
+  <g transform="translate(900 90) scale(1.5)" opacity=".08">
+    <path
+      fill="#0078d4"
+      d="M40 448 188 64h112v60q0 20 20 20h14l142 304H352l-96-262-92 262Z"
+    />
+    <path
+      fill="#0b5da8"
+      d="M256 64h44v60q0 20 20 20h14l142 304H352l-96-262Z"
+    />
+    <path
+      fill="none"
+      stroke="#1c2430"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      stroke-width="16"
+      d="m256 270-41 80h82Z"
+    />
+    <g fill="#0078d4">
+      <circle cx="256" cy="270" r="23" />
+      <circle cx="215" cy="350" r="23" />
+      <circle cx="297" cy="350" r="23" />
+    </g>
+    <path fill="#faf8f4" d="M300 64v60q0 20 20 20h14Z" />
+  </g>
+</svg>

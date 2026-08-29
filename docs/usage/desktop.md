@@ -45,7 +45,7 @@ npm run tauri build
 - **Estate** keeps the subscription/resource-group hierarchy, searchable
   resource ledger, and resource inspector visible together. Filter by scope,
   type, location, resource name, ARM type, group, or tags.
-- **Relationships** is a full-bleed graph workspace with two modes. Its initial
+- **Relationships** is a full-bleed, hierarchical graph workspace. Its initial
   camera fits the readable connected core; **Fit all** remains in the More
   menu when you need the complete overview. The **estate map** lays expanded
   subscriptions out as responsive resource-group grids and keeps collapsed
@@ -67,9 +67,14 @@ npm run tauri build
   adapts its fit to the graph level and available viewport: sparse group and
   neighbourhood maps may zoom above 1:1, while Fit all remains an overview.
   Scope changes and drill actions use Cytoscape's native viewport animation
-  and become instant when reduced motion is active. Click or
-  press Enter on a resource to open its resource record; aggregate tiles expand
-  in place to expose their members. Spatial arrow keys move between graph
+  and become instant when reduced motion is active. Click or press Enter on a
+  resource to open its resource record. Use the labelled relationship-count
+  action on the card, or press **R** while the card has keyboard focus, to open
+  its neighbourhood directly. The record repeats this as **Explore N
+  relationships**. Back returns through the exact group, record, and
+  neighbourhood history, while the breadcrumb moves directly through the
+  estate/group/resource hierarchy. Aggregate tiles expand in place to expose
+  their members. Spatial arrow keys move between graph
   items, and the More menu exposes accessible zoom, recenter, motion, Fit all,
   and help controls. The slim bottom rail reports
   **source relationships** separately from rendered **connectors** and carries

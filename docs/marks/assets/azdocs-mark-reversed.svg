@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">azdocs colour mark for dark backgrounds</title>
+  <desc id="desc">A heavy angular blue A with a folded top corner and three connected topology nodes.</desc>
+  <path
+    fill="#0078d4"
+    d="M40 448 188 64h112v60q0 20 20 20h14l142 304H352l-96-262-92 262Z"
+  />
+  <path
+    fill="#0b5da8"
+    d="M256 64h44v60q0 20 20 20h14l142 304H352l-96-262Z"
+  />
+  <path
+    fill="none"
+    stroke="#f3efe7"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="16"
+    d="m256 270-41 80h82Z"
+  />
+  <g fill="#5aa7e8">
+    <circle cx="256" cy="270" r="23" />
+    <circle cx="215" cy="350" r="23" />
+    <circle cx="297" cy="350" r="23" />
+  </g>
+  <path fill="#faf8f4" d="M300 64v60q0 20 20 20h14Z" />
+  <path
+    fill="none"
+    stroke="#d8d2c6"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-width="3"
+    d="M300 64v60q0 20 20 20h14"
+  />
+</svg>

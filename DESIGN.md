@@ -146,7 +146,11 @@ Shape-driven rendering turns
 fields into inline property rows and collections into data tables instead of
 exposing JSON or an object tree. It never narrows the estate table. Finding
 evidence remains an on-demand drawer. In Relationships, groups open their maps
-directly, resources open their records, and aggregate tiles expand in place.
+directly, resources open their records, and a compact relationship-count action
+opens a resource neighbourhood without changing the resource-card action.
+Temporal Back restores the exact preceding record or graph scope, while the
+relationship breadcrumb moves through estate, group, and resource hierarchy.
+Aggregate tiles expand in place.
 Subscription and resource-group disclosure is independent from selection; an
 opened group reveals its resources in place. Azure entities use
 the vendored Azure artwork at every depth, with Lucide reserved for controls,

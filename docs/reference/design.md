@@ -120,7 +120,10 @@ one product family. Serif Regular/SemiBold is bundled with the frontend
   Location, kind, finding, relationship, and tag summaries occupy compact
   header capsules instead of a second full-width stat band.
   Finding evidence remains an on-demand drawer. Relationships use direct
-  navigation from groups to group maps and from resources to their records. Overview
+  navigation from groups to group maps and from resources to their records;
+  a resource card's labelled relationship-count action opens its neighbourhood.
+  Back restores the preceding record or graph scope, while breadcrumbs navigate
+  the estate/group/resource hierarchy. Overview
   scrolls as one document rather than splitting into independently scrolling
   columns. History gives the comparison ledger more room than the snapshot
   selector, and long query-run evidence stays collapsed until requested.
@@ -149,9 +152,14 @@ outer columns. Semantic zoom removes secondary copy before primary labels and
 finally uses icon/count overview tiles; it never scales text below 11px. Edge
 labels belong only to the selected path.
 
-One click and Enter share the same activation model: a group opens its group
-map and a resource opens its resource record. Aggregate tiles expand in place
-to list their members; there is no topology drawer or double-click navigation.
+One click and Enter share the same primary activation model: a group opens its
+group map and a resource opens its resource record. A separate, visible
+relationship-count action opens that resource's neighbourhood, with **R** as
+its roving-keyboard shortcut. The resource record repeats that action as
+**Explore N relationships**. Temporal Back restores the exact preceding record
+or relationship scope; hierarchical breadcrumbs provide direct estate and
+group exits. Aggregate tiles expand in place to list their members; there is no
+topology drawer or double-click navigation.
 Graph labels form one roving Tab stop with spatial arrow-key movement.
 Selection uses `--evidence`; the accent is reserved for keyboard focus. The
 bottom rail says **source relationships**

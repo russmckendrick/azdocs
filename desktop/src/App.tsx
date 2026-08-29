@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import {
   AlertTriangle,
   Boxes,
@@ -19,6 +19,12 @@ import {
 import { chooseDatabase, collectEstate, getBootstrap, getSnapshot, isTauri } from "./api";
 import { ALL_RESOURCES_ICON } from "./azure-icons";
 import { displayLocation } from "./azure-values";
+import {
+  initialNavigationState,
+  navigationReducer,
+  type NavigationFrame,
+  type RelationshipWorkspaceState,
+} from "./navigation-state";
 import { EstateExplorer } from "./components/EstateExplorer";
 import { FindingsView } from "./components/FindingsView";
 import { GovernanceView } from "./components/GovernanceView";
@@ -78,17 +84,38 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
+function frameLabel(frame: NavigationFrame | undefined, estate?: EstateSnapshot) {
+  if (!frame) return "previous view";
+  if (frame.surface.kind === "resource") {
+    const resourceId = frame.surface.resourceId;
+    return estate?.resources.find((resource) => resource.id === resourceId)?.name
+      ?? "resource";
+  }
+  if (frame.section === "topology") {
+    const location = frame.relationships.location;
+    if (location.kind === "group") {
+      return estate?.resourceGroups.find((group) => group.id === location.groupId)?.name
+        ?? "resource group";
+    }
+    if (location.kind === "neighbourhood") {
+      const name = estate?.resources.find((resource) => resource.id === location.resourceId)?.name;
+      return name ? `${name} neighbourhood` : "neighbourhood";
+    }
+    return "Relationships";
+  }
+  return frame.section === "settings"
+    ? "Settings"
+    : views.find((item) => item.id === frame.section)?.label ?? "previous view";
+}
+
 export default function App() {
   const [bootstrap, setBootstrap] = useState<AppBootstrap>();
   const [estate, setEstate] = useState<EstateSnapshot>();
-  const [view, setView] = useState<ViewId>("overview");
+  const [navigation, dispatchNavigation] = useReducer(navigationReducer, undefined, initialNavigationState);
   const [scope, setScope] = useState<ScopeSelection>({});
-  const [selectedResourceId, setSelectedResourceId] = useState<string>();
-  const [resourceReturnView, setResourceReturnView] = useState<ViewId>("estate");
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [activeSearchIndex, setActiveSearchIndex] = useState(0);
-  const [topologyFocusRequest, setTopologyFocusRequest] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [collectionMessage, setCollectionMessage] = useState<string>();
@@ -98,6 +125,10 @@ export default function App() {
     () => window.matchMedia("(prefers-color-scheme: dark)").matches,
   );
   const searchRef = useRef<HTMLInputElement>(null);
+  const view = navigation.section;
+  const resourceRecordId = navigation.surface.kind === "resource"
+    ? navigation.surface.resourceId
+    : undefined;
 
   const resolvedTheme: "light" | "dark" =
     themePreference === "system" ? (systemDark ? "dark" : "light") : themePreference;
@@ -127,7 +158,7 @@ export default function App() {
     try {
       const next = await getSnapshot(snapshotId);
       setEstate(next);
-      setSelectedResourceId(undefined);
+      dispatchNavigation({ type: "reset-snapshot" });
     } catch (caught) {
       setError(errorMessage(caught));
     } finally {
@@ -147,7 +178,7 @@ export default function App() {
           const nextEstate = await getSnapshot(nextBootstrap.latestSnapshotId);
           if (!active) return;
           setEstate(nextEstate);
-          setSelectedResourceId(undefined);
+          dispatchNavigation({ type: "reset-snapshot" });
         }
       } catch (caught) {
         if (active) setError(errorMessage(caught));
@@ -173,9 +204,15 @@ export default function App() {
   }, []);
 
   const selectedResource = useMemo(
-    () => estate?.resources.find((resource) => resource.id === selectedResourceId),
-    [estate, selectedResourceId],
+    () => estate?.resources.find((resource) => resource.id === resourceRecordId),
+    [estate, resourceRecordId],
   );
+  const relationshipResource = useMemo(() => {
+    const location = navigation.relationships.location;
+    return location.kind === "neighbourhood"
+      ? estate?.resources.find((resource) => resource.id === location.resourceId)
+      : undefined;
+  }, [estate, navigation.relationships.location]);
   const resourceTypeMap = useMemo(
     () => new Map(estate?.resourceTypes.map((type) => [type.azureType, type]) ?? []),
     [estate],
@@ -200,12 +237,7 @@ export default function App() {
   function chooseSearchResult(index: number) {
     const resource = searchMatches[index];
     if (!resource) return;
-    setSelectedResourceId(resource.id);
-    if (view === "topology") setTopologyFocusRequest((current) => current + 1);
-    else {
-      setResourceReturnView(view);
-      setView("estate");
-    }
+    dispatchNavigation({ type: "open-resource", resourceId: resource.id });
     setSearch("");
     setSearchOpen(false);
     setActiveSearchIndex(0);
@@ -235,7 +267,7 @@ export default function App() {
       if (!next) return;
       setBootstrap(next);
       setEstate(undefined);
-      setSelectedResourceId(undefined);
+      dispatchNavigation({ type: "reset-snapshot" });
       if (next.latestSnapshotId) await loadSnapshot(next.latestSnapshotId);
     } catch (caught) {
       setError(errorMessage(caught));
@@ -266,22 +298,29 @@ export default function App() {
     }
   }
 
-  function openResource(resourceId: string, destination: ViewId = "estate") {
-    if (destination === "estate") setResourceReturnView(view);
-    setSelectedResourceId(resourceId);
-    setView(destination);
-    if (destination === "topology") setTopologyFocusRequest((current) => current + 1);
-  }
+  const openSection = useCallback((section: ViewId) => {
+    dispatchNavigation({ type: "open-section", section });
+  }, []);
 
-  function closeResourceRecord() {
-    if (resourceReturnView === "topology") {
-      setView("topology");
-      setTopologyFocusRequest((current) => current + 1);
-      return;
-    }
-    setSelectedResourceId(undefined);
-    setView(resourceReturnView);
-  }
+  const openResource = useCallback((resourceId: string) => {
+    dispatchNavigation({ type: "open-resource", resourceId });
+  }, []);
+
+  const openRelationships = useCallback((resourceId: string) => {
+    dispatchNavigation({ type: "open-relationships", resourceId });
+  }, []);
+
+  const updateRelationships = useCallback((workspace: RelationshipWorkspaceState) => {
+    dispatchNavigation({ type: "update-relationships", workspace });
+  }, []);
+
+  const navigateRelationships = useCallback((workspace: RelationshipWorkspaceState) => {
+    dispatchNavigation({ type: "navigate-relationships", workspace });
+  }, []);
+
+  const navigateBack = useCallback(() => {
+    dispatchNavigation({ type: "back" });
+  }, []);
 
   return (
     <div className="app-shell">
@@ -378,10 +417,7 @@ export default function App() {
               <button
                 key={item.id}
                 className={view === item.id ? "nav-row active" : "nav-row"}
-                onClick={() => {
-                  setView(item.id);
-                  if (item.id !== "topology") setSelectedResourceId(undefined);
-                }}
+                onClick={() => openSection(item.id)}
                 aria-current={view === item.id ? "page" : undefined}
                 title={item.label}
               >
@@ -394,7 +430,7 @@ export default function App() {
           <div className="nav-spacer" />
           <button
             className={view === "settings" ? "nav-row active" : "nav-row"}
-            onClick={() => setView("settings")}
+            onClick={() => openSection("settings")}
             aria-current={view === "settings" ? "page" : undefined}
             title="Settings"
           >
@@ -439,80 +475,73 @@ export default function App() {
           ) : null}
           {estate && view !== "settings" ? (
             <>
-              {view === "overview" && bootstrap ? (
+              {view === "overview" && bootstrap && !selectedResource ? (
                 <OverviewView
                   bootstrap={bootstrap}
                   estate={estate}
-                  onOpenView={(nextView) => {
-                    setSelectedResourceId(undefined);
-                    setView(nextView);
-                  }}
-                  onOpenResource={(id) => openResource(id)}
+                  onOpenView={openSection}
+                  onOpenResource={openResource}
                 />
               ) : null}
-              {view === "estate" ? (
-                selectedResource ? (
-                  <ResourceDetailView
-                    resource={selectedResource}
-                    type={resourceTypeMap.get(selectedResource.azureType)}
-                    estate={estate}
-                    backLabel={resourceReturnView === "estate" ? "Back to estate" : `Back to ${resourceReturnView === "settings" ? "Settings" : views.find((item) => item.id === resourceReturnView)?.label ?? "estate"}`}
-                    onBack={closeResourceRecord}
-                    onSelectResource={setSelectedResourceId}
-                    onOpenTopology={() => openResource(selectedResource.id, "topology")}
-                    onOpenFindings={() => {
-                      setSelectedResourceId(undefined);
-                      setView("findings");
-                    }}
-                  />
-                ) : (
-                  <EstateExplorer
-                    estate={estate}
-                    search={search}
-                    scope={scope}
-                    onScopeChange={setScope}
-                    onSelectResource={(id) => {
-                      setResourceReturnView("estate");
-                      setSelectedResourceId(id);
-                    }}
-                  />
-                )
+              {view === "estate" && !selectedResource ? (
+                <EstateExplorer
+                  estate={estate}
+                  search={search}
+                  scope={scope}
+                  onScopeChange={setScope}
+                  onSelectResource={openResource}
+                />
               ) : null}
               {view === "topology" ? (
                 <Suspense fallback={<LoadingWorkspace />}>
                   <TopologyView
                     estate={estate}
                     theme={resolvedTheme}
-                    selectedResourceId={selectedResourceId}
-                    focusRequestNonce={topologyFocusRequest}
-                    onSelectResource={setSelectedResourceId}
-                    onInspect={(id) => {
-                      setResourceReturnView("topology");
-                      setSelectedResourceId(id);
-                      setView("estate");
-                    }}
+                    workspace={navigation.relationships}
+                    active={!selectedResource}
+                    backLabel={navigation.history.length > 0
+                      ? `Back to ${frameLabel(navigation.history.at(-1), estate)}`
+                      : undefined}
+                    onBack={navigation.history.length > 0 ? navigateBack : undefined}
+                    onNavigate={navigateRelationships}
+                    onWorkspaceChange={updateRelationships}
+                    onInspect={openResource}
                   />
                 </Suspense>
               ) : null}
-              {view === "inventory" ? (
+              {view === "inventory" && !selectedResource ? (
                 <InventoryView estate={estate} search={search} />
               ) : null}
-              {view === "findings" ? (
-                <FindingsView estate={estate} search={search} onOpenResource={(id) => openResource(id)} />
+              {view === "findings" && !selectedResource ? (
+                <FindingsView estate={estate} search={search} onOpenResource={openResource} />
               ) : null}
-              {view === "governance" && bootstrap ? (
+              {view === "governance" && bootstrap && !selectedResource ? (
                 <GovernanceView
                   estate={estate}
                   requiredTags={bootstrap.requiredTags}
-                  onOpenFindings={() => setView("findings")}
+                  onOpenFindings={() => openSection("findings")}
                 />
               ) : null}
-              {view === "history" && bootstrap ? (
+              {view === "history" && bootstrap && !selectedResource ? (
                 <HistoryView
                   bootstrap={bootstrap}
                   estate={estate}
                   onLoadSnapshot={(id) => void loadSnapshot(id)}
                 />
+              ) : null}
+              {selectedResource ? (
+                <div className={view === "topology" ? "resource-record-overlay" : "resource-record-surface"}>
+                  <ResourceDetailView
+                    resource={selectedResource}
+                    type={resourceTypeMap.get(selectedResource.azureType)}
+                    estate={estate}
+                    backLabel={`Back to ${frameLabel(navigation.history.at(-1), estate)}`}
+                    onBack={navigateBack}
+                    onSelectResource={openResource}
+                    onOpenTopology={() => openRelationships(selectedResource.id)}
+                    onOpenFindings={() => openSection("findings")}
+                  />
+                </div>
               ) : null}
             </>
           ) : null}
@@ -525,8 +554,8 @@ export default function App() {
         <span className="status-divider" />
         <span className="mono">{bootstrap?.databasePath ?? "Resolving database…"}</span>
         <span className="status-spacer" />
-        <span>{selectedResource
-          ? `${selectedResource.edgeCount} relationships · ${selectedResource.findingCount} findings`
+        <span>{selectedResource ?? relationshipResource
+          ? `${(selectedResource ?? relationshipResource)?.edgeCount} relationships · ${(selectedResource ?? relationshipResource)?.findingCount} findings`
           : view === "topology" && estate
             ? `${estate.edges.length} stored relationships`
             : "No resource selected"}</span>
