@@ -1,32 +1,53 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import cytoscape, { type Core, type ElementDefinition, type StylesheetJson } from "cytoscape";
 import { RESOURCE_GROUP_ICON, SUBSCRIPTION_ICON, VNET_ICON } from "../azure-icons";
 import type { EstateSnapshot, TopologyGraph, TopologyNode } from "../types";
+import {
+  GRAPH_SIZE,
+  cameraEntryZoom,
+  cameraProfile,
+  cameraTargetIds,
+  layoutTopology,
+  nearestNodeInDirection,
+  type Placement,
+  type SpatialDirection,
+  type TopologyLayoutPlan,
+} from "./topology-layout";
 
 export type GraphMode = "neighbourhood" | "estate";
+
+export type GraphCameraMode = "core" | "selection" | "all" | "zoom-in" | "zoom-out";
+
+export interface GraphCameraRequest {
+  mode: GraphCameraMode;
+  nonce: number;
+}
+
+export type GraphActivation =
+  | { kind: "resource"; resourceId: string }
+  | { kind: "resource-group"; groupId: string }
+  | { kind: "aggregate"; nodeId: string }
+  | { kind: "subscription"; subscriptionId: string };
 
 interface CytoscapeResourceGraphProps {
   graph: TopologyGraph;
   estate: EstateSnapshot;
   theme: "light" | "dark";
-  focusedNodeId: string;
+  selectedNodeId?: string;
+  expandedAggregateId?: string;
   motionEnabled: boolean;
-  focusNonce: number;
-  onSelectResource: (id: string) => void;
-  onSelectResourceGroup: (id: string) => void;
-  onOpenResourceGroup: (id: string) => void;
-  onExpandLane: (subscriptionId: string) => void;
-  onSelectAggregate: (nodeId: string) => void;
+  camera: GraphCameraRequest;
+  onActivate: (activation: GraphActivation) => void;
 }
 
-const RESOURCE_W = 172;
-const RESOURCE_H = 76;
-const GROUP_W = 244;
-const GROUP_H = 118;
-const AGGREGATE_W = 188;
-const AGGREGATE_H = 60;
-const LANE_BAR_W = 860;
-const LANE_BAR_H = 56;
+const RESOURCE_W = GRAPH_SIZE.resourceWidth;
+const RESOURCE_H = GRAPH_SIZE.resourceHeight;
+const GROUP_W = GRAPH_SIZE.groupWidth;
+const GROUP_H = GRAPH_SIZE.groupHeight;
+const AGGREGATE_W = GRAPH_SIZE.aggregateWidth;
+const AGGREGATE_H = GRAPH_SIZE.aggregateHeight;
+const LANE_BAR_W = GRAPH_SIZE.laneBarWidth;
+const LANE_BAR_H = GRAPH_SIZE.laneBarHeight;
 
 const KIND_CLASSES = new Set(["network", "structure", "data", "identity", "monitoring"]);
 
@@ -63,145 +84,6 @@ function readGraphPalette(): GraphPalette {
     labelBg: cssToken("--graph-label-bg", "#faf8f4"),
     labelBorder: cssToken("--graph-label-border", "#d8d2c6"),
   };
-}
-
-interface Placement {
-  x: number;
-  y: number;
-}
-
-/// Deterministic positions for every positionable node. Containers (lane,
-/// vnet, subnet compounds) are not positioned — cytoscape fits them around
-/// their children.
-function layoutPositions(graph: TopologyGraph): Map<string, Placement> {
-  const positions = new Map<string, Placement>();
-  if (graph.level === "estate") return layoutEstate(graph, positions);
-  if (graph.level === "group") return layoutGroup(graph, positions);
-  return layoutNeighbourhood(graph, positions);
-}
-
-function grid(count: number, columns: number, index: number, width: number, height: number, gapX: number, gapY: number) {
-  const column = index % columns;
-  const row = Math.floor(index / columns);
-  return { x: column * (width + gapX), y: row * (height + gapY), rows: Math.ceil(count / columns) };
-}
-
-function layoutEstate(graph: TopologyGraph, positions: Map<string, Placement>) {
-  const gapX = 56;
-  const gapY = 58;
-  // Wide lanes: enough columns that even a busy lane stays shallower than it
-  // is wide, so zoom-to-fit keeps cards legible.
-  const largestLane = Math.max(
-    1,
-    ...graph.lanes
-      .filter((lane) => lane.expanded)
-      .map((lane) => graph.nodes.filter((node) => node.kind === "resource-group" && node.lane === lane.subscriptionId).length),
-  );
-  const columns = Math.min(6, Math.max(3, Math.ceil(Math.sqrt(largestLane * 2.2))));
-  const laneWidth = columns * (GROUP_W + gapX);
-  let cursorY = 0;
-  for (const lane of graph.lanes.filter((candidate) => candidate.expanded)) {
-    const cards = graph.nodes.filter((node) => node.kind === "resource-group" && node.lane === lane.subscriptionId);
-    if (cards.length === 0) continue;
-    let rows = 1;
-    cards.forEach((card, index) => {
-      const cell = grid(cards.length, columns, index, GROUP_W, GROUP_H, gapX, gapY);
-      rows = cell.rows;
-      positions.set(card.id, { x: cell.x, y: cursorY + cell.y });
-    });
-    cursorY += rows * (GROUP_H + gapY) + 96;
-  }
-  for (const node of graph.nodes.filter((candidate) => candidate.kind === "subscription")) {
-    positions.set(node.id, { x: Math.max(laneWidth, LANE_BAR_W) / 2 - LANE_BAR_W / 2, y: cursorY });
-    cursorY += LANE_BAR_H + 34;
-  }
-  return positions;
-}
-
-function layoutGroup(graph: TopologyGraph, positions: Map<string, Placement>) {
-  const childrenOf = new Map<string, TopologyNode[]>();
-  for (const node of graph.nodes) {
-    if (!node.parentId) continue;
-    childrenOf.set(node.parentId, [...(childrenOf.get(node.parentId) ?? []), node]);
-  }
-
-  // VNet blocks down the left edge: subnets stacked, members in a grid.
-  let vnetY = 0;
-  let vnetColumnWidth = 0;
-  for (const vnet of graph.nodes.filter((node) => node.kind === "vnet")) {
-    let subnetY = vnetY + 64;
-    for (const subnet of childrenOf.get(vnet.id) ?? []) {
-      const members = childrenOf.get(subnet.id) ?? [];
-      if (members.length === 0) {
-        positions.set(subnet.id, { x: 190, y: subnetY + 20 });
-        subnetY += 78;
-        continue;
-      }
-      const columns = Math.min(3, Math.max(1, Math.ceil(Math.sqrt(members.length))));
-      let rows = 1;
-      members.forEach((member, index) => {
-        const cell = grid(members.length, columns, index, RESOURCE_W, RESOURCE_H, 36, 30);
-        rows = cell.rows;
-        positions.set(member.id, { x: 60 + cell.x, y: subnetY + 44 + cell.y });
-      });
-      const width = 60 + columns * (RESOURCE_W + 36) + 40;
-      vnetColumnWidth = Math.max(vnetColumnWidth, width);
-      subnetY += rows * (RESOURCE_H + 30) + 96;
-    }
-    vnetY = subnetY + 110;
-  }
-  if (vnetColumnWidth === 0 && graph.nodes.some((node) => node.kind === "vnet")) vnetColumnWidth = 460;
-
-  // Ghost stubs for other groups' resources sit in their own column on the
-  // left, so cross-group traffic reads as arriving from outside.
-  const externals = graph.nodes.filter((node) => node.zone === "external");
-  const externalShift = externals.length > 0 ? RESOURCE_W + 220 : 0;
-  externals.forEach((node, index) => {
-    positions.set(node.id, { x: -externalShift, y: index * (RESOURCE_H + 40) });
-  });
-
-  // Free connected nodes flow in a grid beside the VNet column.
-  const freeX = vnetColumnWidth > 0 ? vnetColumnWidth + 140 : 0;
-  const free = graph.nodes.filter(
-    (node) => node.kind === "resource" && !node.parentId && node.zone === "core",
-  );
-  const freeColumns = Math.min(4, Math.max(1, Math.ceil(Math.sqrt(free.length * 1.6))));
-  free.forEach((node, index) => {
-    const cell = grid(free.length, freeColumns, index, RESOURCE_W, RESOURCE_H, 64, 64);
-    positions.set(node.id, { x: freeX + cell.x, y: cell.y });
-  });
-
-  // The unconnected shelf: a compact grid to the right of everything.
-  const shelf = graph.nodes.filter((node) => node.zone === "unconnected");
-  const shelfColumns = shelf.length > 6 ? 2 : 1;
-  const shelfX = Math.max(freeX + freeColumns * (RESOURCE_W + 64) + 120, vnetColumnWidth + 140);
-  shelf.forEach((node, index) => {
-    const column = index % shelfColumns;
-    const row = Math.floor(index / shelfColumns);
-    positions.set(node.id, {
-      x: shelfX + column * (AGGREGATE_W + 40),
-      y: row * (AGGREGATE_H + 26),
-    });
-  });
-  return positions;
-}
-
-function layoutNeighbourhood(graph: TopologyGraph, positions: Map<string, Placement>) {
-  const subject = graph.nodes.find((node) => node.hop === 0);
-  const ring = (hop: number) => graph.nodes.filter((node) => (node.hop ?? 0) === hop && node.hop !== 0);
-  if (subject) positions.set(subject.id, { x: 0, y: 0 });
-  for (const hop of [1, 2]) {
-    const members = ring(hop);
-    const perColumn = Math.max(1, Math.ceil(members.length / 2));
-    members.forEach((node, index) => {
-      const side = index % 2 === 0 ? 1 : -1;
-      const rank = Math.floor(index / 2);
-      const x = side * hop * 340;
-      const y = (rank - (perColumn - 1) / 2) * (RESOURCE_H + 44);
-      positions.set(node.id, { x, y });
-    });
-  }
-  return positions;
 }
 
 function graphStyles(palette: GraphPalette): StylesheetJson {
@@ -346,12 +228,12 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
       style: { "background-opacity": 0.55, "border-opacity": 0.55 },
     },
     {
-      selector: "node.focused",
+      selector: "node.selected",
       style: {
         "background-color": palette.focusFill,
         "background-opacity": 1,
-        "border-width": 1.5,
-        "border-color": palette.focusBorder,
+        "border-width": 1,
+        "border-color": palette.nodeBorder,
         "border-opacity": 1,
         "z-index": 14,
       },
@@ -394,15 +276,10 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
         "line-opacity": 1,
         "line-style": "dashed",
         "line-dash-pattern": [7, 5],
-      },
-    },
-    {
-      selector: "edge.relationship-edge.labelled",
-      style: {
         label: "data(label)",
         color: palette.labelText,
         "font-family": "Plex Mono, monospace",
-        "font-size": 8,
+        "font-size": 12.5,
         "font-weight": 600,
         "text-transform": "uppercase",
         "text-background-color": palette.labelBg,
@@ -417,18 +294,9 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
   ];
 }
 
-/// Fit must never zoom IN past ~1:1 — a three-node graph blown up to fill the
-/// stage reads as broken, not sparse.
-const MAX_FIT_ZOOM = 0.95;
+const LABEL_SCALE_FLOOR = 0.88;
 
-function clampFitZoom(cy: Core, around?: cytoscape.CollectionReturnValue) {
-  if (cy.zoom() > MAX_FIT_ZOOM) {
-    cy.zoom(MAX_FIT_ZOOM);
-    cy.center(around && around.nonempty() ? around : cy.elements());
-  }
-}
-
-function nodeClasses(node: TopologyNode, focusedNodeId: string) {
+function nodeClasses(node: TopologyNode, selectedNodeId?: string) {
   const classes: string[] = [];
   if (node.kind === "resource") classes.push("resource-node");
   if (node.kind === "resource-group") classes.push("resource-group-node");
@@ -438,11 +306,11 @@ function nodeClasses(node: TopologyNode, focusedNodeId: string) {
   if (node.kind === "vnet") classes.push("vnet-frame");
   if (node.kind === "subnet") classes.push("subnet-frame");
   if ((node.hop ?? 0) > 1) classes.push("hop-dim");
-  if (node.id === focusedNodeId) classes.push("focused");
+  if (node.id === selectedNodeId) classes.push("selected");
   return classes.join(" ");
 }
 
-function graphElements(graph: TopologyGraph, focusedNodeId: string): ElementDefinition[] {
+function graphElements(graph: TopologyGraph, selectedNodeId?: string): ElementDefinition[] {
   const childCount = new Map<string, number>();
   for (const node of graph.nodes) {
     if (node.parentId) childCount.set(node.parentId, (childCount.get(node.parentId) ?? 0) + 1);
@@ -478,13 +346,13 @@ function graphElements(graph: TopologyGraph, focusedNodeId: string): ElementDefi
         groupId: node.groupId,
         lane: node.lane,
       },
-      classes: isEmptySubnet ? "subnet-empty" : nodeClasses(node, focusedNodeId),
+      classes: isEmptySubnet ? "subnet-empty" : nodeClasses(node, selectedNodeId),
       selectable: node.kind !== "vnet" && node.kind !== "subnet",
       grabbable: node.kind === "resource" || node.kind === "aggregate" || node.kind === "external",
     });
   }
   graph.links.forEach((link, index) => {
-    const related = link.sourceId === focusedNodeId || link.targetId === focusedNodeId;
+    const related = Boolean(selectedNodeId && (link.sourceId === selectedNodeId || link.targetId === selectedNodeId));
     elements.push({
       group: "edges",
       data: {
@@ -498,7 +366,6 @@ function graphElements(graph: TopologyGraph, focusedNodeId: string): ElementDefi
       classes: [
         "relationship-edge",
         related ? "related" : "",
-        graph.level !== "group" || related ? "labelled" : "",
       ]
         .filter(Boolean)
         .join(" "),
@@ -511,25 +378,35 @@ export function CytoscapeResourceGraph({
   graph,
   estate,
   theme,
-  focusedNodeId,
+  selectedNodeId,
+  expandedAggregateId,
   motionEnabled,
-  focusNonce,
-  onSelectResource,
-  onSelectResourceGroup,
-  onOpenResourceGroup,
-  onExpandLane,
-  onSelectAggregate,
+  camera,
+  onActivate,
 }: CytoscapeResourceGraphProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
   const labelRefs = useRef(new Map<string, HTMLElement>());
   const cyRef = useRef<Core | undefined>(undefined);
-  const callbacksRef = useRef({ onSelectResource, onSelectResourceGroup, onOpenResourceGroup, onExpandLane, onSelectAggregate });
+  const activateRef = useRef(onActivate);
   const motionRef = useRef(motionEnabled);
+  const selectedNodeRef = useRef(selectedNodeId);
+  const cameraRef = useRef(camera);
+  const layoutPlanRef = useRef<TopologyLayoutPlan | undefined>(undefined);
+  const cameraApiRef = useRef<((mode: GraphCameraMode, animate: boolean) => void) | undefined>(undefined);
+  const activationApiRef = useRef<((activation: GraphActivation, nodeId?: string) => void) | undefined>(undefined);
+  const labelSyncRef = useRef<(() => void) | undefined>(undefined);
+  const motionSchedulerRef = useRef<(() => void) | undefined>(undefined);
   const [rendererError, setRendererError] = useState<string>();
+  const [rendererRetryNonce, setRendererRetryNonce] = useState(0);
+  const [keyboardNodeId, setKeyboardNodeId] = useState<string>();
   const typeMap = useMemo(
     () => new Map(estate.resourceTypes.map((type) => [type.azureType, type])),
     [estate.resourceTypes],
+  );
+  const resourceMap = useMemo(
+    () => new Map(estate.resources.map((resource) => [resource.id, resource])),
+    [estate.resources],
   );
   const graphStructureKey = useMemo(
     () =>
@@ -541,45 +418,60 @@ export function CytoscapeResourceGraph({
       ].join("\n"),
     [graph],
   );
+  const selectedSummary = useMemo(() => {
+    if (!selectedNodeId) return "No graph item selected.";
+    const selected = graph.nodes.find((node) => node.id === selectedNodeId);
+    if (!selected) return "The selected item is outside the current graph scope.";
+    const links = graph.links.filter((link) => link.sourceId === selectedNodeId || link.targetId === selectedNodeId);
+    if (links.length === 0) return `${selected.name}. No drawn connectors in this scope.`;
+    const names = new Map(graph.nodes.map((node) => [node.id, node.name]));
+    const descriptions = links.map((link) => {
+      const outbound = link.sourceId === selectedNodeId;
+      const other = names.get(outbound ? link.targetId : link.sourceId) ?? "another represented item";
+      return `${outbound ? "outbound" : "inbound"} ${link.label} ${outbound ? "to" : "from"} ${other}`;
+    });
+    return `${selected.name}. ${links.length} connector${links.length === 1 ? "" : "s"}: ${descriptions.join("; ")}.`;
+  }, [graph.links, graph.nodes, selectedNodeId]);
 
   useEffect(() => {
-    callbacksRef.current = { onSelectResource, onSelectResourceGroup, onOpenResourceGroup, onExpandLane, onSelectAggregate };
-  }, [onExpandLane, onOpenResourceGroup, onSelectAggregate, onSelectResource, onSelectResourceGroup]);
+    activateRef.current = onActivate;
+  }, [onActivate]);
 
   useEffect(() => {
     motionRef.current = motionEnabled;
+    motionSchedulerRef.current?.();
   }, [motionEnabled]);
 
   useEffect(() => {
+    selectedNodeRef.current = selectedNodeId;
     const cy = cyRef.current;
     if (!cy) return;
     cy.batch(() => {
-      cy.nodes().removeClass("focused");
-      cy.getElementById(focusedNodeId).addClass("focused");
+      cy.nodes().removeClass("selected");
+      if (selectedNodeId) cy.getElementById(selectedNodeId).addClass("selected");
       cy.edges(".relationship-edge").forEach((edge) => {
-        const related = edge.source().id() === focusedNodeId || edge.target().id() === focusedNodeId;
+        const related = Boolean(
+          selectedNodeId && (edge.source().id() === selectedNodeId || edge.target().id() === selectedNodeId),
+        );
         edge.toggleClass("related", related);
       });
     });
-  }, [focusedNodeId]);
+    if (selectedNodeId) setKeyboardNodeId(selectedNodeId);
+    labelSyncRef.current?.();
+  }, [selectedNodeId]);
 
   useEffect(() => {
-    const cy = cyRef.current;
-    if (!cy || focusNonce === 0) return;
-    const selected = cy.getElementById(focusedNodeId);
-    if (selected.empty()) return;
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    cy.stop();
-    if (reduceMotion) {
-      cy.fit(selected, 150);
-      clampFitZoom(cy, selected);
-      return;
-    }
-    cy.animate(
-      { fit: { eles: selected, padding: 150 } },
-      { duration: 420, easing: "ease-out-cubic", complete: () => clampFitZoom(cy, selected) },
-    );
-  }, [focusNonce, focusedNodeId]);
+    if (camera.mode !== "zoom-in" && camera.mode !== "zoom-out") cameraRef.current = camera;
+    cameraApiRef.current?.(camera.mode, camera.nonce > 0);
+  }, [camera]);
+
+  useEffect(() => {
+    setKeyboardNodeId((current) => {
+      if (current && graph.nodes.some((node) => node.id === current)) return current;
+      if (selectedNodeId && graph.nodes.some((node) => node.id === selectedNodeId)) return selectedNodeId;
+      return graph.nodes.find((node) => !["vnet", "subnet"].includes(node.kind))?.id;
+    });
+  }, [graph.nodes, selectedNodeId]);
 
   useEffect(() => {
     const surface = surfaceRef.current;
@@ -591,7 +483,7 @@ export function CytoscapeResourceGraph({
     try {
       cy = cytoscape({
         container: surface,
-        elements: graphElements(graph, focusedNodeId),
+        elements: graphElements(graph, selectedNodeRef.current),
         style: graphStyles(readGraphPalette()),
         layout: { name: "preset" },
         minZoom: 0.1,
@@ -622,23 +514,22 @@ export function CytoscapeResourceGraph({
     function syncLabels() {
       labelFrame = 0;
       const zoom = cy.zoom();
-      // Frame headers (lane, vnet, subnet) stay readable when zoomed out —
-      // they name whole regions, so they get a scale floor.
-      const frameLabelScale = Math.max(zoom, 0.72);
+      activeHost.classList.toggle("graph-zoom-compact", zoom < 0.9 && zoom >= 0.72);
+      activeHost.classList.toggle("graph-zoom-overview", zoom < 0.72);
+      const labelScale = Math.max(zoom, LABEL_SCALE_FLOOR);
       for (const [id, label] of labelRefs.current) {
         const node = cy.getElementById(id);
         if (node.empty()) continue;
         if (frameIds.has(id) && !node.hasClass("subnet-empty")) {
           const box = node.renderedBoundingBox({ includeLabels: false, includeOverlays: false });
-          label.style.transform = `translate3d(${box.x1 + 14 * zoom}px, ${box.y1 + 6 * zoom}px, 0) scale(${frameLabelScale})`;
+          label.style.transform = `translate3d(${box.x1 + 14 * zoom}px, ${box.y1 + 6 * zoom}px, 0) scale(${labelScale})`;
         } else {
           const point = node.renderedPosition();
-          // Scale BEFORE the -50% centring so the offset is computed in the
-          // scaled visual size — the other order drifts labels off their
-          // boxes at any zoom other than 1:1.
-          label.style.transform = `translate3d(${point.x}px, ${point.y}px, 0) scale(${zoom}) translate(-50%, -50%)`;
+          label.style.transform = `translate3d(${point.x}px, ${point.y}px, 0) scale(${labelScale}) translate(-50%, -50%)`;
         }
       }
+      const edgeFontSize = Math.max(12.5, 11 / Math.max(zoom, 0.1));
+      cy.edges(".relationship-edge.related").style("font-size", edgeFontSize);
     }
 
     function queueLabelSync() {
@@ -646,47 +537,64 @@ export function CytoscapeResourceGraph({
       labelFrame = window.requestAnimationFrame(syncLabels);
     }
 
-    function animateFlow(time: number) {
+    function shouldAnimate() {
+      return visible && !reduceMotion.matches && motionRef.current;
+    }
+
+    function scheduleFlow() {
+      if (motionFrame !== 0 || !shouldAnimate()) return;
       motionFrame = window.requestAnimationFrame(animateFlow);
-      if (!visible || reduceMotion.matches || !motionRef.current || time - lastMotionPaint < 38) return;
+    }
+
+    function animateFlow(time: number) {
+      motionFrame = 0;
+      if (!shouldAnimate()) return;
+      if (time - lastMotionPaint < 38) {
+        scheduleFlow();
+        return;
+      }
       lastMotionPaint = time;
       dashOffset = (dashOffset - 0.7) % 12;
       cy.edges(".relationship-edge.related").style("line-dash-offset", dashOffset);
+      scheduleFlow();
     }
 
     function handleVisibility() {
       visible = document.visibilityState === "visible";
+      scheduleFlow();
+    }
+
+    function handleMotionPreference() {
+      scheduleFlow();
     }
 
     function handleTap(event: cytoscape.EventObject) {
       const kind = event.target.data("kind");
       if (kind === "resource-group") {
-        callbacksRef.current.onSelectResourceGroup(event.target.data("groupId"));
+        activationApiRef.current?.(
+          { kind: "resource-group", groupId: event.target.data("groupId") },
+          event.target.id(),
+        );
         return;
       }
       if (kind === "subscription") {
-        callbacksRef.current.onExpandLane(event.target.data("lane"));
+        activateRef.current({ kind: "subscription", subscriptionId: event.target.data("lane") });
         return;
       }
       if (kind === "aggregate") {
-        callbacksRef.current.onSelectAggregate(event.target.id());
+        activateRef.current({ kind: "aggregate", nodeId: event.target.id() });
         return;
       }
       if (kind === "external") {
         const resourceId = event.target.data("resourceId");
-        if (resourceId) callbacksRef.current.onSelectResource(resourceId);
-        else callbacksRef.current.onSelectAggregate(event.target.id());
+        if (resourceId) activationApiRef.current?.({ kind: "resource", resourceId }, event.target.id());
+        else activateRef.current({ kind: "aggregate", nodeId: event.target.id() });
         return;
       }
       if (kind === "resource" || kind === "vnet") {
         const resourceId = event.target.data("resourceId");
-        if (resourceId) callbacksRef.current.onSelectResource(resourceId);
+        if (resourceId) activationApiRef.current?.({ kind: "resource", resourceId }, event.target.id());
       }
-    }
-
-    function handleDoubleTap(event: cytoscape.EventObject) {
-      const groupId = event.target.data("groupId");
-      if (groupId) callbacksRef.current.onOpenResourceGroup(groupId);
     }
 
     function handleNodeOver(event: cytoscape.EventObject) {
@@ -701,7 +609,6 @@ export function CytoscapeResourceGraph({
     }
 
     cy.on("tap", "node", handleTap);
-    cy.on("dbltap", "node.resource-group-node", handleDoubleTap);
     cy.on("mouseover", "node", handleNodeOver);
     cy.on("mouseout", "node", handleNodeOut);
     cy.on("grab", "node", () => {
@@ -712,6 +619,7 @@ export function CytoscapeResourceGraph({
     });
     cy.on("pan zoom position resize", queueLabelSync);
     document.addEventListener("visibilitychange", handleVisibility);
+    reduceMotion.addEventListener("change", handleMotionPreference);
 
     // Until the user pans or zooms themselves, keep the graph fitted and
     // centred through container resizes — the stage often settles its final
@@ -723,22 +631,137 @@ export function CytoscapeResourceGraph({
     surface.addEventListener("pointerdown", markUserAdjusted);
     surface.addEventListener("wheel", markUserAdjusted, { passive: true });
 
-    try {
-      const positions = layoutPositions(graph);
+    function collectionFor(ids: string[]) {
+      let collection = cy.collection();
+      for (const id of ids) {
+        const node = cy.getElementById(id);
+        if (node.nonempty()) collection = collection.union(node);
+      }
+      return collection;
+    }
+
+    function viewportAtZoom(target: cytoscape.CollectionReturnValue, zoom: number) {
+      const bounds = target.boundingBox({ includeLabels: false, includeOverlays: false });
+      return {
+        zoom,
+        pan: {
+          x: (cy.width() - zoom * (bounds.x1 + bounds.x2)) / 2,
+          y: (cy.height() - zoom * (bounds.y1 + bounds.y2)) / 2,
+        },
+      };
+    }
+
+    function resolvedCamera(mode: Exclude<GraphCameraMode, "zoom-in" | "zoom-out">) {
+      const plan = layoutPlanRef.current;
+      if (!plan) return undefined;
+      const selectedId = selectedNodeRef.current;
+      const targetIds = cameraTargetIds(plan, cy.nodes().map((node) => node.id()), mode, selectedId);
+      const requested = collectionFor(targetIds);
+      const target = requested.nonempty() ? requested : cy.elements();
+      const profile = cameraProfile(
+        graph.level,
+        mode,
+        targetIds.length,
+        { width: activeHost.clientWidth, height: activeHost.clientHeight },
+      );
+      const getFitViewport = cy.getFitViewport as unknown as (
+        elements: cytoscape.CollectionReturnValue,
+        padding: number,
+      ) => { zoom: number; pan: cytoscape.Position } | undefined;
+      const fitted = getFitViewport.call(cy, target, profile.padding);
+      if (!fitted) return undefined;
+      const zoom = Math.min(profile.maxZoom, Math.max(profile.minZoom, fitted.zoom));
+      return { target, profile, viewport: viewportAtZoom(target, zoom) };
+    }
+
+    let resizePending = false;
+
+    function applyCamera(mode: GraphCameraMode, animate: boolean) {
+      if (mode === "zoom-in" || mode === "zoom-out") {
+        const zoom = {
+          level: Math.min(2.2, Math.max(0.1, cy.zoom() * (mode === "zoom-in" ? 1.22 : 0.82))),
+          renderedPosition: { x: activeHost.clientWidth / 2, y: activeHost.clientHeight / 2 },
+        };
+        cy.stop();
+        if (animate && !reduceMotion.matches) {
+          cy.animate({ zoom }, { duration: 180, easing: "ease-out-cubic", complete: queueLabelSync });
+        } else {
+          cy.zoom(zoom);
+          queueLabelSync();
+        }
+        return;
+      }
+      const resolved = resolvedCamera(mode);
+      if (!resolved) return;
+      const finish = () => {
+        queueLabelSync();
+        if (!resizePending) return;
+        resizePending = false;
+        applyLayout();
+        applyCamera(cameraRef.current.mode, false);
+      };
+      cy.stop();
+      if (animate && !reduceMotion.matches) {
+        cy.animate(
+          { zoom: resolved.viewport.zoom, pan: resolved.viewport.pan },
+          { duration: resolved.profile.duration, easing: "ease-out-cubic", complete: finish },
+        );
+      } else {
+        cy.viewport(resolved.viewport);
+        finish();
+      }
+    }
+
+    let activationPending = false;
+    function activateWithCamera(activation: GraphActivation, nodeId?: string) {
+      const navigates = activation.kind === "resource" || activation.kind === "resource-group";
+      const node = nodeId ? cy.getElementById(nodeId) : cy.collection();
+      if (!navigates || node.empty() || reduceMotion.matches) {
+        activateRef.current(activation);
+        return;
+      }
+      if (activationPending) return;
+      activationPending = true;
+      const zoom = Math.min(1.72, Math.max(cy.zoom() + 0.14, cy.zoom() * 1.16));
+      const viewport = viewportAtZoom(node, zoom);
+      cy.stop();
+      cy.animate(
+        { zoom: viewport.zoom, pan: viewport.pan },
+        {
+          duration: 180,
+          easing: "ease-out-cubic",
+          complete: () => {
+            activationPending = false;
+            activateRef.current(activation);
+          },
+        },
+      );
+    }
+
+    function applyLayout() {
+      const plan = layoutTopology(graph, {
+        width: activeHost.clientWidth,
+        height: activeHost.clientHeight,
+      });
+      layoutPlanRef.current = plan;
       cy.batch(() => {
-        for (const [id, placement] of positions) {
+        for (const [id, placement] of plan.positions) {
           const node = cy.getElementById(id);
           if (!node.empty() && !node.isParent()) node.position({ x: placement.x, y: placement.y });
         }
       });
-      cy.fit(cy.elements(), 90);
-      clampFitZoom(cy);
-      queueLabelSync();
-      if (focusNonce > 0 && graph.level !== "estate") {
-        const selected = cy.getElementById(focusedNodeId);
-        if (!selected.empty()) {
-          cy.fit(selected, 150);
-          clampFitZoom(cy, selected);
+    }
+
+    try {
+      applyLayout();
+      const entryMode = cameraRef.current.mode;
+      if (entryMode === "zoom-in" || entryMode === "zoom-out" || reduceMotion.matches) {
+        applyCamera(entryMode, false);
+      } else {
+        const resolved = resolvedCamera(entryMode);
+        if (resolved) {
+          cy.viewport(viewportAtZoom(resolved.target, cameraEntryZoom(graph.level, resolved.viewport.zoom)));
+          applyCamera(entryMode, true);
         }
       }
     } catch (error) {
@@ -753,15 +776,21 @@ export function CytoscapeResourceGraph({
       window.cancelAnimationFrame(resizeFrame);
       resizeFrame = window.requestAnimationFrame(() => {
         resizeFrame = 0;
-        if (!userAdjusted) {
-          cy.fit(cy.elements(), 90);
-          clampFitZoom(cy);
+        if (!userAdjusted && cy.animated()) {
+          resizePending = true;
+        } else if (!userAdjusted) {
+          applyLayout();
+          applyCamera(cameraRef.current.mode, false);
         }
         queueLabelSync();
       });
     });
     resizeObserver.observe(activeHost);
-    motionFrame = window.requestAnimationFrame(animateFlow);
+    cameraApiRef.current = applyCamera;
+    activationApiRef.current = activateWithCamera;
+    labelSyncRef.current = queueLabelSync;
+    motionSchedulerRef.current = scheduleFlow;
+    scheduleFlow();
     queueLabelSync();
 
     return () => {
@@ -772,13 +801,19 @@ export function CytoscapeResourceGraph({
       surface.removeEventListener("pointerdown", markUserAdjusted);
       surface.removeEventListener("wheel", markUserAdjusted);
       document.removeEventListener("visibilitychange", handleVisibility);
+      reduceMotion.removeEventListener("change", handleMotionPreference);
+      cameraApiRef.current = undefined;
+      activationApiRef.current = undefined;
+      labelSyncRef.current = undefined;
+      motionSchedulerRef.current = undefined;
+      layoutPlanRef.current = undefined;
       cyRef.current = undefined;
       cy.destroy();
     };
     // The graph rebuilds when its structure OR the resolved theme changes —
     // the palette and per-edge colours are read from CSS tokens at build time.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [graphStructureKey, theme]);
+  }, [graphStructureKey, rendererRetryNonce, theme]);
 
   const registerLabel = (id: string) => (element: HTMLElement | null) => {
     if (element) labelRefs.current.set(id, element);
@@ -795,6 +830,77 @@ export function CytoscapeResourceGraph({
     return type?.displayName ?? azureType ?? "Resource";
   }
 
+  function findingText(node: TopologyNode) {
+    return node.findingCount > 0
+      ? `, ${node.findingCount} finding${node.findingCount === 1 ? "" : "s"}`
+      : "";
+  }
+
+  function spatialPoints() {
+    const points = new Map<string, Placement>();
+    for (const [id, element] of labelRefs.current) {
+      const button = element instanceof HTMLButtonElement
+        ? element
+        : element.querySelector<HTMLButtonElement>("[data-graph-roving]");
+      if (!button || button.disabled) continue;
+      const rect = button.getBoundingClientRect();
+      points.set(id, { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+    }
+    return points;
+  }
+
+  function handleGraphButtonKeyDown(id: string, event: ReactKeyboardEvent<HTMLButtonElement>) {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      event.currentTarget.click();
+      return;
+    }
+    if (event.key === "+" || event.key === "=") {
+      event.preventDefault();
+      cameraApiRef.current?.("zoom-in", true);
+      return;
+    }
+    if (event.key === "-") {
+      event.preventDefault();
+      cameraApiRef.current?.("zoom-out", true);
+      return;
+    }
+    if (event.key === "0") {
+      event.preventDefault();
+      cameraApiRef.current?.("core", true);
+      return;
+    }
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+    event.preventDefault();
+    const next = nearestNodeInDirection(id, event.key as SpatialDirection, spatialPoints());
+    if (!next) return;
+    setKeyboardNodeId(next);
+    window.requestAnimationFrame(() => {
+      const element = labelRefs.current.get(next);
+      if (element instanceof HTMLButtonElement) element.focus();
+      else element?.querySelector<HTMLButtonElement>("[data-graph-roving]")?.focus();
+    });
+  }
+
+  function graphButtonProps(id: string) {
+    return {
+      tabIndex: keyboardNodeId === id ? 0 : -1,
+      onFocus: () => {
+        setKeyboardNodeId(id);
+        cyRef.current?.getElementById(id).addClass("keyboard-focus");
+      },
+      onBlur: () => cyRef.current?.getElementById(id).removeClass("keyboard-focus"),
+      onKeyDown: (event: ReactKeyboardEvent<HTMLButtonElement>) => handleGraphButtonKeyDown(id, event),
+      "data-graph-roving": true,
+    };
+  }
+
+  function requestActivation(activation: GraphActivation, nodeId?: string) {
+    const activate = activationApiRef.current;
+    if (activate) activate(activation, nodeId);
+    else activateRef.current(activation);
+  }
+
   return (
     <div className="cytoscape-graph" ref={hostRef}>
       <div className="graph-aurora" aria-hidden="true" />
@@ -803,22 +909,44 @@ export function CytoscapeResourceGraph({
         {graph.lanes
           .filter((lane) => lane.expanded && graph.nodes.some((node) => node.kind === "resource-group" && node.lane === lane.subscriptionId))
           .map((lane) => (
-            <span key={`lane:${lane.subscriptionId}`} ref={registerLabel(`lane:${lane.subscriptionId}`)} className="graph-container-label">
+            <button
+              key={`lane:${lane.subscriptionId}`}
+              ref={registerLabel(`lane:${lane.subscriptionId}`)}
+              className="graph-container-label graph-lane-label"
+              onClick={() => onActivate({ kind: "subscription", subscriptionId: lane.subscriptionId })}
+              aria-label={`${lane.name}, expanded subscription, ${lane.groupCount} groups. Collapse subscription.`}
+              {...graphButtonProps(`lane:${lane.subscriptionId}`)}
+            >
               <img src={SUBSCRIPTION_ICON} alt="" />
               <strong>{lane.name}</strong>
               <small>
-                {lane.groupCount} groups · {lane.resourceCount} resources
+                {lane.groupCount} group{lane.groupCount === 1 ? "" : "s"} · {lane.resourceCount} resources
               </small>
-            </span>
+              <i>Collapse</i>
+            </button>
           ))}
         {graph.nodes.map((node) => {
           if (node.kind === "vnet") {
-            return (
-              <span key={node.id} ref={registerLabel(node.id)} className="graph-container-label graph-vnet-label">
+            const content = <>
                 <img src={VNET_ICON} alt="" />
                 <strong>{node.name}</strong>
                 <small>{node.subtitle}</small>
-              </span>
+              </>;
+            return node.resourceId ? (
+              <button
+                key={node.id}
+                ref={registerLabel(node.id)}
+                className="graph-container-label graph-vnet-label"
+                onClick={() => requestActivation(
+                  { kind: "resource", resourceId: node.resourceId ?? node.id },
+                  node.id,
+                )}
+                aria-pressed={node.id === selectedNodeId}
+                aria-label={`${node.name}, virtual network${findingText(node)}. Open resource record.`}
+                {...graphButtonProps(node.id)}
+              >{content}</button>
+            ) : (
+              <span key={node.id} ref={registerLabel(node.id)} className="graph-container-label graph-vnet-label">{content}</span>
             );
           }
           if (node.kind === "subnet") {
@@ -835,36 +963,66 @@ export function CytoscapeResourceGraph({
                 key={node.id}
                 ref={registerLabel(node.id)}
                 className="graph-lane-bar-label"
-                onClick={() => onExpandLane(node.lane ?? "")}
-                aria-label={`${node.name}, collapsed subscription. Press Enter to expand.`}
+                onClick={() => onActivate({ kind: "subscription", subscriptionId: node.lane ?? "" })}
+                aria-label={`${node.name}, collapsed subscription, ${node.count} groups${findingText(node)}. Expand subscription.`}
+                {...graphButtonProps(node.id)}
               >
                 <img src={SUBSCRIPTION_ICON} alt="" />
                 <span className="graph-node-copy">
                   <strong>{node.name}</strong>
                   <small>{node.subtitle}</small>
                 </span>
-                {node.findingCount > 0 ? <em>{node.findingCount}</em> : null}
+                {node.findingCount > 0 ? <em aria-label={`${node.findingCount} findings`}>{node.findingCount}</em> : null}
                 <i className="graph-lane-expand">Expand ›</i>
               </button>
             );
           }
           if (node.kind === "aggregate") {
+            const expanded = node.id === expandedAggregateId;
+            const members = node.memberIds
+              .map((id) => resourceMap.get(id))
+              .filter((resource): resource is NonNullable<typeof resource> => Boolean(resource));
             return (
-              <button
+              <div
                 key={node.id}
                 ref={registerLabel(node.id)}
-                className="graph-aggregate-label"
-                onClick={() => onSelectAggregate(node.id)}
-                aria-label={`${node.count} ${typeName(node.azureType)}, aggregated. Press Enter to list them.`}
+                className={expanded ? "graph-aggregate-cluster expanded" : "graph-aggregate-cluster"}
+                onKeyDown={(event) => {
+                  if (event.key !== "Escape" || !expanded) return;
+                  event.preventDefault();
+                  onActivate({ kind: "aggregate", nodeId: node.id });
+                  event.currentTarget.querySelector<HTMLButtonElement>("[data-graph-roving]")?.focus();
+                }}
               >
-                {typeIcon(node.azureType) ? <img src={typeIcon(node.azureType)} alt="" /> : null}
-                <span className="graph-node-copy">
-                  <strong>{typeName(node.azureType)}</strong>
-                  <small>{node.zone === "unconnected" ? "not linked yet" : `${node.hop ?? 1} hop${(node.hop ?? 1) === 1 ? "" : "s"} away`}</small>
-                </span>
-                <b>{node.subtitle}</b>
-                {node.findingCount > 0 ? <em>{node.findingCount}</em> : null}
-              </button>
+                <button
+                  className={expanded ? "graph-aggregate-label selected" : "graph-aggregate-label"}
+                  onClick={() => onActivate({ kind: "aggregate", nodeId: node.id })}
+                  aria-expanded={expanded}
+                  aria-label={`${node.count} ${typeName(node.azureType)}, aggregated${findingText(node)}. ${expanded ? "Collapse" : "Show"} resources.`}
+                  {...graphButtonProps(node.id)}
+                >
+                  {typeIcon(node.azureType) ? <img src={typeIcon(node.azureType)} alt="" /> : null}
+                  <span className="graph-node-copy">
+                    <strong>{typeName(node.azureType)}</strong>
+                    <small>{node.zone === "unconnected" ? "No drawn connectors" : `${node.hop ?? 1} hop${(node.hop ?? 1) === 1 ? "" : "s"} away`}</small>
+                  </span>
+                  <b>{node.subtitle}</b>
+                  {node.findingCount > 0 ? <em aria-label={`${node.findingCount} findings`}>{node.findingCount}</em> : null}
+                </button>
+                {expanded ? (
+                  <div className="graph-aggregate-members" role="group" aria-label={`${typeName(node.azureType)} resources`}>
+                    {members.map((resource) => (
+                      <button key={resource.id} onClick={() => requestActivation(
+                        { kind: "resource", resourceId: resource.id },
+                        node.id,
+                      )} title={resource.name}>
+                        {typeIcon(resource.azureType) ? <img src={typeIcon(resource.azureType)} alt="" /> : null}
+                        <span><strong>{resource.name}</strong><small>{resource.findingCount > 0 ? `${resource.findingCount} findings` : "Open resource record"}</small></span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             );
           }
           if (node.kind === "external") {
@@ -872,9 +1030,13 @@ export function CytoscapeResourceGraph({
               <button
                 key={node.id}
                 ref={registerLabel(node.id)}
-                className="graph-node-label ghost"
-                onClick={() => (node.resourceId ? onSelectResource(node.resourceId) : onSelectAggregate(node.id))}
-                aria-label={`${node.name}, in another resource group`}
+                className={node.id === selectedNodeId ? "graph-node-label ghost selected" : "graph-node-label ghost"}
+                onClick={() => node.resourceId
+                  ? requestActivation({ kind: "resource", resourceId: node.resourceId }, node.id)
+                  : onActivate({ kind: "aggregate", nodeId: node.id })}
+                aria-pressed={node.id === selectedNodeId}
+                aria-label={`${node.name}, in another resource group${findingText(node)}. Open resource record.`}
+                {...graphButtonProps(node.id)}
               >
                 <span className="graph-node-icon">
                   {typeIcon(node.azureType) ? <img src={typeIcon(node.azureType)} alt="" /> : null}
@@ -887,22 +1049,19 @@ export function CytoscapeResourceGraph({
             );
           }
           if (node.kind === "resource-group") {
-            const selected = node.id === focusedNodeId;
+            const selected = node.id === selectedNodeId;
             return (
               <button
                 key={node.id}
                 ref={registerLabel(node.id)}
                 className={selected ? "graph-resource-group-label selected" : "graph-resource-group-label"}
-                onClick={() => onSelectResourceGroup(node.groupId ?? "")}
-                onDoubleClick={() => onOpenResourceGroup(node.groupId ?? "")}
-                onKeyDown={(event) => {
-                  if (event.key !== "Enter") return;
-                  event.preventDefault();
-                  onOpenResourceGroup(node.groupId ?? "");
-                }}
-                onFocus={() => cyRef.current?.getElementById(node.id).addClass("keyboard-focus")}
-                onBlur={() => cyRef.current?.getElementById(node.id).removeClass("keyboard-focus")}
-                aria-label={`${node.name}, ${node.count} resources. Press Enter to open.`}
+                onClick={() => requestActivation(
+                  { kind: "resource-group", groupId: node.groupId ?? "" },
+                  node.id,
+                )}
+                aria-pressed={selected}
+                aria-label={`${node.name}, ${node.count} resources${findingText(node)}. Open group map.`}
+                {...graphButtonProps(node.id)}
               >
                 <span className="graph-group-heading">
                   <span className="graph-group-icon">
@@ -912,16 +1071,16 @@ export function CytoscapeResourceGraph({
                     <strong>{node.name}</strong>
                     <small>{node.subtitle}</small>
                   </span>
-                  {node.findingCount > 0 ? <em>{node.findingCount}</em> : null}
+                  {node.findingCount > 0 ? <em aria-label={`${node.findingCount} findings`}>{node.findingCount}</em> : null}
                 </span>
                 <span className="graph-group-types" aria-hidden="true">
-                  <span className="graph-group-open">Select group</span>
+                  <span className="graph-group-open">Open group ›</span>
                 </span>
               </button>
             );
           }
           if (node.kind === "resource") {
-            const selected = node.id === focusedNodeId;
+            const selected = node.id === selectedNodeId;
             const dim = (node.hop ?? 0) > 1;
             return (
               <button
@@ -934,10 +1093,14 @@ export function CytoscapeResourceGraph({
                 ]
                   .filter(Boolean)
                   .join(" ")}
-                onClick={() => onSelectResource(node.resourceId ?? node.id)}
-                onFocus={() => cyRef.current?.getElementById(node.id).addClass("keyboard-focus")}
-                onBlur={() => cyRef.current?.getElementById(node.id).removeClass("keyboard-focus")}
-                aria-label={`${node.name}, ${typeName(node.azureType)}`}
+                onClick={() => requestActivation(
+                  { kind: "resource", resourceId: node.resourceId ?? node.id },
+                  node.id,
+                )}
+                aria-pressed={selected}
+                aria-label={`${node.name}, ${typeName(node.azureType)}${findingText(node)}. Open resource record.`}
+                title={node.name}
+                {...graphButtonProps(node.id)}
               >
                 <span className="graph-node-icon">
                   {typeIcon(node.azureType) ? <img src={typeIcon(node.azureType)} alt="" /> : null}
@@ -946,24 +1109,14 @@ export function CytoscapeResourceGraph({
                   <strong>{node.name}</strong>
                   <small>{node.subtitle || typeName(node.azureType)}</small>
                 </span>
-                {node.findingCount > 0 ? <em>{node.findingCount}</em> : null}
+                {node.findingCount > 0 ? <em aria-label={`${node.findingCount} findings`}>{node.findingCount}</em> : null}
               </button>
             );
           }
           return null;
         })}
       </div>
-      <div className="graph-controls-hint" aria-hidden="true">
-        <span>
-          {graph.level === "estate"
-            ? "Select a group · Enter to open · click a lane bar to expand"
-            : graph.level === "group"
-              ? "Drag nodes · aggregated tiles list their members"
-              : "Drag nodes"}
-        </span>
-        <i /> <span>Drag canvas to pan</span>
-        <i /> <span>Scroll to zoom</span>
-      </div>
+      <div className="sr-only" aria-live="polite">{selectedSummary}</div>
       {graph.nodes.length === 0 ? (
         <div className="graph-empty-state" role="status">
           <img src={RESOURCE_GROUP_ICON} alt="" />
@@ -972,10 +1125,11 @@ export function CytoscapeResourceGraph({
         </div>
       ) : null}
       {rendererError ? (
-        <div className="graph-renderer-error" role="status">
+        <div className="graph-renderer-error" role="alert" aria-live="assertive">
           <strong>Graph rendering is unavailable</strong>
           <span>{rendererError}</span>
-          <p>The resource list remains available in the relationship inspector.</p>
+          <p>The relationship view can be retried without leaving this page.</p>
+          <button onClick={() => setRendererRetryNonce((value) => value + 1)}>Retry renderer</button>
         </div>
       ) : null}
     </div>

@@ -119,13 +119,46 @@ one product family. Serif Regular/SemiBold is bundled with the frontend
   evidence flow, never a fixed side column that taxes the width of long tables.
   Location, kind, finding, relationship, and tag summaries occupy compact
   header capsules instead of a second full-width stat band.
-  Finding evidence and topology details remain on-demand drawers. Overview
+  Finding evidence remains an on-demand drawer. Relationships use direct
+  navigation from groups to group maps and from resources to their records. Overview
   scrolls as one document rather than splitting into independently scrolling
   columns. History gives the comparison ledger more room than the snapshot
   selector, and long query-run evidence stays collapsed until requested.
 - Large collections must not make navigation grow without bound. Resource
   types and inventory queries use labelled selectors; lists and tables own
   their scroll area, while detail never permanently narrows them.
+
+### Relationships workspace
+
+Relationships alone is full-bleed. It uses one flat command rail above the
+canvas and one slim count/legend rail below it; breadcrumbs are part of the
+title block and secondary graph controls live in a labelled More menu. The
+initial camera shows a readable connected core rather than indiscriminately
+fitting every secondary region. Fit all is always available. Camera bounds
+adapt to graph level, target density, and viewport size so sparse maps use the
+canvas instead of remaining artificially capped below 1:1. Group and resource
+drill actions use Cytoscape's native viewport animation for spatial continuity;
+reduced-motion mode applies the destination camera immediately.
+
+Estate layouts use responsive subscription grids plus compact collapsed lanes.
+Group layouts prioritise contained and connected resources, place external
+neighbours on boundary rails, and keep resources without drawn relationships
+in a lower secondary region. Neighbourhood layouts centre the selected resource
+with inbound relationships left, outbound right, and second hops in stable
+outer columns. Semantic zoom removes secondary copy before primary labels and
+finally uses icon/count overview tiles; it never scales text below 11px. Edge
+labels belong only to the selected path.
+
+One click and Enter share the same activation model: a group opens its group
+map and a resource opens its resource record. Aggregate tiles expand in place
+to list their members; there is no topology drawer or double-click navigation.
+Graph labels form one roving Tab stop with spatial arrow-key movement.
+Selection uses `--evidence`; the accent is reserved for keyboard focus. The
+bottom rail says **source relationships**
+and **connectors**, because those are distinct measures, and contains the
+relationship-kind legend (collapsed behind a labelled control at compact
+widths). Failed refreshes retain and mark the last successful graph as stale,
+with Retry and Revert actions and an `aria-live` announcement.
 
 ## Components
 

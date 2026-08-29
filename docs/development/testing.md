@@ -5,6 +5,7 @@ cargo test                          # everything — no network required
 cargo test --test collect_test     # one integration suite
 cargo insta review                  # accept intended golden changes
 INSTA_UPDATE=always cargo test      # regenerate all goldens (eyeball the diff!)
+cd desktop && npm test              # viewport layout, camera and view-state helpers
 ```
 
 ## Layers
@@ -36,6 +37,7 @@ flowchart TD
 | Diagram geometry | Every canvas lands on a page fraction; every connector segment is axis-aligned; routes are deterministic | `src/diagram/svg.rs`, `src/diagram/route.rs`, `src/diagram/page.rs` |
 | TUI | `TestBackend` buffer snapshots + key-event sequences | `tests/tui_test.rs` |
 | Desktop topology | Pure-function tests over a synthetic 1,000-resource estate: drawn + folded + aggregated always equals total, deterministic output, fan-out folding, scope filters counted | `desktop/src-tauri/src/topology.rs` |
+| Desktop relationship UI | Vitest at 1440/1060/800px: deterministic zones, directional neighbourhoods, camera targets, spatial navigation, lane and retained-error state | `desktop/src/components/topology-layout.test.ts`, `desktop/src/components/topology-view-state.test.ts` |
 
 ## The fixture estate
 

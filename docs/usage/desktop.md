@@ -45,19 +45,38 @@ npm run tauri build
 - **Estate** keeps the subscription/resource-group hierarchy, searchable
   resource ledger, and resource inspector visible together. Filter by scope,
   type, location, resource name, ARM type, group, or tags.
-- **Relationships** has two modes. The **estate map** lays resource-group
-  cards out in subscription lanes with cross-group links bundled into counted
-  pills; past the card budget, whole subscriptions collapse into lane bars you
-  expand with a click. Opening a group renders its resources with VNet →
-  subnet containment drawn as frames, NICs/disks folded into their VM, child
-  resources folded into their parent, unlinked resources aggregated by type on
-  an expandable shelf, and neighbours from *other* groups shown as dashed
-  ghost stubs so a peering-heavy group never looks empty. The
-  **neighbourhood** mode walks 1 or 2 hops from the selected resource with
-  relationship-kind filter chips (network / structure / data / identity /
-  monitoring); wide same-type fan-outs fold into one ×N node. Anything hidden
-  by a filter is counted in the status chip. Relationships are the Rust
-  post-pass edges already stored in SQLite; opening this view does not add
+- **Relationships** is a full-bleed graph workspace with two modes. Its initial
+  camera fits the readable connected core; **Fit all** remains in the More
+  menu when you need the complete overview. The **estate map** lays expanded
+  subscriptions out as responsive resource-group grids and keeps collapsed
+  subscriptions as compact, individually toggleable lanes. Click or press
+  Enter on a group to open its group map immediately.
+  A group map places contained and connected resources first, neighbours from
+  other groups on boundary rails, and resources without drawn relationships in
+  a lower secondary region outside the default camera. VNet → subnet
+  containment remains framed, NICs/disks remain folded into their VM, child
+  resources remain folded into their parent, and fan-outs remain represented
+  by ×N tiles. The **neighbourhood** mode is available only after a resource is
+  explicitly selected: that resource is centred, inbound relationships are on
+  the left, outbound relationships on the right, and second-hop nodes occupy
+  deterministic outer columns.
+
+  Zoom is semantic: full labels at readable scale, primary labels at the
+  middle rung, then icon/count overview tiles. Text is never rendered below
+  11px and relationship labels appear only on the selected path. The camera
+  adapts its fit to the graph level and available viewport: sparse group and
+  neighbourhood maps may zoom above 1:1, while Fit all remains an overview.
+  Scope changes and drill actions use Cytoscape's native viewport animation
+  and become instant when reduced motion is active. Click or
+  press Enter on a resource to open its resource record; aggregate tiles expand
+  in place to expose their members. Spatial arrow keys move between graph
+  items, and the More menu exposes accessible zoom, recenter, motion, Fit all,
+  and help controls. The slim bottom rail reports
+  **source relationships** separately from rendered **connectors** and carries
+  the relationship-kind legend/filter. Anything hidden by a filter remains
+  counted. If a topology request fails, the last successful graph is retained
+  and identified as stale with Retry and Revert controls. Relationships remain
+  Rust post-pass edges already stored in SQLite; opening this view does not add
   API calls.
 - **Findings** orders stored audit evidence by severity and links every
   resource-scoped result back to its resource properties.

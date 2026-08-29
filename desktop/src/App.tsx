@@ -276,6 +276,7 @@ export default function App() {
   function closeResourceRecord() {
     if (resourceReturnView === "topology") {
       setView("topology");
+      setTopologyFocusRequest((current) => current + 1);
       return;
     }
     setSelectedResourceId(undefined);
@@ -402,7 +403,7 @@ export default function App() {
           </button>
         </nav>
 
-        <main className="workspace">
+        <main className={view === "topology" ? "workspace workspace-topology" : "workspace"}>
           {collectionMessage ? (
             <div className="collection-strip" role="status">
               <LoaderCircle className={collecting ? "spin" : ""} size={15} />
@@ -485,7 +486,11 @@ export default function App() {
                     selectedResourceId={selectedResourceId}
                     focusRequestNonce={topologyFocusRequest}
                     onSelectResource={setSelectedResourceId}
-                    onInspect={(id) => openResource(id, "estate")}
+                    onInspect={(id) => {
+                      setResourceReturnView("topology");
+                      setSelectedResourceId(id);
+                      setView("estate");
+                    }}
                   />
                 </Suspense>
               ) : null}
@@ -520,7 +525,11 @@ export default function App() {
         <span className="status-divider" />
         <span className="mono">{bootstrap?.databasePath ?? "Resolving database…"}</span>
         <span className="status-spacer" />
-        <span>{selectedResource ? `${selectedResource.edgeCount} relationships · ${selectedResource.findingCount} findings` : "No resource selected"}</span>
+        <span>{selectedResource
+          ? `${selectedResource.edgeCount} relationships · ${selectedResource.findingCount} findings`
+          : view === "topology" && estate
+            ? `${estate.edges.length} stored relationships`
+            : "No resource selected"}</span>
       </footer>
     </div>
   );

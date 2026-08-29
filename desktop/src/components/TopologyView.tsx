@@ -1,38 +1,63 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
-  ArrowDownLeft,
-  ArrowUpRight,
+  AlertTriangle,
+  ChevronDown,
   ChevronRight,
-  ExternalLink,
   Focus,
   GitBranch,
+  HelpCircle,
   Layers3,
+  Maximize2,
+  Minus,
+  MoreHorizontal,
   Pause,
   Play,
+  Plus,
+  RotateCcw,
   ScanSearch,
-  X,
 } from "lucide-react";
-import type { EstateSnapshot, TopologyGraph, TopologyNode, TopologyRequest } from "../types";
+import type { EstateSnapshot, TopologyGraph, TopologyRequest } from "../types";
 import { getTopology } from "../api";
-import { ALL_RESOURCES_ICON, RESOURCE_GROUP_ICON } from "../azure-icons";
-import { displayLocation } from "../azure-values";
-import { CytoscapeResourceGraph, kindClassColor, type GraphMode } from "./CytoscapeResourceGraph";
+import { RESOURCE_GROUP_ICON } from "../azure-icons";
 import {
-  buildResourceGroupTopology,
-  resourceGroupNodeId,
-  resourcesInGroup,
-  type ResourceGroupSummary,
-} from "./topology-model";
+  CytoscapeResourceGraph,
+  kindClassColor,
+  type GraphActivation,
+  type GraphCameraMode,
+  type GraphCameraRequest,
+  type GraphMode,
+} from "./CytoscapeResourceGraph";
+import { buildResourceGroupTopology } from "./topology-model";
+import {
+  refreshFailed,
+  refreshStarted,
+  refreshSucceeded,
+  resolveAggregateActivation,
+  toggleSubscriptionLane,
+} from "./topology-view-state";
 
 const ALL_KIND_CLASSES = ["network", "structure", "data", "identity", "monitoring"] as const;
 
-function relationLabel(kind: string) {
-  return kind.replaceAll("_", " ");
+interface ViewControls {
+  mode: GraphMode;
+  activeResourceGroupId?: string;
+  depth: 1 | 2;
+  excludedClasses: string[];
+  expandedOverride?: string[];
+  showUnconnected: boolean;
+  selectedResourceId?: string;
 }
 
-function stableCompare(left: string, right: string) {
-  return left < right ? -1 : left > right ? 1 : 0;
+interface TopologyError {
+  message: string;
+  hasPrevious: boolean;
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error && error.message
+    ? error.message
+    : "The relationship graph could not be refreshed.";
 }
 
 export function TopologyView({
@@ -50,72 +75,60 @@ export function TopologyView({
   onSelectResource: (id: string) => void;
   onInspect: (id: string) => void;
 }) {
-  const selected = estate.resources.find((resource) => resource.id === selectedResourceId) ?? estate.resources[0];
+  const selected = estate.resources.find((resource) => resource.id === selectedResourceId);
   const [mode, setMode] = useState<GraphMode>("estate");
   const [motionEnabled, setMotionEnabled] = useState(true);
-  const [focusNonce, setFocusNonce] = useState(0);
-  const [selectedResourceGroupId, setSelectedResourceGroupId] = useState<string>();
-  const [activeResourceGroupId, setActiveResourceGroupId] = useState<string>();
-  const [inspectorOpen, setInspectorOpen] = useState(false);
   const [motionReduced, setMotionReduced] = useState(false);
   const [depth, setDepth] = useState<1 | 2>(1);
   const [excludedClasses, setExcludedClasses] = useState<string[]>([]);
   const [expandedOverride, setExpandedOverride] = useState<string[]>();
   const [showUnconnected, setShowUnconnected] = useState(true);
+  const [activeResourceGroupId, setActiveResourceGroupId] = useState<string>();
+  const [expandedAggregateId, setExpandedAggregateId] = useState<string>();
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(false);
+  const [camera, setCamera] = useState<GraphCameraRequest>({ mode: "core", nonce: 0 });
   const [topology, setTopology] = useState<TopologyGraph>();
   const [topologyStale, setTopologyStale] = useState(false);
-  const [aggregateNodeId, setAggregateNodeId] = useState<string>();
-  const detailsTriggerRef = useRef<HTMLButtonElement>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const returnFocusRef = useRef<HTMLElement | undefined>(undefined);
+  const [topologyError, setTopologyError] = useState<TopologyError>();
+  const [retryNonce, setRetryNonce] = useState(0);
   const lastFocusRequestRef = useRef(0);
   const requestTokenRef = useRef(0);
-  const typeMap = useMemo(() => new Map(estate.resourceTypes.map((type) => [type.azureType, type])), [estate.resourceTypes]);
-  const resourceGroupTopology = useMemo(() => buildResourceGroupTopology(estate), [estate]);
-  const selectedResourceGroup = resourceGroupTopology.groups.find(
-    (group) => group.id === selectedResourceGroupId,
-  ) ?? resourceGroupTopology.groups[0];
-  const activeResourceGroup = resourceGroupTopology.groups.find(
-    (group) => group.id === activeResourceGroupId,
-  );
-  const selectedResourceGroupForResource = selected
-    ? resourceGroupTopology.resourceGroupByResourceId.get(selected.id)
-    : undefined;
-  const selectedIsInActiveGroup = Boolean(
-    selected && activeResourceGroup?.resourceIds.includes(selected.id),
-  );
-  const aggregateNode = aggregateNodeId
-    ? topology?.nodes.find((node) => node.id === aggregateNodeId)
-    : undefined;
-  const groupInspectorVisible = !aggregateNode && mode === "estate" && (!activeResourceGroup || !selectedIsInActiveGroup);
-  const inspectorResourceGroup = activeResourceGroup ?? selectedResourceGroup;
-  const relationships = useMemo(() => {
-    if (!selected) return [];
-    return estate.edges
-      .filter((edge) => edge.sourceId === selected.id || edge.targetId === selected.id)
-      .map((edge) => {
-        const outbound = edge.sourceId === selected.id;
-        const resource = estate.resources.find((candidate) => candidate.id === (outbound ? edge.targetId : edge.sourceId));
-        return { edge, outbound, resource };
-      });
-  }, [estate.edges, estate.resources, selected]);
+  const successfulControlsRef = useRef<ViewControls | undefined>(undefined);
 
-  // Fetch the graph whenever anything that shapes it changes. The previous
-  // graph stays on screen (marked stale) so the canvas never flashes empty.
+  const resourceGroupTopology = useMemo(() => buildResourceGroupTopology(estate), [estate]);
+  const activeResourceGroup = resourceGroupTopology.groups.find((group) => group.id === activeResourceGroupId);
+  const selectedNodeId = mode === "neighbourhood" ? selected?.id : undefined;
+
   useEffect(() => {
-    if (!selected) return;
+    if (mode === "neighbourhood" && !selected) setMode("estate");
+  }, [mode, selected]);
+
+  // Keep the previous successful graph visible while a replacement is being
+  // built. A failed replacement can then be retried or reverted without
+  // losing spatial context.
+  useEffect(() => {
+    if (mode === "neighbourhood" && !selected) return;
+    const controls: ViewControls = {
+      mode,
+      activeResourceGroupId,
+      depth,
+      excludedClasses: [...excludedClasses],
+      expandedOverride: expandedOverride ? [...expandedOverride] : undefined,
+      showUnconnected,
+      selectedResourceId: selected?.id,
+    };
     const request: TopologyRequest = {
       snapshotId: estate.id,
       mode:
         mode === "neighbourhood"
           ? {
               kind: "neighbourhood",
-              resourceId: selected.id,
+              resourceId: selected?.id ?? "",
               depth,
-              kindClasses:
-                excludedClasses.length > 0
-                  ? ALL_KIND_CLASSES.filter((kindClass) => !excludedClasses.includes(kindClass))
-                  : [],
+              kindClasses: excludedClasses.length > 0
+                ? ALL_KIND_CLASSES.filter((kindClass) => !excludedClasses.includes(kindClass))
+                : [],
             }
           : activeResourceGroupId
             ? { kind: "group", groupId: activeResourceGroupId }
@@ -124,17 +137,26 @@ export function TopologyView({
     };
     const token = requestTokenRef.current + 1;
     requestTokenRef.current = token;
-    setTopologyStale(true);
+    const started = refreshStarted(Boolean(topology));
+    setTopologyStale(started.stale);
+    setTopologyError(started.error);
     getTopology(request)
       .then((graph) => {
         if (requestTokenRef.current !== token) return;
+        successfulControlsRef.current = controls;
         setTopology(graph);
-        setTopologyStale(false);
+        const succeeded = refreshSucceeded();
+        setTopologyStale(succeeded.stale);
+        setTopologyError(succeeded.error);
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (requestTokenRef.current !== token) return;
-        setTopologyStale(false);
+        const failed = refreshFailed(Boolean(topology), errorMessage(error));
+        setTopologyStale(failed.stale);
+        setTopologyError(failed.error);
       });
+    // The retained topology is deliberately read at request start only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     activeResourceGroupId,
     depth,
@@ -142,25 +164,18 @@ export function TopologyView({
     excludedClasses,
     expandedOverride,
     mode,
-    selected,
+    retryNonce,
+    selected?.id,
     showUnconnected,
   ]);
 
   useEffect(() => {
-    setAggregateNodeId(undefined);
-  }, [mode, activeResourceGroupId, selectedResourceId]);
-
-  useEffect(() => {
-    setSelectedResourceGroupId((current) => {
-      if (current && resourceGroupTopology.groups.some((group) => group.id === current)) return current;
-      return selectedResourceGroupForResource ?? resourceGroupTopology.groups[0]?.id;
-    });
     setActiveResourceGroupId((current) =>
       current && resourceGroupTopology.groups.some((group) => group.id === current)
         ? current
         : undefined,
     );
-  }, [resourceGroupTopology, selectedResourceGroupForResource]);
+  }, [resourceGroupTopology]);
 
   useEffect(() => {
     const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -171,523 +186,243 @@ export function TopologyView({
   }, []);
 
   useEffect(() => {
-    if (focusRequestNonce === 0 || focusRequestNonce === lastFocusRequestRef.current) return;
+    if (focusRequestNonce === 0 || focusRequestNonce === lastFocusRequestRef.current || !selected) return;
     lastFocusRequestRef.current = focusRequestNonce;
-    if (mode === "estate" && selectedResourceGroupForResource) {
-      setSelectedResourceGroupId(selectedResourceGroupForResource);
-      setActiveResourceGroupId(selectedResourceGroupForResource);
-    }
-    rememberReturnFocus();
-    setInspectorOpen(true);
-    setFocusNonce((value) => value + 1);
-  }, [focusRequestNonce, mode, selectedResourceGroupForResource]);
+    setMode("neighbourhood");
+    setActiveResourceGroupId(undefined);
+    setExpandedAggregateId(undefined);
+    requestCamera("selection");
+  }, [focusRequestNonce, selected]);
 
-  useEffect(() => {
-    if (!inspectorOpen) return;
-    const frame = window.requestAnimationFrame(() => {
-      const closeButton = closeButtonRef.current;
-      if (closeButton && window.getComputedStyle(closeButton).display !== "none") closeButton.focus();
-    });
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      closeInspector();
-    }
-    window.addEventListener("keydown", handleEscape);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      window.removeEventListener("keydown", handleEscape);
-    };
-  }, [inspectorOpen]);
-
-  if (!selected) return null;
-  const selectedType = typeMap.get(selected.azureType);
-  const focusedNodeId = mode === "estate" && !activeResourceGroup
-    ? (selectedResourceGroup ? resourceGroupNodeId(selectedResourceGroup.id) : "")
-    : selected.id;
   const counts = topology?.counts;
   const graphUnit = topology?.level === "estate" ? "groups" : "resources";
+  const classCounts = new Map((topology?.kindClasses ?? []).map((entry) => [entry.class, entry.count]));
+  const contextTitle = mode === "neighbourhood"
+    ? selected?.name ?? "Choose a resource"
+    : activeResourceGroup?.name ?? "Estate map";
+  const contextSubtitle = mode === "neighbourhood"
+    ? selected
+      ? `${depth} hop${depth === 1 ? "" : "s"} · ${counts?.total ?? "…"} resources in reach`
+      : "Select a resource to explore its neighbourhood"
+    : activeResourceGroup
+      ? `${activeResourceGroup.subscriptionName} · ${activeResourceGroup.resourceCount} resources`
+      : `${resourceGroupTopology.groups.length} groups · ${estate.resources.length.toLocaleString()} resources`;
 
-  function selectGraphResource(id: string) {
-    rememberReturnFocus();
-    onSelectResource(id);
-    setInspectorOpen(false);
-  }
-
-  function selectInspectorResource(id: string) {
-    onSelectResource(id);
-    setInspectorOpen(true);
-  }
-
-  function selectResourceGroup(id: string) {
-    setSelectedResourceGroupId(id);
+  function requestCamera(cameraMode: GraphCameraMode) {
+    setCamera((current) => ({ mode: cameraMode, nonce: current.nonce + 1 }));
   }
 
   function openResourceGroup(id: string) {
     const group = resourceGroupTopology.groups.find((candidate) => candidate.id === id);
     if (!group) return;
-    setSelectedResourceGroupId(id);
+    setMode("estate");
     setActiveResourceGroupId(id);
-    setInspectorOpen(false);
-    if (!selected || !group.resourceIds.includes(selected.id)) {
-      const nextResource = resourcesInGroup(estate, group)
-        .sort((left, right) =>
-          right.edgeCount - left.edgeCount
-            || right.findingCount - left.findingCount
-            || stableCompare(left.name, right.name)
-            || stableCompare(left.id, right.id),
-        )[0];
-      if (nextResource) onSelectResource(nextResource.id);
-    }
+    setExpandedAggregateId(undefined);
+    setToolsOpen(false);
+    requestCamera("core");
   }
 
   function showResourceGroups() {
     setActiveResourceGroupId(undefined);
-    setInspectorOpen(false);
+    setExpandedAggregateId(undefined);
+    requestCamera("core");
   }
 
-  function expandLane(subscriptionId: string) {
-    const alreadyExpanded = topology?.lanes
+  function toggleLane(subscriptionId: string) {
+    const drawnExpanded = topology?.lanes
       .filter((lane) => lane.expanded)
       .map((lane) => lane.subscriptionId) ?? [];
-    setExpandedOverride([...new Set([...alreadyExpanded, subscriptionId])]);
+    setExpandedOverride((current) => toggleSubscriptionLane(current, drawnExpanded, subscriptionId));
+    requestCamera("core");
+  }
+
+  function activateGraphItem(activation: GraphActivation) {
+    if (activation.kind === "subscription") {
+      toggleLane(activation.subscriptionId);
+      return;
+    }
+    if (activation.kind === "resource-group") {
+      openResourceGroup(activation.groupId);
+      return;
+    }
+    if (activation.kind === "aggregate") {
+      const aggregate = topology?.nodes.find((node) => node.id === activation.nodeId);
+      if (!aggregate) return;
+      const next = resolveAggregateActivation(expandedAggregateId, activation.nodeId, aggregate.memberIds);
+      if (next.kind === "open-resource") {
+        onInspect(next.resourceId);
+        return;
+      }
+      setExpandedAggregateId(next.expandedId);
+      return;
+    }
+    onInspect(activation.resourceId);
   }
 
   function toggleClass(kindClass: string) {
-    setExcludedClasses((current) =>
-      current.includes(kindClass)
-        ? current.filter((candidate) => candidate !== kindClass)
-        : [...current, kindClass],
-    );
+    setExcludedClasses((current) => current.includes(kindClass)
+      ? current.filter((candidate) => candidate !== kindClass)
+      : [...current, kindClass]);
   }
 
-  function rememberReturnFocus(candidate?: HTMLElement) {
-    const active = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
-    returnFocusRef.current = candidate ?? active ?? detailsTriggerRef.current ?? undefined;
-  }
-
-  function openInspector(trigger: HTMLButtonElement) {
-    rememberReturnFocus(trigger);
-    setInspectorOpen(true);
-  }
-
-  function closeInspector() {
-    const returnTarget = returnFocusRef.current ?? detailsTriggerRef.current;
-    setInspectorOpen(false);
-    setAggregateNodeId(undefined);
-    window.requestAnimationFrame(() => returnTarget?.focus());
+  function setGraphMode(nextMode: GraphMode) {
+    if (nextMode === "neighbourhood" && !selected) return;
+    setMode(nextMode);
+    setExpandedAggregateId(undefined);
+    setToolsOpen(false);
+    requestCamera(nextMode === "neighbourhood" ? "selection" : "core");
   }
 
   function handleGraphModeKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
     event.preventDefault();
-    const nextMode: GraphMode = event.key === "ArrowLeft" || event.key === "Home" ? "neighbourhood" : "estate";
-    setMode(nextMode);
+    const wantsNeighbourhood = event.key === "ArrowRight" || event.key === "ArrowDown" || event.key === "End";
+    const nextMode: GraphMode = wantsNeighbourhood && selected ? "neighbourhood" : "estate";
+    setGraphMode(nextMode);
     event.currentTarget.querySelector<HTMLButtonElement>(`[data-graph-mode="${nextMode}"]`)?.focus();
   }
 
-  const classCounts = new Map((topology?.kindClasses ?? []).map((entry) => [entry.class, entry.count]));
+  function handleDepthKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const nextDepth = event.key === "ArrowLeft" || event.key === "ArrowUp" || event.key === "Home" ? 1 : 2;
+    setDepth(nextDepth);
+    event.currentTarget.querySelector<HTMLButtonElement>(`[data-depth="${nextDepth}"]`)?.focus();
+  }
+
+  function revertGraph() {
+    const controls = successfulControlsRef.current;
+    if (!controls) return;
+    setMode(controls.mode);
+    setActiveResourceGroupId(controls.activeResourceGroupId);
+    setDepth(controls.depth);
+    setExcludedClasses([...controls.excludedClasses]);
+    setExpandedOverride(controls.expandedOverride ? [...controls.expandedOverride] : undefined);
+    setShowUnconnected(controls.showUnconnected);
+    if (controls.selectedResourceId) onSelectResource(controls.selectedResourceId);
+    setTopologyError(undefined);
+    setTopologyStale(false);
+    requestCamera("core");
+  }
 
   return (
     <div className="topology-workspace">
-      <section
-        className="topology-stage"
-        aria-label={mode === "estate" && !activeResourceGroup
-          ? "Interactive Azure estate map grouped by subscription and resource group"
-          : `Interactive relationship graph centered on ${selected.name}`}
-      >
-        <div className="topology-overlays">
+      <section className="topology-stage" aria-label={mode === "neighbourhood"
+        ? `Relationship neighbourhood for ${selected?.name ?? "no selected resource"}`
+        : activeResourceGroup
+          ? `Relationship map for resource group ${activeResourceGroup.name}`
+          : "Azure estate relationship map"}>
         <header className="topology-commandbar">
           <div className="topology-title">
             <span className="topology-title-icon"><GitBranch size={18} /></span>
             <div>
-              <h1>{mode === "estate" && !activeResourceGroup ? "Estate map" : activeResourceGroup && mode === "estate" ? activeResourceGroup.name : "Neighbourhood"}</h1>
-              <span>{mode === "estate" && !activeResourceGroup
-                ? `${resourceGroupTopology.groups.length} groups · ${estate.resources.length.toLocaleString()} resources`
-                : activeResourceGroup && mode === "estate"
-                  ? `${activeResourceGroup.subscriptionName} · ${activeResourceGroup.resourceCount} resources`
-                  : `${selected.name} · ${counts ? `${counts.total} in reach` : "…"}`}</span>
+              <div className="topology-scope-line">
+                <strong>Relationships</strong>
+                {activeResourceGroup && mode === "estate" ? (
+                  <>
+                    <ChevronRight size={12} aria-hidden="true" />
+                    <button onClick={showResourceGroups}>Estate map</button>
+                    <ChevronRight size={12} aria-hidden="true" />
+                    <span>{activeResourceGroup.subscriptionName}</span>
+                  </>
+                ) : null}
+              </div>
+              <h1>{contextTitle}</h1>
+              <span>{contextSubtitle}</span>
             </div>
           </div>
+
+          <div className="graph-mode-switch" role="radiogroup" aria-label="Graph scope" onKeyDown={handleGraphModeKeyDown}>
+            <button data-graph-mode="estate" role="radio" aria-checked={mode === "estate"} tabIndex={mode === "estate" ? 0 : -1} className={mode === "estate" ? "active" : ""} onClick={() => setGraphMode("estate")}>
+              <Layers3 size={14} /> Estate map
+            </button>
+            <button data-graph-mode="neighbourhood" role="radio" aria-checked={mode === "neighbourhood"} tabIndex={mode === "neighbourhood" ? 0 : -1} className={mode === "neighbourhood" ? "active" : ""} onClick={() => setGraphMode("neighbourhood")} disabled={!selected} title={!selected ? "Select a resource before opening its neighbourhood" : undefined}>
+              <ScanSearch size={14} /> Neighbourhood
+            </button>
+          </div>
+
           {mode === "neighbourhood" ? (
-            <div className="graph-depth-switch" role="radiogroup" aria-label="Neighbourhood depth">
+            <div className="graph-depth-switch" role="radiogroup" aria-label="Neighbourhood depth" onKeyDown={handleDepthKeyDown}>
               {[1, 2].map((value) => (
-                <button
-                  key={value}
-                  role="radio"
-                  aria-checked={depth === value}
-                  className={depth === value ? "active" : ""}
-                  onClick={() => setDepth(value as 1 | 2)}
-                >
+                <button key={value} data-depth={value} role="radio" aria-checked={depth === value} tabIndex={depth === value ? 0 : -1} className={depth === value ? "active" : ""} onClick={() => setDepth(value as 1 | 2)}>
                   {value} hop{value === 1 ? "" : "s"}
                 </button>
               ))}
             </div>
           ) : null}
-          <div className="graph-mode-switch" role="radiogroup" aria-label="Graph scope" onKeyDown={handleGraphModeKeyDown}>
-            <button data-graph-mode="neighbourhood" role="radio" aria-checked={mode === "neighbourhood"} tabIndex={mode === "neighbourhood" ? 0 : -1} className={mode === "neighbourhood" ? "active" : ""} onClick={() => setMode("neighbourhood")}>
-              <ScanSearch size={14} /> Neighbourhood
+
+          {mode === "estate" && activeResourceGroup ? (
+            <button className={showUnconnected ? "topology-inline-toggle active" : "topology-inline-toggle"} aria-pressed={showUnconnected} onClick={() => setShowUnconnected((current) => !current)}>
+              Include resources without drawn relationships
             </button>
-            <button data-graph-mode="estate" role="radio" aria-checked={mode === "estate"} tabIndex={mode === "estate" ? 0 : -1} className={mode === "estate" ? "active" : ""} onClick={() => setMode("estate")}>
-              <Layers3 size={14} /> Estate map
-            </button>
-          </div>
+          ) : null}
+
           <div className="topology-tools">
-            <button onClick={() => setMotionEnabled((current) => !current)} aria-pressed={motionEnabled && !motionReduced} disabled={motionReduced} title={motionReduced ? "Motion is disabled by your operating-system preference" : undefined}>
-              {motionEnabled && !motionReduced ? <Pause size={14} /> : <Play size={14} />}
-              {motionReduced ? "Motion reduced" : motionEnabled ? "Pause flow" : "Play flow"}
+            <button aria-label={selectedNodeId ? "Recenter the selected item" : "Recenter the readable core"} onClick={() => requestCamera(selectedNodeId ? "selection" : "core")} title={selectedNodeId ? "Recenter the selected item" : "Recenter the readable core"}>
+              <Focus size={15} /><span>Recenter</span>
             </button>
-            <button onClick={() => setFocusNonce((value) => value + 1)}>
-              <Focus size={14} /> Fit selection
-            </button>
-            <button
-              ref={detailsTriggerRef}
-              className="mobile-inspector-toggle"
-              onClick={(event) => openInspector(event.currentTarget)}
-              aria-expanded={inspectorOpen}
-              aria-controls="topology-inspector"
-            >
-              {groupInspectorVisible
-                ? <img src={RESOURCE_GROUP_ICON} alt="" />
-                : selectedType
-                  ? <img src={selectedType.icon} alt="" />
-                  : <GitBranch size={14} />} Details
-            </button>
+            <div className="topology-more">
+              <button className="topology-more-trigger" aria-label="More graph controls" onClick={() => setToolsOpen((current) => !current)} aria-haspopup="menu" aria-expanded={toolsOpen} aria-controls="topology-more-menu">
+                <MoreHorizontal size={17} /><span>More</span>
+              </button>
+              {toolsOpen ? (
+                <div id="topology-more-menu" className="topology-more-menu" role="menu">
+                  <button role="menuitem" onClick={() => { requestCamera("all"); setToolsOpen(false); }}><Maximize2 size={15} /><span><strong>Fit all</strong><small>Show every represented region</small></span></button>
+                  <button role="menuitem" onClick={() => requestCamera("zoom-in")}><Plus size={15} /><span><strong>Zoom in</strong><small>Keyboard: +</small></span></button>
+                  <button role="menuitem" onClick={() => requestCamera("zoom-out")}><Minus size={15} /><span><strong>Zoom out</strong><small>Keyboard: −</small></span></button>
+                  <button role="menuitem" onClick={() => setMotionEnabled((current) => !current)} disabled={motionReduced}>
+                    {motionEnabled && !motionReduced ? <Pause size={15} /> : <Play size={15} />}
+                    <span><strong>{motionReduced ? "Motion reduced" : motionEnabled ? "Pause selected path" : "Play selected path"}</strong><small>{motionReduced ? "Uses your system preference" : "Only the selected path animates"}</small></span>
+                  </button>
+                  {expandedOverride ? <button role="menuitem" onClick={() => { setExpandedOverride(undefined); setToolsOpen(false); }}><RotateCcw size={15} /><span><strong>Reset subscription lanes</strong><small>Restore the snapshot default</small></span></button> : null}
+                  <div className="topology-help" role="note"><HelpCircle size={15} /><p><strong>Graph controls</strong><span>Click or press Enter to open an item. Aggregate tiles expand in place. Arrow keys move spatially; drag to pan; scroll to zoom; 0 recentres.</span></p></div>
+                </div>
+              ) : null}
+            </div>
           </div>
         </header>
 
-        {mode === "estate" && activeResourceGroup ? (
-          <nav className="topology-breadcrumb" aria-label="Topology scope">
-            <button onClick={showResourceGroups}><Layers3 size={13} /> Resource groups</button>
-            <ChevronRight size={13} aria-hidden="true" />
-            <span>{activeResourceGroup.subscriptionName}</span>
-            <ChevronRight size={13} aria-hidden="true" />
-            <strong>{activeResourceGroup.name}</strong>
-          </nav>
+        {topologyError ? (
+          <div className="topology-error-rail" role="alert" aria-live="assertive">
+            <AlertTriangle size={16} />
+            <span><strong>Relationship refresh failed.</strong> {topologyError.message}{topologyError.hasPrevious ? " The last successful graph is still shown." : ""}</span>
+            <button onClick={() => setRetryNonce((value) => value + 1)}>Retry</button>
+            {topologyError.hasPrevious ? <button onClick={revertGraph}>Revert controls</button> : null}
+          </div>
         ) : null}
 
-        {mode === "neighbourhood" ? (
-          <div className="topology-kind-chips" role="group" aria-label="Relationship kinds">
+        {topology ? (
+          <CytoscapeResourceGraph graph={topology} estate={estate} theme={theme} selectedNodeId={selectedNodeId} expandedAggregateId={expandedAggregateId} motionEnabled={motionEnabled && !motionReduced} camera={camera} onActivate={activateGraphItem} />
+        ) : topologyError ? (
+          <div className="graph-empty-state" role="status"><AlertTriangle size={24} /><strong>No relationship graph is available</strong><span>Retry the request or return to the estate after checking the stored snapshot.</span></div>
+        ) : (
+          <div className="graph-empty-state" role="status"><img src={RESOURCE_GROUP_ICON} alt="" /><strong>Building the relationship graph…</strong></div>
+        )}
+
+        <footer className="topology-status-rail" aria-label="Relationship graph status and legend">
+          <div className="topology-counts" role="status">
+            <Activity size={14} />
+            {counts ? (
+              <span><strong>{counts.total}</strong> {graphUnit} represented{counts.folded > 0 ? <> · {counts.folded} folded</> : null}{counts.aggregated > 0 ? <> · {counts.aggregated} aggregated</> : null}{counts.external > 0 ? <> · {counts.external} external</> : null}{counts.hiddenByFilter > 0 ? <> · <strong>{counts.hiddenByFilter} filtered</strong></> : null}</span>
+            ) : <span>Building graph…</span>}
+            <i />
+            <span><strong>{counts?.totalLinks ?? 0}</strong> source relationships · <strong>{counts?.drawnLinks ?? 0}</strong> connectors</span>
+            {topologyStale ? <b className="topology-stale">Stale graph</b> : null}
+          </div>
+          <button className="topology-legend-toggle" onClick={() => setLegendOpen((current) => !current)} aria-expanded={legendOpen} aria-controls="topology-kind-legend">Kinds <ChevronDown size={13} /></button>
+          <div id="topology-kind-legend" className={legendOpen ? "topology-kind-legend open" : "topology-kind-legend"} aria-label="Relationship kinds">
             {ALL_KIND_CLASSES.map((kindClass) => {
               const active = !excludedClasses.includes(kindClass);
               const count = classCounts.get(kindClass);
-              return (
-                <button
-                  key={kindClass}
-                  className={active ? "kind-chip active" : "kind-chip"}
-                  aria-pressed={active}
-                  onClick={() => toggleClass(kindClass)}
-                >
-                  <i style={{ background: kindClassColor(kindClass) }} />
-                  {kindClass}
-                  {count !== undefined ? <b>{count}</b> : null}
-                </button>
+              return mode === "neighbourhood" ? (
+                <button key={kindClass} aria-pressed={active} className={active ? "active" : ""} onClick={() => toggleClass(kindClass)}><i style={{ background: kindClassColor(kindClass) }} />{kindClass}{count !== undefined ? <b>{count}</b> : null}</button>
+              ) : (
+                <span key={kindClass}><i style={{ background: kindClassColor(kindClass) }} />{kindClass}{count !== undefined ? <b>{count}</b> : null}</span>
               );
             })}
           </div>
-        ) : null}
-        {mode === "estate" && activeResourceGroup ? (
-          <div className="topology-kind-chips" role="group" aria-label="Group view options">
-            <button
-              className={showUnconnected ? "kind-chip active" : "kind-chip"}
-              aria-pressed={showUnconnected}
-              onClick={() => setShowUnconnected((current) => !current)}
-            >
-              Unlinked shelf
-            </button>
-            {expandedOverride ? null : null}
-          </div>
-        ) : null}
-        {mode === "estate" && !activeResourceGroup && expandedOverride ? (
-          <div className="topology-kind-chips" role="group" aria-label="Lane options">
-            <button className="kind-chip" onClick={() => setExpandedOverride(undefined)}>
-              Reset lanes
-            </button>
-          </div>
-        ) : null}
-        </div>
-
-        {topology ? (
-          <CytoscapeResourceGraph
-            graph={topology}
-            estate={estate}
-            theme={theme}
-            focusedNodeId={focusedNodeId}
-            motionEnabled={motionEnabled}
-            focusNonce={focusNonce}
-            onSelectResource={selectGraphResource}
-            onSelectResourceGroup={selectResourceGroup}
-            onOpenResourceGroup={openResourceGroup}
-            onExpandLane={expandLane}
-            onSelectAggregate={(nodeId) => {
-              setAggregateNodeId(nodeId);
-              setInspectorOpen(true);
-            }}
-          />
-        ) : (
-          <div className="graph-empty-state" role="status">
-            <img src={RESOURCE_GROUP_ICON} alt="" />
-            <strong>Building the relationship graph…</strong>
-          </div>
-        )}
-
-        <div className="graph-snapshot-chip" role="status">
-          <Activity size={13} />
-          {counts ? (
-            <span>
-              All <strong>{counts.total}</strong> {graphUnit} represented
-              {counts.folded > 0 ? <> · {counts.folded} folded</> : null}
-              {counts.aggregated > 0 ? <> · {counts.aggregated} aggregated</> : null}
-              {counts.external > 0 ? <> · {counts.external} neighbours in other groups</> : null}
-              {counts.hiddenByFilter > 0 ? <> · <strong>{counts.hiddenByFilter} hidden by filters</strong></> : null}
-            </span>
-          ) : (
-            <span>Building…</span>
-          )}
-          <i />
-          <span><strong>{counts?.drawnLinks ?? 0}</strong> of {counts?.totalLinks ?? 0} links drawn</span>
-          <i />
-          <span>Snapshot {estate.id.slice(0, 8)}{topologyStale ? " · updating…" : ""}</span>
-        </div>
+        </footer>
       </section>
-
-      {aggregateNode ? (
-        <AggregateInspector
-          node={aggregateNode}
-          estate={estate}
-          open={inspectorOpen}
-          typeMap={typeMap}
-          closeButtonRef={closeButtonRef}
-          onClose={closeInspector}
-          onSelect={selectInspectorResource}
-        />
-      ) : groupInspectorVisible && inspectorResourceGroup ? (
-        <ResourceGroupInspector
-          group={inspectorResourceGroup}
-          estate={estate}
-          open={inspectorOpen}
-          active={activeResourceGroup?.id === inspectorResourceGroup.id}
-          typeMap={typeMap}
-          closeButtonRef={closeButtonRef}
-          onClose={closeInspector}
-          onOpen={openResourceGroup}
-        />
-      ) : (
-        <aside
-          id="topology-inspector"
-          className={inspectorOpen ? "topology-inspector open" : "topology-inspector"}
-          aria-labelledby="topology-inspector-title"
-        >
-          <div className="topology-inspector-glow" style={{ "--service-color": selectedType?.color ?? "#45b6fe" } as React.CSSProperties} />
-          <header className="topology-resource-hero">
-            <button ref={closeButtonRef} className="topology-inspector-close" onClick={closeInspector} aria-label="Close relationship details"><X size={17} /></button>
-            <div className="topology-resource-icon">
-              <img src={selectedType?.icon ?? ALL_RESOURCES_ICON} alt="" />
-            </div>
-            <div>
-              <span className="inspector-eyebrow">{selectedType?.displayName ?? selected.azureType}</span>
-              <h2 id="topology-inspector-title">{selected.name}</h2>
-              <p>{selected.resourceGroup} · {displayLocation(estate.azureMetadata, selected.location)}</p>
-            </div>
-          </header>
-
-          <div className="topology-resource-status">
-            <span className="status-live"><i /> Stored resource</span>
-            {selected.findingCount > 0 ? <span className="status-risk">{selected.findingCount} finding{selected.findingCount === 1 ? "" : "s"}</span> : <span className="status-clear">No findings</span>}
-          </div>
-
-          <button className="inspect-resource" onClick={() => onInspect(selected.id)}>
-            <span><strong>Open resource record</strong><small>Properties, tags, findings and raw evidence</small></span>
-            <ExternalLink size={16} />
-          </button>
-
-          <section className="relationship-section">
-            <div className="relationship-heading">
-              <div><small>Direct connections</small><strong>{relationships.length}</strong></div>
-              <span>Derived offline</span>
-            </div>
-            <div className="relationship-list">
-              {relationships.length === 0 ? (
-                <div className="relationship-empty"><GitBranch size={20} /><span>No derived relationships for this resource.</span></div>
-              ) : relationships.map(({ edge, outbound, resource }) => {
-                const type = resource ? typeMap.get(resource.azureType) : undefined;
-                return (
-                  <button key={`${edge.sourceId}-${edge.targetId}-${edge.kind}`} onClick={() => resource && selectInspectorResource(resource.id)}>
-                    <span className="relationship-direction" title={outbound ? "Outbound relationship" : "Inbound relationship"}>
-                      {outbound ? <ArrowUpRight size={13} /> : <ArrowDownLeft size={13} />}
-                    </span>
-                    <span className="relationship-resource-icon"><img src={type?.icon ?? ALL_RESOURCES_ICON} alt="" /></span>
-                    <span className="relationship-copy">
-                      <strong>{resource?.name ?? "Unknown resource"}</strong>
-                      <small>{relationLabel(edge.kind)}</small>
-                    </span>
-                    <span className="relationship-type">{type?.displayName ?? "Resource"}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          <footer className="topology-legend">
-            <div><i className="legend-flow" /><span>Arrow shows direction; colours group relationship kinds</span></div>
-            <p>Relationships are deterministic post-passes over the selected SQLite snapshot. No live Azure calls are made here.</p>
-          </footer>
-        </aside>
-      )}
     </div>
-  );
-}
-
-function AggregateInspector({
-  node,
-  estate,
-  open,
-  typeMap,
-  closeButtonRef,
-  onClose,
-  onSelect,
-}: {
-  node: TopologyNode;
-  estate: EstateSnapshot;
-  open: boolean;
-  typeMap: Map<string, EstateSnapshot["resourceTypes"][number]>;
-  closeButtonRef: React.RefObject<HTMLButtonElement | null>;
-  onClose: () => void;
-  onSelect: (id: string) => void;
-}) {
-  const type = node.azureType ? typeMap.get(node.azureType) : undefined;
-  const members = node.memberIds
-    .map((id) => estate.resources.find((resource) => resource.id === id))
-    .filter((resource): resource is NonNullable<typeof resource> => Boolean(resource))
-    .sort((left, right) => stableCompare(left.name, right.name));
-  return (
-    <aside
-      id="topology-inspector"
-      className={open ? "topology-inspector topology-group-inspector open" : "topology-inspector topology-group-inspector"}
-      aria-labelledby="topology-inspector-title"
-    >
-      <div className="topology-inspector-glow" style={{ "--service-color": type?.color ?? "#47c8ff" } as React.CSSProperties} />
-      <header className="topology-resource-hero topology-group-hero">
-        <button ref={closeButtonRef} className="topology-inspector-close" onClick={onClose} aria-label="Close aggregated tile details"><X size={17} /></button>
-        <div className="topology-resource-icon"><img src={type?.icon ?? ALL_RESOURCES_ICON} alt="" /></div>
-        <div>
-          <span className="inspector-eyebrow">Aggregated tile</span>
-          <h2 id="topology-inspector-title">{type?.displayName ?? node.name}</h2>
-          <p>{node.count} resources drawn as one tile</p>
-        </div>
-      </header>
-
-      <section className="relationship-section">
-        <div className="relationship-heading">
-          <div><small>Members</small><strong>{members.length}</strong></div>
-          <span>Select one to focus it</span>
-        </div>
-        <div className="relationship-list">
-          {members.map((resource) => (
-            <button key={resource.id} onClick={() => onSelect(resource.id)}>
-              <span className="relationship-resource-icon">
-                <img src={type?.icon ?? ALL_RESOURCES_ICON} alt="" />
-              </span>
-              <span className="relationship-copy">
-                <strong>{resource.name}</strong>
-                <small>{displayLocation(estate.azureMetadata, resource.location)}{resource.findingCount > 0 ? ` · ${resource.findingCount} findings` : ""}</small>
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <footer className="topology-legend">
-        <p>These resources have no drawn relationships yet, so they share one tile instead of being hidden.</p>
-      </footer>
-    </aside>
-  );
-}
-
-function ResourceGroupInspector({
-  group,
-  estate,
-  open,
-  active,
-  typeMap,
-  closeButtonRef,
-  onClose,
-  onOpen,
-}: {
-  group: ResourceGroupSummary;
-  estate: EstateSnapshot;
-  open: boolean;
-  active: boolean;
-  typeMap: Map<string, EstateSnapshot["resourceTypes"][number]>;
-  closeButtonRef: React.RefObject<HTMLButtonElement | null>;
-  onClose: () => void;
-  onOpen: (id: string) => void;
-}) {
-  return (
-    <aside
-      id="topology-inspector"
-      className={open ? "topology-inspector topology-group-inspector open" : "topology-inspector topology-group-inspector"}
-      aria-labelledby="topology-inspector-title"
-    >
-      <div className="topology-inspector-glow" style={{ "--service-color": "#47c8ff" } as React.CSSProperties} />
-      <header className="topology-resource-hero topology-group-hero">
-        <button ref={closeButtonRef} className="topology-inspector-close" onClick={onClose} aria-label="Close resource group details"><X size={17} /></button>
-        <div className="topology-resource-icon"><img src={RESOURCE_GROUP_ICON} alt="" /></div>
-        <div>
-          <h2 id="topology-inspector-title">{group.name}</h2>
-          <p>Resource group · {group.subscriptionName}</p>
-        </div>
-      </header>
-
-      <div className="topology-resource-status">
-        <span className="status-live"><i /> {group.resourceCount} resource{group.resourceCount === 1 ? "" : "s"}</span>
-        {group.findingCount > 0
-          ? <span className="status-risk">{group.findingCount} finding{group.findingCount === 1 ? "" : "s"}</span>
-          : <span className="status-clear">No findings</span>}
-      </div>
-
-      <button className="inspect-resource" onClick={() => onOpen(group.id)} disabled={active && group.resourceCount === 0}>
-        <span>
-          <strong>{active ? "Resource group map" : "Open resource group"}</strong>
-          <small>{active ? "This group contains no stored resources" : "Explore contained resources and internal links"}</small>
-        </span>
-        <ChevronRight size={16} />
-      </button>
-
-      <div className="topology-group-metrics" aria-label="Resource group totals">
-        <span><small>Location</small><strong>{displayLocation(estate.azureMetadata, group.location)}</strong></span>
-        <span><small>Internal links</small><strong>{group.internalLinkCount}</strong></span>
-        <span><small>Connected groups</small><strong>{group.connectedGroupCount}</strong></span>
-        <span><small>Cross-group links</small><strong>{group.externalLinkCount}</strong></span>
-      </div>
-
-      <section className="relationship-section">
-        <div className="relationship-heading">
-          <div><small>Resource types</small><strong>{group.resourceTypes.length}</strong></div>
-          <span>{group.resourceCount} total</span>
-        </div>
-        <div className="topology-group-type-list">
-          {group.resourceTypes.length === 0 ? (
-            <div className="relationship-empty"><img src={ALL_RESOURCES_ICON} alt="" /><span>No resource records are stored in this group.</span></div>
-          ) : group.resourceTypes.map(({ azureType, count }) => {
-            const type = typeMap.get(azureType);
-            return (
-              <div key={azureType}>
-                <span className="relationship-resource-icon">
-                  <img src={type?.icon ?? ALL_RESOURCES_ICON} alt="" />
-                </span>
-                <span><strong>{type?.displayName ?? azureType}</strong><small>{azureType}</small></span>
-                <b>{count}</b>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <footer className="topology-legend">
-        <div><i className="legend-flow" /><span>Group connectors aggregate cross-group resource links</span></div>
-        <p>{estate.resources.length.toLocaleString()} resources are organised into {estate.resourceGroups.length} stored resource groups. Select a group, then open it to drill into resource relationships.</p>
-      </footer>
-    </aside>
   );
 }
