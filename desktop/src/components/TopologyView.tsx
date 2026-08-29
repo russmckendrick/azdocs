@@ -16,6 +16,7 @@ import {
 import type { EstateSnapshot, TopologyGraph, TopologyNode, TopologyRequest } from "../types";
 import { getTopology } from "../api";
 import { ALL_RESOURCES_ICON, RESOURCE_GROUP_ICON } from "../azure-icons";
+import { displayLocation } from "../azure-values";
 import { CytoscapeResourceGraph, kindClassColor, type GraphMode } from "./CytoscapeResourceGraph";
 import {
   buildResourceGroupTopology,
@@ -486,7 +487,7 @@ export function TopologyView({
             <div>
               <span className="inspector-eyebrow">{selectedType?.displayName ?? selected.azureType}</span>
               <h2 id="topology-inspector-title">{selected.name}</h2>
-              <p>{selected.resourceGroup} · {selected.location ?? "global"}</p>
+              <p>{selected.resourceGroup} · {displayLocation(estate.azureMetadata, selected.location)}</p>
             </div>
           </header>
 
@@ -589,7 +590,7 @@ function AggregateInspector({
               </span>
               <span className="relationship-copy">
                 <strong>{resource.name}</strong>
-                <small>{resource.location ?? "global"}{resource.findingCount > 0 ? ` · ${resource.findingCount} findings` : ""}</small>
+                <small>{displayLocation(estate.azureMetadata, resource.location)}{resource.findingCount > 0 ? ` · ${resource.findingCount} findings` : ""}</small>
               </span>
             </button>
           ))}
@@ -654,7 +655,7 @@ function ResourceGroupInspector({
       </button>
 
       <div className="topology-group-metrics" aria-label="Resource group totals">
-        <span><small>Location</small><strong>{group.location ?? "global"}</strong></span>
+        <span><small>Location</small><strong>{displayLocation(estate.azureMetadata, group.location)}</strong></span>
         <span><small>Internal links</small><strong>{group.internalLinkCount}</strong></span>
         <span><small>Connected groups</small><strong>{group.connectedGroupCount}</strong></span>
         <span><small>Cross-group links</small><strong>{group.externalLinkCount}</strong></span>

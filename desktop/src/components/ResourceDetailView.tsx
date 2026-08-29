@@ -8,6 +8,7 @@ import {
   ListTree,
 } from "lucide-react";
 import { ALL_RESOURCES_ICON } from "../azure-icons";
+import { displayKind, displayLocation } from "../azure-values";
 import type { EstateSnapshot, Resource, ResourceType } from "../types";
 import { AdaptiveDataView, describeStoredValue, hasStoredValue } from "./AdaptiveDataView";
 
@@ -46,6 +47,9 @@ export function ResourceDetailView({
   const relatedFindings = estate.findings.filter((finding) => finding.resourceId === resource.id);
   const relatedEdges = estate.edges.filter((edge) => edge.sourceId === resource.id || edge.targetId === resource.id);
   const tags = Object.entries(resource.tags ?? {}).sort(([left], [right]) => left.localeCompare(right));
+  const locationName = displayLocation(estate.azureMetadata, resource.location);
+  const groupLocationName = displayLocation(estate.azureMetadata, resourceGroup?.location, "Not stored");
+  const kindName = displayKind(estate.azureMetadata, resource.azureType, resource.kind);
   const resourceContext = {
     resourceIdentity: {
       name: resource.name,
@@ -53,9 +57,9 @@ export function ResourceDetailView({
       subscription: subscription?.displayName ?? "Unknown",
       subscriptionId: resource.subscriptionId,
       resourceGroup: resource.resourceGroup ?? "Subscription scope",
-      groupLocation: resourceGroup?.location ?? "Not stored",
-      resourceLocation: resource.location ?? "Global",
-      kind: resource.kind ?? "Default",
+      groupLocation: groupLocationName,
+      resourceLocation: locationName,
+      kind: kindName,
     },
     tags: Object.fromEntries(tags),
     armIdentifiers: {
@@ -102,8 +106,8 @@ export function ResourceDetailView({
         </div>
         <div className="resource-record-header-tools">
           <dl className="resource-record-meta" aria-label="Resource summary">
-            <div><dt>Location</dt><dd>{resource.location ?? "Global"}</dd></div>
-            <div><dt>Kind</dt><dd>{resource.kind ?? "Default"}</dd></div>
+            <div><dt>Location</dt><dd>{locationName}</dd></div>
+            <div><dt>Kind</dt><dd>{kindName}</dd></div>
             <div><dt>Findings</dt><dd className={relatedFindings.length > 0 ? "risk" : ""}>{relatedFindings.length}</dd></div>
             <div><dt>Relationships</dt><dd>{relatedEdges.length}</dd></div>
             <div><dt>Tags</dt><dd>{tags.length}</dd></div>

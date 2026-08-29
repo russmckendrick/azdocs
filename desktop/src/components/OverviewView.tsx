@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { displayLocation } from "../azure-values";
 import type { AppBootstrap, EstateSnapshot, ViewId } from "../types";
 
 const SEVERITY_SWATCH: Record<string, string> = {
@@ -141,7 +142,7 @@ export function OverviewView({
           <div className="figure-block">
             {topLocations.map((location) => (
               <div className="bar-row" key={location.name}>
-                <span className="mono">{location.name}</span>
+                <span>{displayLocation(estate.azureMetadata, location.name, "Not stored")}</span>
                 <div className="bar-track">
                   <div
                     className="bar-fill"

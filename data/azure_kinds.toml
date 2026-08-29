@@ -1,0 +1,20 @@
+# Human display names for resource-specific Azure `kind` values.
+# Keys are `<lowercase ARM type>:<lowercase kind>`; `*:<kind>` is accepted for
+# a genuinely provider-independent override. Microsoft publishes kinds in each
+# resource provider's ARM schema, not as one global catalogue.
+#
+# User overrides: create <platform config dir>/azdocs/azure_kinds.toml with
+# the same shape. Unknown values receive conservative CamelCase humanisation.
+
+"microsoft.documentdb/databaseaccounts:globaldocumentdb" = "Global Document DB"
+"microsoft.storage/storageaccounts:blobstorage" = "Blob Storage"
+"microsoft.storage/storageaccounts:blockblobstorage" = "Block Blob Storage"
+"microsoft.storage/storageaccounts:filestorage" = "File Storage"
+"microsoft.storage/storageaccounts:storage" = "Storage"
+"microsoft.storage/storageaccounts:storagev2" = "Storage V2"
+"microsoft.web/sites:app,linux" = "App, Linux"
+"microsoft.web/sites:app" = "App"
+"microsoft.web/sites:functionapp,linux" = "Function App, Linux"
+"microsoft.web/sites:functionapp" = "Function App"
+"microsoft.web/sites:workflowapp,linux" = "Workflow App, Linux"
+"microsoft.web/sites:workflowapp" = "Workflow App"

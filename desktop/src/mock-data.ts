@@ -299,6 +299,14 @@ export const mockEstate: EstateSnapshot = {
     (counts, finding) => ({ ...counts, [finding.severity]: counts[finding.severity] + 1 }),
     { high: 0, medium: 0, low: 0, info: 0 },
   ),
+  azureMetadata: {
+    locations: { uksouth: "UK South", ukwest: "UK West" },
+    kinds: {
+      "microsoft.documentdb/databaseaccounts:globaldocumentdb": "Global Document DB",
+      "microsoft.storage/storageaccounts:storagev2": "Storage V2",
+      "microsoft.web/sites:app,linux": "App, Linux",
+    },
+  },
   subscriptions: [
     { id: "sub-prod", displayName: "Production", state: "Enabled" },
     { id: "sub-dev", displayName: "Development", state: "Enabled" },

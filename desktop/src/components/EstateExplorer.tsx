@@ -11,7 +11,8 @@ import {
   X,
 } from "lucide-react";
 import { ALL_RESOURCES_ICON, RESOURCE_GROUP_ICON, SUBSCRIPTION_ICON } from "../azure-icons";
-import type { EstateSnapshot, Resource, ResourceType, ScopeSelection } from "../types";
+import { displayLocation } from "../azure-values";
+import type { AzureMetadata, EstateSnapshot, Resource, ResourceType, ScopeSelection } from "../types";
 
 type SortKey = "name" | "type" | "location" | "findings";
 const RESOURCE_BATCH = 200;
@@ -24,13 +25,14 @@ interface EstateExplorerProps {
   onSelectResource: (id: string) => void;
 }
 
-function includesSearch(resource: Resource, search: string) {
+function includesSearch(resource: Resource, search: string, metadata: AzureMetadata) {
   if (!search.trim()) return true;
   const value = search.toLowerCase();
   return [
     resource.name,
     resource.azureType,
     resource.location,
+    displayLocation(metadata, resource.location),
     resource.resourceGroup,
     resource.subscriptionId,
     JSON.stringify(resource.tags ?? {}),
@@ -69,7 +71,7 @@ export function EstateExplorer({
       const inGroup = !scope.resourceGroup || resource.resourceGroup === scope.resourceGroup;
       const hasType = !typeFilter || resource.azureType === typeFilter;
       const inLocation = !locationFilter || resource.location === locationFilter;
-      return inSubscription && inGroup && hasType && inLocation && includesSearch(resource, search);
+      return inSubscription && inGroup && hasType && inLocation && includesSearch(resource, search, estate.azureMetadata);
     });
     return matches.sort((a, b) => {
       if (sortKey === "findings") return b.findingCount - a.findingCount || a.name.localeCompare(b.name);
@@ -77,7 +79,7 @@ export function EstateExplorer({
       if (sortKey === "location") return (a.location ?? "").localeCompare(b.location ?? "") || a.name.localeCompare(b.name);
       return a.name.localeCompare(b.name);
     });
-  }, [estate.resources, locationFilter, scope, search, sortKey, typeFilter]);
+  }, [estate.azureMetadata, estate.resources, locationFilter, scope, search, sortKey, typeFilter]);
   const visibleResources = filtered.slice(0, visibleCount);
 
   const activeScopeName = scope.resourceGroup
@@ -275,7 +277,11 @@ export function EstateExplorer({
             <MapPin size={14} />
             <select value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)} aria-label="Filter by location">
               <option value="">All locations</option>
-              {estate.locations.map((location) => <option key={location.name} value={location.name}>{location.name} ({location.count})</option>)}
+              {estate.locations.map((location) => (
+                <option key={location.name} value={location.name}>
+                  {displayLocation(estate.azureMetadata, location.name, "Not stored")} ({location.count})
+                </option>
+              ))}
             </select>
           </label>
           <label>
@@ -306,6 +312,7 @@ export function EstateExplorer({
               key={resource.id}
               resource={resource}
               type={resourceTypeMap.get(resource.azureType)}
+              locationName={displayLocation(estate.azureMetadata, resource.location, "Global")}
               index={index}
               tabIndex={index === 0 ? 0 : -1}
               onSelect={() => onSelectResource(resource.id)}
@@ -334,12 +341,14 @@ export function EstateExplorer({
 function ResourceRow({
   resource,
   type,
+  locationName,
   index,
   tabIndex,
   onSelect,
 }: {
   resource: Resource;
   type?: ResourceType;
+  locationName: string;
   index: number;
   tabIndex: number;
   onSelect: () => void;
@@ -354,7 +363,7 @@ function ResourceRow({
         </span>
       </span>
       <span className="resource-group-cell">{resource.resourceGroup ?? "—"}</span>
-      <span className="resource-location-cell">{resource.location ?? "global"}</span>
+      <span className="resource-location-cell">{locationName}</span>
       <span className="signal-cell">
         {resource.findingCount > 0 ? <em className="finding-signal"><AlertTriangle size={13} />{resource.findingCount}</em> : null}
         {resource.edgeCount > 0 ? <em className="edge-signal"><GitBranch size={13} />{resource.edgeCount}</em> : null}

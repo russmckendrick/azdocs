@@ -56,6 +56,7 @@ generated from the stored snapshot, never live Azure.
 |---|---|
 | [Architecture](development/architecture.md) | Modules, data flow, design decisions |
 | [Data model](development/data-model.md) | SQLite schema and migrations |
+| [Azure display metadata](development/azure-metadata.md) | Friendly Azure values and the reproducible refresh workflow |
 | [Testing](development/testing.md) | Test layers, fixtures, golden files |
 | [Contributing](development/contributing.md) | Common tasks, style, crate gotchas |
 | [Releasing](development/releasing.md) | CI and the release workflow |

@@ -59,6 +59,11 @@ export interface ResourceType {
   color: string;
 }
 
+export interface AzureMetadata {
+  locations: Record<string, string>;
+  kinds: Record<string, string>;
+}
+
 export interface Subscription {
   id: string;
   displayName: string;
@@ -132,6 +137,7 @@ export interface EstateSnapshot {
   totals: Totals;
   tagCoverage: { tagged: number; untagged: number; percent: number };
   severityCounts: Record<Severity, number>;
+  azureMetadata: AzureMetadata;
   subscriptions: Subscription[];
   resourceGroups: ResourceGroup[];
   resources: Resource[];

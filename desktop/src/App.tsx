@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { chooseDatabase, collectEstate, getBootstrap, getSnapshot, isTauri } from "./api";
 import { ALL_RESOURCES_ICON } from "./azure-icons";
+import { displayLocation } from "./azure-values";
 import { EstateExplorer } from "./components/EstateExplorer";
 import { FindingsView } from "./components/FindingsView";
 import { GovernanceView } from "./components/GovernanceView";
@@ -188,6 +189,7 @@ export default function App() {
         resource.azureType,
         resource.resourceGroup,
         resource.location,
+        displayLocation(estate.azureMetadata, resource.location),
         JSON.stringify(resource.tags ?? {}),
       ].some((candidate) => candidate?.toLowerCase().includes(value)))
       .slice(0, 8);

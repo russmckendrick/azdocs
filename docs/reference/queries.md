@@ -123,7 +123,7 @@ topics), plus two generic passes — child resources → their ARM parent, and
 `identity.userAssignedIdentities` → the managed identity — see
 [development/architecture.md](../development/architecture.md#design-decisions).
 
-## Display names
+## Display metadata
 
 Resource types render with friendly names (e.g. `microsoft.desktopvirtualization/hostpools`
 → "AVD Host Pool") from `data/display_names.toml`, embedded in the binary
@@ -132,3 +132,12 @@ Add or override names without recompiling by creating
 `<config dir>/azdocs/display_names.toml` with the same
 `"<lowercase arm type>" = "Name"` shape — entries merge over the built-ins,
 the same way `queries.d/` overrides queries.
+
+Programmatic locations and resource-specific kinds follow the same data-driven
+pattern in `data/azure_locations.toml` and `data/azure_kinds.toml`. Raw values
+remain in SQLite; only presentation uses the friendly names. The location file
+can be refreshed from Microsoft's public region table with
+`cargo run --example update_azure_locations`. Kind mappings are scoped by ARM
+type because Azure defines them independently for each resource provider. See
+[Azure display metadata](../development/azure-metadata.md) for sources,
+fallbacks, and user override paths.

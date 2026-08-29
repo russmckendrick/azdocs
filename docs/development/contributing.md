@@ -29,7 +29,8 @@
 
 ### Polish a resource type
 
-- Display name: `data/display_names.toml` (embedded, no recompile needed for
+- Display names: `data/display_names.toml`, `data/azure_locations.toml`, and
+  `data/azure_kinds.toml` (embedded, no recompile needed for
   users — they can override it in their config dir).
 - Icon: `data/icon_mapping.toml`, resolved against the vendored pack in
   `data/icons/`. Unmapped types fall back to the pack's generic icon and then

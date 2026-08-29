@@ -1,6 +1,8 @@
 use std::collections::{BTreeMap, HashSet};
 
-use azdocs::model::{Edge, Finding, QueryRun, Resource, ResourceGroup, Subscription};
+use azdocs::model::{
+    Edge, Finding, QueryRun, Resource, ResourceGroup, Subscription, azure_values,
+};
 use azdocs::report::{ReportContext, SeverityCounts};
 use azdocs::store::{SnapshotCounts, SnapshotDiff};
 use serde::Serialize;
@@ -74,6 +76,7 @@ pub struct EstateSnapshot {
     pub totals: TotalsDto,
     pub tag_coverage: TagCoverageDto,
     pub severity_counts: SeverityCountsDto,
+    pub azure_metadata: AzureMetadataDto,
     pub subscriptions: Vec<SubscriptionDto>,
     pub resource_groups: Vec<ResourceGroupDto>,
     pub resources: Vec<ResourceDto>,
@@ -83,6 +86,22 @@ pub struct EstateSnapshot {
     pub edges: Vec<EdgeDto>,
     pub query_runs: Vec<QueryRunDto>,
     pub previous_diff: Option<SnapshotComparison>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AzureMetadataDto {
+    pub locations: BTreeMap<String, String>,
+    pub kinds: BTreeMap<String, String>,
+}
+
+impl AzureMetadataDto {
+    fn build() -> Self {
+        Self {
+            locations: azure_values::location_display_names().clone(),
+            kinds: azure_values::kind_display_names().clone(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -382,6 +401,7 @@ impl EstateSnapshot {
             totals,
             tag_coverage,
             severity_counts,
+            azure_metadata: AzureMetadataDto::build(),
             subscriptions: subscriptions.into_iter().map(Into::into).collect(),
             resource_groups: resource_groups.into_iter().map(Into::into).collect(),
             resources: resources
