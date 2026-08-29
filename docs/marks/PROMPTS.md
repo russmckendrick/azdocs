@@ -1,10 +1,23 @@
 # Mark prompts and design record
 
 The raster boards in [`concepts/`](concepts/) and the high-resolution refinement
-in [`png/azdocs-mark-master-source.png`](png/azdocs-mark-master-source.png) were
-generated with the built-in image tool. The production SVGs were then rebuilt
-as deterministic paths and shapes. Automatic tracing was rejected because it
-introduced visible edge wobble into the otherwise straight ribbon boundaries.
+in [`png/azdocs-mark-master-source.png`](png/azdocs-mark-master-source.png) record
+the earlier folded-A exploration. The final simplified reference supplied by
+the project owner was rebuilt as deterministic paths and shapes. Automatic
+tracing was rejected because it would preserve raster blur and asymmetric edge
+wobble instead of the intended clean geometry.
+
+## Simplified production redraw
+
+```text
+Recreate the supplied rounded triangular blue A as a precise production mark.
+Keep one symmetric outer silhouette with generously rounded crown and feet.
+Inside it, place exactly three equal white circular nodes connected by one
+white Y-shaped route. Use a restrained Azure-blue gradient only on the outer
+shape. Remove the source raster's fuzzy edge shading, bevel and drop shadows.
+The result must remain unmistakable at 16–32 px, work on light and dark launch
+surfaces, and convert cleanly to SVG, PNG, ICO and ICNS.
+```
 
 ## Four-direction exploration
 
@@ -89,24 +102,19 @@ copy the official Microsoft Azure logo exactly.
 Any future redraw should preserve these invariants:
 
 - `0 0 512 512` standalone-mark coordinate system.
-- Deep ribbon path: `M52 428 L203 84 L247.68 190 L156 428 Z`.
-- Light ribbon path: `M203 84 H300 L460 428 H348 Z`.
-- Every outer and inner ribbon boundary is a single straight segment.
-- The light ribbon's inner edge is one uninterrupted line from `(203,84)` to
-  `(348,428)`; the dark-ribbon junction lies exactly on that line.
-- Exactly three 34-unit-radius nodes centred at `(256,253)`, `(184,352)` and
-  `(328,352)`.
-- The connector triangle uses 20-unit bars and sits behind the nodes but in
-  front of both ribbons.
-- The light ribbon is uninterrupted from the crown to the right foot; the deep
-  ribbon is uninterrupted from the left foot to the crown.
-- The only shadow is the short neutral topology lift; the A casts no shadow.
+- Rounded triangular silhouette begins
+  `M232 58 C242 38 270 38 280 58 L480 414` and remains symmetric.
+- Exactly three 40-unit-radius nodes centred at `(256,198)`, `(156,382)` and
+  `(356,382)`.
+- One 26-unit Y connector follows
+  `M256 198 V330 L156 382 M256 330 L356 382`.
+- Nodes and connector use white or warm-paper negative space, never separate
+  colours or foreground shadows.
+- The only gradient is `#168fe5` through `#0b84dc` to `#0078d4` on the outer A.
+- No fold, facet, crossbar, tile border, bevel, glow or drop shadow.
 - The lockup uses the mark as its initial **A**, followed by an outlined `zdocs`
   from `data/fonts/IBMPlexSans-Bold.ttf`; never repeat a typed `a` beside
-  the mark. The cyan `z` tucks into and continues the light ribbon before
-  `docs` continues in deep ribbon blue on light surfaces or paper on dark ones.
-  Layer the `z` behind the A's right foot, never over the mark. Optically
-  expand the Bold outlines slightly so their weight balances the broad A.
+  the mark. Use deep blue on light surfaces and paper on dark surfaces.
 
 The production source is
 [`tools/build_vector_assets.py`](tools/build_vector_assets.py). Do not trace a

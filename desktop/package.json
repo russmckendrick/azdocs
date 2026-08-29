@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 1420",
     "build": "tsc && vite build",
-    "icons": "tauri icon ../docs/marks/assets/azdocs-app-icon-light.svg --ios-color '#faf8f4'",
+    "icons": "node scripts/sync-icons.mjs",
+    "icons:generate": "tauri icon ../docs/marks/assets/azdocs-app-icon-light.svg --ios-color '#faf8f4'",
     "test": "vitest run",
     "preview": "vite preview --host 127.0.0.1 --port 1420",
     "tauri": "tauri"

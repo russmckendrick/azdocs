@@ -43,7 +43,7 @@ fn unit_rasterises_every_mark_asset_when_svg_is_valid() {
 }
 
 #[test]
-fn unit_production_mark_keeps_exact_straight_ribbon_paths() {
+fn unit_production_mark_keeps_exact_simple_topology_geometry() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("docs/marks/assets");
     for filename in [
         "azdocs-mark-primary.svg",
@@ -53,12 +53,18 @@ fn unit_production_mark_keeps_exact_straight_ribbon_paths() {
     ] {
         let svg = fs::read_to_string(root.join(filename)).unwrap();
         assert!(
-            svg.contains("M52 428 L203 84 L247.68 190 L156 428 Z"),
-            "{filename} changed the straight deep-ribbon geometry"
+            svg.contains("M232 58 C242 38 270 38 280 58 L480 414"),
+            "{filename} changed the rounded triangular silhouette"
         );
         assert!(
-            svg.contains("M203 84 H300 L460 428 H348 Z"),
-            "{filename} changed the straight light-ribbon geometry"
+            svg.contains("M256 198 V330 L156 382 M256 330 L356 382"),
+            "{filename} changed the three-way connector geometry"
+        );
+        assert!(
+            svg.contains("<circle cx=\"256\" cy=\"198\" r=\"40\"")
+                && svg.contains("<circle cx=\"156\" cy=\"382\" r=\"40\"")
+                && svg.contains("<circle cx=\"356\" cy=\"382\" r=\"40\""),
+            "{filename} changed the three topology nodes"
         );
     }
 }

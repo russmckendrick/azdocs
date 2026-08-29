@@ -4,32 +4,29 @@
 
 Use the horizontal lockup when the audience needs the product name. Use the
 standalone mark when azdocs is already named by the surrounding interface or
-document. The app-icon tiles own their backgrounds; do not put them inside a
-second tile, circle or badge.
+document. The app icons have transparent outer corners so each platform can
+apply its own launch treatment; do not place them inside a second badge.
 
 | Context | Preferred asset |
 |---|---|
 | Desktop masthead, website header | `azdocs-lockup-primary.svg` |
 | Dark masthead or footer | `azdocs-lockup-reversed.svg` |
-| Application launcher, avatar | Matching `azdocs-app-icon-*.svg` tile |
+| Application launcher, avatar | Matching `azdocs-app-icon-*.svg` mark |
 | Favicon or compact navigation | Matching standalone mark |
 | PDF/DOCX cover, slide, social background | Matching `azdocs-background-*.svg` motif |
 | Single-colour print or fabrication | Matching `azdocs-mark-mono-*.svg` mark |
 
 ## Construction
 
-The identity has three load-bearing parts:
+The simplified identity has three load-bearing parts:
 
-1. A broad angular **A** with enough weight to survive icon sizing.
-2. A small page fold cut into the top-right of the crown.
-3. Exactly three topology nodes joined as a triangle and drawn over the A.
+1. One broad, symmetric, rounded triangular **A** silhouette.
+2. Exactly three equal circular topology nodes in white negative space.
+3. One Y-shaped connector joining the three nodes at the optical centre.
 
-Do not move the fold down a leg, add nodes, introduce a crossbar, or substitute
-the official Azure artwork. Both inner and outer leg boundaries are straight
-single segments. The deep-blue ribbon continues from the left foot to the
-crown; the light-blue ribbon continues from the crown to the right foot. The
-lower nodes deliberately overlap the inner ribbon edges so the graph reads as
-the foremost layer.
+Do not add facets, a page fold, separate legs, extra nodes or a conventional
+crossbar, and do not substitute the official Azure artwork. The topology is the
+counter of the A rather than an independent foreground badge.
 
 ## Clear space and minimum size
 
@@ -50,23 +47,19 @@ motifs, where it is an intentional part of the composition.
 
 | Role | Value | Source |
 |---|---|---|
-| Deep ribbon | `#0754bd` → `#1479e6` | Left foot to crown |
-| Light ribbon | `#39c8f5` → `#168fe2` | Crown to right foot |
-| Node blue | `#27b5f5` → `#0b86e7` | Foreground topology nodes |
-| Graph ink | `#0b2d4a` | Light-surface connector bars |
+| Mark blue | `#168fe5` → `#0078d4` | Rounded A silhouette |
+| Topology | `#ffffff` | Nodes and connector on light launch surfaces |
+| Reversed topology | `#faf8f4` | Nodes and connector on dark surfaces |
 | Ink | `#1c2430` | Neutral supporting text |
 | Paper | `#faf8f4` | Light surface and reversed artwork |
-| Evidence paper | `#f3eee5` | Page fold and secondary paper |
 | Warm charcoal | `#14181d` | Dark icon/background surface |
-| Hairline | `#d8d2c6` | Fold and light tile boundary |
-| Dark hairline | `#3a4048` | Dark tile boundary |
+| Hairline | `#d8d2c6` | Light background construction rules |
+| Dark hairline | `#3a4048` | Dark background construction rules |
 
-These values align with the desktop's Field Report tokens. Gradients are
-restricted to the two ribbons and the three nodes. A short, neutral shadow is
-allowed only beneath the topology to separate its foreground layer; do not add
-a glow, bevel, long shadow or shadow around the A itself. Colour remains
-structural: the blues identify the folded Azure-estate planes, while ink/paper
-separates the topology from them.
+These values align with the desktop's Field Report tokens. The only permitted
+gradient is the restrained blue transition across the outer silhouette. Do not
+add a glow, bevel, texture or drop shadow; the white topology must remain flat
+and optically centred.
 
 ## Backgrounds
 
@@ -75,23 +68,18 @@ separates the topology from them.
 - Use reversed artwork on `#14181d` or similarly quiet dark surfaces.
 - Do not place the colour mark on saturated blue; use an appropriate
   monochrome version instead.
-- Avoid photography or diagrams behind the mark. If unavoidable, place it on
-  one of the supplied app-icon tiles.
+- Avoid photography or diagrams behind the mark. If unavoidable, place it on a
+  plain paper or charcoal field with the required clear space.
 - Keep titles and body copy out of the oversized mark crop in the supplied
   backgrounds. The left two-thirds are the intended content area.
 
 ## Wordmark
 
-The lockup uses the folded-topology mark itself as the initial **A**, followed
-closely by `zdocs` in IBM Plex Sans Bold converted to SVG outlines. The
-cyan `z` continues the colour and direction of the A's right ribbon; `docs`
-continues in deep ribbon blue on light surfaces and warm paper on dark surfaces.
-The `z` passes behind the A's right foot so the mark remains the foremost
-layer. The supplied outlines include a restrained same-colour optical expansion
-to balance the heavy A. This is one integrated word shape, not a symbol beside
-a repeated `azdocs`. Use the supplied lockup rather than recreating the text
-with a local font. Do not change its spacing or colour sequence, or place a
-tagline between the mark and `zdocs`.
+The lockup uses the topology mark itself as the initial **A**, followed closely
+by `zdocs` in IBM Plex Sans Bold converted to SVG outlines. The text is deep
+blue on light surfaces and warm paper on dark surfaces. This is one word shape,
+not a symbol beside a repeated `azdocs`. Use the supplied lockup rather than
+recreating the outlined text or placing a tagline between the mark and `zdocs`.
 
 When nearby text already says “azdocs”, use the standalone mark and avoid
 repeating the wordmark.
@@ -101,8 +89,8 @@ repeating the wordmark.
 - If visible text already names azdocs, treat the mark as decorative with an
   empty alt value.
 - If the mark is the only product identifier, use `alt="azdocs"`.
-- Do not rely on the blue facet alone to communicate meaning. The silhouette,
-  fold and node geometry must remain present in monochrome.
+- Do not rely on the blue gradient alone to communicate meaning. The silhouette
+  and node geometry must remain present in monochrome.
 - Check the final raster at its real display size, especially at 24–32 px.
 
 ## Misuse
@@ -110,8 +98,8 @@ repeating the wordmark.
 Do not:
 
 - redraw the outer shape as the official Azure A;
-- replace the straight ribbon boundaries with an automatic raster trace;
-- remove or relocate the top fold;
+- replace the exact rounded geometry with an automatic raster trace;
+- add facets, folds, bevels or shadows;
 - add cloud, shield, checkmark or magnifying-glass symbols;
 - use more or fewer than three topology nodes;
 - stretch, shear, rotate or add perspective;
@@ -140,6 +128,10 @@ build, run:
 cd desktop
 npm run icons
 ```
+
+The command compares the source SVG hash with the generated native set before
+running Tauri's converter. Use `npm run icons -- --force` only when the icon
+toolchain itself changes and the same SVG must be regenerated.
 
 At the desktop masthead's constrained height, use the standalone mark followed
 by a bold live-text `zdocs`. This preserves the A as the initial letter while

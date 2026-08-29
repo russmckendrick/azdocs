@@ -20,9 +20,8 @@ INK = "#1c2430"
 CHARCOAL = "#14181d"
 HAIRLINE = "#d8d2c6"
 DARK_HAIRLINE = "#3a4048"
-GRAPH_INK = "#0b2d4a"
-NODE_BLUE = "#159cf0"
 DEEP_BLUE = "#0754bd"
+WHITE = "#ffffff"
 
 
 def svg_document(
@@ -48,54 +47,33 @@ def svg_document(
 
 def colour_definitions() -> str:
     return """
-    <linearGradient id="ribbon-deep" x1="0" y1="1" x2="0.72" y2="0">
-      <stop offset="0" stop-color="#0754bd"/>
-      <stop offset="0.56" stop-color="#0b68d5"/>
-      <stop offset="1" stop-color="#1479e6"/>
-    </linearGradient>
-    <linearGradient id="ribbon-light" x1="0.12" y1="0" x2="0.88" y2="1">
-      <stop offset="0" stop-color="#39c8f5"/>
-      <stop offset="0.48" stop-color="#21b1ed"/>
-      <stop offset="1" stop-color="#168fe2"/>
-    </linearGradient>
-    <linearGradient id="node-blue" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#27b5f5"/>
-      <stop offset="1" stop-color="#0b86e7"/>
+    <linearGradient id="mark-blue" x1="0.18" y1="0" x2="0.72" y2="1">
+      <stop offset="0" stop-color="#168fe5"/>
+      <stop offset="0.52" stop-color="#0b84dc"/>
+      <stop offset="1" stop-color="#0078d4"/>
     </linearGradient>
     """.strip()
 
 
-def graph_paths(*, connector: str, shadows: bool) -> str:
-    shadow = ""
-    if shadows:
-        shadow = """
-    <g transform="translate(0 7)" fill="#061828" stroke="#061828" opacity="0.22">
-      <path d="M256 253 L184 352 L328 352 Z" fill="none" stroke-width="22" stroke-linejoin="round"/>
-      <circle cx="256" cy="253" r="36" stroke="none"/>
-      <circle cx="184" cy="352" r="36" stroke="none"/>
-      <circle cx="328" cy="352" r="36" stroke="none"/>
-    </g>
-        """.strip()
+def topology_paths(colour: str) -> str:
     return f"""
-    {shadow}
-    <g>
-      <path d="M256 253 L184 352 L328 352 Z" fill="none" stroke="{connector}" stroke-width="20" stroke-linejoin="round"/>
-      <g fill="url(#node-blue)" stroke="#52c9f8" stroke-width="2">
-        <circle cx="256" cy="253" r="34"/>
-        <circle cx="184" cy="352" r="34"/>
-        <circle cx="328" cy="352" r="34"/>
-      </g>
+    <g fill="{colour}" stroke="{colour}">
+      <path d="M256 198 V330 L156 382 M256 330 L356 382"
+        fill="none" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="256" cy="198" r="40" stroke="none"/>
+      <circle cx="156" cy="382" r="40" stroke="none"/>
+      <circle cx="356" cy="382" r="40" stroke="none"/>
     </g>
     """.strip()
 
 
-def colour_mark(*, connector: str, shadows: bool = True) -> str:
+def colour_mark(*, topology: str = WHITE) -> str:
     return f"""
   <g>
-    <path d="M52 428 L203 84 L247.68 190 L156 428 Z" fill="url(#ribbon-deep)"/>
-    <path d="M203 84 H300 L460 428 H348 Z" fill="url(#ribbon-light)"/>
-    <path d="M300 84 L338 166 H318 Q300 166 300 148 Z" fill="#f3eee5"/>
-    {graph_paths(connector=connector, shadows=shadows)}
+    <path d="M232 58 C242 38 270 38 280 58 L480 414
+      C495 441 476 472 444 472 H68 C36 472 17 441 32 414 Z"
+      fill="url(#mark-blue)"/>
+    {topology_paths(topology)}
   </g>
     """.strip()
 
@@ -104,27 +82,20 @@ def mono_definitions() -> str:
     return """
     <mask id="mark-separation" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
       <rect width="512" height="512" fill="white"/>
-      <path d="M256 253 L184 352 L328 352 Z" fill="none" stroke="black" stroke-width="30" stroke-linejoin="round"/>
-      <circle cx="256" cy="253" r="41" fill="black"/>
-      <circle cx="184" cy="352" r="41" fill="black"/>
-      <circle cx="328" cy="352" r="41" fill="black"/>
-      <path d="M300 84 V148 Q300 166 318 166 H338" fill="none" stroke="black" stroke-width="6"/>
+      <path d="M256 198 V330 L156 382 M256 330 L356 382"
+        fill="none" stroke="black" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="256" cy="198" r="42" fill="black"/>
+      <circle cx="156" cy="382" r="42" fill="black"/>
+      <circle cx="356" cy="382" r="42" fill="black"/>
     </mask>
     """.strip()
 
 
 def mono_mark(colour: str) -> str:
     return f"""
-  <g fill="{colour}" mask="url(#mark-separation)">
-    <path d="M52 428 L203 84 L247.68 190 L156 428 Z"/>
-    <path d="M203 84 H300 L460 428 H348 Z"/>
-  </g>
-  <g fill="{colour}" stroke="{colour}">
-    <path d="M256 253 L184 352 L328 352 Z" fill="none" stroke-width="20" stroke-linejoin="round"/>
-    <circle cx="256" cy="253" r="34" stroke="none"/>
-    <circle cx="184" cy="352" r="34" stroke="none"/>
-    <circle cx="328" cy="352" r="34" stroke="none"/>
-  </g>
+  <path d="M232 58 C242 38 270 38 280 58 L480 414
+    C495 441 476 472 444 472 H68 C36 472 17 441 32 414 Z"
+    fill="{colour}" mask="url(#mark-separation)"/>
     """.strip()
 
 
@@ -170,8 +141,8 @@ def write_asset(name: str, content: str) -> None:
 
 
 def build_mark_assets() -> None:
-    for name, connector in (
-        ("azdocs-mark-primary", GRAPH_INK),
+    for name, topology in (
+        ("azdocs-mark-primary", WHITE),
         ("azdocs-mark-reversed", PAPER),
     ):
         write_asset(
@@ -182,7 +153,7 @@ def build_mark_assets() -> None:
                 width=2048,
                 height=2048,
                 definitions=colour_definitions(),
-                body=colour_mark(connector=connector),
+                body=colour_mark(topology=topology),
             ),
         )
 
@@ -204,15 +175,10 @@ def build_mark_assets() -> None:
 
 
 def build_app_icons() -> None:
-    for name, background, border, connector in (
-        ("azdocs-app-icon-light", PAPER, HAIRLINE, GRAPH_INK),
-        ("azdocs-app-icon-dark", CHARCOAL, DARK_HAIRLINE, PAPER),
+    for name, topology in (
+        ("azdocs-app-icon-light", WHITE),
+        ("azdocs-app-icon-dark", PAPER),
     ):
-        body = f"""
-  <rect width="512" height="512" rx="104" fill="{background}"/>
-  <rect x="12" y="12" width="488" height="488" rx="96" fill="none" stroke="{border}" stroke-width="4"/>
-  {colour_mark(connector=connector)}
-        """.strip()
         write_asset(
             name,
             svg_document(
@@ -221,19 +187,19 @@ def build_app_icons() -> None:
                 width=2048,
                 height=2048,
                 definitions=colour_definitions(),
-                body=body,
+                body=colour_mark(topology=topology),
             ),
         )
 
 
 def build_lockups() -> None:
-    for name, connector, word_colour in (
-        ("azdocs-lockup-primary", GRAPH_INK, DEEP_BLUE),
+    for name, topology, word_colour in (
+        ("azdocs-lockup-primary", WHITE, DEEP_BLUE),
         ("azdocs-lockup-reversed", PAPER, PAPER),
     ):
         body = (
-            f"  {wordmark_paths(text='zdocs', colour=word_colour, x=190, baseline=201, font_size=150, tracking=-12, first_colour='#168fe2')}\n"
-            f'<g transform="translate(12 27) scale(0.44)">{colour_mark(connector=connector)}</g>'
+            f"  {wordmark_paths(text='zdocs', colour=word_colour, x=206, baseline=201, font_size=150, tracking=-12)}\n"
+            f'<g transform="translate(12 27) scale(0.44)">{colour_mark(topology=topology)}</g>'
         )
         write_asset(
             name,
@@ -249,14 +215,14 @@ def build_lockups() -> None:
 
 
 def build_backgrounds() -> None:
-    for name, background, rule, connector in (
-        ("azdocs-background-light", PAPER, HAIRLINE, GRAPH_INK),
+    for name, background, rule, topology in (
+        ("azdocs-background-light", PAPER, HAIRLINE, WHITE),
         ("azdocs-background-dark", CHARCOAL, DARK_HAIRLINE, PAPER),
     ):
         body = f"""
   <rect width="1920" height="1080" fill="{background}"/>
   <g transform="translate(1110 -55) scale(2.25)" opacity="0.075">
-    {colour_mark(connector=connector, shadows=False)}
+    {colour_mark(topology=topology)}
   </g>
   <path d="M0 890 H1050 V770 H1260" fill="none" stroke="{rule}" stroke-width="3"/>
   <circle cx="1050" cy="890" r="8" fill="{rule}"/>
