@@ -141,18 +141,22 @@ export function EstateExplorer({
             const subResources = estate.resources.filter((resource) => resource.subscriptionId === subscription.id);
             const groups = estate.resourceGroups.filter((group) => group.subscriptionId === subscription.id);
             const subActive = scope.subscriptionId === subscription.id && !scope.resourceGroup;
+            // Only the selected subscription unfolds its groups — a real
+            // estate has dozens per subscription and the tree must stay short.
+            const expanded = scope.subscriptionId === subscription.id || estate.subscriptions.length === 1;
             return (
               <div className="subscription-branch" key={subscription.id}>
                 <button
                   className={subActive ? "subscription-row active" : "subscription-row"}
                   onClick={() => onScopeChange({ subscriptionId: subscription.id })}
+                  aria-expanded={expanded}
                 >
-                  <ChevronDown size={14} />
+                  {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                   <span>{subscription.displayName}</span>
                   <b>{subResources.length}</b>
                 </button>
                 <div className="group-branches">
-                  {groups.map((group) => {
+                  {(expanded ? groups : []).map((group) => {
                     const count = subResources.filter((resource) => resource.resourceGroup === group.name.toLowerCase()).length;
                     const active = scope.subscriptionId === subscription.id && scope.resourceGroup === group.name.toLowerCase();
                     return (

@@ -3,26 +3,33 @@ import {
   AlertTriangle,
   Boxes,
   ChevronDown,
-  Database,
   FileClock,
   FolderSearch2,
   GitBranch,
+  LayoutGrid,
   LoaderCircle,
   PanelLeftClose,
   RefreshCw,
   Search,
   Settings2,
   ShieldCheck,
+  Table2,
+  Tags,
 } from "lucide-react";
 import { chooseDatabase, collectEstate, getBootstrap, getSnapshot, isTauri } from "./api";
 import { EstateExplorer } from "./components/EstateExplorer";
 import { FindingsView } from "./components/FindingsView";
+import { GovernanceView } from "./components/GovernanceView";
 import { HistoryView } from "./components/HistoryView";
+import { InventoryView } from "./components/InventoryView";
+import { OverviewView } from "./components/OverviewView";
+import { SettingsView } from "./components/SettingsView";
 import type {
   AppBootstrap,
   CollectionEvent,
   EstateSnapshot,
   ScopeSelection,
+  ThemePreference,
   ViewId,
 } from "./types";
 
@@ -35,11 +42,25 @@ const views: Array<{
   label: string;
   icon: typeof Boxes;
 }> = [
+  { id: "overview", label: "Overview", icon: LayoutGrid },
   { id: "estate", label: "Estate", icon: Boxes },
   { id: "topology", label: "Relationships", icon: GitBranch },
+  { id: "inventory", label: "Inventory", icon: Table2 },
   { id: "findings", label: "Findings", icon: ShieldCheck },
-  { id: "history", label: "Snapshots", icon: FileClock },
+  { id: "governance", label: "Governance", icon: Tags },
+  { id: "history", label: "Changes", icon: FileClock },
 ];
+
+const THEME_STORAGE_KEY = "azdocs-theme";
+
+function readThemePreference(): ThemePreference {
+  try {
+    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+    return stored === "light" || stored === "dark" ? stored : "system";
+  } catch {
+    return "system";
+  }
+}
 
 function compactDate(value: string) {
   return new Intl.DateTimeFormat(undefined, {
@@ -57,7 +78,7 @@ function errorMessage(error: unknown) {
 export default function App() {
   const [bootstrap, setBootstrap] = useState<AppBootstrap>();
   const [estate, setEstate] = useState<EstateSnapshot>();
-  const [view, setView] = useState<ViewId>("estate");
+  const [view, setView] = useState<ViewId>("overview");
   const [scope, setScope] = useState<ScopeSelection>({});
   const [selectedResourceId, setSelectedResourceId] = useState<string>();
   const [search, setSearch] = useState("");
@@ -68,7 +89,33 @@ export default function App() {
   const [error, setError] = useState<string>();
   const [collectionMessage, setCollectionMessage] = useState<string>();
   const [collecting, setCollecting] = useState(false);
+  const [themePreference, setThemePreference] = useState<ThemePreference>(readThemePreference);
+  const [systemDark, setSystemDark] = useState(
+    () => window.matchMedia("(prefers-color-scheme: dark)").matches,
+  );
   const searchRef = useRef<HTMLInputElement>(null);
+
+  const resolvedTheme: "light" | "dark" =
+    themePreference === "system" ? (systemDark ? "dark" : "light") : themePreference;
+
+  useEffect(() => {
+    const preference = window.matchMedia("(prefers-color-scheme: dark)");
+    const update = () => setSystemDark(preference.matches);
+    preference.addEventListener("change", update);
+    return () => preference.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    // System preference leaves the attribute off so prefers-color-scheme wins;
+    // an explicit choice pins it for both directions.
+    if (themePreference === "system") delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = themePreference;
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, themePreference);
+    } catch {
+      // Preference persistence is a convenience; the session still themes.
+    }
+  }, [themePreference]);
 
   const loadSnapshot = useCallback(async (snapshotId?: string) => {
     setLoading(true);
@@ -151,6 +198,7 @@ export default function App() {
       .slice(0, 8);
   }, [estate, search]);
   const shortcutLabel = navigator.platform.toLowerCase().includes("mac") ? "⌘ K" : "Ctrl K";
+  const highFindings = estate?.severityCounts.high ?? 0;
 
   function chooseSearchResult(index: number) {
     const resource = searchMatches[index];
@@ -226,42 +274,11 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <aside className="command-rail" aria-label="Primary navigation">
-        <button className="brand-mark" aria-label="azdocs estate explorer" onClick={() => setView("estate")}>
+      <header className="masthead">
+        <div className="brand">
           <img src="/icons/other/10018-icon-service-Azure-A.svg" alt="" />
-        </button>
-        <nav className="rail-nav">
-          {views.map((item) => {
-            const Icon = item.icon;
-            const badge = item.id === "findings" ? estate?.totals.findings : undefined;
-            return (
-              <button
-                key={item.id}
-                className={view === item.id ? "rail-action active" : "rail-action"}
-                onClick={() => setView(item.id)}
-                aria-label={item.label}
-                aria-current={view === item.id ? "page" : undefined}
-                title={item.label}
-              >
-                <Icon size={21} strokeWidth={1.8} />
-                {badge ? <span className="rail-badge">{badge}</span> : null}
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-        <div className="rail-footer">
-          <button className="rail-action" onClick={handleDatabase} aria-label="Open database" title="Open database">
-            <Database size={20} strokeWidth={1.8} />
-            <span>Database</span>
-          </button>
-        </div>
-      </aside>
-
-      <header className="topbar">
-        <div className="product-lockup">
           <strong>azdocs</strong>
-          <span>Azure estate intelligence</span>
+          <span>Estate field report</span>
           {!isTauri ? <em>Illustrative workspace</em> : null}
         </div>
         <label className="snapshot-control">
@@ -278,10 +295,10 @@ export default function App() {
               </option>
             ))}
           </select>
-          <ChevronDown size={15} aria-hidden="true" />
+          <ChevronDown size={14} aria-hidden="true" />
         </label>
         <div className="global-search">
-          <Search size={17} aria-hidden="true" />
+          <Search size={15} aria-hidden="true" />
           <input
             ref={searchRef}
             value={search}
@@ -315,7 +332,7 @@ export default function App() {
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => chooseSearchResult(index)}
                   >
-                    {type ? <img src={type.icon} alt="" /> : <Boxes size={22} />}
+                    {type ? <img src={type.icon} alt="" /> : <Boxes size={20} />}
                     <span><strong>{resource.name}</strong><small>{type?.displayName ?? resource.azureType} · {resource.resourceGroup}</small></span>
                   </button>
                 );
@@ -324,9 +341,9 @@ export default function App() {
             </div>
           ) : null}
         </div>
-        <div className="topbar-actions">
+        <div className="masthead-actions">
           <button className="quiet-button" onClick={handleDatabase} title={bootstrap?.databasePath}>
-            <FolderSearch2 size={16} />
+            <FolderSearch2 size={15} />
             Open data
           </button>
           <button
@@ -335,84 +352,144 @@ export default function App() {
             disabled={collecting || !bootstrap?.hasCredentials}
             title={bootstrap?.hasCredentials ? "Collect a new snapshot" : `Configure credentials in ${bootstrap?.configPath ?? "azdocs.toml"}`}
           >
-            {collecting ? <LoaderCircle className="spin" size={16} /> : <RefreshCw size={16} />}
+            {collecting ? <LoaderCircle className="spin" size={15} /> : <RefreshCw size={15} />}
             {collecting ? "Collecting" : "Collect snapshot"}
           </button>
         </div>
       </header>
 
-      <main className={view === "topology" ? "workspace workspace-immersive" : "workspace"}>
-        {collectionMessage ? (
-          <div className="collection-strip" role="status">
-            <LoaderCircle className={collecting ? "spin" : ""} size={16} />
-            <span>{collectionMessage}</span>
-            <small>Azure Resource Graph · read-only</small>
-          </div>
-        ) : null}
-        {error ? (
-          <div className="error-strip" role="alert">
-            <AlertTriangle size={17} />
-            <span>{error}</span>
-            <button onClick={() => setError(undefined)}>Dismiss</button>
-          </div>
-        ) : null}
+      <div className="app-body">
+        <nav className="side-nav" aria-label="Primary navigation">
+          {views.map((item) => {
+            const Icon = item.icon;
+            const badge = item.id === "findings" && highFindings > 0 ? highFindings : undefined;
+            return (
+              <button
+                key={item.id}
+                className={view === item.id ? "nav-row active" : "nav-row"}
+                onClick={() => setView(item.id)}
+                aria-current={view === item.id ? "page" : undefined}
+                title={item.label}
+              >
+                <Icon size={15} strokeWidth={1.6} />
+                <span>{item.label}</span>
+                {badge ? <span className="nav-badge">{badge}</span> : null}
+              </button>
+            );
+          })}
+          <div className="nav-spacer" />
+          <button
+            className={view === "settings" ? "nav-row active" : "nav-row"}
+            onClick={() => setView("settings")}
+            aria-current={view === "settings" ? "page" : undefined}
+            title="Settings"
+          >
+            <Settings2 size={15} strokeWidth={1.6} />
+            <span>Settings</span>
+          </button>
+        </nav>
 
-        {loading && !estate ? <LoadingWorkspace /> : null}
-        {!loading && !estate && !error ? (
-          <EmptyWorkspace
-            canCollect={Boolean(bootstrap?.hasCredentials)}
-            onCollect={() => void handleCollect()}
-            onOpen={handleDatabase}
-          />
-        ) : null}
-        {estate ? (
-          <>
-            {view === "estate" ? (
-              <EstateExplorer
-                estate={estate}
-                search={search}
-                scope={scope}
-                onScopeChange={setScope}
-                selectedResourceId={selectedResourceId}
-                onSelectResource={setSelectedResourceId}
-                onOpenTopology={(id) => openResource(id, "topology")}
-                onOpenFinding={() => setView("findings")}
-              />
-            ) : null}
-            {view === "topology" ? (
-              <Suspense fallback={<LoadingWorkspace />}>
-                <TopologyView
+        <main className="workspace">
+          {collectionMessage ? (
+            <div className="collection-strip" role="status">
+              <LoaderCircle className={collecting ? "spin" : ""} size={15} />
+              <span>{collectionMessage}</span>
+              <small>Azure Resource Graph · read-only</small>
+            </div>
+          ) : null}
+          {error ? (
+            <div className="error-strip" role="alert">
+              <AlertTriangle size={16} />
+              <span>{error}</span>
+              <button onClick={() => setError(undefined)}>Dismiss</button>
+            </div>
+          ) : null}
+
+          {loading && !estate ? <LoadingWorkspace /> : null}
+          {!loading && !estate && !error && view !== "settings" ? (
+            <EmptyWorkspace
+              canCollect={Boolean(bootstrap?.hasCredentials)}
+              onCollect={() => void handleCollect()}
+              onOpen={handleDatabase}
+            />
+          ) : null}
+          {view === "settings" && bootstrap ? (
+            <SettingsView
+              bootstrap={bootstrap}
+              estate={estate}
+              themePreference={themePreference}
+              resolvedTheme={resolvedTheme}
+              onThemeChange={setThemePreference}
+              onOpenDatabase={handleDatabase}
+            />
+          ) : null}
+          {estate && view !== "settings" ? (
+            <>
+              {view === "overview" && bootstrap ? (
+                <OverviewView
+                  bootstrap={bootstrap}
                   estate={estate}
-                  selectedResourceId={selectedResourceId}
-                  focusRequestNonce={topologyFocusRequest}
-                  onSelectResource={setSelectedResourceId}
-                  onInspect={(id) => openResource(id, "estate")}
+                  onOpenView={setView}
+                  onOpenResource={(id) => openResource(id)}
                 />
-              </Suspense>
-            ) : null}
-            {view === "findings" ? (
-              <FindingsView estate={estate} search={search} onOpenResource={(id) => openResource(id)} />
-            ) : null}
-            {view === "history" && bootstrap ? (
-              <HistoryView
-                bootstrap={bootstrap}
-                estate={estate}
-                onLoadSnapshot={(id) => void loadSnapshot(id)}
-              />
-            ) : null}
-          </>
-        ) : null}
-      </main>
+              ) : null}
+              {view === "estate" ? (
+                <EstateExplorer
+                  estate={estate}
+                  search={search}
+                  scope={scope}
+                  onScopeChange={setScope}
+                  selectedResourceId={selectedResourceId}
+                  onSelectResource={setSelectedResourceId}
+                  onOpenTopology={(id) => openResource(id, "topology")}
+                  onOpenFinding={() => setView("findings")}
+                />
+              ) : null}
+              {view === "topology" ? (
+                <Suspense fallback={<LoadingWorkspace />}>
+                  <TopologyView
+                    estate={estate}
+                    theme={resolvedTheme}
+                    selectedResourceId={selectedResourceId}
+                    focusRequestNonce={topologyFocusRequest}
+                    onSelectResource={setSelectedResourceId}
+                    onInspect={(id) => openResource(id, "estate")}
+                  />
+                </Suspense>
+              ) : null}
+              {view === "inventory" ? (
+                <InventoryView estate={estate} search={search} />
+              ) : null}
+              {view === "findings" ? (
+                <FindingsView estate={estate} search={search} onOpenResource={(id) => openResource(id)} />
+              ) : null}
+              {view === "governance" && bootstrap ? (
+                <GovernanceView
+                  estate={estate}
+                  requiredTags={bootstrap.requiredTags}
+                  onOpenFindings={() => setView("findings")}
+                />
+              ) : null}
+              {view === "history" && bootstrap ? (
+                <HistoryView
+                  bootstrap={bootstrap}
+                  estate={estate}
+                  onLoadSnapshot={(id) => void loadSnapshot(id)}
+                />
+              ) : null}
+            </>
+          ) : null}
+        </main>
+      </div>
 
-      <div className="statusbar" aria-label="Application status">
+      <footer className="statusbar" aria-label="Application status">
         <span className={`status-dot ${estate?.status ?? "unknown"}`} />
         <span>{estate ? `${estate.status} snapshot` : "No snapshot loaded"}</span>
         <span className="status-divider" />
-        <span>{bootstrap?.databasePath ?? "Resolving database…"}</span>
+        <span className="mono">{bootstrap?.databasePath ?? "Resolving database…"}</span>
         <span className="status-spacer" />
         <span>{selectedResource ? `${selectedResource.edgeCount} relationships · ${selectedResource.findingCount} findings` : "No resource selected"}</span>
-        <Settings2 size={13} aria-hidden="true" />
-      </div>
+      </footer>
     </div>
   );
 }
@@ -425,7 +502,7 @@ function LoadingWorkspace() {
         <span />
         <span />
       </div>
-      <strong>Opening the estate cabinet</strong>
+      <strong>Opening the estate record</strong>
       <p>Reading subscriptions, resources, relationships, and findings from SQLite.</p>
     </div>
   );
@@ -442,7 +519,7 @@ function EmptyWorkspace({
 }) {
   return (
     <div className="empty-workspace">
-      <PanelLeftClose size={42} strokeWidth={1.3} />
+      <PanelLeftClose size={38} strokeWidth={1.3} />
       <h1>No stored snapshots yet</h1>
       <p>
         Open an existing azdocs database or collect a read-only Azure snapshot. Exploration and exports remain offline after collection.

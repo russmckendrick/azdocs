@@ -3,6 +3,8 @@ import type {
   Edge,
   EstateSnapshot,
   Finding,
+  QueryDefMeta,
+  QueryRows,
   Resource,
   ResourceType,
   Severity,
@@ -226,6 +228,7 @@ export const mockBootstrap: AppBootstrap = {
   configPath: "/Users/demo/Library/Application Support/azdocs/azdocs.toml",
   configFound: true,
   hasCredentials: true,
+  requiredTags: ["env", "owner"],
   latestSnapshotId: "a7f21f53-2026",
   snapshots: [
     { id: "a7f21f53-2026", createdAt: "2026-08-23T09:42:00Z", tenantId: "tenant-golden", status: "complete", notes: "Weekly estate review", subscriptions: 2, resources: 15, findings: 4 },
@@ -233,6 +236,56 @@ export const mockBootstrap: AppBootstrap = {
     { id: "7b42e150-2026", createdAt: "2026-08-09T09:39:00Z", tenantId: "tenant-golden", status: "partial", notes: "One monitoring query failed", subscriptions: 2, resources: 14, findings: 5 },
   ],
 };
+
+export const mockQueryPack: QueryDefMeta[] = [
+  { name: "all_resources", category: "inventory", kind: "inventory", description: "Every resource with identity, tags, SKU and properties." },
+  { name: "virtual_networks", category: "networking", kind: "inventory", description: "Virtual networks with address space and peering state." },
+  { name: "storage_accounts", category: "storage", kind: "inventory", description: "Storage accounts with TLS floor, HTTPS-only and public access flags." },
+  { name: "sql_servers_and_dbs", category: "databases", kind: "inventory", description: "SQL logical servers with their databases, TLS floor and AAD-only state." },
+  { name: "storage_public_blob_access", category: "storage", kind: "finding", description: "Storage accounts that allow anonymous public blob access." },
+  { name: "nsg_open_to_internet", category: "networking", kind: "finding", description: "NSG rules permitting management ports from any source." },
+];
+
+export function mockQueryRows(queryName: string): QueryRows {
+  if (queryName === "virtual_networks") {
+    return {
+      queryName,
+      columns: ["name", "resourceGroup", "location", "addressPrefixes", "peeringState"],
+      rows: [
+        { name: "vnet-hub", resourceGroup: "rg-network", location: "uksouth", addressPrefixes: "10.0.0.0/16", peeringState: "Connected" },
+        { name: "vnet-app", resourceGroup: "rg-app", location: "uksouth", addressPrefixes: "10.1.0.0/16", peeringState: "Connected" },
+      ],
+    };
+  }
+  if (queryName === "storage_accounts") {
+    return {
+      queryName,
+      columns: ["name", "resourceGroup", "location", "minimumTlsVersion", "supportsHttpsTrafficOnly", "allowBlobPublicAccess"],
+      rows: [
+        { name: "stprodapp01", resourceGroup: "rg-app", location: "uksouth", minimumTlsVersion: "TLS1_2", supportsHttpsTrafficOnly: true, allowBlobPublicAccess: true },
+      ],
+    };
+  }
+  if (queryName === "sql_servers_and_dbs") {
+    return {
+      queryName,
+      columns: ["name", "resourceGroup", "location", "minimalTlsVersion", "publicNetworkAccess"],
+      rows: [
+        { name: "sql-prod", resourceGroup: "rg-app", location: "uksouth", minimalTlsVersion: "1.2", publicNetworkAccess: "Disabled" },
+      ],
+    };
+  }
+  return {
+    queryName,
+    columns: ["name", "type", "resourceGroup", "location"],
+    rows: resources.map((item) => ({
+      name: item.name,
+      type: item.azureType,
+      resourceGroup: item.resourceGroup,
+      location: item.location,
+    })),
+  };
+}
 
 export const mockEstate: EstateSnapshot = {
   id: "a7f21f53-2026",

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use azdocs::arg::ArgClient;
 use azdocs::collect::CollectRequest;
 use azdocs::config::{Config, default_config_path};
-use azdocs::querypack::QueryPack;
+use azdocs::querypack::{QueryKind, QueryPack};
 use azdocs::report::ReportContext;
 use azdocs::store::Store;
 use tauri::State;
@@ -13,7 +13,7 @@ use tauri::ipc::Channel;
 use crate::AppState;
 use crate::dto::{
     AppBootstrap, CollectRequestDto, CollectResultDto, CollectionEvent, EstateSnapshot,
-    SnapshotComparison, SnapshotSummary,
+    QueryDefDto, QueryRowsDto, SnapshotComparison, SnapshotSummary,
 };
 use crate::error::AppError;
 use crate::topology::{self, TopologyGraphDto, TopologyRequest};
@@ -57,8 +57,50 @@ fn bootstrap_for(path: &Path) -> Result<AppBootstrap, AppError> {
         config_path,
         config_found: source.is_some(),
         has_credentials,
+        required_tags: config.audit.required_tags.clone(),
         snapshots,
         latest_snapshot_id,
+    })
+}
+
+#[tauri::command]
+pub fn query_pack_metadata() -> Result<Vec<QueryDefDto>, AppError> {
+    let pack = QueryPack::load().map_err(|error| AppError::Config(error.to_string()))?;
+    Ok(pack
+        .all()
+        .into_iter()
+        .map(|def| QueryDefDto {
+            name: def.name.clone(),
+            category: def.category.clone(),
+            kind: match def.kind {
+                QueryKind::Inventory => "inventory".to_owned(),
+                QueryKind::Finding => "finding".to_owned(),
+            },
+            description: def.description.clone(),
+        })
+        .collect())
+}
+
+#[tauri::command]
+pub fn query_rows(
+    snapshot_id: Option<String>,
+    query_name: String,
+    state: State<'_, AppState>,
+) -> Result<QueryRowsDto, AppError> {
+    let store = Store::open(&database_path(&state)?)?;
+    let snapshot_id = store.resolve_snapshot(snapshot_id.as_deref().unwrap_or("latest"))?;
+    let rows = store.query_results(&snapshot_id, &query_name)?;
+    // serde_json's preserve_order feature keeps the collected column order, so
+    // the first row's keys are the grid's column order.
+    let columns = rows
+        .first()
+        .and_then(|row| row.as_object())
+        .map(|object| object.keys().cloned().collect())
+        .unwrap_or_default();
+    Ok(QueryRowsDto {
+        query_name,
+        columns,
+        rows,
     })
 }
 

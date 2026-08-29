@@ -13,8 +13,26 @@ pub struct AppBootstrap {
     pub config_path: String,
     pub config_found: bool,
     pub has_credentials: bool,
+    pub required_tags: Vec<String>,
     pub snapshots: Vec<SnapshotSummary>,
     pub latest_snapshot_id: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QueryDefDto {
+    pub name: String,
+    pub category: String,
+    pub kind: String,
+    pub description: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QueryRowsDto {
+    pub query_name: String,
+    pub columns: Vec<String>,
+    pub rows: Vec<Value>,
 }
 
 #[derive(Debug, Serialize)]

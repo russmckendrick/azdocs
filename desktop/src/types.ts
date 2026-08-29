@@ -1,13 +1,36 @@
-export type ViewId = "estate" | "topology" | "findings" | "history";
+export type ViewId =
+  | "overview"
+  | "estate"
+  | "topology"
+  | "inventory"
+  | "findings"
+  | "governance"
+  | "history"
+  | "settings";
 export type Severity = "high" | "medium" | "low" | "info";
+export type ThemePreference = "system" | "light" | "dark";
 
 export interface AppBootstrap {
   databasePath: string;
   configPath: string;
   configFound: boolean;
   hasCredentials: boolean;
+  requiredTags: string[];
   snapshots: SnapshotSummary[];
   latestSnapshotId?: string;
+}
+
+export interface QueryDefMeta {
+  name: string;
+  category: string;
+  kind: "inventory" | "finding";
+  description: string;
+}
+
+export interface QueryRows {
+  queryName: string;
+  columns: string[];
+  rows: Array<Record<string, unknown>>;
 }
 
 export interface SnapshotSummary {

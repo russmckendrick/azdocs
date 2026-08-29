@@ -2,11 +2,14 @@ import { Channel, invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { mockBootstrap, mockEstate } from "./mock-data";
 import { buildFallbackTopology } from "./components/topology-fallback";
+import { mockQueryPack, mockQueryRows } from "./mock-data";
 import type {
   AppBootstrap,
   CollectionEvent,
   CollectResult,
   EstateSnapshot,
+  QueryDefMeta,
+  QueryRows,
   SnapshotComparison,
   TopologyGraph,
   TopologyRequest,
@@ -45,6 +48,18 @@ export async function chooseDatabase(): Promise<AppBootstrap | undefined> {
   });
   if (!path) return undefined;
   return invoke<AppBootstrap>("open_database", { path });
+}
+
+export async function getQueryPackMetadata(): Promise<QueryDefMeta[]> {
+  if (isTauri) return invoke<QueryDefMeta[]>("query_pack_metadata");
+  await pause();
+  return mockQueryPack;
+}
+
+export async function getQueryRows(queryName: string, snapshotId?: string): Promise<QueryRows> {
+  if (isTauri) return invoke<QueryRows>("query_rows", { snapshotId, queryName });
+  await pause(180);
+  return mockQueryRows(queryName);
 }
 
 export async function compareSnapshots(

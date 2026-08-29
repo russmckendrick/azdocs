@@ -40,6 +40,8 @@ pub fn run() {
             commands::topology_graph,
             commands::compare_snapshots,
             commands::collect_snapshot,
+            commands::query_pack_metadata,
+            commands::query_rows,
         ])
         .run(tauri::generate_context!());
 

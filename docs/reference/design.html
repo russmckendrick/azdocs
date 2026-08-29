@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>azdocs · Design language</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@400;500;600&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+  <style>
+    body { margin: 0; font-family: "IBM Plex Sans", "Segoe UI", Georgia, system-ui, sans-serif; color: #1c2430; background: #faf8f4; }
+    .page { max-width: 1440px; margin: 0 auto; padding: 28px 56px 40px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px; }
+    a { color: #0b5da8; } a:hover { color: #084b85; }
+    .serif { font-family: "IBM Plex Serif", Georgia, serif; }
+    .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+    .sec-title { font-family: "IBM Plex Serif", Georgia, serif; font-size: 19px; font-weight: 600; margin: 0; }
+    .sec-note { font-size: 12.5px; color: #5a6470; }
+    .swatch-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid #eae6de; }
+    .swatch { width: 30px; height: 20px; border-radius: 3px; border: 1px solid #d8d2c6; flex-shrink: 0; }
+    .sw-name { font-size: 12px; font-weight: 600; width: 104px; }
+    .sw-hex { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11px; color: #5a6470; width: 66px; }
+    .sw-role { font-size: 11.5px; color: #7a828c; flex: 1; }
+    .dk .swatch-row { border-bottom: 1px solid #262c34; }
+    .dk .swatch { border: 1px solid #3a4048; }
+    .dk .sw-name { color: #e9e4da; }
+    .dk .sw-hex { color: #9a958a; }
+    .dk .sw-role { color: #7d786e; }
+    .anno { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px; color: #7a828c; }
+    .comp-label { font-size: 10.5px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #7a828c; }
+    .columns { display: grid; grid-template-columns: 1.1fr 1fr; gap: 44px; }
+    @media (max-width: 1100px) { .columns { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <header style="display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid #1c2430; padding-bottom: 14px; flex-wrap: wrap">
+    <span class="serif" style="font-size: 26px; font-weight: 600; letter-spacing: -0.01em">azdocs · Design language</span>
+    <span style="font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #7a828c">Field report</span>
+    <span style="flex: 1"></span>
+    <span style="font-size: 12.5px; color: #5a6470">One language for the desktop app, the PDF and the DOCX — IBM Plex throughout, editorial structure, colour reserved for data and signals. Tokens: <span class="mono" style="font-size: 11px">desktop/src/styles.css</span> · prose: <a href="design.md">design.md</a></span>
+  </header>
+
+  <div class="columns">
+
+    <!-- LEFT: palette -->
+    <div style="display: flex; flex-direction: column; gap: 14px">
+      <div style="display: flex; align-items: baseline; gap: 12px"><h2 class="sec-title">Palette</h2><span class="sec-note">two modes, one structure — every light token has exactly one dark counterpart</span></div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid #d8d2c6; border-radius: 6px; overflow: hidden">
+        <div style="padding: 14px 18px; background: #faf8f4">
+          <div class="comp-label" style="margin-bottom: 8px">Light · default</div>
+          <div class="swatch-row"><span class="swatch" style="background: #faf8f4"></span><span class="sw-name">paper</span><span class="sw-hex">#faf8f4</span><span class="sw-role">app ground</span></div>
+          <div class="swatch-row"><span class="swatch" style="background: #ffffff"></span><span class="sw-name">surface</span><span class="sw-hex">#ffffff</span><span class="sw-role">raised panels, grids</span></div>
+          <div class="swatch-row"><span class="swatch" style="background: #f3efe7"></span><span class="sw-name">evidence</span><span class="sw-hex">#f3efe7</span><span class="sw-role">JSON blocks, selection fill</span></div>
+          <div class="swatch-row"><span class="swatch" style="background: #1c2430"></span><span class="sw-name">ink</span><span class="sw-hex">#1c2430</span><span class="sw-role">headings, rules, primary button</span></div>
+          <div class="swatch-row"><span class="swatch" style="background: #3a4450"></span><span class="sw-name">body</span><span class="sw-hex">#3a4450</span><span class="sw-role">running text</span></div>
+          <div class="swatch-row"><span class="swatch" style="background: #5a6470"></span><span class="sw-name">muted</span><span class="sw-hex">#5a6470</span><span class="sw-role">secondary text</span></div>
+          <div class="swatch-row"><span class="swatch" style="background: #d8d2c6"></span><span class="sw-name">hairline-strong</span><span class="sw-hex">#d8d2c6</span><span class="sw-role">panel borders</span></div>
+          <div class="swatch-row"><span class="swatch" style="background: #eae6de"></span><span class="sw-name">hairline</span><span class="sw-hex">#eae6de</span><span class="sw-role">row separators</span></div>
+          <div class="swatch-row"><span class="swatch" style="background: #0b5da8"></span><span class="sw-name">accent</span><span class="sw-hex">#0b5da8</span><span class="sw-role">links, selection, single-hue charts</span></div>
+          <div class="swatch-row"><span class="swatch" style="background: #a83a22"></span><span class="sw-name">coral</span><span class="sw-hex">#a83a22</span><span class="sw-role">high severity, risk</span></div>
+          <div class="swatch-row"><span class="swatch" style="background: #8a6d00"></span><span class="sw-name">amber</span><span class="sw-hex">#8a6d00</span><span class="sw-role">medium severity, warnings</span></div>
+          <div class="swatch-row" style="border-bottom: none"><span class="swatch" style="background: #13734b"></span><span class="sw-name">green</span><span class="sw-hex">#13734b</span><span class="sw-role">healthy, resolved, complete</span></div>
+        </div>
+        <div class="dk" style="padding: 14px 18px; background: #14181d">
+          <div class="comp-label" style="margin-bottom: 8px; color: #7d786e">Dark · night reading</div>
+          <div class="swatch-row"><span class="swatch" style="background: #14181d"></span><span class="sw-name">paper</span><span class="sw-hex">#14181d</span><span class="sw-role">warm charcoal, not blue</span></div>
+          <div class="swatch-row"><span class="swatch" style="background: #1b2129"></span><span class="sw-name">surface</span><span class="sw-hex">#1b2129</span><span class="sw-role">raised panels, grids</span></div>
+          <div class="swatch-row"><span class="swatch" style="background: #10141a"></span><span class="sw-name">evidence</span><span class="sw-hex">#10141a</span><span class="sw-role">JSON blocks, selection fill</span></div>
+          <div class="swatch-row"><span class="swatch" style="background: #e9e4da"></span><span class="sw-name">ink</span><span class="sw-hex">#e9e4da</span><span class="sw-role">warm paper-toned text</span></div>
+          <div class="swatch-row"><span class="swatch" style="background: #c7c0b4"></span><span class="sw-name">body</span><span class="sw-hex">#c7c0b4</span><span class="sw-role">running text</span></div>
+          <div class="swatch-row"><span class="swatch" style="background: #9a958a"></span><span class="sw-name">muted</span><span class="sw-hex">#9a958a</span><span class="sw-role">secondary text</span></div>
+          <div class="swatch-row"><span class="swatch" style="background: #3a4048"></span><span class="sw-name">hairline-strong</span><span class="sw-hex">#3a4048</span><span class="sw-role">panel borders</span></div>
+          <div class="swatch-row"><span class="swatch" style="background: #262c34"></span><span class="sw-name">hairline</span><span class="sw-hex">#262c34</span><span class="sw-role">row separators</span></div>
+          <div class="swatch-row"><span class="swatch" style="background: #5aa7e8"></span><span class="sw-name">accent</span><span class="sw-hex">#5aa7e8</span><span class="sw-role">links, selection, single-hue charts</span></div>
+          <div class="swatch-row"><span class="swatch" style="background: #e07a5f"></span><span class="sw-name">coral</span><span class="sw-hex">#e07a5f</span><span class="sw-role">high severity, risk</span></div>
+          <div class="swatch-row"><span class="swatch" style="background: #c9a83a"></span><span class="sw-name">amber</span><span class="sw-hex">#c9a83a</span><span class="sw-role">medium severity, warnings</span></div>
+          <div class="swatch-row" style="border-bottom: none"><span class="swatch" style="background: #63bd8f"></span><span class="sw-name">green</span><span class="sw-hex">#63bd8f</span><span class="sw-role">healthy, resolved, complete</span></div>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px">
+        <div>
+          <div class="comp-label" style="margin-bottom: 8px">Chart categories · CVD-validated both modes</div>
+          <div style="display: flex; gap: 6px; margin-bottom: 6px">
+            <div style="flex: 1; height: 26px; background: #0078d4; border-radius: 3px"></div>
+            <div style="flex: 1; height: 26px; background: #107c10; border-radius: 3px"></div>
+            <div style="flex: 1; height: 26px; background: #c19c00; border-radius: 3px"></div>
+            <div style="flex: 1; height: 26px; background: #b146c2; border-radius: 3px"></div>
+            <div style="flex: 1; height: 26px; background: #d83b01; border-radius: 3px"></div>
+            <div style="flex: 1; height: 26px; background: #5a6470; border-radius: 3px"></div>
+          </div>
+          <div style="display: flex; gap: 6px" class="anno">
+            <span style="flex: 1">compute</span><span style="flex: 1">network</span><span style="flex: 1">storage*</span><span style="flex: 1">database</span><span style="flex: 1">app svc</span><span style="flex: 1">other</span>
+          </div>
+          <div class="sec-note" style="margin-top: 6px">Fixed order, never cycled — the top slots of the app's <span class="mono" style="font-size: 11px">category_color()</span> set. Charts fold the tail into Other; type dots elsewhere may use the full set. *storage deepens to <span class="mono" style="font-size: 11px">#a98a00</span> in dark. Bars are always direct-labelled.</div>
+        </div>
+        <div>
+          <div class="comp-label" style="margin-bottom: 8px">Severity · status, never decorative</div>
+          <div style="display: flex; flex-direction: column; gap: 5px">
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px"><span style="width: 10px; height: 10px; border-radius: 2px; background: #a83a22"></span><span style="font-weight: 600; width: 58px">High</span><span class="anno">coral · always with the word, never colour alone</span></div>
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px"><span style="width: 10px; height: 10px; border-radius: 2px; background: #8a6d00"></span><span style="font-weight: 600; width: 58px">Medium</span><span class="anno">amber</span></div>
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px"><span style="width: 10px; height: 10px; border-radius: 2px; background: #5a6470"></span><span style="font-weight: 600; width: 58px">Low</span><span class="anno">neutral</span></div>
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 12px"><span style="width: 10px; height: 10px; border-radius: 2px; background: #0b5da8"></span><span style="font-weight: 600; width: 58px">Info</span><span class="anno">accent</span></div>
+          </div>
+          <div class="sec-note" style="margin-top: 8px">Footnote daggers (<span style="color: #a83a22; font-weight: 600">†</span>) mark rows referenced by open findings, in every table of the app.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: type + structure -->
+    <div style="display: flex; flex-direction: column; gap: 14px; border-left: 1px solid #d8d2c6; padding-left: 44px">
+      <div style="display: flex; align-items: baseline; gap: 12px"><h2 class="sec-title">Type</h2><span class="sec-note">IBM Plex — the family the PDF already vendors</span></div>
+      <div style="display: flex; flex-direction: column">
+        <div style="display: flex; align-items: baseline; gap: 16px; padding: 7px 0; border-bottom: 1px solid #eae6de"><span class="serif" style="font-size: 30px; font-weight: 600; letter-spacing: -0.01em">Display 30</span><span class="anno" style="margin-left: auto">Plex Serif 600 · view titles, hero numerals</span></div>
+        <div style="display: flex; align-items: baseline; gap: 16px; padding: 7px 0; border-bottom: 1px solid #eae6de"><span class="serif" style="font-size: 19px; font-weight: 600">Chapter 19</span><span class="anno" style="margin-left: auto">Plex Serif 600 · section &amp; panel headings</span></div>
+        <div style="display: flex; align-items: baseline; gap: 16px; padding: 7px 0; border-bottom: 1px solid #eae6de"><span style="font-size: 14px; color: #3a4450">Body 14 — descriptions, ledes and supporting evidence read at this size.</span><span class="anno" style="margin-left: auto; flex-shrink: 0">Plex Sans 400</span></div>
+        <div style="display: flex; align-items: baseline; gap: 16px; padding: 7px 0; border-bottom: 1px solid #eae6de"><span style="font-size: 12.5px; color: #3a4450">Table 12.5 — ledger rows, inspector detail</span><span class="anno" style="margin-left: auto">Plex Sans 400/600</span></div>
+        <div style="display: flex; align-items: baseline; gap: 16px; padding: 7px 0; border-bottom: 1px solid #eae6de"><span style="font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #7a828c">Label 11 · caps</span><span class="anno" style="margin-left: auto">Plex Sans 600 · column heads, metadata</span></div>
+        <div style="display: flex; align-items: baseline; gap: 16px; padding: 7px 0"><span class="mono" style="font-size: 12px; color: #3a4450">evidence-12 · /subscriptions/…/rg-prod-data</span><span class="anno" style="margin-left: auto">Plex Mono · ARM ids, tags, deltas</span></div>
+      </div>
+      <div class="sec-note">Nothing below 11px — the old app's 6–10px floor is retired. Serif carries identity; sans does the work; mono marks machine-shaped values.</div>
+
+      <div style="display: flex; align-items: baseline; gap: 12px; margin-top: 4px"><h2 class="sec-title">Structure</h2><span class="sec-note">rules over boxes, tone over shadow</span></div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 12px; color: #3a4450">
+        <div>
+          <div style="border-top: 2px solid #1c2430; padding-top: 5px; margin-bottom: 8px">2px ink rule — anchors mastheads, stat strips, footers</div>
+          <div style="border-top: 1px solid #d8d2c6; padding-top: 5px; margin-bottom: 8px">1px strong hairline — panel edges, column splits</div>
+          <div style="border-top: 1px solid #eae6de; padding-top: 5px">1px hairline — table rows, list separators</div>
+        </div>
+        <div>
+          <div style="margin-bottom: 6px">Spacing rhythm: <span class="mono">4 · 8 · 12 · 20 · 32 · 56</span> (56 = page margin)</div>
+          <div style="margin-bottom: 6px">Radii: <span class="mono">3px</span> chips &amp; swatches · <span class="mono">6px</span> panels — near-square, print-like</div>
+          <div>Figures end with a caption — <span style="font-style: italic; color: #5a6470">a short italic line naming what the reader sees.</span> No numbering, anywhere.</div>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: baseline; gap: 12px; margin-top: 4px"><h2 class="sec-title">Components</h2><span class="sec-note">same anatomy in both modes</span></div>
+      <div style="border: 1px solid #d8d2c6; border-radius: 6px; overflow: hidden">
+        <div style="padding: 12px 16px; background: #ffffff; display: flex; align-items: center; gap: 12px; flex-wrap: wrap">
+          <span style="font-size: 12px; font-weight: 600; color: #faf8f4; background: #1c2430; padding: 7px 14px; border-radius: 3px">Primary action</span>
+          <span style="font-size: 12px; font-weight: 600; color: #3a4450; border: 1px solid #d8d2c6; padding: 6px 13px; border-radius: 3px">Quiet action</span>
+          <span style="font-size: 12.5px; font-weight: 600; color: #0b5da8; border-bottom: 2px solid #0b5da8; padding-bottom: 4px">Active tab · 12</span>
+          <span style="font-size: 12.5px; color: #5a6470; padding-bottom: 4px">Tab · 8</span>
+          <span class="mono" style="font-size: 11px; background: #f3efe7; border: 1px solid #eae6de; padding: 3px 8px; border-radius: 3px">environment=prod</span>
+          <span style="font-size: 12px; color: #3a4450; border: 1px solid #d8d2c6; border-radius: 3px; padding: 6px 10px; background: #faf8f4">Search evidence… <span class="mono" style="font-size: 10px; color: #9aa2ac">⌘K</span></span>
+        </div>
+        <div style="padding: 12px 16px; background: #14181d; display: flex; align-items: center; gap: 12px; flex-wrap: wrap">
+          <span style="font-size: 12px; font-weight: 600; color: #14181d; background: #e9e4da; padding: 7px 14px; border-radius: 3px">Primary action</span>
+          <span style="font-size: 12px; font-weight: 600; color: #c7c0b4; border: 1px solid #3a4048; padding: 6px 13px; border-radius: 3px">Quiet action</span>
+          <span style="font-size: 12.5px; font-weight: 600; color: #5aa7e8; border-bottom: 2px solid #5aa7e8; padding-bottom: 4px">Active tab · 12</span>
+          <span style="font-size: 12.5px; color: #9a958a; padding-bottom: 4px">Tab · 8</span>
+          <span class="mono" style="font-size: 11px; background: #10141a; border: 1px solid #262c34; color: #c7c0b4; padding: 3px 8px; border-radius: 3px">environment=prod</span>
+          <span style="font-size: 12px; color: #c7c0b4; border: 1px solid #3a4048; border-radius: 3px; padding: 6px 10px; background: #14181d">Search evidence… <span class="mono" style="font-size: 10px; color: #635f57">⌘K</span></span>
+        </div>
+      </div>
+      <div class="sec-note">Theme is a tri-state in Settings — <span style="font-weight: 600">System</span> (default, follows the OS) · Light · Dark. The primary button inverts with the mode; category and severity colours are re-validated per surface, never auto-flipped. Selection anywhere is a quiet <span class="mono" style="font-size: 11px">--evidence</span> fill — never a coloured bar.</div>
+    </div>
+  </div>
+
+  <footer style="display: flex; align-items: center; gap: 14px; border-top: 2px solid #1c2430; padding-top: 10px; font-size: 11.5px; color: #7a828c; flex-wrap: wrap">
+    <span>Implemented in <span class="mono" style="font-size: 11px">desktop/src/styles.css</span> · prose version at <a href="design.md">design.md</a> · summarised in DESIGN.md.</span>
+    <span style="margin-left: auto">azdocs · Field Report design language</span>
+  </footer>
+</div>
+</body>
+</html>

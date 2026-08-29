@@ -36,12 +36,14 @@ function stableCompare(left: string, right: string) {
 
 export function TopologyView({
   estate,
+  theme,
   selectedResourceId,
   focusRequestNonce,
   onSelectResource,
   onInspect,
 }: {
   estate: EstateSnapshot;
+  theme: "light" | "dark";
   selectedResourceId?: string;
   focusRequestNonce: number;
   onSelectResource: (id: string) => void;
@@ -408,6 +410,7 @@ export function TopologyView({
           <CytoscapeResourceGraph
             graph={topology}
             estate={estate}
+            theme={theme}
             focusedNodeId={focusedNodeId}
             motionEnabled={motionEnabled}
             focusNonce={focusNonce}

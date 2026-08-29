@@ -8,6 +8,7 @@ export type GraphMode = "neighbourhood" | "estate";
 interface CytoscapeResourceGraphProps {
   graph: TopologyGraph;
   estate: EstateSnapshot;
+  theme: "light" | "dark";
   focusedNodeId: string;
   motionEnabled: boolean;
   focusNonce: number;
@@ -27,16 +28,41 @@ const AGGREGATE_H = 60;
 const LANE_BAR_W = 860;
 const LANE_BAR_H = 56;
 
-const KIND_CLASS_COLORS: Record<string, string> = {
-  network: "#6fd3ff",
-  structure: "#4a9cc5",
-  data: "#8ce8b4",
-  identity: "#d9a9ff",
-  monitoring: "#f2c069",
-};
+const KIND_CLASSES = new Set(["network", "structure", "data", "identity", "monitoring"]);
+
+/// Every colour the canvas paints comes from the design-language tokens in
+/// styles.css, resolved at graph build time so both themes use one palette.
+function cssToken(name: string, fallback: string) {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
+}
 
 export function kindClassColor(kindClass: string) {
-  return KIND_CLASS_COLORS[kindClass] ?? "#4a9cc5";
+  return cssToken(KIND_CLASSES.has(kindClass) ? `--kind-${kindClass}` : "--cat-other", "#5a6470");
+}
+
+interface GraphPalette {
+  nodeFill: string;
+  nodeBorder: string;
+  frameBorder: string;
+  focusFill: string;
+  focusBorder: string;
+  labelText: string;
+  labelBg: string;
+  labelBorder: string;
+}
+
+function readGraphPalette(): GraphPalette {
+  return {
+    nodeFill: cssToken("--graph-node-fill", "#ffffff"),
+    nodeBorder: cssToken("--graph-node-border", "#d8d2c6"),
+    frameBorder: cssToken("--graph-frame-border", "#9aa2ac"),
+    focusFill: cssToken("--graph-focus-fill", "#f3efe7"),
+    focusBorder: cssToken("--graph-focus-border", "#0b5da8"),
+    labelText: cssToken("--graph-label-text", "#5a6470"),
+    labelBg: cssToken("--graph-label-bg", "#faf8f4"),
+    labelBorder: cssToken("--graph-label-border", "#d8d2c6"),
+  };
 }
 
 interface Placement {
@@ -178,7 +204,7 @@ function layoutNeighbourhood(graph: TopologyGraph, positions: Map<string, Placem
   return positions;
 }
 
-function graphStyles(): StylesheetJson {
+function graphStyles(palette: GraphPalette): StylesheetJson {
   return [
     {
       selector: "node.resource-node",
@@ -186,12 +212,12 @@ function graphStyles(): StylesheetJson {
         width: RESOURCE_W,
         height: RESOURCE_H,
         shape: "round-rectangle",
-        "corner-radius": "12px",
-        "background-color": "#102338",
-        "background-opacity": 0.62,
+        "corner-radius": "4px",
+        "background-color": palette.nodeFill,
+        "background-opacity": 1,
         "border-width": 1,
-        "border-color": "#365673",
-        "border-opacity": 0.82,
+        "border-color": palette.nodeBorder,
+        "border-opacity": 1,
         "overlay-opacity": 0,
         "underlay-opacity": 0,
         label: "",
@@ -204,12 +230,12 @@ function graphStyles(): StylesheetJson {
         width: GROUP_W,
         height: GROUP_H,
         shape: "round-rectangle",
-        "corner-radius": "15px",
-        "background-color": "#10283e",
-        "background-opacity": 0.76,
+        "corner-radius": "6px",
+        "background-color": palette.nodeFill,
+        "background-opacity": 1,
         "border-width": 1,
-        "border-color": "#3b7397",
-        "border-opacity": 0.78,
+        "border-color": palette.nodeBorder,
+        "border-opacity": 1,
         "overlay-opacity": 0,
         label: "",
         "z-index": 8,
@@ -221,13 +247,13 @@ function graphStyles(): StylesheetJson {
         width: AGGREGATE_W,
         height: AGGREGATE_H,
         shape: "round-rectangle",
-        "corner-radius": "12px",
-        "background-color": "#0d2237",
-        "background-opacity": 0.66,
+        "corner-radius": "4px",
+        "background-color": palette.nodeFill,
+        "background-opacity": 0.7,
         "border-width": 1,
-        "border-color": "#3b6d8f",
+        "border-color": palette.frameBorder,
         "border-style": "dashed",
-        "border-opacity": 0.8,
+        "border-opacity": 1,
         "overlay-opacity": 0,
         label: "",
         "z-index": 8,
@@ -239,13 +265,13 @@ function graphStyles(): StylesheetJson {
         width: RESOURCE_W,
         height: RESOURCE_H,
         shape: "round-rectangle",
-        "corner-radius": "12px",
-        "background-color": "#0b1b2c",
-        "background-opacity": 0.45,
+        "corner-radius": "4px",
+        "background-color": palette.nodeFill,
+        "background-opacity": 0.5,
         "border-width": 1,
-        "border-color": "#3b6d8f",
+        "border-color": palette.frameBorder,
         "border-style": "dashed",
-        "border-opacity": 0.6,
+        "border-opacity": 0.9,
         "overlay-opacity": 0,
         label: "",
         "z-index": 6,
@@ -257,13 +283,13 @@ function graphStyles(): StylesheetJson {
         width: LANE_BAR_W,
         height: LANE_BAR_H,
         shape: "round-rectangle",
-        "corner-radius": "14px",
-        "background-color": "#0d2237",
-        "background-opacity": 0.6,
+        "corner-radius": "4px",
+        "background-color": palette.nodeFill,
+        "background-opacity": 0.7,
         "border-width": 1,
-        "border-color": "#3b6d8f",
+        "border-color": palette.frameBorder,
         "border-style": "dashed",
-        "border-opacity": 0.72,
+        "border-opacity": 0.9,
         "overlay-opacity": 0,
         label: "",
         "z-index": 8,
@@ -273,13 +299,13 @@ function graphStyles(): StylesheetJson {
       selector: "node.lane-frame, node.vnet-frame, node.subnet-frame",
       style: {
         shape: "round-rectangle",
-        "corner-radius": "18px",
-        "background-color": "#10416b",
-        "background-opacity": 0.08,
-        "border-width": 1.5,
+        "corner-radius": "6px",
+        "background-color": palette.nodeFill,
+        "background-opacity": 0,
+        "border-width": 1.2,
         "border-style": "dashed",
-        "border-color": "#4d8fc0",
-        "border-opacity": 0.5,
+        "border-color": palette.frameBorder,
+        "border-opacity": 0.85,
         "overlay-opacity": 0,
         label: "",
         "z-index": 1,
@@ -291,16 +317,10 @@ function graphStyles(): StylesheetJson {
       },
     },
     {
-      selector: "node.vnet-frame",
-      style: { "border-color": "#51cfff", "border-opacity": 0.55 },
-    },
-    {
       selector: "node.subnet-frame",
       style: {
-        "corner-radius": "12px",
-        "border-color": "#6eb4e0",
-        "border-opacity": 0.4,
-        "background-opacity": 0.14,
+        "corner-radius": "4px",
+        "border-opacity": 0.6,
         "padding-top": "42px",
       },
     },
@@ -310,39 +330,39 @@ function graphStyles(): StylesheetJson {
         width: 260,
         height: 44,
         shape: "round-rectangle",
-        "corner-radius": "10px",
-        "background-color": "#10416b",
-        "background-opacity": 0.14,
+        "corner-radius": "4px",
+        "background-color": palette.nodeFill,
+        "background-opacity": 0.4,
         "border-width": 1,
         "border-style": "dashed",
-        "border-color": "#6eb4e0",
-        "border-opacity": 0.4,
+        "border-color": palette.frameBorder,
+        "border-opacity": 0.6,
         label: "",
         "z-index": 4,
       },
     },
     {
       selector: "node.hop-dim",
-      style: { "background-opacity": 0.3, "border-opacity": 0.4 },
+      style: { "background-opacity": 0.55, "border-opacity": 0.55 },
     },
     {
       selector: "node.focused",
       style: {
-        "background-color": "#0a5685",
-        "background-opacity": 0.72,
+        "background-color": palette.focusFill,
+        "background-opacity": 1,
         "border-width": 1.5,
-        "border-color": "#72ddff",
+        "border-color": palette.focusBorder,
         "border-opacity": 1,
         "z-index": 14,
       },
     },
     {
       selector: "node.hovered",
-      style: { "background-opacity": 0.78, "border-width": 1.5, "border-color": "#67c9ec" },
+      style: { "border-width": 1.5, "border-color": palette.focusBorder },
     },
     {
       selector: "node:grabbed, node.keyboard-focus",
-      style: { "background-opacity": 0.86, "border-width": 2, "border-color": "#8ce7ff" },
+      style: { "border-width": 2, "border-color": palette.focusBorder },
     },
     {
       selector: "edge.relationship-edge",
@@ -355,7 +375,7 @@ function graphStyles(): StylesheetJson {
         "taxi-radius": 9,
         "edge-distances": "intersection",
         "line-color": "data(color)",
-        "line-opacity": 0.62,
+        "line-opacity": 0.75,
         "line-cap": "round",
         "target-arrow-shape": "triangle",
         "target-arrow-color": "data(color)",
@@ -371,7 +391,7 @@ function graphStyles(): StylesheetJson {
       selector: "edge.relationship-edge.related",
       style: {
         width: 2,
-        "line-opacity": 0.95,
+        "line-opacity": 1,
         "line-style": "dashed",
         "line-dash-pattern": [7, 5],
       },
@@ -380,17 +400,17 @@ function graphStyles(): StylesheetJson {
       selector: "edge.relationship-edge.labelled",
       style: {
         label: "data(label)",
-        color: "#a6d8ef",
+        color: palette.labelText,
         "font-family": "Plex Mono, monospace",
-        "font-size": 7,
+        "font-size": 8,
         "font-weight": 600,
         "text-transform": "uppercase",
-        "text-background-color": "#071522",
-        "text-background-opacity": 0.94,
-        "text-background-padding": "5px",
+        "text-background-color": palette.labelBg,
+        "text-background-opacity": 0.95,
+        "text-background-padding": "4px",
         "text-background-shape": "roundrectangle",
-        "text-border-color": "#39749a",
-        "text-border-opacity": 0.45,
+        "text-border-color": palette.labelBorder,
+        "text-border-opacity": 0.8,
         "text-border-width": 1,
       },
     },
@@ -490,6 +510,7 @@ function graphElements(graph: TopologyGraph, focusedNodeId: string): ElementDefi
 export function CytoscapeResourceGraph({
   graph,
   estate,
+  theme,
   focusedNodeId,
   motionEnabled,
   focusNonce,
@@ -571,7 +592,7 @@ export function CytoscapeResourceGraph({
       cy = cytoscape({
         container: surface,
         elements: graphElements(graph, focusedNodeId),
-        style: graphStyles(),
+        style: graphStyles(readGraphPalette()),
         layout: { name: "preset" },
         minZoom: 0.1,
         maxZoom: 2.2,
@@ -612,7 +633,10 @@ export function CytoscapeResourceGraph({
           label.style.transform = `translate3d(${box.x1 + 14 * zoom}px, ${box.y1 + 6 * zoom}px, 0) scale(${frameLabelScale})`;
         } else {
           const point = node.renderedPosition();
-          label.style.transform = `translate3d(${point.x}px, ${point.y}px, 0) translate(-50%, -50%) scale(${zoom})`;
+          // Scale BEFORE the -50% centring so the offset is computed in the
+          // scaled visual size — the other order drifts labels off their
+          // boxes at any zoom other than 1:1.
+          label.style.transform = `translate3d(${point.x}px, ${point.y}px, 0) scale(${zoom}) translate(-50%, -50%)`;
         }
       }
     }
@@ -751,8 +775,10 @@ export function CytoscapeResourceGraph({
       cyRef.current = undefined;
       cy.destroy();
     };
+    // The graph rebuilds when its structure OR the resolved theme changes —
+    // the palette and per-edge colours are read from CSS tokens at build time.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [graphStructureKey]);
+  }, [graphStructureKey, theme]);
 
   const registerLabel = (id: string) => (element: HTMLElement | null) => {
     if (element) labelRefs.current.set(id, element);
