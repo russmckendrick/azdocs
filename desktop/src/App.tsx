@@ -326,8 +326,10 @@ export default function App() {
     <div className="app-shell">
       <header className="masthead">
         <div className="brand">
-          <img src="/icons/other/10018-icon-service-Azure-A.svg" alt="" />
-          <strong>azdocs</strong>
+          <div className="brand-product" role="img" aria-label="azdocs">
+            <span className="brand-mark" aria-hidden="true" />
+            <strong aria-hidden="true">zdocs</strong>
+          </div>
           <span>Estate field report</span>
           {!isTauri ? <em>Illustrative workspace</em> : null}
         </div>

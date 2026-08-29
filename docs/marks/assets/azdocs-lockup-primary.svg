@@ -1,44 +1,38 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 320" role="img" aria-labelledby="title desc">
-  <title id="title">azdocs primary horizontal lockup</title>
-  <desc id="desc">The folded topology mark followed by the lowercase azdocs wordmark.</desc>
-  <g transform="translate(24 4) scale(.62)">
-    <path
-      fill="#0078d4"
-      d="M40 448 188 64h112v60q0 20 20 20h14l142 304H352l-96-262-92 262Z"
-    />
-    <path
-      fill="#0b5da8"
-      d="M256 64h44v60q0 20 20 20h14l142 304H352l-96-262Z"
-    />
-    <path
-      fill="none"
-      stroke="#1c2430"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      stroke-width="16"
-      d="m256 270-41 80h82Z"
-    />
-    <g fill="#0078d4">
-      <circle cx="256" cy="270" r="23" />
-      <circle cx="215" cy="350" r="23" />
-      <circle cx="297" cy="350" r="23" />
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" role="img" viewBox="0 0 640 256" width="2560" height="1024">
+  <title>azdocs lockup primary</title>
+  <defs><linearGradient id="ribbon-deep" x1="0" y1="1" x2="0.72" y2="0">
+      <stop offset="0" stop-color="#0754bd"/>
+      <stop offset="0.56" stop-color="#0b68d5"/>
+      <stop offset="1" stop-color="#1479e6"/>
+    </linearGradient>
+    <linearGradient id="ribbon-light" x1="0.12" y1="0" x2="0.88" y2="1">
+      <stop offset="0" stop-color="#39c8f5"/>
+      <stop offset="0.48" stop-color="#21b1ed"/>
+      <stop offset="1" stop-color="#168fe2"/>
+    </linearGradient>
+    <linearGradient id="node-blue" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#27b5f5"/>
+      <stop offset="1" stop-color="#0b86e7"/>
+    </linearGradient></defs>
+  <g transform="translate(190 201) scale(0.150000 -0.150000)"><path d="M39 0V117L300 410H48V525H472V409L210 115H479V0Z" fill="#168fe2" stroke="#168fe2" stroke-width="24" stroke-linejoin="round" paint-order="stroke fill" transform="translate(0.000 0)"/><path d="M391 88H386Q380 67 367.0 48.5Q354 30 335.5 16.5Q317 3 293.5 -4.5Q270 -12 245 -12Q145 -12 94.0 58.5Q43 129 43 263Q43 397 94.0 467.0Q145 537 245 537Q296 537 335.5 509.0Q375 481 386 437H391V740H539V0H391ZM294 108Q336 108 363.5 128.5Q391 149 391 185V340Q391 376 363.5 396.5Q336 417 294 417Q252 417 224.5 387.5Q197 358 197 308V217Q197 167 224.5 137.5Q252 108 294 108Z" fill="#0754bd" stroke="#0754bd" stroke-width="24" stroke-linejoin="round" paint-order="stroke fill" transform="translate(506.000 0)"/><path d="M282 -12Q224 -12 178.5 7.0Q133 26 101.5 62.0Q70 98 53.0 149.0Q36 200 36 263Q36 326 53.0 377.0Q70 428 101.5 463.5Q133 499 178.5 518.0Q224 537 282 537Q340 537 385.5 518.0Q431 499 462.5 463.5Q494 428 511.0 377.0Q528 326 528 263Q528 200 511.0 149.0Q494 98 462.5 62.0Q431 26 385.5 7.0Q340 -12 282 -12ZM282 105Q326 105 350.0 132.0Q374 159 374 209V316Q374 366 350.0 393.0Q326 420 282 420Q238 420 214.0 393.0Q190 366 190 316V209Q190 159 214.0 132.0Q238 105 282 105Z" fill="#0754bd" stroke="#0754bd" stroke-width="24" stroke-linejoin="round" paint-order="stroke fill" transform="translate(1102.000 0)"/><path d="M281 -12Q222 -12 176.0 7.5Q130 27 99.0 62.5Q68 98 52.0 149.0Q36 200 36 263Q36 326 52.0 376.5Q68 427 99.0 463.0Q130 499 176.0 518.0Q222 537 281 537Q361 537 414.5 501.0Q468 465 491 400L371 348Q364 378 342.0 399.0Q320 420 281 420Q236 420 213.0 390.5Q190 361 190 311V213Q190 163 213.0 134.0Q236 105 281 105Q321 105 344.5 126.5Q368 148 379 183L494 133Q468 58 413.5 23.0Q359 -12 281 -12Z" fill="#0754bd" stroke="#0754bd" stroke-width="24" stroke-linejoin="round" paint-order="stroke fill" transform="translate(1654.000 0)"/><path d="M247 -12Q171 -12 119.0 12.5Q67 37 26 82L113 170Q141 139 175.0 121.0Q209 103 252 103Q296 103 313.0 116.5Q330 130 330 153Q330 190 277 197L220 204Q43 226 43 366Q43 404 57.5 435.5Q72 467 98.5 489.5Q125 512 162.5 524.5Q200 537 247 537Q288 537 319.5 531.5Q351 526 375.5 515.5Q400 505 420.5 489.5Q441 474 461 455L376 368Q351 393 319.5 407.5Q288 422 255 422Q217 422 201.0 410.0Q185 398 185 378Q185 357 196.5 345.5Q208 334 240 329L299 321Q472 298 472 163Q472 125 456.0 93.0Q440 61 410.5 37.5Q381 14 339.5 1.0Q298 -12 247 -12Z" fill="#0754bd" stroke="#0754bd" stroke-width="24" stroke-linejoin="round" paint-order="stroke fill" transform="translate(2159.000 0)"/></g>
+<g transform="translate(12 27) scale(0.44)"><g>
+    <path d="M52 428 L203 84 L247.68 190 L156 428 Z" fill="url(#ribbon-deep)"/>
+    <path d="M203 84 H300 L460 428 H348 Z" fill="url(#ribbon-light)"/>
+    <path d="M300 84 L338 166 H318 Q300 166 300 148 Z" fill="#f3eee5"/>
+    <g transform="translate(0 7)" fill="#061828" stroke="#061828" opacity="0.22">
+      <path d="M256 253 L184 352 L328 352 Z" fill="none" stroke-width="22" stroke-linejoin="round"/>
+      <circle cx="256" cy="253" r="36" stroke="none"/>
+      <circle cx="184" cy="352" r="36" stroke="none"/>
+      <circle cx="328" cy="352" r="36" stroke="none"/>
     </g>
-    <path fill="#f3efe7" d="M300 64v60q0 20 20 20h14Z" />
-    <path
-      fill="none"
-      stroke="#d8d2c6"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      stroke-width="3"
-      d="M300 64v60q0 20 20 20h14"
-    />
-  </g>
-  <g transform="translate(350 250) scale(.24 -.24)" fill="#1c2430">
-    <path d="M458 0Q416 0 391.5 24.5Q367 49 361 90H355Q342 39 302 13.5Q262-12 203-12Q123-12 80 30Q37 72 37 142Q37 223 95 262.5Q153 302 260 302H349V340Q349 384 326 408Q303 432 252 432Q207 432 179.5 412.5Q152 393 133 366L57 434Q86 479 134 506.5Q182 534 261 534Q367 534 422 486Q477 438 477 348V102H529V0ZM246 81Q289 81 319 100Q349 119 349 156V225H267Q167 225 167 161V144Q167 112 187.5 96.5Q208 81 246 81Z" />
-    <path transform="translate(559)" d="M37 0V102L308 421H46V522H458V423L185 102H465V0Z" />
-    <path transform="translate(1061)" d="M398 87H393Q379 42 340 15Q301-12 249-12Q150-12 97.5 59Q45 130 45 262Q45 393 97.5 463.5Q150 534 249 534Q301 534 340 507.5Q379 481 393 436H398V740H526V0H398ZM290 94Q336 94 367 116Q398 138 398 179V345Q398 383 367 406Q336 429 290 429Q240 429 209.5 395.5Q179 362 179 306V216Q179 160 209.5 127Q240 94 290 94Z" />
-    <path transform="translate(1661)" d="M281-12Q225-12 180.5 7Q136 26 104.5 62Q73 98 56 148.5Q39 199 39 262Q39 325 56 375Q73 425 104.5 460.5Q136 496 180.5 515Q225 534 281 534Q337 534 382 515Q427 496 458.5 460.5Q490 425 507 375Q524 325 524 262Q524 199 507 148.5Q490 98 458.5 62Q427 26 382 7Q337-12 281-12ZM281 91Q332 91 361 122Q390 153 390 213V310Q390 369 361 400Q332 431 281 431Q231 431 202 400Q173 369 173 310V213Q173 153 202 122Q231 91 281 91Z" />
-    <path transform="translate(2224)" d="M280-12Q222-12 177 7Q132 26 101.5 62Q71 98 55 148.5Q39 199 39 262Q39 325 55 375Q71 425 101.5 460.5Q132 496 177 515Q222 534 280 534Q359 534 410.5 499Q462 464 485 402L380 355Q371 388 346.5 409.5Q322 431 280 431Q226 431 199.5 397Q173 363 173 308V213Q173 158 199.5 124.5Q226 91 280 91Q326 91 351 114.5Q376 138 390 173L488 126Q462 57 409 22.5Q356-12 280-12Z" />
-    <path transform="translate(2737)" d="M245-12Q170-12 119 13.5Q68 39 29 84L107 160Q136 127 170.5 108Q205 89 250 89Q296 89 316.5 105Q337 121 337 149Q337 172 322.5 185.5Q308 199 273 204L221 211Q136 222 91.5 259.5Q47 297 47 369Q47 407 61 437.5Q75 468 101 489.5Q127 511 163.5 522.5Q200 534 245 534Q283 534 312.5 528.5Q342 523 366 512.5Q390 502 410 486.5Q430 471 449 452L374 377Q351 401 319 417Q287 433 249 433Q207 433 188.5 418Q170 403 170 379Q170 353 185.5 339.5Q201 326 238 320L291 313Q460 289 460 159Q460 121 444.5 89.5Q429 58 401 35.5Q373 13 333.5 .5Q294-12 245-12Z" />
-  </g>
+    <g>
+      <path d="M256 253 L184 352 L328 352 Z" fill="none" stroke="#0b2d4a" stroke-width="20" stroke-linejoin="round"/>
+      <g fill="url(#node-blue)" stroke="#52c9f8" stroke-width="2">
+        <circle cx="256" cy="253" r="34"/>
+        <circle cx="184" cy="352" r="34"/>
+        <circle cx="328" cy="352" r="34"/>
+      </g>
+    </g>
+  </g></g>
 </svg>

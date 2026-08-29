@@ -135,7 +135,9 @@ one product family. Serif Regular/SemiBold is bundled with the frontend
 
 Relationships alone is full-bleed. It uses one flat command rail above the
 canvas and one slim count/legend rail below it; breadcrumbs are part of the
-title block and secondary graph controls live in a labelled More menu. The
+title block and graph controls form a joined icon ribbon with visible tooltips
+and accessible names. Fit all leads the ribbon, followed by zoom, selected-path
+motion, lane reset, and interaction help. The
 initial camera shows a readable connected core rather than indiscriminately
 fitting every secondary region. Fit all is always available. Camera bounds
 adapt to graph level, target density, and viewport size so sparse maps use the

@@ -1,8 +1,10 @@
 # Mark prompts and design record
 
-The raster boards in [`concepts/`](concepts/) were generated with the built-in
-image tool. The production SVGs were then reconstructed as deterministic paths
-and shapes; they are not traced raster output.
+The raster boards in [`concepts/`](concepts/) and the high-resolution refinement
+in [`png/azdocs-mark-master-source.png`](png/azdocs-mark-master-source.png) were
+generated with the built-in image tool. The production SVGs were then rebuilt
+as deterministic paths and shapes. Automatic tracing was rejected because it
+introduced visible edge wobble into the otherwise straight ribbon boundaries.
 
 ## Four-direction exploration
 
@@ -87,9 +89,48 @@ copy the official Microsoft Azure logo exactly.
 Any future redraw should preserve these invariants:
 
 - `0 0 512 512` standalone-mark coordinate system.
-- Flat top from x=188 to x=300; the fold begins at x=300 on that crown.
-- Broad outer extents from x=40 to x=476 and y=64 to y=448.
-- Exactly three equal nodes centred at `(256,270)`, `(215,350)` and `(297,350)`.
-- One structural blue facet only; no name-dependent styling or gradients.
-- Lockup wordmark outlined from the repository's
-  `data/fonts/IBMPlexSans-SemiBold.ttf`.
+- Deep ribbon path: `M52 428 L203 84 L247.68 190 L156 428 Z`.
+- Light ribbon path: `M203 84 H300 L460 428 H348 Z`.
+- Every outer and inner ribbon boundary is a single straight segment.
+- The light ribbon's inner edge is one uninterrupted line from `(203,84)` to
+  `(348,428)`; the dark-ribbon junction lies exactly on that line.
+- Exactly three 34-unit-radius nodes centred at `(256,253)`, `(184,352)` and
+  `(328,352)`.
+- The connector triangle uses 20-unit bars and sits behind the nodes but in
+  front of both ribbons.
+- The light ribbon is uninterrupted from the crown to the right foot; the deep
+  ribbon is uninterrupted from the left foot to the crown.
+- The only shadow is the short neutral topology lift; the A casts no shadow.
+- The lockup uses the mark as its initial **A**, followed by an outlined `zdocs`
+  from `data/fonts/IBMPlexSans-Bold.ttf`; never repeat a typed `a` beside
+  the mark. The cyan `z` tucks into and continues the light ribbon before
+  `docs` continues in deep ribbon blue on light surfaces or paper on dark ones.
+  Layer the `z` behind the A's right foot, never over the mark. Optically
+  expand the Bold outlines slightly so their weight balances the broad A.
+
+The production source is
+[`tools/build_vector_assets.py`](tools/build_vector_assets.py). Do not trace a
+PNG to replace these paths; use the raster refinement only as an art-direction
+reference.
+
+## Continuous ribbon refinement
+
+```text
+Change only the A construction. Make both complete blue ribbon planes visibly
+thicker. The deep-blue ribbon must run continuously from the lower-left foot to
+the crown. The lighter cyan ribbon must begin at the crown and continue without
+interruption down the full right leg to the lower-right foot. Keep the warm
+paper fold at the upper-right crown and exactly three topology nodes.
+```
+
+## Foreground topology refinement
+
+```text
+Make both complete blue ribbon planes approximately 25% heavier while
+preserving their continuous left-foot-to-crown and crown-to-right-foot paths.
+Enlarge the three-node graph moderately, thicken all three connector bars by
+about 30%, and move it forward and slightly lower so the two bottom nodes
+overlap the inner edges of the ribbons. Draw nodes and connectors over the A.
+Add only a tight, restrained shadow beneath the graph so it appears to hover.
+Keep exactly three equal circular blue nodes and three straight connectors.
+```

@@ -1,29 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
-  <title id="title">azdocs monochrome paper mark</title>
-  <desc id="desc">A one-colour reversed angular A with a folded top corner and three connected topology nodes.</desc>
-  <path
-    fill="#faf8f4"
-    d="M40 448 188 64h112v60q0 20 20 20h14l142 304H352l-96-262-92 262Z"
-  />
-  <path
-    fill="none"
-    stroke="#faf8f4"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    stroke-width="16"
-    d="m256 270-41 80h82Z"
-  />
-  <g fill="#faf8f4">
-    <circle cx="256" cy="270" r="23" />
-    <circle cx="215" cy="350" r="23" />
-    <circle cx="297" cy="350" r="23" />
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" role="img" viewBox="0 0 512 512" width="2048" height="2048">
+  <title>azdocs mark mono paper</title>
+  <defs><mask id="mark-separation" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+      <rect width="512" height="512" fill="white"/>
+      <path d="M256 253 L184 352 L328 352 Z" fill="none" stroke="black" stroke-width="30" stroke-linejoin="round"/>
+      <circle cx="256" cy="253" r="41" fill="black"/>
+      <circle cx="184" cy="352" r="41" fill="black"/>
+      <circle cx="328" cy="352" r="41" fill="black"/>
+      <path d="M300 84 V148 Q300 166 318 166 H338" fill="none" stroke="black" stroke-width="6"/>
+    </mask></defs>
+<g fill="#faf8f4" mask="url(#mark-separation)">
+    <path d="M52 428 L203 84 L247.68 190 L156 428 Z"/>
+    <path d="M203 84 H300 L460 428 H348 Z"/>
   </g>
-  <path
-    fill="none"
-    stroke="#faf8f4"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    stroke-width="3"
-    d="M300 64v60q0 20 20 20h14"
-  />
+  <g fill="#faf8f4" stroke="#faf8f4">
+    <path d="M256 253 L184 352 L328 352 Z" fill="none" stroke-width="20" stroke-linejoin="round"/>
+    <circle cx="256" cy="253" r="34" stroke="none"/>
+    <circle cx="184" cy="352" r="34" stroke="none"/>
+    <circle cx="328" cy="352" r="34" stroke="none"/>
+  </g>
 </svg>

@@ -46,8 +46,8 @@ npm run tauri build
   resource ledger, and resource inspector visible together. Filter by scope,
   type, location, resource name, ARM type, group, or tags.
 - **Relationships** is a full-bleed, hierarchical graph workspace. Its initial
-  camera fits the readable connected core; **Fit all** remains in the More
-  menu when you need the complete overview. The **estate map** lays expanded
+  camera fits the readable connected core; **Fit all** is the first control in
+  the icon ribbon when you need the complete overview. The **estate map** lays expanded
   subscriptions out as responsive resource-group grids and keeps collapsed
   subscriptions as compact, individually toggleable lanes. Click or press
   Enter on a group to open its group map immediately.
@@ -75,8 +75,9 @@ npm run tauri build
   neighbourhood history, while the breadcrumb moves directly through the
   estate/group/resource hierarchy. Aggregate tiles expand in place to expose
   their members. Spatial arrow keys move between graph
-  items, and the More menu exposes accessible zoom, recenter, motion, Fit all,
-  and help controls. The slim bottom rail reports
+  items. The joined icon ribbon exposes Fit all, zoom, selected-path motion,
+  subscription-lane reset, and help with visible tooltips and accessible names.
+  The slim bottom rail reports
   **source relationships** separately from rendered **connectors** and carries
   the relationship-kind legend/filter. Anything hidden by a filter remains
   counted. If a topology request fails, the last successful graph is retained

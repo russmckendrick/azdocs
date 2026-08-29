@@ -1,32 +1,37 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
-  <title id="title">azdocs light background motif</title>
-  <desc id="desc">A warm paper background with an oversized, softly tinted crop of the azdocs mark.</desc>
-  <rect width="1600" height="900" fill="#faf8f4" />
-  <path d="M0 742h870v-96h170" fill="none" stroke="#d8d2c6" stroke-width="2" />
-  <circle cx="870" cy="742" r="8" fill="#d8d2c6" />
-  <circle cx="1040" cy="646" r="8" fill="#d8d2c6" />
-  <g transform="translate(900 90) scale(1.5)" opacity=".08">
-    <path
-      fill="#0078d4"
-      d="M40 448 188 64h112v60q0 20 20 20h14l142 304H352l-96-262-92 262Z"
-    />
-    <path
-      fill="#0b5da8"
-      d="M256 64h44v60q0 20 20 20h14l142 304H352l-96-262Z"
-    />
-    <path
-      fill="none"
-      stroke="#1c2430"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      stroke-width="16"
-      d="m256 270-41 80h82Z"
-    />
-    <g fill="#0078d4">
-      <circle cx="256" cy="270" r="23" />
-      <circle cx="215" cy="350" r="23" />
-      <circle cx="297" cy="350" r="23" />
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" role="img" viewBox="0 0 1920 1080" width="3840" height="2160">
+  <title>azdocs background light</title>
+  <defs><linearGradient id="ribbon-deep" x1="0" y1="1" x2="0.72" y2="0">
+      <stop offset="0" stop-color="#0754bd"/>
+      <stop offset="0.56" stop-color="#0b68d5"/>
+      <stop offset="1" stop-color="#1479e6"/>
+    </linearGradient>
+    <linearGradient id="ribbon-light" x1="0.12" y1="0" x2="0.88" y2="1">
+      <stop offset="0" stop-color="#39c8f5"/>
+      <stop offset="0.48" stop-color="#21b1ed"/>
+      <stop offset="1" stop-color="#168fe2"/>
+    </linearGradient>
+    <linearGradient id="node-blue" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#27b5f5"/>
+      <stop offset="1" stop-color="#0b86e7"/>
+    </linearGradient></defs>
+<rect width="1920" height="1080" fill="#faf8f4"/>
+  <g transform="translate(1110 -55) scale(2.25)" opacity="0.075">
+    <g>
+    <path d="M52 428 L203 84 L247.68 190 L156 428 Z" fill="url(#ribbon-deep)"/>
+    <path d="M203 84 H300 L460 428 H348 Z" fill="url(#ribbon-light)"/>
+    <path d="M300 84 L338 166 H318 Q300 166 300 148 Z" fill="#f3eee5"/>
+    <g>
+      <path d="M256 253 L184 352 L328 352 Z" fill="none" stroke="#0b2d4a" stroke-width="20" stroke-linejoin="round"/>
+      <g fill="url(#node-blue)" stroke="#52c9f8" stroke-width="2">
+        <circle cx="256" cy="253" r="34"/>
+        <circle cx="184" cy="352" r="34"/>
+        <circle cx="328" cy="352" r="34"/>
+      </g>
     </g>
-    <path fill="#faf8f4" d="M300 64v60q0 20 20 20h14Z" />
   </g>
+  </g>
+  <path d="M0 890 H1050 V770 H1260" fill="none" stroke="#d8d2c6" stroke-width="3"/>
+  <circle cx="1050" cy="890" r="8" fill="#d8d2c6"/>
+  <circle cx="1260" cy="770" r="8" fill="#d8d2c6"/>
 </svg>

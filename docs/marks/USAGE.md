@@ -22,11 +22,14 @@ The identity has three load-bearing parts:
 
 1. A broad angular **A** with enough weight to survive icon sizing.
 2. A small page fold cut into the top-right of the crown.
-3. Exactly three topology nodes joined as a triangle in the counter.
+3. Exactly three topology nodes joined as a triangle and drawn over the A.
 
 Do not move the fold down a leg, add nodes, introduce a crossbar, or substitute
-the official Azure artwork. The right leg may use the darker accent facet in
-colour versions; monochrome versions collapse the letter to one plane.
+the official Azure artwork. Both inner and outer leg boundaries are straight
+single segments. The deep-blue ribbon continues from the left foot to the
+crown; the light-blue ribbon continues from the crown to the right foot. The
+lower nodes deliberately overlap the inner ribbon edges so the graph reads as
+the foremost layer.
 
 ## Clear space and minimum size
 
@@ -47,19 +50,23 @@ motifs, where it is an intentional part of the composition.
 
 | Role | Value | Source |
 |---|---|---|
-| Azure blue | `#0078d4` | Primary plane and topology nodes |
-| azdocs accent | `#0b5da8` | Folded/right plane |
-| Dark-mode node blue | `#5aa7e8` | Topology nodes on charcoal |
-| Ink | `#1c2430` | Light-surface connectors and wordmark |
+| Deep ribbon | `#0754bd` → `#1479e6` | Left foot to crown |
+| Light ribbon | `#39c8f5` → `#168fe2` | Crown to right foot |
+| Node blue | `#27b5f5` → `#0b86e7` | Foreground topology nodes |
+| Graph ink | `#0b2d4a` | Light-surface connector bars |
+| Ink | `#1c2430` | Neutral supporting text |
 | Paper | `#faf8f4` | Light surface and reversed artwork |
-| Evidence paper | `#f3efe7` | Page fold and secondary paper |
+| Evidence paper | `#f3eee5` | Page fold and secondary paper |
 | Warm charcoal | `#14181d` | Dark icon/background surface |
 | Hairline | `#d8d2c6` | Fold and light tile boundary |
 | Dark hairline | `#3a4048` | Dark tile boundary |
 
-These values align with the desktop's Field Report tokens. Do not add a
-gradient, glow, bevel or drop shadow. Colour remains structural: blue identifies
-the folded Azure-estate plane; ink/paper separates the topology inside it.
+These values align with the desktop's Field Report tokens. Gradients are
+restricted to the two ribbons and the three nodes. A short, neutral shadow is
+allowed only beneath the topology to separate its foreground layer; do not add
+a glow, bevel, long shadow or shadow around the A itself. Colour remains
+structural: the blues identify the folded Azure-estate planes, while ink/paper
+separates the topology from them.
 
 ## Backgrounds
 
@@ -75,10 +82,16 @@ the folded Azure-estate plane; ink/paper separates the topology inside it.
 
 ## Wordmark
 
-The lockup wordmark is IBM Plex Sans SemiBold converted to SVG outlines. Use
-the supplied lockup rather than recreating the text with a local font. Do not
-change its spacing, independently recolour letters, or place a tagline between
-the symbol and wordmark.
+The lockup uses the folded-topology mark itself as the initial **A**, followed
+closely by `zdocs` in IBM Plex Sans Bold converted to SVG outlines. The
+cyan `z` continues the colour and direction of the A's right ribbon; `docs`
+continues in deep ribbon blue on light surfaces and warm paper on dark surfaces.
+The `z` passes behind the A's right foot so the mark remains the foremost
+layer. The supplied outlines include a restrained same-colour optical expansion
+to balance the heavy A. This is one integrated word shape, not a symbol beside
+a repeated `azdocs`. Use the supplied lockup rather than recreating the text
+with a local font. Do not change its spacing or colour sequence, or place a
+tagline between the mark and `zdocs`.
 
 When nearby text already says “azdocs”, use the standalone mark and avoid
 repeating the wordmark.
@@ -97,6 +110,7 @@ repeating the wordmark.
 Do not:
 
 - redraw the outer shape as the official Azure A;
+- replace the straight ribbon boundaries with an automatic raster trace;
 - remove or relocate the top fold;
 - add cloud, shield, checkmark or magnifying-glass symbols;
 - use more or fewer than three topology nodes;
@@ -107,13 +121,30 @@ Do not:
 
 ## Export and implementation
 
-Keep the SVG `viewBox` when exporting. Generate platform PNG/ICO/ICNS assets
-from the light or dark app-icon SVG at the final required sizes; do not upscale
-from a small raster. Keep transparency for standalone marks and lockups.
+Keep the SVG `viewBox` when exporting. The supplied PNGs are already rendered
+at 2048×2048 for marks and icons, 2560×1024 for lockups, and 3840×2160 for
+backgrounds. Generate platform PNG/ICO/ICNS assets from the light or dark
+app-icon SVG at the final required sizes; do not upscale from a small raster.
+Keep transparency for standalone marks and lockups.
 
-The current SVGs are design sources in `docs/marks/`. Replacing the desktop
-masthead art or Tauri packaging icons should be a separate change so each target
-can be visually checked on light and dark surfaces.
+The current SVGs are the design sources in `docs/marks/`; desktop consumers
+should reference or derive from them rather than maintaining separate artwork.
+
+The desktop masthead and browser favicons load their light/dark SVGs directly
+from `docs/marks/assets/`. Native application bundles require platform-specific
+formats. Tauri's dev and package builds regenerate those derivatives
+automatically from the same app-icon SVG. To refresh them without starting a
+build, run:
+
+```sh
+cd desktop
+npm run icons
+```
+
+At the desktop masthead's constrained height, use the standalone mark followed
+by a bold live-text `zdocs`. This preserves the A as the initial letter while
+keeping the small signature crisp. Reserve the outlined integrated lockup for
+larger headers, covers and marketing placements.
 
 ## Brand distinction
 

@@ -7,12 +7,10 @@ import {
   ChevronRight,
   CircleHelp,
   GitBranch,
-  LocateFixed,
   PauseCircle,
   PlayCircle,
   RotateCcw,
   Scan,
-  SlidersHorizontal,
   Unplug,
   Waypoints,
   ZoomIn,
@@ -90,7 +88,7 @@ export function TopologyView({
   } = workspace;
   const [motionEnabled, setMotionEnabled] = useState(true);
   const [motionReduced, setMotionReduced] = useState(false);
-  const [toolsOpen, setToolsOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
   const [camera, setCamera] = useState<GraphCameraRequest>({ mode: "core", nonce: 0 });
   const [topology, setTopology] = useState<TopologyGraph>();
@@ -255,7 +253,7 @@ export function TopologyView({
     const group = resourceGroupTopology.groups.find((candidate) => candidate.id === id);
     if (!group) return;
     navigateWorkspace({ location: { kind: "group", groupId: id }, expandedAggregateId: undefined });
-    setToolsOpen(false);
+    setHelpOpen(false);
   }
 
   function showResourceGroups() {
@@ -267,7 +265,7 @@ export function TopologyView({
       location: { kind: "neighbourhood", resourceId },
       expandedAggregateId: undefined,
     });
-    setToolsOpen(false);
+    setHelpOpen(false);
   }
 
   function toggleLane(subscriptionId: string) {
@@ -408,28 +406,31 @@ export function TopologyView({
             </button>
           ) : null}
 
-          <div className="topology-tools">
-            <button className="topology-recenter" aria-label={selectedNodeId ? "Recenter the selected item" : "Recenter the readable core"} onClick={() => requestCamera(selectedNodeId ? "selection" : "core")} title={selectedNodeId ? "Recenter the selected item" : "Recenter the readable core"}>
-              <LocateFixed size={16} /><span>Recenter</span>
+          <div className="topology-tools" role="group" aria-label="Graph view controls">
+            <button className="topology-tool-button" aria-label="Fit all represented regions" data-tooltip="Fit all" onClick={() => requestCamera("all")}>
+              <Scan size={16} />
             </button>
-            <div className="topology-more">
-              <button className="topology-more-trigger" aria-label="More graph controls" onClick={() => setToolsOpen((current) => !current)} aria-haspopup="menu" aria-expanded={toolsOpen} aria-controls="topology-more-menu">
-                <SlidersHorizontal size={16} /><span>Controls</span>
-              </button>
-              {toolsOpen ? (
-                <div id="topology-more-menu" className="topology-more-menu" role="menu">
-                  <button role="menuitem" onClick={() => { requestCamera("all"); setToolsOpen(false); }}><Scan size={16} /><span><strong>Fit all</strong><small>Show every represented region</small></span></button>
-                  <button role="menuitem" onClick={() => requestCamera("zoom-in")}><ZoomIn size={16} /><span><strong>Zoom in</strong><small>Keyboard: +</small></span></button>
-                  <button role="menuitem" onClick={() => requestCamera("zoom-out")}><ZoomOut size={16} /><span><strong>Zoom out</strong><small>Keyboard: −</small></span></button>
-                  <button role="menuitem" onClick={() => setMotionEnabled((current) => !current)} disabled={motionReduced}>
-                    {motionEnabled && !motionReduced ? <PauseCircle size={16} /> : <PlayCircle size={16} />}
-                    <span><strong>{motionReduced ? "Motion reduced" : motionEnabled ? "Pause selected path" : "Play selected path"}</strong><small>{motionReduced ? "Uses your system preference" : "Only the selected path animates"}</small></span>
-                  </button>
-                  {expandedSubscriptions ? <button role="menuitem" onClick={() => { replaceWorkspace({ expandedSubscriptions: undefined }); setToolsOpen(false); }}><RotateCcw size={16} /><span><strong>Reset subscription lanes</strong><small>Restore the snapshot default</small></span></button> : null}
-                  <div className="topology-help" role="note"><CircleHelp size={16} /><p><strong>Graph controls</strong><span>Enter opens a record; R explores its relationships. Aggregate tiles expand in place. Arrow keys move spatially; drag to pan; scroll to zoom; 0 recentres.</span></p></div>
-                </div>
-              ) : null}
-            </div>
+            <button className="topology-tool-button" aria-label="Zoom in" data-tooltip="Zoom in · +" onClick={() => requestCamera("zoom-in")}>
+              <ZoomIn size={16} />
+            </button>
+            <button className="topology-tool-button" aria-label="Zoom out" data-tooltip="Zoom out · −" onClick={() => requestCamera("zoom-out")}>
+              <ZoomOut size={16} />
+            </button>
+            <button className="topology-tool-button" aria-label={motionReduced ? "Motion reduced by system preference" : motionEnabled ? "Pause selected path motion" : "Play selected path motion"} aria-pressed={motionEnabled && !motionReduced} data-tooltip={motionReduced ? "Motion reduced" : motionEnabled ? "Pause path motion" : "Play path motion"} onClick={() => setMotionEnabled((current) => !current)} disabled={motionReduced}>
+              {motionEnabled && !motionReduced ? <PauseCircle size={16} /> : <PlayCircle size={16} />}
+            </button>
+            <button className="topology-tool-button" aria-label="Reset subscription lanes" data-tooltip={expandedSubscriptions ? "Reset subscription lanes" : "Subscription lanes at default"} onClick={() => replaceWorkspace({ expandedSubscriptions: undefined })} disabled={!expandedSubscriptions}>
+              <RotateCcw size={16} />
+            </button>
+            <button className="topology-tool-button" aria-label="Graph interaction help" data-tooltip="Interaction help" onClick={() => setHelpOpen((current) => !current)} aria-expanded={helpOpen} aria-controls="topology-help-popover">
+              <CircleHelp size={16} />
+            </button>
+            {helpOpen ? (
+              <div id="topology-help-popover" className="topology-help-popover" role="note">
+                <strong>Graph controls</strong>
+                <span>Enter opens a record; R explores its relationships. Aggregate tiles expand in place. Arrow keys move spatially; drag to pan; scroll to zoom; 0 fits the readable core.</span>
+              </div>
+            ) : null}
           </div>
         </header>
 
