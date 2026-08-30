@@ -190,9 +190,19 @@ expandable lanes past the card budget; anything a filter hides is counted in
 `counts.hidden_by_filter`. Edge kinds map to filter families via the
 exhaustive `kind_class` match — a new `EdgeKind` forces a classification
 (mirror it in `desktop/src/components/topology-fallback.ts`, the
-browser-preview stand-in). Subnets are not resource rows, so
-`desktop/src-tauri/src/dto.rs` collapses subnet-ended edges onto the owning
-VNet before they reach the frontend.
+browser-preview stand-in; `topology-fallback.test.ts` fails if you don't).
+Subnets are not resource rows, so `desktop/src-tauri/src/dto.rs` collapses
+subnet-ended edges onto the owning VNet before they reach the frontend.
+
+**Group membership is Rust's too.** `desktop/src-tauri/src/groups.rs` decides
+which resource group a resource belongs to, including synthesising a group when
+the snapshot has no row for one, and names a group-less resource
+`SUBSCRIPTION_SCOPE`. It feeds both the topology builder and
+`EstateSnapshot.resourceGroupSummaries`, so the map and the estate view cannot
+disagree. `topology-model.ts` still implements the same rule, but **only the
+browser preview may reach it** — it is stripped from a Tauri build, and a
+production component importing it puts a second, drifting implementation back
+in the app. That is what it was doing before.
 
 Frontend rendering has another hard boundary. Read
 `docs/development/desktop-relationships.md` before changing it.
