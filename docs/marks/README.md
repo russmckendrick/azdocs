@@ -11,6 +11,11 @@ suggests Azure estate work while the three-way graph carries the diagram idea.
   <img src="assets/azdocs-lockup-primary.svg" alt="azdocs topology A mark and wordmark" width="720">
 </picture>
 
+The marks also appear on the
+[design sheet](../reference/design.html) beside the palette and type scale,
+which is generated from this manifest — so a renamed asset fails the build
+rather than rendering a broken image.
+
 ## Asset index
 
 All SVGs use exact paths and shapes only. The rounded triangle and symmetric
@@ -58,10 +63,6 @@ artwork:
   exploration.
 - [`azdocs-selected-hybrid.png`](concepts/azdocs-selected-hybrid.png) — the
   earlier hybrid: Concept B's topology with Concept A's thick folded letter.
-- [`azdocs-mark-master-source.png`](png/azdocs-mark-master-source.png) — the
-  superseded folded-A refinement retained for design history. The current
-  rounded triangular mark replaces its facets, fold and foreground graph with
-  one simple silhouette and a white topology counter.
 
 Use the SVGs for all final output. See the [usage guide](USAGE.md) for sizing,
 colour and placement rules, and [prompts](PROMPTS.md) for the generation record

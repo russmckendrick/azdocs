@@ -18,6 +18,8 @@ import type {
   ExportResult,
   ReportExportFormat,
 } from "../types";
+import { ViewHeading } from "./view-chrome";
+import { errorMessage, sentenceCase } from "../format";
 
 const REPORT_FORMATS: Array<{
   id: ReportExportFormat;
@@ -51,10 +53,6 @@ const DIAGRAM_FORMATS: Array<{ id: DiagramExportFormat; label: string; detail: s
 
 function toggle<T extends string>(values: T[], value: T) {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
-}
-
-function sentenceCase(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1).replaceAll("-", " ");
 }
 
 function relativeOutput(result: ExportResult, output: string) {
@@ -152,7 +150,7 @@ export function ExportsView({
       }, handleEvent);
       setResult(next);
     } catch (caught) {
-      const detail = caught instanceof Error ? caught.message : String(caught);
+      const detail = errorMessage(caught, "The export could not be completed.");
       setError(detail);
       setMessage("Export did not complete.");
     } finally {
@@ -162,17 +160,17 @@ export function ExportsView({
 
   return (
     <div className="exports-workspace">
-      <header className="view-heading export-heading">
-        <div>
-          <h1>Exports</h1>
-          <p>Turn the active stored snapshot into reports and diagrams. Generation stays offline.</p>
-        </div>
+      <ViewHeading
+        title="Exports"
+        description="Turn the active stored snapshot into reports and diagrams. Generation stays offline."
+        modifier="export-heading"
+      >
         <div className="export-snapshot" aria-label="Export source">
           <span>Snapshot</span>
           <strong>{estate.resources.length.toLocaleString()} resources</strong>
           <small className="mono">{estate.id}</small>
         </div>
-      </header>
+      </ViewHeading>
 
       <div className="export-layout">
         <div className="export-composer">

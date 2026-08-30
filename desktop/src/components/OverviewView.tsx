@@ -1,13 +1,9 @@
 import { useMemo } from "react";
 import { displayLocation } from "../azure-values";
 import type { AppBootstrap, EstateSnapshot, ViewId } from "../types";
-
-const SEVERITY_SWATCH: Record<string, string> = {
-  high: "var(--coral)",
-  medium: "var(--amber)",
-  low: "var(--muted)",
-  info: "var(--accent)",
-};
+import { dayMonth, resourceName } from "../format";
+import { SEVERITY_TOKEN, severityRank } from "../ordering";
+import { DatabaseStamp, ViewHeading } from "./view-chrome";
 
 function sparkPath(values: number[], width: number, height: number) {
   const min = Math.min(...values);
@@ -52,21 +48,20 @@ export function OverviewView({
 
   return (
     <div className="overview-workspace">
-      <header className="view-heading">
-        <div>
-          <h1>Overview</h1>
-          <p>
+      <ViewHeading
+        title="Overview"
+        description={
+          <>
             {estate.tenantId} · {estate.totals.subscriptions} subscriptions · {estate.totals.resourceGroups} resource
             groups · {estate.locations.length} regions
-          </p>
-        </div>
-        <div className="database-stamp">
-          <span>
-            <small>Snapshot</small>
-            <strong>{estate.id.slice(0, 8)} · {estate.status}</strong>
-          </span>
-        </div>
-      </header>
+          </>
+        }
+      >
+        <DatabaseStamp
+          label="Snapshot"
+          value={<>{estate.id.slice(0, 8)} · {estate.status}</>}
+        />
+      </ViewHeading>
 
       <div className="stat-strip">
         <button className="stat-cell" onClick={() => onOpenView("estate")}>
@@ -129,10 +124,10 @@ export function OverviewView({
                   {series.at(-1)?.resources}
                 </text>
                 <text x="4" y="116" fontSize="10.5" fill="var(--faintest)">
-                  {shortDate(series[0]?.createdAt)}
+                  {dayMonth(series[0]?.createdAt)}
                 </text>
                 <text x="556" y="116" textAnchor="end" fontSize="10.5" fill="var(--faintest)">
-                  {shortDate(series.at(-1)?.createdAt)}
+                  {dayMonth(series.at(-1)?.createdAt)}
                 </text>
               </svg>
               <div className="fig-caption">Resource count over the stored snapshots — one measure, so one hue.</div>
@@ -165,13 +160,13 @@ export function OverviewView({
                   key={`${finding.queryName}-${index}`}
                   onClick={() => (finding.resourceId ? onOpenResource(finding.resourceId) : onOpenView("findings"))}
                 >
-                  <span className="sev" style={{ color: SEVERITY_SWATCH[finding.severity] }}>
+                  <span className="sev" style={{ color: SEVERITY_TOKEN[finding.severity] }}>
                     {finding.severity.toUpperCase().slice(0, 4)}
                   </span>
                   <span>
                     <strong>{finding.title}</strong>
                     <small>
-                      {finding.category} · <span className="mono">{finding.resourceId?.split("/").at(-1) ?? "estate-level"}</span>
+                      {finding.category} · <span className="mono">{finding.resourceId ? resourceName(finding.resourceId) : "estate-level"}</span>
                     </small>
                   </span>
                 </button>
@@ -187,11 +182,4 @@ export function OverviewView({
   );
 }
 
-function severityRank(severity: string) {
-  return ["high", "medium", "low", "info"].indexOf(severity);
-}
 
-function shortDate(value?: string) {
-  if (!value) return "";
-  return new Intl.DateTimeFormat(undefined, { day: "2-digit", month: "short" }).format(new Date(value));
-}

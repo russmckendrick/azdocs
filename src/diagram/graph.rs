@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::error::StoreError;
-use crate::model::{Edge, EdgeKind, Resource, azure_types};
+use crate::model::{Edge, EdgeKind, Resource, azure_types, network};
 use crate::store::Store;
 
 use super::page::DiagramDetail;
@@ -65,13 +65,26 @@ pub enum EdgeStyle {
 
 /// Cap label length so long Azure resource names don't overlap neighbours.
 pub fn truncate_label(value: &str) -> String {
+    /// Long Azure names overlap their neighbours past this.
     const MAX: usize = 30;
-    if value.chars().count() <= MAX {
-        return value.to_owned();
+    crate::model::truncate(value, MAX)
+}
+
+/// A node's drawn label, capped only where a long one would overlap a
+/// neighbour.
+///
+/// A leaf tile is narrow and sits beside others, so its name is capped. A
+/// container's label is drawn along its own wide edge and is often the only
+/// place a count appears — "Not in a virtual network · 5 resources · 1 nested"
+/// truncated to 30 characters loses exactly the information it exists to
+/// carry. The SVG emitter already made this distinction; draw.io and Mermaid
+/// capped everything.
+pub fn node_label(node: &Node) -> String {
+    if node.kind.is_container() {
+        node.label.clone()
+    } else {
+        truncate_label(&node.label)
     }
-    let mut out: String = value.chars().take(MAX - 1).collect();
-    out.push('…');
-    out
 }
 
 /// Scoping filters shared by the builders.
@@ -99,20 +112,7 @@ pub struct NamedGraph {
 /// Filesystem-safe slug: ascii-lowercased alphanumerics, everything else
 /// collapsed to single dashes.
 pub fn slugify(input: &str) -> String {
-    input
-        .chars()
-        .map(|ch| {
-            if ch.is_ascii_alphanumeric() {
-                ch.to_ascii_lowercase()
-            } else {
-                '-'
-            }
-        })
-        .collect::<String>()
-        .split('-')
-        .filter(|segment| !segment.is_empty())
-        .collect::<Vec<_>>()
-        .join("-")
+    crate::model::slugify(input)
 }
 
 const VNET_TYPE: &str = "microsoft.network/virtualnetworks";
@@ -485,42 +485,19 @@ impl EstateGraph {
         parent: Option<usize>,
         node_ids: &mut HashMap<String, usize>,
     ) -> usize {
-        let prefixes = vnet
-            .properties
-            .as_ref()
-            .and_then(|p| p.get("addressSpace"))
-            .and_then(|a| a.get("addressPrefixes"))
-            .and_then(|p| p.as_array())
-            .map(|list| {
-                list.iter()
-                    .filter_map(|v| v.as_str())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            });
-        let vnet_node = self.add_node(&vnet.name, prefixes, NodeKind::Vnet, parent);
+        let prefixes = network::vnet_address_prefixes(vnet);
+        let label = (!prefixes.is_empty()).then(|| prefixes.join(", "));
+        let vnet_node = self.add_node(&vnet.name, label, NodeKind::Vnet, parent);
         node_ids.insert(vnet.id.clone(), vnet_node);
 
-        for subnet in vnet
-            .properties
-            .as_ref()
-            .and_then(|p| p.get("subnets"))
-            .and_then(|s| s.as_array())
-            .into_iter()
-            .flatten()
-        {
-            let Some(subnet_id) = subnet.get("id").and_then(|v| v.as_str()) else {
-                continue;
-            };
-            let name = subnet
-                .get("name")
-                .and_then(|v| v.as_str())
-                .unwrap_or_else(|| subnet_id.rsplit('/').next().unwrap_or("subnet"));
-            let prefix = subnet
-                .pointer("/properties/addressPrefix")
-                .and_then(|v| v.as_str())
-                .map(str::to_owned);
-            let subnet_node = self.add_node(name, prefix, NodeKind::Subnet, Some(vnet_node));
-            node_ids.insert(subnet_id.to_lowercase(), subnet_node);
+        for subnet in network::vnet_subnets(vnet) {
+            let subnet_node = self.add_node(
+                &subnet.name,
+                subnet.address_prefix,
+                NodeKind::Subnet,
+                Some(vnet_node),
+            );
+            node_ids.insert(subnet.id, subnet_node);
         }
         vnet_node
     }
@@ -702,20 +679,30 @@ impl EstateGraph {
                 .filter(|r| {
                     r.azure_type != VNET_TYPE
                         && !node_ids.contains_key(&r.id)
-                        && !is_nic_represented_by_vm(r, &edges, &by_id)
-                        && !is_child_resource_type(&r.azure_type)
+                        && !is_represented_by_vm(r, &edges, &by_id)
+                        && !azure_types::is_child_type(&r.azure_type)
                 })
                 .collect();
-            if !standalone.is_empty() {
-                let container = graph.add_node(
-                    format!(
-                        "Not in a virtual network  ·  {} resources",
-                        standalone.len()
-                    ),
-                    None,
-                    NodeKind::Unnetworked,
-                    Some(rg_node),
+            // Child resources (a SQL database inside its server) are not drawn
+            // — they would only clutter the tiles — but the reader is told they
+            // exist. A resource in the section's table and absent from the
+            // diagram above it, with nothing saying so, is the defect this
+            // count closes.
+            let nested = members
+                .iter()
+                .filter(|r| {
+                    azure_types::is_child_type(&r.azure_type) && !node_ids.contains_key(&r.id)
+                })
+                .count();
+            if !standalone.is_empty() || nested > 0 {
+                let mut label = format!(
+                    "Not in a virtual network  ·  {} resources",
+                    standalone.len()
                 );
+                if nested > 0 {
+                    label.push_str(&format!("  ·  {nested} nested"));
+                }
+                let container = graph.add_node(label, None, NodeKind::Unnetworked, Some(rg_node));
                 for tile in tiles_for(&standalone, detail) {
                     let node = graph.add_node(
                         tile.label,
@@ -926,29 +913,24 @@ fn vm_representative<'a>(
         .unwrap_or(resource)
 }
 
-/// Child resources (`provider/parent/child`, e.g. VM extensions or SQL
-/// databases) live inside their parent and would only clutter the
-/// "Standalone Resources" container as free-floating nodes.
-fn is_child_resource_type(azure_type: &str) -> bool {
-    azure_type.matches('/').count() > 1
-}
-
-fn is_nic_represented_by_vm(
+/// Is this resource already represented by a VM it is attached to?
+///
+/// NICs and disks both fold (`azure_types::FOLDS_INTO_VM`), matching the
+/// desktop topology builder. They only fold when the attachment actually
+/// resolves to a drawn VM — an orphaned disk is still a resource, and stays a
+/// tile of its own.
+fn is_represented_by_vm(
     resource: &Resource,
     edges: &[Edge],
     by_id: &HashMap<&str, &Resource>,
 ) -> bool {
-    resource.azure_type == "microsoft.network/networkinterfaces"
+    azure_types::folds_into_vm(&resource.azure_type)
         && !std::ptr::eq(vm_representative(resource, edges, by_id), resource)
 }
 
 fn remote_vnet_label(arm_id: &str) -> String {
-    arm_id
-        .rsplit('/')
-        .next()
-        .filter(|segment| !segment.is_empty())
-        .unwrap_or("remote vnet")
-        .to_owned()
+    let name = crate::model::short_name(arm_id);
+    if name.is_empty() { "remote vnet" } else { name }.to_owned()
 }
 
 fn peering_state(edge: &Edge) -> String {
@@ -988,4 +970,43 @@ fn scoped_resources(
         resources.retain(|r| r.resource_group.as_deref() == Some(rg.as_str()));
     }
     Ok(resources)
+}
+
+#[cfg(test)]
+mod label_tests {
+    use super::{Node, NodeKind, node_label, truncate_label};
+
+    fn node(kind: NodeKind, label: &str) -> Node {
+        Node {
+            label: label.to_owned(),
+            sublabel: None,
+            kind,
+            parent: None,
+        }
+    }
+
+    #[test]
+    fn unit_keeps_a_container_label_whole_when_it_carries_a_count() {
+        // The tail is the information: truncating it loses the very thing the
+        // label exists to say.
+        let long = "Not in a virtual network  ·  5 resources  ·  1 nested";
+        assert_eq!(
+            node_label(&node(NodeKind::Unnetworked, long)),
+            long,
+            "a container label must survive whole"
+        );
+    }
+
+    #[test]
+    fn unit_caps_a_leaf_label_when_a_long_name_would_overlap() {
+        let long = "an-extremely-long-azure-resource-name-that-runs-on";
+        let capped = node_label(&node(
+            NodeKind::Resource {
+                azure_type: "microsoft.compute/virtualmachines".to_owned(),
+            },
+            long,
+        ));
+        assert_eq!(capped, truncate_label(long));
+        assert!(capped.ends_with('…'));
+    }
 }

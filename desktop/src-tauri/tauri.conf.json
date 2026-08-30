@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "dev.azdocs.desktop",
   "build": {
-    "beforeDevCommand": "npm run icons && npm run dev",
+    "beforeDevCommand": "pnpm run icons && pnpm run dev",
     "devUrl": "http://127.0.0.1:1420",
-    "beforeBuildCommand": "npm run icons && npm run build",
+    "beforeBuildCommand": "pnpm run icons && pnpm run build",
     "frontendDist": "../dist"
   },
   "app": {

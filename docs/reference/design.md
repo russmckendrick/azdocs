@@ -5,8 +5,12 @@ Serif carries identity, Plex Sans does the work, Plex Mono marks
 machine-shaped evidence. Paper surfaces with hairline rules in light; dark is
 a warm-charcoal **1:1 token remap** ("night reading"), never a separate
 design. The tokens live in
-[`desktop/src/styles.css`](../../desktop/src/styles.css); a rendered version
-of this sheet is at [design.html](design.html).
+[`desktop/src/styles.css`](../../desktop/src/styles.css) — the only place a
+colour value is written down. [design.html](design.html) shows them as
+swatches, alongside the type scale and the brand marks; it is generated from
+those sources by
+[`tools/build_design_sheet.py`](tools/build_design_sheet.py), so never edit it
+by hand.
 
 Three rules are non-negotiable, straight from review:
 

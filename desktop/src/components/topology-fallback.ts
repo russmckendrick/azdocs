@@ -4,7 +4,9 @@
 // on the small mock estate; the packaged app always uses the Rust builder.
 
 import type {
+  EdgeKind,
   EstateSnapshot,
+  KindClass,
   Resource,
   TopologyGraph,
   TopologyLane,
@@ -13,29 +15,38 @@ import type {
   TopologyRequest,
 } from "../types";
 import { buildResourceGroupTopology, resourceGroupNodeId } from "./topology-model";
+import { spaced } from "../format";
 
 const NEIGHBOUR_FANOUT_LIMIT = 6;
 const ESTATE_CARD_BUDGET = 24;
 
-export function edgeKindClass(kind: string): string {
-  switch (kind) {
-    case "peered_with":
-    case "nsg_attached":
-    case "nic_in_subnet":
-    case "subnet_of":
-    case "in_vnet":
-    case "dns_linked":
-      return "network";
-    case "private_endpoint_for":
-    case "depends_on":
-      return "data";
-    case "uses_identity":
-      return "identity";
-    case "logs_to":
-      return "monitoring";
-    default:
-      return "structure";
-  }
+/**
+ * Mirrors `kind_class` in desktop/src-tauri/src/topology.rs.
+ *
+ * Written as a total Record rather than a switch with a `default`: the default
+ * silently classified `monitors` as "structure" for as long as it existed,
+ * because a missing case is invisible to a switch. A Record over the EdgeKind
+ * union makes an unmapped kind a compile error, matching the exhaustive `match`
+ * on the Rust side.
+ */
+const KIND_CLASSES: Record<EdgeKind, KindClass> = {
+  peered_with: "network",
+  nsg_attached: "network",
+  nic_in_subnet: "network",
+  subnet_of: "network",
+  in_vnet: "network",
+  dns_linked: "network",
+  attached_to: "structure",
+  runs_on: "structure",
+  private_endpoint_for: "data",
+  depends_on: "data",
+  uses_identity: "identity",
+  logs_to: "monitoring",
+  monitors: "monitoring",
+};
+
+export function edgeKindClass(kind: EdgeKind): KindClass {
+  return KIND_CLASSES[kind];
 }
 
 function classCounts(links: TopologyLink[]) {
@@ -149,7 +160,10 @@ function estateGraph(estate: EstateSnapshot, expandedSubscriptions: string[]): T
     const sourceId = nodeIdForGroup(link.sourceId);
     const targetId = nodeIdForGroup(link.targetId);
     if (sourceId === targetId) continue;
-    const kindClass = edgeKindClass(link.kinds[0] ?? "");
+    const first = link.kinds[0];
+    // An aggregated group link always carries at least one kind; "structure" is
+    // the neutral family if a future caller ever hands over an empty set.
+    const kindClass: KindClass = first ? edgeKindClass(first) : "structure";
     const key = `${sourceId}\u0000${targetId}\u0000${kindClass}`;
     const current = mergedLinks.get(key);
     const count = (current?.count ?? 0) + link.count;
@@ -298,7 +312,7 @@ function groupGraph(estate: EstateSnapshot, groupId: string): TopologyGraph {
       merged.set(key, {
         sourceId: source,
         targetId: target,
-        label: edge.kind.replaceAll("_", " "),
+        label: spaced(edge.kind),
         kindClass: edgeKindClass(edge.kind),
         count: 1,
       });
@@ -344,8 +358,8 @@ function neighbourhoodGraph(
       counts: { total: 0, drawn: 0, folded: 0, aggregated: 0, external: 0, hiddenByFilter: 0, totalLinks: 0, drawnLinks: 0 },
     };
   }
-  const allowed = (kind: string) => kindClasses.length === 0 || kindClasses.includes(edgeKindClass(kind));
-  const adjacency = new Map<string, Array<{ id: string; kind: string }>>();
+  const allowed = (kind: EdgeKind) => kindClasses.length === 0 || kindClasses.includes(edgeKindClass(kind));
+  const adjacency = new Map<string, Array<{ id: string; kind: EdgeKind }>>();
   for (const edge of estate.edges) {
     if (!byId.has(edge.sourceId) || !byId.has(edge.targetId)) continue;
     adjacency.set(edge.sourceId, [...(adjacency.get(edge.sourceId) ?? []), { id: edge.targetId, kind: edge.kind }]);
@@ -425,7 +439,7 @@ function neighbourhoodGraph(
       merged.set(key, {
         sourceId: source,
         targetId: target,
-        label: edge.kind.replaceAll("_", " "),
+        label: spaced(edge.kind),
         kindClass: edgeKindClass(edge.kind),
         count: 1,
       });

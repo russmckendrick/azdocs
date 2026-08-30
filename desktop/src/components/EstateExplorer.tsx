@@ -10,12 +10,14 @@ import {
   SearchX,
   X,
 } from "lucide-react";
-import { ALL_RESOURCES_ICON, RESOURCE_GROUP_ICON, SUBSCRIPTION_ICON } from "../azure-icons";
+import { ALL_RESOURCES_ICON, RESOURCE_GROUP_ICON, SUBSCRIPTION_ICON, resourceIcon } from "../azure-icons";
 import { displayLocation } from "../azure-values";
-import type { AzureMetadata, EstateSnapshot, Resource, ResourceType, ScopeSelection } from "../types";
+import type { EstateSnapshot, Resource, ResourceType, ScopeSelection } from "../types";
+import { ShowMore, useProgressiveList } from "./progressive-list";
+import { EmptyState } from "./view-chrome";
+import { matchesResourceSearch, useResourceTypeMap, useSubscriptionNames } from "../estate-lookups";
 
 type SortKey = "name" | "type" | "location" | "findings";
-const RESOURCE_BATCH = 200;
 
 interface EstateExplorerProps {
   estate: EstateSnapshot;
@@ -23,20 +25,6 @@ interface EstateExplorerProps {
   scope: ScopeSelection;
   onScopeChange: (scope: ScopeSelection) => void;
   onSelectResource: (id: string) => void;
-}
-
-function includesSearch(resource: Resource, search: string, metadata: AzureMetadata) {
-  if (!search.trim()) return true;
-  const value = search.toLowerCase();
-  return [
-    resource.name,
-    resource.azureType,
-    resource.location,
-    displayLocation(metadata, resource.location),
-    resource.resourceGroup,
-    resource.subscriptionId,
-    JSON.stringify(resource.tags ?? {}),
-  ].some((candidate) => candidate?.toLowerCase().includes(value));
 }
 
 export function EstateExplorer({
@@ -49,21 +37,14 @@ export function EstateExplorer({
   const [typeFilter, setTypeFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("name");
-  const [visibleCount, setVisibleCount] = useState(RESOURCE_BATCH);
   const [expandedSubscriptions, setExpandedSubscriptions] = useState<Set<string>>(
     () => new Set(estate.subscriptions.length === 1 ? [estate.subscriptions[0].id] : []),
   );
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set());
   const resourceListRef = useRef<HTMLDivElement>(null);
 
-  const resourceTypeMap = useMemo(
-    () => new Map(estate.resourceTypes.map((item) => [item.azureType, item])),
-    [estate.resourceTypes],
-  );
-  const subscriptionMap = useMemo(
-    () => new Map(estate.subscriptions.map((item) => [item.id, item.displayName])),
-    [estate.subscriptions],
-  );
+  const resourceTypeMap = useResourceTypeMap(estate);
+  const subscriptionMap = useSubscriptionNames(estate);
 
   const filtered = useMemo(() => {
     const matches = estate.resources.filter((resource) => {
@@ -71,7 +52,7 @@ export function EstateExplorer({
       const inGroup = !scope.resourceGroup || resource.resourceGroup === scope.resourceGroup;
       const hasType = !typeFilter || resource.azureType === typeFilter;
       const inLocation = !locationFilter || resource.location === locationFilter;
-      return inSubscription && inGroup && hasType && inLocation && includesSearch(resource, search, estate.azureMetadata);
+      return inSubscription && inGroup && hasType && inLocation && matchesResourceSearch(resource, search, estate.azureMetadata);
     });
     return matches.sort((a, b) => {
       if (sortKey === "findings") return b.findingCount - a.findingCount || a.name.localeCompare(b.name);
@@ -80,7 +61,8 @@ export function EstateExplorer({
       return a.name.localeCompare(b.name);
     });
   }, [estate.azureMetadata, estate.resources, locationFilter, scope, search, sortKey, typeFilter]);
-  const visibleResources = filtered.slice(0, visibleCount);
+  const list = useProgressiveList(filtered, [locationFilter, scope.resourceGroup, scope.subscriptionId, search, sortKey, typeFilter]);
+  const visibleResources = list.visible;
 
   const activeScopeName = scope.resourceGroup
     ? scope.resourceGroup
@@ -121,7 +103,6 @@ export function EstateExplorer({
     });
   }
 
-  useEffect(() => setVisibleCount(RESOURCE_BATCH), [locationFilter, scope.resourceGroup, scope.subscriptionId, search, sortKey, typeFilter]);
 
   function focusResource(index: number) {
     const resource = visibleResources[index];
@@ -232,13 +213,19 @@ export function EstateExplorer({
                                       }}
                                       title={resource.name}
                                     >
-                                      <img src={resourceType?.icon ?? ALL_RESOURCES_ICON} alt="" />
+                                      <img src={resourceIcon(resourceType)} alt="" />
                                       <span>{resource.name}</span>
                                       {resource.findingCount > 0 ? <em>{resource.findingCount}</em> : null}
                                     </button>
                                   );
                                 })
-                              : <div className="tree-empty-row"><img src={ALL_RESOURCES_ICON} alt="" /><span>No stored resources</span></div>}
+                              : (
+                                <EmptyState
+                                  className="tree-empty-row"
+                                  icon={<img src={ALL_RESOURCES_ICON} alt="" />}
+                                  detail="No stored resources"
+                                />
+                              )}
                           </div>
                         ) : null}
                       </div>
@@ -319,17 +306,15 @@ export function EstateExplorer({
             />
           ))}
           {!filtered.length ? (
-            <div className="no-results">
-              <SearchX size={28} />
-              <strong>No resources match this view</strong>
-              <span>Clear a filter or search the whole snapshot.</span>
-            </div>
+            <EmptyState
+              className="no-results"
+              icon={<SearchX size={28} />}
+              title="No resources match this view"
+              detail="Clear a filter or search the whole snapshot."
+            />
           ) : null}
           {visibleResources.length < filtered.length ? (
-            <button className="load-more" onClick={() => setVisibleCount((current) => current + RESOURCE_BATCH)}>
-              Show {Math.min(RESOURCE_BATCH, filtered.length - visibleResources.length)} more
-              <span>{visibleResources.length.toLocaleString()} of {filtered.length.toLocaleString()} loaded</span>
-            </button>
+            <ShowMore list={list} />
           ) : null}
         </div>
       </section>
@@ -356,7 +341,7 @@ function ResourceRow({
   return (
     <button className="resource-row" data-resource-index={index} data-resource-id={resource.id} tabIndex={tabIndex} onClick={onSelect} role="option" aria-selected="false">
       <span className="resource-identity">
-        <img src={type?.icon ?? ALL_RESOURCES_ICON} alt="" />
+        <img src={resourceIcon(type)} alt="" />
         <span>
           <strong>{resource.name}</strong>
           <small>{type?.displayName ?? resource.azureType}</small>

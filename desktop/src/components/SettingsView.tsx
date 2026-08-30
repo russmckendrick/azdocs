@@ -1,4 +1,6 @@
 import type { AppBootstrap, EstateSnapshot, ThemePreference } from "../types";
+import { dayMonthYear } from "../format";
+import { ViewHeading } from "./view-chrome";
 
 const THEME_OPTIONS: Array<{ id: ThemePreference; label: string }> = [
   { id: "system", label: "System" },
@@ -6,12 +8,6 @@ const THEME_OPTIONS: Array<{ id: ThemePreference; label: string }> = [
   { id: "dark", label: "Dark" },
 ];
 
-function dateOnly(value?: string) {
-  if (!value) return "";
-  return new Intl.DateTimeFormat(undefined, { day: "2-digit", month: "short", year: "numeric" }).format(
-    new Date(value),
-  );
-}
 
 export function SettingsView({
   bootstrap,
@@ -33,12 +29,10 @@ export function SettingsView({
 
   return (
     <div className="settings-workspace">
-      <header className="view-heading">
-        <div>
-          <h1>Settings</h1>
-          <p>Preferences live on this machine; nothing here touches the stored snapshots or Azure.</p>
-        </div>
-      </header>
+      <ViewHeading
+        title="Settings"
+        description="Preferences live on this machine; nothing here touches the stored snapshots or Azure."
+      />
 
       <section className="settings-section">
         <h2>Appearance</h2>
@@ -92,7 +86,7 @@ export function SettingsView({
                 {bootstrap.snapshots.length}
               </strong>{" "}
               snapshot{bootstrap.snapshots.length === 1 ? "" : "s"}
-              {oldest && newest ? ` · ${dateOnly(oldest.createdAt)} – ${dateOnly(newest.createdAt)}` : ""}
+              {oldest && newest ? ` · ${dayMonthYear(oldest.createdAt)} – ${dayMonthYear(newest.createdAt)}` : ""}
             </span>
           </div>
         </div>

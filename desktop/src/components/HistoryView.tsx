@@ -2,16 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, CircleDashed, GitCompareArrows, Rows3 } from "lucide-react";
 import { compareSnapshots } from "../api";
 import type { AppBootstrap, EstateSnapshot, SnapshotComparison } from "../types";
+import { dateTime, dayMonth, resourceName } from "../format";
+import { ShowMore, useProgressiveList } from "./progressive-list";
+import { DatabaseStamp, ViewHeading } from "./view-chrome";
 
-const CHANGE_BATCH = 250;
 
-function dateTime(value: string) {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
-}
 
-function compactDate(value: string) {
-  return new Intl.DateTimeFormat(undefined, { day: "2-digit", month: "short" }).format(new Date(value));
-}
+
+
 
 export function HistoryView({ bootstrap, estate, onLoadSnapshot }: { bootstrap: AppBootstrap; estate: EstateSnapshot; onLoadSnapshot: (id: string) => void }) {
   const older = useMemo(
@@ -19,9 +17,8 @@ export function HistoryView({ bootstrap, estate, onLoadSnapshot }: { bootstrap: 
     [bootstrap.snapshots, estate.id],
   );
   const [baseId, setBaseId] = useState<string>();
-  const [comparison, setComparison] = useState<SnapshotComparison | undefined>(estate.previousDiff);
+  const [comparison, setComparison] = useState<SnapshotComparison | undefined>(estate.previousDiff ?? undefined);
   const [comparing, setComparing] = useState(false);
-  const [visibleChangeCount, setVisibleChangeCount] = useState(CHANGE_BATCH);
   const resourceById = useMemo(
     () => new Map(estate.resources.map((resource) => [resource.id, resource])),
     [estate.resources],
@@ -31,7 +28,7 @@ export function HistoryView({ bootstrap, estate, onLoadSnapshot }: { bootstrap: 
 
   useEffect(() => {
     setBaseId(undefined);
-    setComparison(estate.previousDiff);
+    setComparison(estate.previousDiff ?? undefined);
   }, [estate.id, estate.previousDiff]);
 
   useEffect(() => {
@@ -60,7 +57,7 @@ export function HistoryView({ bootstrap, estate, onLoadSnapshot }: { bootstrap: 
       return {
         id,
         kind,
-        name: resource?.name ?? id.split("/").at(-1) ?? id,
+        name: resource?.name ?? resourceName(id),
         detail: resource
           ? `${resource.azureType} · ${resource.resourceGroup ?? "—"}`
           : id.split("/providers/").at(-1) ?? id,
@@ -73,19 +70,22 @@ export function HistoryView({ bootstrap, estate, onLoadSnapshot }: { bootstrap: 
     ];
   }, [comparison, resourceById]);
   const failedQueries = estate.queryRuns.filter((run) => run.error).length;
-  const visibleChanges = changes.slice(0, visibleChangeCount);
-
-  useEffect(() => setVisibleChangeCount(CHANGE_BATCH), [comparison?.baseSnapshotId, comparison?.targetSnapshotId]);
+  const list = useProgressiveList(changes, [comparison?.baseSnapshotId, comparison?.targetSnapshotId], 250);
+  const visibleChanges = list.visible;
 
   return (
     <div className="history-workspace">
-      <header className="view-heading history-heading">
-        <div>
-          <h1>Changes</h1>
-          <p>Immutable estate observations, newest first. Compare any two without querying Azure.</p>
-        </div>
-        <div className="database-stamp"><Rows3 size={17} /><span><small>SQLite source</small><strong>{bootstrap.databasePath.split("/").at(-1)}</strong></span></div>
-      </header>
+      <ViewHeading
+        title="Changes"
+        description="Immutable estate observations, newest first. Compare any two without querying Azure."
+        modifier="history-heading"
+      >
+        <DatabaseStamp
+          icon={<Rows3 size={17} />}
+          label="SQLite source"
+          value={resourceName(bootstrap.databasePath)}
+        />
+      </ViewHeading>
       <div className="history-columns">
         <section className="snapshot-ledger">
           <div className="snapshot-head"><span>Captured</span><span>Estate</span><span>Findings</span><span>Status</span></div>
@@ -116,11 +116,11 @@ export function HistoryView({ bootstrap, estate, onLoadSnapshot }: { bootstrap: 
               >
                 {older.map((snapshot) => (
                   <option key={snapshot.id} value={snapshot.id}>
-                    {compactDate(snapshot.createdAt)} · {snapshot.resources} resources
+                    {dayMonth(snapshot.createdAt)} · {snapshot.resources} resources
                   </option>
                 ))}
               </select>
-              <span>→ {compactDate(estate.createdAt)} (open)</span>
+              <span>→ {dayMonth(estate.createdAt)} (open)</span>
               {comparing ? <span>comparing…</span> : null}
             </div>
           ) : null}
@@ -135,12 +135,7 @@ export function HistoryView({ bootstrap, estate, onLoadSnapshot }: { bootstrap: 
                 {visibleChanges.map((item) => (
                   <div key={`${item.kind}-${item.id}`}><i className={item.kind} /><span><strong>{item.name}</strong><small>{item.detail}</small></span><em>{item.kind}</em></div>
                 ))}
-                {visibleChanges.length < changes.length ? (
-                  <button className="load-more" onClick={() => setVisibleChangeCount((current) => current + CHANGE_BATCH)}>
-                    Show {Math.min(CHANGE_BATCH, changes.length - visibleChanges.length)} more
-                    <span>{visibleChanges.length.toLocaleString()} of {changes.length.toLocaleString()} loaded</span>
-                  </button>
-                ) : null}
+                <ShowMore list={list} />
               </div>
             </>
           ) : <p className="muted-copy">There is no older snapshot to compare against.</p>}

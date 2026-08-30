@@ -11,31 +11,31 @@ expression: content
 - **Resources**: 14
 
 
-## rg-app (uksouth)
+## rg-app (UK South)
 
 [Resource details →](../resources/production/rg-app.md)
 
 | Name | Type | Location |
 |---|---|---|
-| vm-app-01-os | Managed Disk | uksouth |
-| vm-app-01 | Virtual Machine | uksouth |
-| hp-prod | AVD Host Pool | uksouth |
-| vm-app-01-nic | Network Interface | uksouth |
-| pe-sql | Private Endpoint | uksouth |
-| vm-app-01-pip | Public IP Address | uksouth |
-| vnet-app | Virtual Network | uksouth |
-| law-prod | Log Analytics Workspace | uksouth |
-| sql-prod | SQL Server | uksouth |
-| app-db | SQL Database | uksouth |
-| stprodapp01 | Storage Account | uksouth |
+| vm-app-01-os | Managed Disk | UK South |
+| vm-app-01 | Virtual Machine | UK South |
+| hp-prod | AVD Host Pool | UK South |
+| vm-app-01-nic | Network Interface | UK South |
+| pe-sql | Private Endpoint | UK South |
+| vm-app-01-pip | Public IP Address | UK South |
+| vnet-app | Virtual Network | UK South |
+| law-prod | Log Analytics Workspace | UK South |
+| sql-prod | SQL Server | UK South |
+| app-db | SQL Database | UK South |
+| stprodapp01 | Storage Account | UK South |
 
 
-## rg-network (uksouth)
+## rg-network (UK South)
 
 [Resource details →](../resources/production/rg-network.md)
 
 | Name | Type | Location |
 |---|---|---|
-| nsg-app | Network Security Group | uksouth |
-| nsg-unused | Network Security Group | uksouth |
-| vnet-hub | Virtual Network | uksouth |
+| nsg-app | Network Security Group | UK South |
+| nsg-unused | Network Security Group | UK South |
+| vnet-hub | Virtual Network | UK South |

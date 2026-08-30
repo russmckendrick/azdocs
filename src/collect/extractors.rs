@@ -3,7 +3,7 @@
 
 use serde_json::Value;
 
-use crate::model::{Edge, EdgeKind, Resource, normalize_arm_id};
+use crate::model::{Edge, EdgeKind, Resource, azure_types, normalize_arm_id};
 
 /// All edges derivable from one resource: the per-type handler plus the
 /// generic passes (child→parent containment, user-assigned identities) that
@@ -537,7 +537,7 @@ fn system_topic_edges(topic: &Resource) -> Vec<Edge> {
 /// the parent their ARM id nests under — one rule that connects every child
 /// type without per-type handlers.
 fn parent_edge(resource: &Resource) -> Option<Edge> {
-    if resource.azure_type.matches('/').count() < 2 {
+    if !azure_types::is_child_type(&resource.azure_type) {
         return None;
     }
     let trimmed = resource

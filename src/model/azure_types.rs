@@ -44,6 +44,38 @@ fn names() -> &'static BTreeMap<String, String> {
     })
 }
 
+/// Types drawn as part of their virtual machine rather than beside it.
+///
+/// A NIC and an OS disk are attachments: on a diagram they say nothing the VM
+/// does not already say, and at one to three per VM they crowd out the
+/// resources a reader is actually looking for. Both the print diagrams and the
+/// desktop topology fold them; this is the one list, because the two disagreed
+/// about disks for as long as they each had their own.
+pub const FOLDS_INTO_VM: [&str; 2] = [
+    "microsoft.network/networkinterfaces",
+    "microsoft.compute/disks",
+];
+
+/// Does this type get folded into an attached virtual machine?
+pub fn folds_into_vm(azure_type: &str) -> bool {
+    FOLDS_INTO_VM.contains(&azure_type)
+}
+
+/// Is this a *child* resource type — `provider/parent/child`, like a VM
+/// extension or a SQL database — rather than a top-level one?
+///
+/// ARM encodes the nesting in the type string: a top-level type has exactly one
+/// slash (`microsoft.sql/servers`), a child has two or more
+/// (`microsoft.sql/servers/databases`). Three call sites had written this test
+/// three ways — `> 1`, `>= 2`, and `< 2` negated — which is the same number
+/// said differently and one edit away from disagreeing.
+///
+/// Note this asks about the *type* only. Whether a particular child belongs to
+/// a particular parent is an id-prefix question the caller answers itself.
+pub fn is_child_type(azure_type: &str) -> bool {
+    azure_type.matches('/').count() > 1
+}
+
 /// Display name for a (lowercased) Azure resource type. Types without a
 /// mapping fall back to the last path segment of the type string.
 pub fn display_name(azure_type: &str) -> &str {
@@ -120,5 +152,24 @@ mod tests {
                 .map(String::as_str),
             Some("Virtual Machine")
         );
+    }
+}
+
+#[cfg(test)]
+mod child_type_tests {
+    use super::is_child_type;
+
+    #[test]
+    fn unit_treats_two_segment_types_as_top_level_when_classifying() {
+        assert!(!is_child_type("microsoft.compute/virtualmachines"));
+        assert!(!is_child_type("microsoft.sql/servers"));
+    }
+
+    #[test]
+    fn unit_treats_three_segment_types_as_children_when_classifying() {
+        assert!(is_child_type("microsoft.sql/servers/databases"));
+        assert!(is_child_type(
+            "microsoft.compute/virtualmachines/extensions"
+        ));
     }
 }

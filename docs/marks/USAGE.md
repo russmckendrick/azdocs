@@ -127,11 +127,11 @@ build, run:
 
 ```sh
 cd desktop
-npm run icons
+pnpm run icons
 ```
 
 The command compares the source SVG hash with the generated native set before
-running Tauri's converter. Use `npm run icons -- --force` only when the icon
+running Tauri's converter. Use `pnpm run icons -- --force` only when the icon
 toolchain itself changes and the same SVG must be regenerated.
 
 At the desktop masthead's constrained height, use the standalone mark followed

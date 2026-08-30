@@ -1,5 +1,7 @@
 pub mod azure_types;
 pub mod azure_values;
+pub mod network;
+pub mod rows;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -107,6 +109,24 @@ pub enum EdgeKind {
     UsesIdentity,
     LogsTo,
     Monitors,
+}
+
+impl Edge {
+    /// The endpoint that is not `resource_id`, or `None` when this edge does
+    /// not touch that resource.
+    ///
+    /// Both the report's related list and the TUI's needed this; what they do
+    /// with it differs (the TUI keeps direction, the report sorts and dedups),
+    /// so only the lookup is shared.
+    pub fn other_end(&self, resource_id: &str) -> Option<&str> {
+        if self.source_id == resource_id {
+            Some(&self.target_id)
+        } else if self.target_id == resource_id {
+            Some(&self.source_id)
+        } else {
+            None
+        }
+    }
 }
 
 impl EdgeKind {
@@ -232,5 +252,110 @@ mod tests {
     #[test]
     fn severity_orders_high_first() {
         assert!(Severity::High < Severity::Info);
+    }
+}
+
+/// The last segment of an ARM id — the resource's own name.
+///
+/// Falls back to the whole id rather than an empty string, so a trailing slash
+/// or a value that is not an ARM id still shows the reader something. Mirrors
+/// `resourceName` in desktop/src/format.ts.
+pub fn short_name(arm_id: &str) -> &str {
+    arm_id
+        .rsplit('/')
+        .find(|segment| !segment.is_empty())
+        .unwrap_or(arm_id)
+}
+
+/// Filesystem- and anchor-safe slug: ASCII alphanumerics lowercased, every
+/// other run collapsed to a single dash, no leading or trailing dash.
+///
+/// One implementation because the same strings become both a Markdown filename
+/// and a diagram slug, and a mismatch would break the link between a report
+/// section and its picture. There were two algorithms doing this — verified
+/// identical before merging.
+pub fn slugify(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    for character in value.chars() {
+        if character.is_ascii_alphanumeric() {
+            out.push(character.to_ascii_lowercase());
+        } else if !out.ends_with('-') {
+            out.push('-');
+        }
+    }
+    out.trim_matches('-').to_owned()
+}
+
+/// Shorten to `max` characters, ending in an ellipsis when it had to cut.
+///
+/// Counts `char`s, not bytes, so a multi-byte name is measured as a reader
+/// sees it and never split mid-character.
+pub fn truncate(value: &str, max: usize) -> String {
+    if value.chars().count() <= max {
+        return value.to_owned();
+    }
+    let mut out: String = value.chars().take(max.saturating_sub(1)).collect();
+    out.push('…');
+    out
+}
+
+#[cfg(test)]
+mod text_tests {
+    use super::{slugify, truncate};
+
+    #[test]
+    fn unit_collapses_runs_and_trims_edges_when_slugifying() {
+        assert_eq!(slugify("My Production (EU) Sub"), "my-production-eu-sub");
+        assert_eq!(slugify("--leading"), "leading");
+        assert_eq!(slugify("trailing--"), "trailing");
+        assert_eq!(slugify("a  b"), "a-b");
+        assert_eq!(slugify("---"), "");
+    }
+
+    #[test]
+    fn unit_keeps_short_values_intact_when_truncating() {
+        assert_eq!(truncate("short", 30), "short");
+        assert_eq!(truncate("exactly-ten", 11), "exactly-ten");
+    }
+
+    #[test]
+    fn unit_counts_characters_not_bytes_when_truncating() {
+        // Five chars, ten bytes: it must not cut at byte five.
+        assert_eq!(truncate("ünïcö", 5), "ünïcö");
+        assert_eq!(truncate("ünïcödé", 5), "ünïc…");
+    }
+}
+
+#[cfg(test)]
+mod edge_tests {
+    use super::{Edge, EdgeKind, short_name};
+
+    fn edge(source: &str, target: &str) -> Edge {
+        Edge {
+            source_id: source.to_owned(),
+            target_id: target.to_owned(),
+            kind: EdgeKind::AttachedTo,
+            properties: None,
+        }
+    }
+
+    #[test]
+    fn unit_returns_the_far_endpoint_when_the_edge_touches_the_resource() {
+        let link = edge("/a/nic", "/a/vm");
+        assert_eq!(link.other_end("/a/nic"), Some("/a/vm"));
+        assert_eq!(link.other_end("/a/vm"), Some("/a/nic"));
+    }
+
+    #[test]
+    fn unit_returns_nothing_when_the_edge_does_not_touch_the_resource() {
+        assert_eq!(edge("/a/nic", "/a/vm").other_end("/a/disk"), None);
+    }
+
+    #[test]
+    fn unit_takes_the_last_non_empty_segment_when_shortening_an_id() {
+        assert_eq!(short_name("/subscriptions/s/providers/x/vm-1"), "vm-1");
+        assert_eq!(short_name("/a/b/"), "b", "a trailing slash is skipped");
+        assert_eq!(short_name("bare"), "bare");
+        assert_eq!(short_name(""), "");
     }
 }

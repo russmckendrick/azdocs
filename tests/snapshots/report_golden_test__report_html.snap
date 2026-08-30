@@ -200,13 +200,13 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 <h3>Development <span class="meta">(sub-dev · 3 resources)</span></h3>
 
 <details>
-<summary>rg-dev — ukwest (3)</summary>
+<summary>rg-dev — UK West (3)</summary>
 <table>
 <thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Tags</th></tr></thead>
 <tbody>
-<tr><td>id-web-dev</td><td>Managed Identity</td><td>ukwest</td><td></td></tr>
-<tr><td>asp-dev</td><td>App Service Plan</td><td>ukwest</td><td></td></tr>
-<tr><td>web-dev</td><td>App Service / Function App</td><td>ukwest</td><td></td></tr>
+<tr><td>id-web-dev</td><td>Managed Identity</td><td>UK West</td><td></td></tr>
+<tr><td>asp-dev</td><td>App Service Plan</td><td>UK West</td><td></td></tr>
+<tr><td>web-dev</td><td>App Service / Function App</td><td>UK West</td><td></td></tr>
 </tbody>
 </table>
 </details>
@@ -215,33 +215,33 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 <h3>Production <span class="meta">(sub-prod · 14 resources)</span></h3>
 
 <details>
-<summary>rg-app — uksouth (11)</summary>
+<summary>rg-app — UK South (11)</summary>
 <table>
 <thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Tags</th></tr></thead>
 <tbody>
-<tr><td>vm-app-01-os</td><td>Managed Disk</td><td>uksouth</td><td></td></tr>
-<tr><td>vm-app-01</td><td>Virtual Machine</td><td>uksouth</td><td><code>{"env":"prod"}</code></td></tr>
-<tr><td>hp-prod</td><td>AVD Host Pool</td><td>uksouth</td><td><code>{"env":"prod"}</code></td></tr>
-<tr><td>vm-app-01-nic</td><td>Network Interface</td><td>uksouth</td><td></td></tr>
-<tr><td>pe-sql</td><td>Private Endpoint</td><td>uksouth</td><td></td></tr>
-<tr><td>vm-app-01-pip</td><td>Public IP Address</td><td>uksouth</td><td></td></tr>
-<tr><td>vnet-app</td><td>Virtual Network</td><td>uksouth</td><td><code>{"env":"prod"}</code></td></tr>
-<tr><td>law-prod</td><td>Log Analytics Workspace</td><td>uksouth</td><td><code>{"env":"prod"}</code></td></tr>
-<tr><td>sql-prod</td><td>SQL Server</td><td>uksouth</td><td><code>{"env":"prod"}</code></td></tr>
-<tr><td>app-db</td><td>SQL Database</td><td>uksouth</td><td><code>{"env":"prod"}</code></td></tr>
-<tr><td>stprodapp01</td><td>Storage Account</td><td>uksouth</td><td></td></tr>
+<tr><td>vm-app-01-os</td><td>Managed Disk</td><td>UK South</td><td></td></tr>
+<tr><td>vm-app-01</td><td>Virtual Machine</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>hp-prod</td><td>AVD Host Pool</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>vm-app-01-nic</td><td>Network Interface</td><td>UK South</td><td></td></tr>
+<tr><td>pe-sql</td><td>Private Endpoint</td><td>UK South</td><td></td></tr>
+<tr><td>vm-app-01-pip</td><td>Public IP Address</td><td>UK South</td><td></td></tr>
+<tr><td>vnet-app</td><td>Virtual Network</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>law-prod</td><td>Log Analytics Workspace</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>sql-prod</td><td>SQL Server</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>app-db</td><td>SQL Database</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>stprodapp01</td><td>Storage Account</td><td>UK South</td><td></td></tr>
 </tbody>
 </table>
 </details>
 
 <details>
-<summary>rg-network — uksouth (3)</summary>
+<summary>rg-network — UK South (3)</summary>
 <table>
 <thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Tags</th></tr></thead>
 <tbody>
-<tr><td>nsg-app</td><td>Network Security Group</td><td>uksouth</td><td><code>{"env":"prod"}</code></td></tr>
-<tr><td>nsg-unused</td><td>Network Security Group</td><td>uksouth</td><td><code>{"env":"prod"}</code></td></tr>
-<tr><td>vnet-hub</td><td>Virtual Network</td><td>uksouth</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>nsg-app</td><td>Network Security Group</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>nsg-unused</td><td>Network Security Group</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>vnet-hub</td><td>Virtual Network</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
 </tbody>
 </table>
 </details>

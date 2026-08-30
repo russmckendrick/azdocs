@@ -18,7 +18,9 @@ use serde::Serialize;
 use serde_json::Value;
 
 use crate::error::StoreError;
-use crate::model::azure_types;
+// Re-exported so the emitters can keep importing it from their parent module.
+pub(crate) use crate::model::rows::cell_to_string;
+use crate::model::{azure_types, azure_values, rows};
 use crate::querypack::{QueryKind, QueryPack};
 use crate::store::Store;
 
@@ -60,8 +62,19 @@ pub struct TypeCount {
 
 #[derive(Debug, Serialize)]
 pub struct NameCount {
+    /// The stored Azure value, e.g. `uksouth`. Kept so anything joining or
+    /// filtering on it still matches what SQLite holds.
     pub name: String,
+    /// Friendly name for display, e.g. `UK South`. Unknown values pass through
+    /// unchanged, so this is always safe to render.
+    pub display: String,
     pub count: usize,
+}
+
+/// Friendly location for an optional stored value. Presentation only — the
+/// stored code is what every join and filter still uses.
+fn display_location_opt(location: Option<&str>) -> Option<String> {
+    location.map(|value| azure_values::display_location(value).into_owned())
 }
 
 #[derive(Debug, Default, Serialize)]
@@ -72,11 +85,39 @@ pub struct SeverityCounts {
     pub info: usize,
 }
 
+/// Tag coverage at or above this reads as healthy.
+///
+/// A threshold is a product judgement, not a rendering detail, so it lives
+/// here rather than in whichever surface happens to draw it. The desktop used
+/// to carry its own `>= 60` in a JSX ternary while the reports made no
+/// judgement at all, which meant the same estate could look fine in print and
+/// amber in the explorer.
+pub const HEALTHY_TAG_COVERAGE_PERCENT: u32 = 60;
+
+/// A resource group with more than this share of its resources missing a
+/// required tag is called out rather than merely listed.
+pub const FLAGGED_NON_COMPLIANT_SHARE: f64 = 0.5;
+
+/// Is a group's non-compliance high enough to call out?
+///
+/// Strictly greater than the share, so an even split is not yet flagged, and
+/// an empty group never is.
+pub fn is_group_flagged(non_compliant: usize, resources: usize) -> bool {
+    resources > 0 && non_compliant as f64 > resources as f64 * FLAGGED_NON_COMPLIANT_SHARE
+}
+
 #[derive(Debug, Serialize)]
 pub struct TagCoverage {
     pub tagged: usize,
     pub untagged: usize,
     pub percent: u32,
+}
+
+impl TagCoverage {
+    /// Is coverage at or above [`HEALTHY_TAG_COVERAGE_PERCENT`]?
+    pub fn is_healthy(&self) -> bool {
+        self.percent >= HEALTHY_TAG_COVERAGE_PERCENT
+    }
 }
 
 /// One inventory category with the shaped rows of each of its queries.
@@ -177,11 +218,19 @@ impl ReportContext {
         let mut location_counts: Vec<NameCount> = location_counts
             .into_iter()
             .map(|(name, count)| NameCount {
+                display: azure_values::display_location(name).into_owned(),
                 name: name.to_owned(),
                 count,
             })
             .collect();
-        location_counts.sort_by(|a, b| b.count.cmp(&a.count).then(a.name.cmp(&b.name)));
+        // Busiest first, then by what the reader sees, with the stored code as
+        // the deterministic tie-breaker.
+        location_counts.sort_by(|a, b| {
+            b.count
+                .cmp(&a.count)
+                .then(a.display.cmp(&b.display))
+                .then(a.name.cmp(&b.name))
+        });
 
         let mut severity_counts = SeverityCounts::default();
         for finding in &findings {
@@ -218,11 +267,7 @@ impl ReportContext {
             if rows.is_empty() {
                 continue;
             }
-            let columns: Vec<String> = rows
-                .first()
-                .and_then(Value::as_object)
-                .map(|map| map.keys().cloned().collect())
-                .unwrap_or_default();
+            let columns = rows::columns(&rows);
             categories
                 .entry(def.category.clone())
                 .or_default()
@@ -270,7 +315,7 @@ impl ReportContext {
                                 name: r.name.clone(),
                                 display_type: azure_types::display_name(&r.azure_type).to_owned(),
                                 azure_type: r.azure_type.clone(),
-                                location: r.location.clone(),
+                                location: display_location_opt(r.location.as_deref()),
                                 tags: r.tags.as_ref().map(std::string::ToString::to_string),
                             })
                             .collect();
@@ -279,7 +324,7 @@ impl ReportContext {
                         });
                         ResourceGroupSection {
                             name: rg.name.clone(),
-                            location: rg.location.clone(),
+                            location: display_location_opt(rg.location.as_deref()),
                             detail_path: format!(
                                 "resources/{}/{}",
                                 markdown::slug(&sub.display_name),
@@ -331,7 +376,7 @@ impl ReportContext {
                     subscription_name: sub.display_name.clone(),
                     subscription_slug: markdown::slug(&sub.display_name),
                     resource_group: rg.name.clone(),
-                    location: rg.location.clone(),
+                    location: display_location_opt(rg.location.as_deref()),
                     group_key: details::group_key(&sub.subscription_id, &rg.name),
                     resources: members,
                 });
@@ -420,11 +465,44 @@ pub(crate) fn page_columns(columns: &[String]) -> Vec<&str> {
         .collect()
 }
 
-/// Render a JSON cell for a table: strings bare, everything else compact JSON.
-pub(crate) fn cell_to_string(value: Option<&Value>) -> String {
-    match value {
-        None | Some(Value::Null) => String::new(),
-        Some(Value::String(s)) => s.clone(),
-        Some(other) => other.to_string(),
+#[cfg(test)]
+mod threshold_tests {
+    use super::{
+        FLAGGED_NON_COMPLIANT_SHARE, HEALTHY_TAG_COVERAGE_PERCENT, TagCoverage, is_group_flagged,
+    };
+
+    fn coverage(percent: u32) -> TagCoverage {
+        TagCoverage {
+            tagged: 0,
+            untagged: 0,
+            percent,
+        }
+    }
+
+    #[test]
+    fn unit_treats_the_threshold_itself_as_healthy_when_judging_coverage() {
+        assert!(coverage(HEALTHY_TAG_COVERAGE_PERCENT).is_healthy());
+        assert!(coverage(HEALTHY_TAG_COVERAGE_PERCENT + 1).is_healthy());
+        assert!(!coverage(HEALTHY_TAG_COVERAGE_PERCENT - 1).is_healthy());
+    }
+
+    #[test]
+    fn unit_flags_a_group_only_past_the_share_when_judging_compliance() {
+        // An even split is not yet flagged.
+        assert!(!is_group_flagged(5, 10));
+        assert!(is_group_flagged(6, 10));
+        assert!(!is_group_flagged(0, 10));
+    }
+
+    #[test]
+    fn unit_never_flags_an_empty_group_when_judging_compliance() {
+        assert!(!is_group_flagged(0, 0));
+        // Guard against a divide-by-zero reading as "everything is broken".
+        assert!(!is_group_flagged(3, 0));
+    }
+
+    #[test]
+    fn unit_keeps_the_share_a_proportion_when_read() {
+        assert!((0.0..=1.0).contains(&FLAGGED_NON_COMPLIANT_SHARE));
     }
 }

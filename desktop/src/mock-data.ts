@@ -1,6 +1,7 @@
 import type {
   AppBootstrap,
   Edge,
+  ExportRequest,
   EstateSnapshot,
   Finding,
   QueryDefMeta,
@@ -9,6 +10,7 @@ import type {
   ResourceType,
   Severity,
 } from "./types";
+import { buildResourceGroupTopology } from "./components/topology-model";
 
 const ids = {
   vnetHub: "/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/virtualnetworks/vnet-hub",
@@ -301,6 +303,9 @@ export const mockEstate: EstateSnapshot = {
     (counts, finding) => ({ ...counts, [finding.severity]: counts[finding.severity] + 1 }),
     { high: 0, medium: 0, low: 0, info: 0 },
   ),
+  // Mirrors the Rust constants in src/report/mod.rs; the packaged app gets
+  // these from the backend so the two can never disagree.
+  governanceThresholds: { healthyTagCoveragePercent: 60, flaggedNonCompliantShare: 0.5 },
   azureMetadata: {
     locations: { uksouth: "UK South", ukwest: "UK West" },
     kinds: {
@@ -318,6 +323,10 @@ export const mockEstate: EstateSnapshot = {
     { id: "/subscriptions/sub-prod/resourcegroups/rg-app", name: "rg-app", subscriptionId: "sub-prod", location: "uksouth" },
     { id: "/subscriptions/sub-dev/resourcegroups/rg-dev", name: "rg-dev", subscriptionId: "sub-dev", location: "ukwest" },
   ],
+  // The packaged app gets these from Rust. The preview derives them from the
+  // same fixture with `buildResourceGroupTopology`, below the declaration —
+  // see the note there on why the preview keeps its own copy of that rule.
+  resourceGroupSummaries: [],
   resources,
   resourceTypes,
   locations: [
@@ -342,3 +351,51 @@ export const mockEstate: EstateSnapshot = {
     changed: [ids.web, ids.storage, ids.nsg],
   },
 };
+
+/**
+ * Illustrative output paths for the browser preview's Exports workspace.
+ *
+ * These mirror the real naming in src/commands/report.rs and the desktop's own
+ * `diagram_output_target`, and are the third hand-maintained copy of that
+ * convention — see the cleanup plan. They exist only so the preview can show a
+ * plausible result list; the packaged app returns the paths the Rust exporters
+ * actually wrote.
+ */
+export function mockExportOutputs(request: ExportRequest) {
+  const root = request.destination.replace(/[\\/]+$/, "");
+  if (request.exportKind === "reports") {
+    return request.formats.flatMap((format) => {
+      if (format === "md") return [`${root}/docs/index.md`];
+      if (format === "html") return [`${root}/report.html`, `${root}/docs-html/index.html`];
+      if (format === "csv") return [`${root}/inventory.csv`, `${root}/findings.csv`];
+      if (format === "xlsx") return [`${root}/azdocs.xlsx`];
+      return [`${root}/report.${format}`];
+    });
+  }
+
+  const diagramType = request.diagramType ?? "network";
+  return request.formats.map((format) => {
+    const extension = format === "mermaid" ? "mmd" : format;
+    if (diagramType === "workbook" && format === "drawio") {
+      return `${root}/azdocs-workbook.drawio`;
+    }
+    if (diagramType === "workbook" || diagramType === "vnets" || diagramType === "resource-groups") {
+      return `${root}/diagrams/${diagramType}/example.${extension}`;
+    }
+    return `${root}/azdocs-${diagramType}.${extension}`;
+  });
+}
+
+// Filled in after construction because the derivation needs the finished estate.
+// `buildResourceGroupTopology` is the browser preview's own implementation of
+// the bucketing Rust does in `groups.rs`; it stays here (and only here) because
+// the preview has no Rust to call, and it is stripped from the packaged build.
+mockEstate.resourceGroupSummaries = buildResourceGroupTopology(mockEstate).groups.map((group) => ({
+  id: group.id,
+  name: group.name,
+  subscriptionId: group.subscriptionId,
+  subscriptionName: group.subscriptionName,
+  resourceCount: group.resourceCount,
+  findingCount: group.findingCount,
+  resourceIds: group.resourceIds,
+}));

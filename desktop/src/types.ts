@@ -1,3 +1,21 @@
+/**
+ * The frontend's view of the app's types.
+ *
+ * Three layers, and it matters which one a type belongs in:
+ *
+ * - `./generated` — the wire contract, emitted from the Rust DTOs by
+ *   `cargo test -p azdocs-desktop`. Never edit it; change the struct instead.
+ * - `./api-types` — closed string unions Rust serialises through `as_str()`,
+ *   which ts-rs cannot infer. Hand-written, referenced from the Rust structs.
+ * - This file — types that exist only in the UI and have no Rust counterpart.
+ *
+ * Import from `./types` everywhere; the split is an implementation detail.
+ */
+
+export * from "./api-types";
+export * from "./generated";
+
+/** Which workspace the shell is showing. Purely a frontend concern. */
 export type ViewId =
   | "overview"
   | "estate"
@@ -8,276 +26,12 @@ export type ViewId =
   | "history"
   | "exports"
   | "settings";
-export type Severity = "high" | "medium" | "low" | "info";
+
+/** Tri-state theme, persisted in Settings. No Rust counterpart. */
 export type ThemePreference = "system" | "light" | "dark";
 
-export interface AppBootstrap {
-  databasePath: string;
-  configPath: string;
-  configFound: boolean;
-  hasCredentials: boolean;
-  requiredTags: string[];
-  reportTheme: string;
-  reportThemes: string[];
-  snapshots: SnapshotSummary[];
-  latestSnapshotId?: string;
-}
-
-export interface QueryDefMeta {
-  name: string;
-  category: string;
-  kind: "inventory" | "finding";
-  description: string;
-}
-
-export interface QueryRows {
-  queryName: string;
-  columns: string[];
-  rows: Array<Record<string, unknown>>;
-}
-
-export interface SnapshotSummary {
-  id: string;
-  createdAt: string;
-  tenantId: string;
-  status: "running" | "complete" | "partial" | "failed";
-  notes?: string;
-  subscriptions: number;
-  resources: number;
-  findings: number;
-}
-
-export interface Totals {
-  subscriptions: number;
-  resourceGroups: number;
-  resources: number;
-  findings: number;
-}
-
-export interface ResourceType {
-  azureType: string;
-  displayName: string;
-  count: number;
-  icon: string;
-  color: string;
-}
-
-export interface AzureMetadata {
-  locations: Record<string, string>;
-  kinds: Record<string, string>;
-}
-
-export interface Subscription {
-  id: string;
-  displayName: string;
-  state?: string;
-  tags?: unknown;
-}
-
-export interface ResourceGroup {
-  id: string;
-  name: string;
-  subscriptionId: string;
-  location?: string;
-  tags?: unknown;
-}
-
-export interface Resource {
-  id: string;
-  displayId: string;
-  name: string;
-  azureType: string;
-  kind?: string;
-  location?: string;
-  resourceGroup?: string;
-  subscriptionId: string;
-  tags?: Record<string, unknown>;
-  sku?: unknown;
-  identity?: unknown;
-  properties?: Record<string, unknown>;
-  findingCount: number;
-  edgeCount: number;
-}
-
-export interface Finding {
-  queryName: string;
-  category: string;
-  severity: Severity;
-  resourceId?: string;
-  title: string;
-  detail?: unknown;
-}
-
-export interface Edge {
-  sourceId: string;
-  targetId: string;
-  kind: string;
-  properties?: unknown;
-}
-
-export interface QueryRun {
-  queryName: string;
-  category: string;
-  rowCount?: number;
-  durationMs?: number;
-  error?: string;
-}
-
-export interface SnapshotComparison {
-  baseSnapshotId: string;
-  targetSnapshotId: string;
-  added: string[];
-  removed: string[];
-  changed: string[];
-}
-
-export interface EstateSnapshot {
-  id: string;
-  createdAt: string;
-  tenantId: string;
-  status: string;
-  notes?: string;
-  totals: Totals;
-  tagCoverage: { tagged: number; untagged: number; percent: number };
-  severityCounts: Record<Severity, number>;
-  azureMetadata: AzureMetadata;
-  subscriptions: Subscription[];
-  resourceGroups: ResourceGroup[];
-  resources: Resource[];
-  resourceTypes: ResourceType[];
-  locations: Array<{ name: string; count: number }>;
-  findings: Finding[];
-  edges: Edge[];
-  queryRuns: QueryRun[];
-  previousDiff?: SnapshotComparison;
-}
-
+/** A user's current subscription / resource-group narrowing. */
 export interface ScopeSelection {
   subscriptionId?: string;
   resourceGroup?: string;
 }
-
-export type TopologyNodeKind =
-  | "resource"
-  | "resource-group"
-  | "subscription"
-  | "vnet"
-  | "subnet"
-  | "aggregate"
-  | "external";
-
-export interface TopologyLane {
-  subscriptionId: string;
-  name: string;
-  expanded: boolean;
-  groupCount: number;
-  resourceCount: number;
-  findingCount: number;
-}
-
-export interface TopologyNode {
-  id: string;
-  kind: TopologyNodeKind;
-  name: string;
-  subtitle: string;
-  azureType?: string;
-  lane?: string;
-  parentId?: string;
-  zone?: "core" | "unconnected" | "external";
-  hop?: number;
-  memberIds: string[];
-  count: number;
-  findingCount: number;
-  resourceId?: string;
-  groupId?: string;
-}
-
-export interface TopologyLink {
-  sourceId: string;
-  targetId: string;
-  label: string;
-  kindClass: string;
-  count: number;
-}
-
-export interface TopologyCounts {
-  total: number;
-  drawn: number;
-  folded: number;
-  aggregated: number;
-  external: number;
-  hiddenByFilter: number;
-  totalLinks: number;
-  drawnLinks: number;
-}
-
-export interface TopologyGraph {
-  level: "estate" | "group" | "neighbourhood";
-  lanes: TopologyLane[];
-  nodes: TopologyNode[];
-  links: TopologyLink[];
-  kindClasses: Array<{ class: string; count: number }>;
-  counts: TopologyCounts;
-}
-
-export type TopologyMode =
-  | { kind: "estate"; expandedSubscriptions?: string[] }
-  | { kind: "group"; groupId: string }
-  | { kind: "neighbourhood"; resourceId: string; depth?: number; kindClasses?: string[] };
-
-export interface TopologyScope {
-  subscriptions?: string[];
-  azureTypes?: string[];
-  showUnconnected?: boolean;
-}
-
-export interface TopologyRequest {
-  snapshotId?: string;
-  mode: TopologyMode;
-  scope?: TopologyScope;
-}
-
-export type CollectionEvent =
-  | { event: "phase"; data: { message: string } }
-  | { event: "complete"; data: { snapshotId: string } }
-  | { event: "failed"; data: { message: string } };
-
-export interface CollectResult {
-  snapshotId: string;
-  status: string;
-  queriesRun: number;
-  queriesFailed: number;
-  rowsIngested: number;
-}
-
-export type ExportKind = "reports" | "diagrams";
-export type ReportExportFormat = "md" | "html" | "csv" | "xlsx" | "pdf" | "docx";
-export type DiagramExportType =
-  | "hierarchy"
-  | "resources"
-  | "network"
-  | "vnets"
-  | "resource-groups"
-  | "workbook";
-export type DiagramExportFormat = "drawio" | "mermaid" | "svg" | "png";
-
-export interface ExportRequest {
-  snapshotId: string;
-  destination: string;
-  exportKind: ExportKind;
-  formats: string[];
-  theme?: string;
-  diagramType?: DiagramExportType;
-  subscriptionId?: string;
-  resourceGroup?: string;
-}
-
-export interface ExportResult {
-  destination: string;
-  outputs: string[];
-}
-
-export type ExportEvent =
-  | { event: "phase"; data: { message: string } }
-  | { event: "complete"; data: { outputCount: number } }
-  | { event: "failed"; data: { message: string } };

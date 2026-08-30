@@ -7,16 +7,30 @@ offline. Full docs: [docs/](docs/README.md) — usage/, development/, reference/
 
 ## Commands
 
+This is a Cargo workspace: the CLI (`azdocs`, at the root) and the Tauri backend
+(`azdocs-desktop`, in `desktop/src-tauri`) share one lockfile and one `target/`.
+Bare `cargo test` runs the root package only — use `--workspace` for both.
+
 ```sh
-cargo test                                        # full suite, no Azure/network needed
+cargo test                                        # CLI crate, no Azure/network needed
+cargo test --workspace                            # CLI + desktop backend
 cargo clippy --all-targets --locked -- -D warnings
-cargo fmt --check
+cargo fmt --all --check
 cargo insta review                                # accept intended golden-output changes
 INSTA_UPDATE=always cargo test                    # regenerate all goldens (then eyeball the diff)
 cargo run -- <subcommand>                         # check/collect need real credentials
 ```
 
-CI gates on fmt + clippy `-D warnings` + tests across Linux/macOS/Windows.
+The frontend uses **pnpm**, not npm (`tauri.conf.json` shells out to it):
+
+```sh
+cd desktop && pnpm install
+pnpm run lint && pnpm run typecheck && pnpm test  # gated in CI
+pnpm run tauri dev                                # run the desktop app
+```
+
+CI gates on fmt + clippy `-D warnings` + tests across Linux/macOS/Windows, and
+on ESLint + tsc + vitest + `cargo test -p azdocs-desktop` for the desktop.
 Always run fmt and clippy before committing.
 
 A graphify knowledge graph of this repo lives in `graphify-out/` (gitignored).
@@ -96,7 +110,7 @@ those values. **A new theme is a new TOML file; there must be no branch
 anywhere on a theme's name.** User overrides live in
 `<config dir>/azdocs/themes/`, merged by file stem.
 
-- `report/theme.rs` parses and resolves; `theme/color.rs` holds the colour
+- `report/theme/mod.rs` parses and resolves; `theme/color.rs` holds the colour
   maths and the `lighten/darken/mix/readable_on` expression language.
 - Anything drawn on top of a brand colour must go through `readable_on`, or a
   pale `primary_color` produces white-on-white.
@@ -128,15 +142,47 @@ Chrome decays with nesting depth; fonts and leaf sizes never do.
 
 ## Desktop design
 
-The desktop app wears the "Field Report" language: one token layer in
-`desktop/src/styles.css` (light canonical, dark = 1:1 token remap; tri-state
-theme — System/Light/Dark — persisted from Settings). Full sheet:
-[docs/reference/design.md](docs/reference/design.md); summarised in DESIGN.md.
+The desktop app wears the "Field Report" language. `desktop/src/styles.css` is
+the **only** place a colour value is written down (light canonical, dark = a 1:1
+token remap; tri-state theme — System/Light/Dark — persisted from Settings).
+
+- [docs/reference/design.md](docs/reference/design.md) — the authoritative sheet.
+- [docs/reference/design.html](docs/reference/design.html) — swatches, type
+  scale and marks, **generated** from `styles.css` and `docs/marks/manifest.json`
+  by `docs/reference/tools/build_design_sheet.py`. Never edit it; re-run the
+  script, which also fails if the two dark blocks in `styles.css` disagree.
+- [DESIGN.md](DESIGN.md) — a pointer to the above, plus the rules most often
+  broken. It used to restate the whole palette; three copies is how they drift.
+
 Hard rules: no numbering chrome, selection is a quiet `--evidence` fill (never
 a coloured bar), colour only for data (category set) and signals (severity
 set), type never below 11px. The Cytoscape stage reads `--graph-*`/`--kind-*`
 tokens at build time and rebuilds on theme change — never hardcode a canvas
 colour.
+
+## The wire contract is generated
+
+`desktop/src/generated.ts` is emitted from the DTO structs by
+`cargo test -p azdocs-desktop` (`desktop/src-tauri/src/bindings.rs`, ts-rs).
+**Never edit it** — change the Rust struct and re-run the tests. CI fails if the
+checked-in file is stale.
+
+Three layers, and it matters which one a type belongs in:
+
+- `generated.ts` — the wire contract. Source of truth is `dto.rs`/`topology.rs`.
+- `api-types.ts` — closed string sets Rust models as an enum but serialises via
+  `as_str()`, so the field is a bare `String` and ts-rs cannot infer the union.
+  Hand-written, and pointed at from the struct with `#[ts(type = "...")]`.
+- `types.ts` — UI-only types with no Rust counterpart. Re-exports the other two;
+  everything imports from `./types`.
+
+Two traps this replaced, both of which had shipped:
+
+- `#[serde(rename_all)]` on an **enum** renames the variants, not the fields of
+  a struct variant. Struct-variant fields need `rename_all_fields`, or the
+  payload goes out snake_case while every other field is camelCase.
+- `Option<T>` serialises to `null`, not an absent key. The generated type is
+  `field?: T | null`; do not "simplify" it to `field?: T`.
 
 ## Desktop topology
 
@@ -152,9 +198,19 @@ expandable lanes past the card budget; anything a filter hides is counted in
 `counts.hidden_by_filter`. Edge kinds map to filter families via the
 exhaustive `kind_class` match — a new `EdgeKind` forces a classification
 (mirror it in `desktop/src/components/topology-fallback.ts`, the
-browser-preview stand-in). Subnets are not resource rows, so
-`desktop/src-tauri/src/dto.rs` collapses subnet-ended edges onto the owning
-VNet before they reach the frontend.
+browser-preview stand-in; `topology-fallback.test.ts` fails if you don't).
+Subnets are not resource rows, so `desktop/src-tauri/src/dto.rs` collapses
+subnet-ended edges onto the owning VNet before they reach the frontend.
+
+**Group membership is Rust's too.** `desktop/src-tauri/src/groups.rs` decides
+which resource group a resource belongs to, including synthesising a group when
+the snapshot has no row for one, and names a group-less resource
+`SUBSCRIPTION_SCOPE`. It feeds both the topology builder and
+`EstateSnapshot.resourceGroupSummaries`, so the map and the estate view cannot
+disagree. `topology-model.ts` still implements the same rule, but **only the
+browser preview may reach it** — it is stripped from a Tauri build, and a
+production component importing it puts a second, drifting implementation back
+in the app. That is what it was doing before.
 
 Frontend rendering has another hard boundary. Read
 `docs/development/desktop-relationships.md` before changing it.

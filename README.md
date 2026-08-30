@@ -57,8 +57,8 @@ azdocs browse
 
 # Or launch the desktop explorer from a source checkout
 cd desktop
-npm install
-npm run tauri dev
+pnpm install
+pnpm run tauri dev
 ```
 
 ## Configuration
@@ -134,9 +134,9 @@ cargo test          # unit + integration + golden-file tests (no Azure needed)
 cargo insta review  # accept intentional report/diagram output changes
 
 cd desktop
-npm install
-npm run build       # TypeScript + production web assets
-npm run tauri dev   # desktop app with the shared Rust core
+pnpm install
+pnpm run build       # TypeScript + production web assets
+pnpm run tauri dev   # desktop app with the shared Rust core
 ```
 
 ## Credits

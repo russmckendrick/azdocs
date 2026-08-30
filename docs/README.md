@@ -15,7 +15,7 @@ flowchart LR
         report[azdocs report]
         diagram[azdocs diagram]
         browse[azdocs browse]
-        desktop[azdocs desktop]
+        desktop["Desktop explorer<br/>(Tauri app, not a CLI verb)"]
     end
     ARG -->|70 KQL queries<br/>read-only| collect
     collect --> db
@@ -67,6 +67,10 @@ generated from the stored snapshot, never live Azure.
 | Page | Covers |
 |---|---|
 | [Query pack](reference/queries.md) | All 70 built-in queries and findings |
+| [Themes](reference/themes.md) | Document theme files: palette expressions, type scale, layout strategies |
+| [Diagram standards](reference/diagrams.md) | Detail levels, A4 page fractions, density rungs, connector routing |
+| [Desktop design language](reference/design.md) | The "Field Report" tokens, type ramp and rules for the desktop app |
+| [Design sheet](reference/design.html) | Generated swatches, type scale and brand marks |
 
 ### [Marks](marks/README.md)
 

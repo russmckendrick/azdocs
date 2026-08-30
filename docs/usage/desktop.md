@@ -25,22 +25,22 @@ for your operating system are required.
 
 ```sh
 cd desktop
-npm install
-npm run tauri dev
+pnpm install
+pnpm run tauri dev
 ```
 
 Build web assets without opening a native window:
 
 ```sh
 cd desktop
-npm run build
+pnpm run build
 ```
 
 Create a platform installer or application bundle:
 
 ```sh
 cd desktop
-npm run tauri build
+pnpm run tauri build
 ```
 
 ## What you can explore
@@ -151,7 +151,7 @@ contact Azure.
 
 ## Browser preview
 
-`npm run dev` opens the web interface without Tauri. In that mode the app uses
+`pnpm run dev` opens the web interface without Tauri. In that mode the app uses
 the canonical fixture-shaped illustrative estate and labels the toolbar
 **Illustrative workspace**. This is for responsive and visual development;
 only a Tauri window reads real databases or collects Azure data.

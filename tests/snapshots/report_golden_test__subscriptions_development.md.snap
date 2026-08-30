@@ -11,12 +11,12 @@ expression: content
 - **Resources**: 3
 
 
-## rg-dev (ukwest)
+## rg-dev (UK West)
 
 [Resource details →](../resources/development/rg-dev.md)
 
 | Name | Type | Location |
 |---|---|---|
-| id-web-dev | Managed Identity | ukwest |
-| asp-dev | App Service Plan | ukwest |
-| web-dev | App Service / Function App | ukwest |
+| id-web-dev | Managed Identity | UK West |
+| asp-dev | App Service Plan | UK West |
+| web-dev | App Service / Function App | UK West |

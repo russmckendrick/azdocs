@@ -31,6 +31,13 @@ The boundaries are deliberate:
 - `desktop/src-tauri/src/topology.rs` owns graph semantics, folding,
   aggregation, external stubs, subscription collapse, filters, and counts.
   The webview must not recreate or reinterpret those rules.
+- `desktop/src-tauri/src/groups.rs` owns resource-group membership: the join
+  key, the synthetic group for a resource whose row is missing, and the name
+  given to a group-less resource. It feeds both the topology builder and
+  `EstateSnapshot.resourceGroupSummaries`. `topology-model.ts` implements the
+  same rule for the browser preview only — importing it from a production
+  component restores a second implementation that will drift, which is exactly
+  what happened before.
 - `desktop/src/components/topology-layout.ts` owns deterministic positions,
   zones, readable entry sets, and camera profiles. It has no rendering state.
 - `desktop/src/components/topology-presentation.ts` owns stable connector
@@ -219,7 +226,11 @@ The following are prohibited, even when a small fixture still looks tidy:
 - fitting all content on every entry, or starting tighter than the final fit;
 - shrinking graph text below `11px`, hardcoding canvas colours, or creating a
   separate dark-mode composition;
-- silently capping nodes, connectors, aggregate members, or collapsed lanes.
+- silently capping nodes, connectors, aggregate members, or collapsed lanes;
+- deriving resource-group membership, or any other DTO semantics, in the
+  webview — importing `topology-model.ts` from a production component is the
+  concrete form of this, and it had already drifted from the Rust rule on
+  synthetic group ids before it was caught.
 
 ## Tests and review
 
@@ -234,14 +245,21 @@ Pure-function tests are the first line of defence:
   trace priority, label endpoint/side/slot selection, and obstacle avoidance.
 - `topology-view-state.test.ts` covers graph state retained across loading,
   failure, retry, and scope changes.
+- `topology-fallback.test.ts` reads the Rust sources and asserts the browser
+  preview's `edgeKindClass` covers every `EdgeKind` with the same family. The
+  mirror is not compiler-checked across the language boundary, and it had
+  already drifted: `monitors` was classified as "structure".
+- `navigation-state.test.ts` covers history-aware drill-down and the
+  relationship workspace reducer.
 - Rust topology tests continue to cover the representation equation, folding,
-  aggregation, external stubs, filters, and large estates.
+  aggregation, external stubs, filters, and large estates. These run in CI as
+  `cargo test -p azdocs-desktop`.
 
 Run the relationship UI tests and build from `desktop/`:
 
 ```sh
-npm test
-npm run build
+pnpm test
+pnpm run build
 ```
 
 Then visually check estate, group, and one-/two-hop neighbourhood scopes at

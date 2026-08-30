@@ -1,104 +1,96 @@
 # Product
 
-<!-- impeccable:product-schema 1 -->
+What azdocs is for, and the constraints that shape it. Architecture lives in
+[AGENTS.md](AGENTS.md) and [docs/](docs/README.md); this is the "why".
 
-> The desktop-specific product decisions below are inferred from the initial
-> request and the repository's existing behavior, pending user confirmation.
+## The problem
 
-## Platform
+An Azure estate is only legible through the portal, one blade at a time, and
+only while you are connected to it. Answering "what is in this subscription,
+what talks to what, and what is misconfigured" means clicking through it — and
+the answer cannot be filed, diffed, or handed to someone else.
 
-web
+## What azdocs does
 
-## Stack
+One read-only collection through Azure Resource Graph becomes a durable local
+SQLite snapshot. Everything after that — exploring, auditing, tracing
+relationships, diagrams, reports — runs against the stored snapshot, offline.
 
-Inferred: a Tauri v2 desktop shell with a React and TypeScript web interface,
-backed directly by the existing Rust library and SQLite store. The existing
-Rust CLI remains supported as a peer interface rather than being replaced.
+That single decision is the product. It makes the output reproducible, makes it
+diffable against last month's collection, and means the tool needs nothing more
+than Reader to do its job.
 
-## Users
+## Who it is for
 
-The primary user is an Azure, cloud-platform, or infrastructure engineer who
-needs to understand an estate from periodic read-only snapshots. They may be
-investigating one resource, reviewing audit findings, tracing relationships,
-or comparing the present estate with an earlier collection.
+Azure, cloud-platform and infrastructure engineers who need to understand an
+estate they did not necessarily build: onboarding to an unfamiliar tenant,
+preparing a review, chasing a misconfiguration, or producing documentation
+somebody else will read.
 
-## Product Purpose
+They move between estate-wide orientation, search and filtering, finding
+triage, relationship tracing, snapshot comparison, and formal export — and the
+job is usually to get from a broad signal to the exact resource and the
+evidence behind it.
 
-azdocs collects an Azure estate through Azure Resource Graph, stores a durable
-local snapshot, and makes that snapshot useful for exploration, auditing,
-diagrams, and reports. Success means a user can move from an estate-wide signal
-to the exact resource and evidence behind it without returning to the network.
+## Two interfaces, one engine
 
-## Positioning
+| | |
+|---|---|
+| **CLI** (`azdocs`) | Collect, report, diagram, and a terminal browser. Scriptable, CI-friendly, static binaries. |
+| **Desktop** (Tauri) | Interactive exploration of the same snapshot: estate explorer, relationship maps, findings, history, exports. |
 
-One read-only collection becomes a deterministic offline source for interactive
-exploration, relationship analysis, compliance findings, diagrams, and document
-exports. The desktop app explores the same stored evidence as every other
-azdocs output rather than maintaining a separate cloud-side model.
+Neither is a subset of the other, and both read the same SQLite database
+through the same Rust library. A resource type is named the same way, a
+location is spelled the same way, and a diagram is laid out the same way in
+both, because there is one implementation of each.
 
-## Operating Context
+## Constraints that are not negotiable
 
-Users work with Azure subscriptions, resource groups, ARM resource types,
-regions, tags, findings, resource properties, and derived relationships. They
-typically move between broad estate review, search and filtering, finding
-triage, topology tracing, snapshot history, and formal report export.
+These are product constraints, not implementation details — breaking one
+changes what azdocs *is*:
 
-## Capabilities and Constraints
+- **Collection is read-only.** A service principal with Reader, and no write
+  path to Azure anywhere in the codebase.
+- **Everything downstream of collection is offline.** Reports, diagrams, the
+  TUI and the desktop read only from SQLite. This is what makes output
+  reproducible and golden-testable, and what lets the tool run somewhere the
+  tenant is not reachable.
+- **Output is deterministic.** The same snapshot renders byte-identically. A
+  diff between two reports is a diff between two estates, never noise.
+- **Nothing is silently dropped.** Where a view cannot draw everything — a
+  crowded relationship map, a capped diagram set — it states the arithmetic.
+  `drawn + folded + aggregated == total`, and truncation is logged.
+- **Credentials never reach the webview.** The desktop's frontend has no
+  Azure access, no filesystem access and no database handle; it renders DTOs
+  the Rust side produced.
 
-- Azure collection uses the existing hand-rolled client-credentials provider
-  and a read-only service principal.
-- Reports, diagrams, the TUI, and the desktop explorer read only from SQLite;
-  they never query Azure directly.
-- Lowercase ARM IDs remain the join key; original casing is display-only.
-- Edges and configuration-driven audits remain Rust post-passes over stored
-  data, with no additional Resource Graph queries.
-- Output and UI ordering must be deterministic.
-- Existing configuration and database locations remain compatible with the
-  CLI, with an explicit database picker available in the desktop app.
-- The desktop interface must remain usable with large estates, keyboard input,
-  reduced motion, and high-contrast operating-system preferences.
+## Extending it is usually data, not code
 
-## Brand Commitments
+A new audit check is a TOML file in `queries/`. A new document theme is a TOML
+file in `data/themes/`. A friendlier name for a resource type, region or kind
+is a line in `data/`. Each has a user-override directory, so an estate with
+local conventions does not need a fork. Adding Rust should be the exception.
 
-The product name is `azdocs`. Azure resource iconography already vendored in
-`data/icons/` is the factual visual asset for resource types. The product voice
-is technical, calm, direct, and evidence-led. The desktop visual world is an
-Azure observatory: resource icons appear in their native artwork without white
-button backplates, relationship space is deep and luminous, and interaction
-state is expressed with line, light, and motion instead of filled UI chrome.
+## Design
 
-The relationship explorer uses Cytoscape.js to render graphs the Rust side
-builds deterministically: an estate map of resource-group cards in
-subscription lanes, group drill-downs with VNet/subnet containment, host
-folding, ×N aggregation and cross-group ghost stubs, and 1–2-hop resource
-neighbourhoods with relationship-kind filters — always with node dragging,
-pan, zoom, selection, boundary-anchored orthogonal edges, and directional
-flow dashes. Every resource in scope is drawn, folded, or aggregated, and the
-view states the arithmetic; nothing is silently truncated. Nonessential motion is user-controllable, stops
-while the window is hidden, and is removed when the operating system requests
-reduced motion.
+The desktop wears the **Field Report** language — the printed report made
+interactive, IBM Plex throughout, colour reserved for data and signals. See
+[DESIGN.md](DESIGN.md).
 
-## Evidence on Hand
+The product voice matches it: technical, calm, direct, evidence-led. Say what
+was collected and when; do not imply live state; do not decorate.
 
-- The canonical two-subscription fixture in `tests/common/mod.rs` provides
-  representative resources, peerings, findings, and private connectivity.
-- The embedded Azure icon pack and `data/icon_mapping.toml` provide real
-  resource imagery.
-- Existing report themes provide palette evidence but are not a desktop UI
-  design system.
-- No customer claims, usage benchmarks, pricing, or testimonials are present
-  and none should be fabricated.
+## Accessibility
 
-## Product Principles
+Complete keyboard operation, visible focus, WCAG 2.2 AA contrast, honoured
+reduced-motion preferences, semantic controls, and layouts that survive text
+scaling and narrow windows. Colour never carries meaning alone — severity is
+always accompanied by its word.
 
-- Start broad, then preserve context while drilling into exact evidence.
-- Keep offline snapshot truth visibly distinct from live Azure state.
-- Make relationships and findings navigable, not merely reportable.
-- Preserve one engine and one data model across every interface.
-- Favor dense clarity and fast keyboard workflows over decorative analytics.
+## What azdocs does not claim
 
-## Accessibility & Inclusion
-
-The desktop app targets WCAG 2.2 AA contrast and interaction behavior, complete
-keyboard operation, visible focus, reduced-motion support, semantic controls,
-and layouts that tolerate text scaling and narrower windows.
+Resource Graph cannot see everything, and the product should not pretend
+otherwise: no RBAC assignments, no data-plane contents, no activity logs, no
+metrics. A snapshot is a point-in-time inventory of resource configuration and
+the relationships derivable from it. There are no customer claims, benchmarks
+or pricing here, and none should be invented.

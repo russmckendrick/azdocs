@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -7,13 +7,16 @@ import {
   GitBranch,
   ListTree,
 } from "lucide-react";
-import { ALL_RESOURCES_ICON } from "../azure-icons";
+import { resourceIcon } from "../azure-icons";
 import { displayKind, displayLocation } from "../azure-values";
 import type { EstateSnapshot, Resource, ResourceType } from "../types";
 import { AdaptiveDataView, describeStoredValue, hasStoredValue } from "./AdaptiveDataView";
+import { resourceName, spaced } from "../format";
+import { EmptyState } from "./view-chrome";
+import { useEscapeKey, useResourceTypeMap } from "../estate-lookups";
 
 function prettyRelation(kind: string) {
-  return kind.replaceAll("_", " ");
+  return spaced(kind);
 }
 
 export function ResourceDetailView({
@@ -36,10 +39,7 @@ export function ResourceDetailView({
   onOpenFindings: () => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const resourceTypeMap = useMemo(
-    () => new Map(estate.resourceTypes.map((item) => [item.azureType, item])),
-    [estate.resourceTypes],
-  );
+  const resourceTypeMap = useResourceTypeMap(estate);
   const subscription = estate.subscriptions.find((item) => item.id === resource.subscriptionId);
   const resourceGroup = estate.resourceGroups.find(
     (item) => item.subscriptionId === resource.subscriptionId && item.name.toLowerCase() === resource.resourceGroup,
@@ -78,13 +78,8 @@ export function ResourceDetailView({
     scrollRef.current?.scrollTo({ top: 0 });
   }, [resource.id]);
 
-  useEffect(() => {
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") onBack();
-    }
-    window.addEventListener("keydown", handleEscape);
-    return () => window.removeEventListener("keydown", handleEscape);
-  }, [onBack]);
+  // The record is always open while mounted.
+  useEscapeKey(true, onBack);
 
   return (
     <article className="resource-record" aria-labelledby="resource-record-title">
@@ -93,7 +88,7 @@ export function ResourceDetailView({
           <ArrowLeft size={15} /> {backLabel}
         </button>
         <div className="resource-record-title">
-          <img src={type?.icon ?? ALL_RESOURCES_ICON} alt="" />
+          <img src={resourceIcon(type)} alt="" />
           <div>
             <h1 id="resource-record-title">{resource.name}</h1>
             <p>{type?.displayName ?? resource.azureType}</p>
@@ -147,7 +142,11 @@ export function ResourceDetailView({
                 ))}
               </div>
             ) : (
-              <div className="resource-record-clear"><CircleDot size={17} /><span>No audit findings are linked to this resource.</span></div>
+              <EmptyState
+                className="resource-record-clear"
+                icon={<CircleDot size={17} />}
+                detail="No audit findings are linked to this resource."
+              />
             )}
           </section>
 
@@ -195,8 +194,8 @@ export function ResourceDetailView({
                     <article key={`${edge.sourceId}-${edge.targetId}-${edge.kind}-${index}`}>
                       <button onClick={() => other && onSelectResource(other.id)} disabled={!other}>
                         <span className="relation-direction">{outbound ? "OUT" : "IN"}</span>
-                        <img src={otherType?.icon ?? ALL_RESOURCES_ICON} alt="" />
-                        <span><strong>{other?.name ?? otherId.split("/").at(-1)}</strong><small>{prettyRelation(edge.kind)}</small></span>
+                        <img src={resourceIcon(otherType)} alt="" />
+                        <span><strong>{other?.name ?? resourceName(otherId)}</strong><small>{prettyRelation(edge.kind)}</small></span>
                         {other ? <ChevronRight size={14} /> : null}
                       </button>
                       <EvidenceData label="Relationship evidence" value={relationshipEvidence} compact />

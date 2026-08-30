@@ -77,3 +77,30 @@ erDiagram
 Ordered SQL strings in `store/schema.rs`; `meta.schema_version` records how
 many have run. **Append new migrations, never edit existing ones.** New tables
 must cascade-delete from `snapshots`.
+
+## The desktop wire contract
+
+The Tauri frontend does not see these tables. It receives DTOs from
+`desktop/src-tauri/src/dto.rs` and `topology.rs`, and their TypeScript
+declarations are **generated**, not written by hand:
+
+```sh
+cargo test -p azdocs-desktop     # rewrites desktop/src/generated.ts
+```
+
+CI runs the same tests and then `git diff --exit-code`, so a struct change that
+is not regenerated fails the build. Never edit `generated.ts`.
+
+| File | Written by | Holds |
+|---|---|---|
+| `desktop/src/generated.ts` | ts-rs, via `src-tauri/src/bindings.rs` | Every DTO the IPC returns |
+| `desktop/src/api-types.ts` | Hand | Closed string sets Rust serialises with `as_str()` — severity, edge kind, snapshot status — which ts-rs cannot infer. Referenced from the structs with `#[ts(type = "…")]` |
+| `desktop/src/types.ts` | Hand | UI-only types, and the re-export surface everything imports |
+
+Two serde behaviours this encodes, both of which had already produced bugs:
+
+- `#[serde(rename_all)]` on an **enum** renames the variants. The fields of a
+  struct variant need `rename_all_fields` — without it a payload goes out
+  snake_case while every sibling field is camelCase.
+- `Option<T>` serialises to `null`, not an absent key, so the generated type is
+  `field?: T | null`.

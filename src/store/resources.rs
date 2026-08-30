@@ -179,20 +179,6 @@ impl Store {
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
-    pub fn resources_of_type(
-        &self,
-        snapshot_id: &str,
-        azure_type: &str,
-    ) -> Result<Vec<Resource>, StoreError> {
-        let mut statement = self.conn().prepare(
-            "SELECT id, display_id, name, type, kind, location, resource_group,
-                    subscription_id, tags, sku, identity, properties
-             FROM resources WHERE snapshot_id = ?1 AND type = ?2 ORDER BY id",
-        )?;
-        let rows = statement.query_map([snapshot_id, azure_type], resource_from_row)?;
-        Ok(rows.collect::<Result<_, _>>()?)
-    }
-
     pub fn query_results(
         &self,
         snapshot_id: &str,

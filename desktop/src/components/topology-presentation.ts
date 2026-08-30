@@ -1,5 +1,7 @@
 import type { TopologyGraph, TopologyLink } from "../types";
 import type { Placement } from "./topology-layout";
+import { stableCompare } from "../ordering";
+import { capitalise } from "../format";
 
 export type RelationshipLabelSide = "left" | "right" | "top" | "bottom";
 export type ConnectorPortSide = RelationshipLabelSide;
@@ -70,10 +72,6 @@ export interface RelationshipLabelPlacement {
   y: number;
 }
 
-function stableCompare(left: string, right: string) {
-  return left < right ? -1 : left > right ? 1 : 0;
-}
-
 function linkKey(link: TopologyLink, index: number) {
   return [
     link.sourceId,
@@ -110,7 +108,7 @@ function slotsForEndpoint(
 function displayLabel(graph: TopologyGraph, link: TopologyLink) {
   if (graph.level === "estate" && link.count > 1) return `${link.count} links`;
   if (!link.label) return "Relationship";
-  return `${link.label.charAt(0).toUpperCase()}${link.label.slice(1)}`;
+  return capitalise(link.label);
 }
 
 export function buildLinkPresentations(graph: TopologyGraph): LinkPresentation[] {

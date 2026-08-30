@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 import type { EstateSnapshot } from "../types";
+import { ViewHeading } from "./view-chrome";
+import { useSubscriptionNames } from "../estate-lookups";
 
 interface GroupCompliance {
   name: string;
@@ -18,10 +20,10 @@ export function GovernanceView({
   requiredTags: string[];
   onOpenFindings: () => void;
 }) {
-  const subscriptionNames = useMemo(
-    () => new Map(estate.subscriptions.map((subscription) => [subscription.id, subscription.displayName])),
-    [estate.subscriptions],
-  );
+  const subscriptionNames = useSubscriptionNames(estate);
+  // Judgements the Rust side owns, so the explorer and the printed report call
+  // the same estate healthy. They used to be `60` and `/ 2` written inline here.
+  const { healthyTagCoveragePercent, flaggedNonCompliantShare } = estate.governanceThresholds;
 
   const analysis = useMemo(() => {
     const keyCounts = new Map<string, number>();
@@ -86,20 +88,18 @@ export function GovernanceView({
 
   return (
     <div className="governance-workspace">
-      <header className="view-heading">
-        <div>
-          <h1>Governance &amp; tags</h1>
-          <p>
-            {requiredTags.length > 0 ? (
-              <>
-                Required tags from azdocs.toml: <span className="mono">{requiredTags.join(" · ")}</span>
-              </>
-            ) : (
-              "No required tags are configured — coverage is reported, compliance is not enforced."
-            )}
-          </p>
-        </div>
-      </header>
+      <ViewHeading
+        title="Governance & tags"
+        description={
+          requiredTags.length > 0 ? (
+            <>
+              Required tags from azdocs.toml: <span className="mono">{requiredTags.join(" · ")}</span>
+            </>
+          ) : (
+            "No required tags are configured — coverage is reported, compliance is not enforced."
+          )
+        }
+      />
 
       <div className="stat-strip">
         <div className="stat-cell">
@@ -148,7 +148,8 @@ export function GovernanceView({
                 <div
                   style={{
                     width: `${Math.max(2, entry.percent)}%`,
-                    background: entry.percent >= 60 ? "var(--green)" : "var(--amber)",
+                    background:
+                      entry.percent >= healthyTagCoveragePercent ? "var(--green)" : "var(--amber)",
                   }}
                 />
               </div>
@@ -166,8 +167,8 @@ export function GovernanceView({
               <tr>
                 <th>Resource group</th>
                 <th>Subscription</th>
-                <th style={{ textAlign: "right" }}>Resources</th>
-                <th style={{ textAlign: "right" }}>Non-compliant</th>
+                <th className="numeric">Resources</th>
+                <th className="numeric">Non-compliant</th>
                 <th>Missed tags</th>
               </tr>
             </thead>
@@ -175,14 +176,21 @@ export function GovernanceView({
               {analysis.worstGroups.map((group) => (
                 <tr key={`${group.subscriptionName}-${group.name}`}>
                   <td>{group.name}</td>
-                  <td style={{ color: "var(--muted)" }}>{group.subscriptionName}</td>
-                  <td className="mono-cell" style={{ textAlign: "right" }}>{group.resources}</td>
-                  <td style={{ textAlign: "right", fontWeight: 600, color: group.nonCompliant > group.resources / 2 ? "var(--coral)" : "var(--ink)" }}>
+                  <td className="secondary">{group.subscriptionName}</td>
+                  <td className="mono-cell numeric">{group.resources}</td>
+                  <td
+                    className={
+                      group.resources > 0
+                        && group.nonCompliant > group.resources * flaggedNonCompliantShare
+                        ? "numeric emphatic flagged"
+                        : "numeric emphatic"
+                    }
+                  >
                     {group.nonCompliant}
                   </td>
-                  <td>
+                  <td className="missed-tags">
                     {group.missedTags.map((tag) => (
-                      <span key={tag} className="tag-chip missing" style={{ marginRight: 6 }}>
+                      <span key={tag} className="tag-chip missing">
                         {tag}
                       </span>
                     ))}
@@ -191,15 +199,15 @@ export function GovernanceView({
               ))}
               {analysis.worstGroups.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ color: "var(--green)", fontWeight: 600 }}>
+                  <td colSpan={5} className="all-clear">
                     Every resource carries all required tags.
                   </td>
                 </tr>
               ) : null}
             </tbody>
           </table>
-          <div className="fig-caption" style={{ marginTop: 8 }}>
-            Least compliant resource groups, from the <span className="mono" style={{ fontStyle: "normal" }}>missing_required_tags</span> audit rules.
+          <div className="fig-caption spaced">
+            Least compliant resource groups, from the <span className="mono upright">missing_required_tags</span> audit rules.
           </div>
         </div>
       ) : null}

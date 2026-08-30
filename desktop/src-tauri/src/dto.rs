@@ -5,9 +5,11 @@ use azdocs::report::{ReportContext, SeverityCounts};
 use azdocs::store::{SnapshotCounts, SnapshotDiff};
 use serde::Serialize;
 use serde_json::Value;
+use ts_rs::TS;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(optional_fields = nullable)]
 pub struct AppBootstrap {
     pub database_path: String,
     pub config_path: String,
@@ -20,29 +22,35 @@ pub struct AppBootstrap {
     pub latest_snapshot_id: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "QueryDefMeta", optional_fields = nullable)]
 pub struct QueryDefDto {
     pub name: String,
     pub category: String,
+    #[ts(type = "QueryKind")]
     pub kind: String,
     pub description: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "QueryRows", optional_fields = nullable)]
 pub struct QueryRowsDto {
     pub query_name: String,
     pub columns: Vec<String>,
+    #[ts(type = "Array<Record<string, unknown>>")]
     pub rows: Vec<Value>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(optional_fields = nullable)]
 pub struct SnapshotSummary {
     pub id: String,
     pub created_at: String,
     pub tenant_id: String,
+    #[ts(type = "SnapshotStatus")]
     pub status: String,
     pub notes: Option<String>,
     pub subscriptions: u64,
@@ -65,20 +73,25 @@ impl From<SnapshotCounts> for SnapshotSummary {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(optional_fields = nullable)]
 pub struct EstateSnapshot {
     pub id: String,
     pub created_at: String,
     pub tenant_id: String,
+    #[ts(type = "SnapshotStatus")]
     pub status: String,
     pub notes: Option<String>,
     pub totals: TotalsDto,
     pub tag_coverage: TagCoverageDto,
     pub severity_counts: SeverityCountsDto,
     pub azure_metadata: AzureMetadataDto,
+    pub governance_thresholds: GovernanceThresholdsDto,
     pub subscriptions: Vec<SubscriptionDto>,
     pub resource_groups: Vec<ResourceGroupDto>,
+    /// Every group the relationship map can open, synthetic ones included.
+    pub resource_group_summaries: Vec<ResourceGroupSummaryDto>,
     pub resources: Vec<ResourceDto>,
     pub resource_types: Vec<ResourceTypeDto>,
     pub locations: Vec<NameCountDto>,
@@ -88,8 +101,9 @@ pub struct EstateSnapshot {
     pub previous_diff: Option<SnapshotComparison>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "AzureMetadata", optional_fields = nullable)]
 pub struct AzureMetadataDto {
     pub locations: BTreeMap<String, String>,
     pub kinds: BTreeMap<String, String>,
@@ -104,8 +118,34 @@ impl AzureMetadataDto {
     }
 }
 
-#[derive(Debug, Serialize)]
+/// The judgements the backend applies to tag compliance, sent so the explorer
+/// and the printed report call the same estate healthy.
+///
+/// Values, not verdicts, because the desktop still computes its governance
+/// analysis in the frontend. Moving that analysis to Rust would let this carry
+/// the verdict instead — see the cleanup notes.
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "GovernanceThresholds", optional_fields = nullable)]
+pub struct GovernanceThresholdsDto {
+    /// Coverage at or above this reads as healthy.
+    pub healthy_tag_coverage_percent: u32,
+    /// A group past this share of non-compliant resources is called out.
+    pub flagged_non_compliant_share: f64,
+}
+
+impl GovernanceThresholdsDto {
+    fn build() -> Self {
+        Self {
+            healthy_tag_coverage_percent: azdocs::report::HEALTHY_TAG_COVERAGE_PERCENT,
+            flagged_non_compliant_share: azdocs::report::FLAGGED_NON_COMPLIANT_SHARE,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename = "Totals", optional_fields = nullable)]
 pub struct TotalsDto {
     pub subscriptions: usize,
     pub resource_groups: usize,
@@ -113,16 +153,18 @@ pub struct TotalsDto {
     pub findings: usize,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "TagCoverage", optional_fields = nullable)]
 pub struct TagCoverageDto {
     pub tagged: usize,
     pub untagged: usize,
     pub percent: u32,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "SeverityCounts", optional_fields = nullable)]
 pub struct SeverityCountsDto {
     pub high: usize,
     pub medium: usize,
@@ -141,12 +183,14 @@ impl From<&SeverityCounts> for SeverityCountsDto {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "Subscription", optional_fields = nullable)]
 pub struct SubscriptionDto {
     pub id: String,
     pub display_name: String,
     pub state: Option<String>,
+    #[ts(optional = nullable, type = "Record<string, unknown>")]
     pub tags: Option<Value>,
 }
 
@@ -161,13 +205,15 @@ impl From<Subscription> for SubscriptionDto {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "ResourceGroup", optional_fields = nullable)]
 pub struct ResourceGroupDto {
     pub id: String,
     pub name: String,
     pub subscription_id: String,
     pub location: Option<String>,
+    #[ts(optional = nullable, type = "Record<string, unknown>")]
     pub tags: Option<Value>,
 }
 
@@ -183,8 +229,31 @@ impl From<ResourceGroup> for ResourceGroupDto {
     }
 }
 
-#[derive(Debug, Serialize)]
+/// A resource group as the relationship map needs it: display-ready, and
+/// including groups synthesised for resources whose group row is missing.
+///
+/// This exists because the frontend was deriving exactly this — the join key,
+/// the synthetic-group rule, the subscription-name lookup — in
+/// `topology-model.ts`, in the production render path, from a second
+/// implementation that had already drifted from the Rust one.
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "ResourceGroupSummary", optional_fields = nullable)]
+pub struct ResourceGroupSummaryDto {
+    pub id: String,
+    pub name: String,
+    pub subscription_id: String,
+    /// Resolved here so the UI never has to join against the subscription list.
+    pub subscription_name: String,
+    pub resource_count: usize,
+    pub finding_count: usize,
+    /// Resource ids in this group, ordered by name then id.
+    pub resource_ids: Vec<String>,
+}
+
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename = "Resource", optional_fields = nullable)]
 pub struct ResourceDto {
     pub id: String,
     pub display_id: String,
@@ -194,9 +263,13 @@ pub struct ResourceDto {
     pub location: Option<String>,
     pub resource_group: Option<String>,
     pub subscription_id: String,
+    #[ts(optional = nullable, type = "Record<string, unknown>")]
     pub tags: Option<Value>,
+    #[ts(optional = nullable, type = "unknown")]
     pub sku: Option<Value>,
+    #[ts(optional = nullable, type = "unknown")]
     pub identity: Option<Value>,
+    #[ts(optional = nullable, type = "Record<string, unknown>")]
     pub properties: Option<Value>,
     pub finding_count: usize,
     pub edge_count: usize,
@@ -229,8 +302,9 @@ impl ResourceDto {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "ResourceType", optional_fields = nullable)]
 pub struct ResourceTypeDto {
     pub azure_type: String,
     pub display_name: String,
@@ -239,21 +313,25 @@ pub struct ResourceTypeDto {
     pub color: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "NameCount", optional_fields = nullable)]
 pub struct NameCountDto {
     pub name: String,
     pub count: usize,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "Finding", optional_fields = nullable)]
 pub struct FindingDto {
     pub query_name: String,
     pub category: String,
+    #[ts(type = "Severity")]
     pub severity: String,
     pub resource_id: Option<String>,
     pub title: String,
+    #[ts(optional = nullable, type = "unknown")]
     pub detail: Option<Value>,
 }
 
@@ -270,12 +348,15 @@ impl From<Finding> for FindingDto {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "Edge", optional_fields = nullable)]
 pub struct EdgeDto {
     pub source_id: String,
     pub target_id: String,
+    #[ts(type = "EdgeKind")]
     pub kind: String,
+    #[ts(optional = nullable, type = "unknown")]
     pub properties: Option<Value>,
 }
 
@@ -290,8 +371,9 @@ impl From<Edge> for EdgeDto {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "QueryRun", optional_fields = nullable)]
 pub struct QueryRunDto {
     pub query_name: String,
     pub category: String,
@@ -312,8 +394,9 @@ impl From<QueryRun> for QueryRunDto {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(optional_fields = nullable)]
 pub struct SnapshotComparison {
     pub base_snapshot_id: String,
     pub target_snapshot_id: String,
@@ -392,6 +475,48 @@ impl EstateSnapshot {
         };
         let severity_counts = SeverityCountsDto::from(&context.severity_counts);
 
+        // Same bucketing the relationship map uses, so the two never disagree
+        // about which groups exist or what a synthesised id looks like.
+        let subscription_names: BTreeMap<&str, &str> = subscriptions
+            .iter()
+            .map(|s| (s.subscription_id.as_str(), s.display_name.as_str()))
+            .collect();
+        let (buckets, _) = crate::groups::bucket_resources(&resource_groups, &resources, &[]);
+        let mut resource_group_summaries: Vec<ResourceGroupSummaryDto> = buckets
+            .into_iter()
+            .map(|bucket| {
+                let mut members: Vec<&Resource> = bucket.resources;
+                members.sort_by(|left, right| {
+                    left.name
+                        .cmp(&right.name)
+                        .then_with(|| left.id.cmp(&right.id))
+                });
+                ResourceGroupSummaryDto {
+                    subscription_name: subscription_names
+                        .get(bucket.subscription_id.as_str())
+                        .map(|name| (*name).to_owned())
+                        .unwrap_or_else(|| bucket.subscription_id.clone()),
+                    resource_count: members.len(),
+                    finding_count: members
+                        .iter()
+                        .map(|r| finding_counts.get(&r.id).copied().unwrap_or_default())
+                        .sum(),
+                    resource_ids: members.iter().map(|r| r.id.clone()).collect(),
+                    id: bucket.id,
+                    name: bucket.name,
+                    subscription_id: bucket.subscription_id,
+                }
+            })
+            .collect();
+        // Ordered for display: subscription, then group, then id as the
+        // deterministic tie-breaker.
+        resource_group_summaries.sort_by(|left, right| {
+            left.subscription_name
+                .cmp(&right.subscription_name)
+                .then_with(|| left.name.cmp(&right.name))
+                .then_with(|| left.id.cmp(&right.id))
+        });
+
         Self {
             id: context.snapshot_id,
             created_at: context.created_at,
@@ -402,7 +527,9 @@ impl EstateSnapshot {
             tag_coverage,
             severity_counts,
             azure_metadata: AzureMetadataDto::build(),
+            governance_thresholds: GovernanceThresholdsDto::build(),
             subscriptions: subscriptions.into_iter().map(Into::into).collect(),
+            resource_group_summaries,
             resource_groups: resource_groups.into_iter().map(Into::into).collect(),
             resources: resources
                 .into_iter()
@@ -542,15 +669,17 @@ mod tests {
     }
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "CollectRequest", optional_fields = nullable)]
 pub struct CollectRequestDto {
     pub subscriptions: Vec<String>,
     pub notes: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "CollectResult", optional_fields = nullable)]
 pub struct CollectResultDto {
     pub snapshot_id: String,
     pub status: String,
@@ -559,19 +688,30 @@ pub struct CollectResultDto {
     pub rows_ingested: u64,
 }
 
-#[derive(Clone, Debug, Serialize)]
-#[serde(tag = "event", content = "data", rename_all = "camelCase")]
+#[derive(Clone, Debug, Serialize, TS)]
+// `rename_all` on an enum renames the *variants*; the fields of a struct
+// variant need `rename_all_fields`. Without it this sent `output_count`
+// while every other DTO field was camelCase, and the UI read `undefined`.
+#[serde(
+    tag = "event",
+    content = "data",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(optional_fields = nullable)]
 pub enum CollectionEvent {
     Phase { message: String },
     Complete { snapshot_id: String },
     Failed { message: String },
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(rename = "ExportRequest", optional_fields = nullable)]
 pub struct ExportRequestDto {
     pub snapshot_id: String,
     pub destination: String,
+    #[ts(type = "ExportKind")]
     pub export_kind: String,
     pub formats: Vec<String>,
     pub theme: Option<String>,
@@ -580,17 +720,52 @@ pub struct ExportRequestDto {
     pub resource_group: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "ExportResult", optional_fields = nullable)]
 pub struct ExportResultDto {
     pub destination: String,
     pub outputs: Vec<String>,
 }
 
-#[derive(Clone, Debug, Serialize)]
-#[serde(tag = "event", content = "data", rename_all = "camelCase")]
+#[derive(Clone, Debug, Serialize, TS)]
+// `rename_all` on an enum renames the *variants*; the fields of a struct
+// variant need `rename_all_fields`. Without it this sent `output_count`
+// while every other DTO field was camelCase, and the UI read `undefined`.
+#[serde(
+    tag = "event",
+    content = "data",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(optional_fields = nullable)]
 pub enum ExportEvent {
     Phase { message: String },
     Complete { output_count: usize },
     Failed { message: String },
+}
+
+#[cfg(test)]
+mod event_wire_tests {
+    use super::{CollectionEvent, ExportEvent};
+
+    /// Struct-variant fields need `rename_all_fields`; `rename_all` alone only
+    /// renames the variants. Without it these carried snake_case payloads while
+    /// the rest of the wire format was camelCase, and the Exports workspace
+    /// rendered "Exported undefined artifacts".
+    #[test]
+    fn unit_serialises_event_payload_fields_as_camel_case_when_emitted() {
+        let export = serde_json::to_string(&ExportEvent::Complete { output_count: 5 })
+            .expect("serialise export event");
+        assert_eq!(export, r#"{"event":"complete","data":{"outputCount":5}}"#);
+
+        let collect = serde_json::to_string(&CollectionEvent::Complete {
+            snapshot_id: "abc".to_owned(),
+        })
+        .expect("serialise collection event");
+        assert_eq!(
+            collect,
+            r#"{"event":"complete","data":{"snapshotId":"abc"}}"#
+        );
+    }
 }

@@ -1,4 +1,5 @@
 import type { TopologyGraph, TopologyNode } from "../types";
+import { stableCompare } from "../ordering";
 
 export interface GraphViewport {
   width: number;
@@ -97,10 +98,6 @@ export const GRAPH_SIZE = {
 
 const clamp = (value: number, minimum: number, maximum: number) =>
   Math.min(maximum, Math.max(minimum, value));
-
-function stableCompare(left: string, right: string) {
-  return left < right ? -1 : left > right ? 1 : 0;
-}
 
 function gridPosition(
   count: number,

@@ -38,7 +38,6 @@
     "backgroundLight": "png/azdocs-background-light.png",
     "backgroundDark": "png/azdocs-background-dark.png"
   },
-  "generatedReference": "png/azdocs-mark-master-source.png",
   "concepts": {
     "options": "concepts/azdocs-options.png",
     "selectedHybrid": "concepts/azdocs-selected-hybrid.png"

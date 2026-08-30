@@ -1,0 +1,37 @@
+# Keep the knowledge graph to source and prose.
+#
+# data/icons/ is 700+ stock Microsoft Azure SVGs. They are assets, not code:
+# indexing them swamped the corpus (810 files) on the 2026-08-16 build and
+# taught the graph nothing about how azdocs works.
+data/icons/
+
+# Vendored type — glyph data, not source.
+data/fonts/
+desktop/src/assets/fonts/
+
+# Generated brand assets; the prose in docs/marks/*.md is still indexed.
+docs/marks/assets/
+docs/marks/png/
+docs/marks/concepts/
+desktop/src-tauri/icons/
+
+# Build output and dependencies (most are gitignored already; listed so a
+# rebuild is correct even when run against a dirty tree).
+target/
+output/
+desktop/dist/
+desktop/node_modules/
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+
+# Committed render of docs/reference/design.md — indexing both duplicates it.
+docs/reference/design.html
+
+# Symlink to AGENTS.md. Indexing both files the symlink resolves to creates a
+# second copy of every invariant node under a parallel `claude_*` id stem.
+CLAUDE.md
+
+# Lockfiles: large, generated, and no semantic content.
+Cargo.lock
+desktop/package-lock.json
+desktop/pnpm-lock.yaml

@@ -17,7 +17,11 @@ import {
   ZoomOut,
 } from "lucide-react";
 import type { EstateSnapshot, TopologyGraph, TopologyRequest } from "../types";
-import type { RelationshipWorkspaceState } from "../navigation-state";
+import {
+  cloneRelationshipWorkspace,
+  locationKey,
+  type RelationshipWorkspaceState,
+} from "../navigation-state";
 import { getTopology } from "../api";
 import { RESOURCE_GROUP_ICON } from "../azure-icons";
 import {
@@ -27,7 +31,6 @@ import {
   type GraphCameraMode,
   type GraphCameraRequest,
 } from "./CytoscapeResourceGraph";
-import { buildResourceGroupTopology } from "./topology-model";
 import {
   refreshFailed,
   refreshStarted,
@@ -35,18 +38,14 @@ import {
   resolveAggregateActivation,
   toggleSubscriptionLane,
 } from "./topology-view-state";
+import { errorMessage } from "../format";
+import { EmptyState } from "./view-chrome";
 
 const ALL_KIND_CLASSES = ["network", "structure", "data", "identity", "monitoring"] as const;
 
 interface TopologyError {
   message: string;
   hasPrevious: boolean;
-}
-
-function errorMessage(error: unknown) {
-  return error instanceof Error && error.message
-    ? error.message
-    : "The relationship graph could not be refreshed.";
 }
 
 export function TopologyView({
@@ -99,14 +98,19 @@ export function TopologyView({
   const requestTokenRef = useRef(0);
   const successfulControlsRef = useRef<RelationshipWorkspaceState | undefined>(undefined);
 
-  const resourceGroupTopology = useMemo(() => buildResourceGroupTopology(estate), [estate]);
-  const activeResourceGroup = resourceGroupTopology.groups.find((group) => group.id === activeResourceGroupId);
-  const selectedResourceGroupId = selected
-    ? resourceGroupTopology.resourceGroupByResourceId.get(selected.id)
-    : undefined;
-  const selectedResourceGroup = resourceGroupTopology.groups.find(
-    (group) => group.id === selectedResourceGroupId,
-  );
+  // Group membership is decided in Rust and arrives on the snapshot; deriving
+  // it again here is what let the two drift apart on synthetic-group ids.
+  const resourceGroups = estate.resourceGroupSummaries;
+  const groupByResourceId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const group of resourceGroups) {
+      for (const id of group.resourceIds) map.set(id, group.id);
+    }
+    return map;
+  }, [resourceGroups]);
+  const activeResourceGroup = resourceGroups.find((group) => group.id === activeResourceGroupId);
+  const selectedResourceGroupId = selected ? groupByResourceId.get(selected.id) : undefined;
+  const selectedResourceGroup = resourceGroups.find((group) => group.id === selectedResourceGroupId);
   const selectedNodeId = mode === "neighbourhood" ? selected?.id : undefined;
 
   function nextWorkspace(update: Partial<RelationshipWorkspaceState>) {
@@ -134,12 +138,7 @@ export function TopologyView({
   // losing spatial context.
   useEffect(() => {
     if (mode === "neighbourhood" && !selected) return;
-    const controls: RelationshipWorkspaceState = {
-      ...workspace,
-      location: { ...workspace.location },
-      excludedClasses: [...excludedClasses],
-      expandedSubscriptions: expandedSubscriptions ? [...expandedSubscriptions] : undefined,
-    };
+    const controls = cloneRelationshipWorkspace(workspace);
     const request: TopologyRequest = {
       snapshotId: estate.id,
       mode:
@@ -155,7 +154,9 @@ export function TopologyView({
           : activeResourceGroupId
             ? { kind: "group", groupId: activeResourceGroupId }
             : { kind: "estate", expandedSubscriptions: expandedSubscriptions ?? [] },
-      scope: { showUnconnected },
+      // TopologyScope is a wire type: Rust defaults every field, but the
+      // request carries them explicitly so the shape matches the DTO.
+      scope: { subscriptions: [], azureTypes: [], showUnconnected },
     };
     const token = requestTokenRef.current + 1;
     requestTokenRef.current = token;
@@ -173,7 +174,7 @@ export function TopologyView({
       })
       .catch((error: unknown) => {
         if (requestTokenRef.current !== token) return;
-        const failed = refreshFailed(Boolean(topology), errorMessage(error));
+        const failed = refreshFailed(Boolean(topology), errorMessage(error, "The relationship graph could not be refreshed."));
         setTopologyStale(failed.stale);
         setTopologyError(failed.error);
       });
@@ -194,11 +195,11 @@ export function TopologyView({
   useEffect(() => {
     if (workspace.location.kind !== "group") return;
     const groupId = workspace.location.groupId;
-    if (resourceGroupTopology.groups.some((group) => group.id === groupId)) return;
+    if (resourceGroups.some((group) => group.id === groupId)) return;
     replaceWorkspace({ location: { kind: "estate" }, expandedAggregateId: undefined });
     // The workspace callback is intentionally driven by the controlled location.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resourceGroupTopology, workspace.location]);
+  }, [resourceGroups, workspace.location]);
 
   useEffect(() => {
     const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -209,18 +210,14 @@ export function TopologyView({
   }, []);
 
   useEffect(() => {
-    const locationKey = workspace.location.kind === "estate"
-      ? "estate"
-      : workspace.location.kind === "group"
-        ? `group:${workspace.location.groupId}`
-        : `neighbourhood:${workspace.location.resourceId}`;
+    const key = locationKey(workspace.location);
     if (!lastLocationRef.current) {
-      lastLocationRef.current = locationKey;
+      lastLocationRef.current = key;
       requestCamera("core");
       return;
     }
-    if (lastLocationRef.current === locationKey) return;
-    lastLocationRef.current = locationKey;
+    if (lastLocationRef.current === key) return;
+    lastLocationRef.current = key;
     requestCamera("core");
   }, [workspace.location]);
 
@@ -228,7 +225,6 @@ export function TopologyView({
     if (!active) return;
     requestCamera("core");
     // Reopening the relationship surface must refit after the record overlay is removed.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
   const counts = topology?.counts;
@@ -243,14 +239,14 @@ export function TopologyView({
       : "Select a resource to explore its neighbourhood"
     : activeResourceGroup
       ? `${activeResourceGroup.subscriptionName} · ${activeResourceGroup.resourceCount} resources`
-      : `${resourceGroupTopology.groups.length} groups · ${estate.resources.length.toLocaleString()} resources`;
+      : `${resourceGroups.length} groups · ${estate.resources.length.toLocaleString()} resources`;
 
   function requestCamera(cameraMode: GraphCameraMode) {
     setCamera((current) => ({ mode: cameraMode, nonce: current.nonce + 1 }));
   }
 
   function openResourceGroup(id: string) {
-    const group = resourceGroupTopology.groups.find((candidate) => candidate.id === id);
+    const group = resourceGroups.find((candidate) => candidate.id === id);
     if (!group) return;
     navigateWorkspace({ location: { kind: "group", groupId: id }, expandedAggregateId: undefined });
     setHelpOpen(false);
@@ -328,14 +324,7 @@ export function TopologyView({
   function revertGraph() {
     const controls = successfulControlsRef.current;
     if (!controls) return;
-    onWorkspaceChange({
-      ...controls,
-      location: { ...controls.location },
-      excludedClasses: [...controls.excludedClasses],
-      expandedSubscriptions: controls.expandedSubscriptions
-        ? [...controls.expandedSubscriptions]
-        : undefined,
-    });
+    onWorkspaceChange(cloneRelationshipWorkspace(controls));
     setTopologyError(undefined);
     setTopologyStale(false);
     requestCamera("core");
@@ -446,9 +435,20 @@ export function TopologyView({
         {topology ? (
           <CytoscapeResourceGraph graph={topology} estate={estate} theme={theme} selectedNodeId={selectedNodeId} expandedAggregateId={expandedAggregateId} motionEnabled={active && motionEnabled && !motionReduced} camera={camera} onActivate={activateGraphItem} />
         ) : topologyError ? (
-          <div className="graph-empty-state" role="status"><AlertTriangle size={24} /><strong>No relationship graph is available</strong><span>Retry the request or return to the estate after checking the stored snapshot.</span></div>
+          <EmptyState
+            className="graph-empty-state"
+            role="status"
+            icon={<AlertTriangle size={24} />}
+            title="No relationship graph is available"
+            detail="Retry the request or return to the estate after checking the stored snapshot."
+          />
         ) : (
-          <div className="graph-empty-state" role="status"><img src={RESOURCE_GROUP_ICON} alt="" /><strong>Building the relationship graph…</strong></div>
+          <EmptyState
+            className="graph-empty-state"
+            role="status"
+            icon={<img src={RESOURCE_GROUP_ICON} alt="" />}
+            title="Building the relationship graph…"
+          />
         )}
 
         <footer className="topology-status-rail" aria-label="Relationship graph status and legend">

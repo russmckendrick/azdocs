@@ -5,7 +5,7 @@
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::model::{Edge, Finding, Resource, azure_types};
+use crate::model::{Edge, Finding, Resource, azure_types, azure_values, short_name, truncate};
 
 /// One `docs/resources/<sub>/<rg>` page.
 #[derive(Debug, Serialize)]
@@ -73,7 +73,10 @@ pub fn resource_detail(
         arm_id: resource.display_id.clone(),
         subscription_name: subscription_name.to_owned(),
         resource_group: resource.resource_group.clone(),
-        location: resource.location.clone(),
+        location: resource
+            .location
+            .as_deref()
+            .map(|value| azure_values::display_location(value).into_owned()),
         settings: settings_rows(resource),
         findings: findings
             .iter()
@@ -103,10 +106,18 @@ fn settings_rows(resource: &Resource) -> Vec<Setting> {
     }
 
     if let Some(location) = &resource.location {
-        push(&mut rows, "location", location.clone());
+        push(
+            &mut rows,
+            "location",
+            azure_values::display_location(location).into_owned(),
+        );
     }
     if let Some(kind) = &resource.kind {
-        push(&mut rows, "kind", kind.clone());
+        push(
+            &mut rows,
+            "kind",
+            azure_values::display_kind(&resource.azure_type, kind).into_owned(),
+        );
     }
     if let Some(sku) = resource
         .sku
@@ -165,15 +176,9 @@ fn settings_rows(resource: &Resource) -> Vec<Setting> {
 fn related_names(resource: &Resource, edges: &[Edge]) -> Vec<String> {
     let mut related: Vec<String> = edges
         .iter()
-        .filter(|e| e.source_id == resource.id || e.target_id == resource.id)
-        .map(|e| {
-            let other = if e.source_id == resource.id {
-                &e.target_id
-            } else {
-                &e.source_id
-            };
-            let name = other.rsplit('/').next().unwrap_or(other);
-            format!("{name} ({})", e.kind.as_str())
+        .filter_map(|edge| {
+            let other = edge.other_end(&resource.id)?;
+            Some(format!("{} ({})", short_name(other), edge.kind.as_str()))
         })
         .collect();
     related.sort();
@@ -197,15 +202,6 @@ fn humanize_key(key: &str) -> String {
         }
         previous_lower_or_digit = c.is_lowercase() || c.is_ascii_digit();
     }
-    out
-}
-
-fn truncate(value: &str, max: usize) -> String {
-    if value.chars().count() <= max {
-        return value.to_owned();
-    }
-    let mut out: String = value.chars().take(max - 1).collect();
-    out.push('…');
     out
 }
 

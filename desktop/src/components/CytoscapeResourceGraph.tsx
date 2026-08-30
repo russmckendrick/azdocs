@@ -25,6 +25,9 @@ import {
   type LabelRect,
   type LinkPresentation,
 } from "./topology-presentation";
+import { EmptyState } from "./view-chrome";
+import { useResourceTypeMap } from "../estate-lookups";
+import { errorMessage } from "../format";
 
 export type GraphMode = "neighbourhood" | "estate";
 
@@ -481,10 +484,7 @@ export function CytoscapeResourceGraph({
   const [keyboardNodeId, setKeyboardNodeId] = useState<string>();
   const [pointerTraceNodeId, setPointerTraceNodeId] = useState<string>();
   const [focusedTraceNodeId, setFocusedTraceNodeId] = useState<string>();
-  const typeMap = useMemo(
-    () => new Map(estate.resourceTypes.map((type) => [type.azureType, type])),
-    [estate.resourceTypes],
-  );
+  const typeMap = useResourceTypeMap(estate);
   const resourceMap = useMemo(
     () => new Map(estate.resources.map((resource) => [resource.id, resource])),
     [estate.resources],
@@ -639,7 +639,7 @@ export function CytoscapeResourceGraph({
       cyRef.current = cy;
       setRendererError(undefined);
     } catch (error) {
-      setRendererError(error instanceof Error ? error.message : "The relationship graph could not be initialised.");
+      setRendererError(errorMessage(error, "The relationship graph could not be initialised."));
       return;
     }
 
@@ -1047,7 +1047,7 @@ export function CytoscapeResourceGraph({
         }
       }
     } catch (error) {
-      setRendererError(error instanceof Error ? error.message : "The relationship layout could not be calculated.");
+      setRendererError(errorMessage(error, "The relationship layout could not be calculated."));
       cyRef.current = undefined;
       cy.destroy();
       return;
@@ -1118,12 +1118,12 @@ export function CytoscapeResourceGraph({
     else labelRefs.current.delete(id);
   };
 
-  function typeIcon(azureType?: string) {
+  function typeIcon(azureType?: string | null) {
     const type = azureType ? typeMap.get(azureType) : undefined;
     return type?.icon;
   }
 
-  function typeName(azureType?: string) {
+  function typeName(azureType?: string | null) {
     const type = azureType ? typeMap.get(azureType) : undefined;
     return type?.displayName ?? azureType ?? "Resource";
   }
@@ -1557,11 +1557,13 @@ export function CytoscapeResourceGraph({
       </div>
       <div className="sr-only" aria-live="polite">{selectedSummary}</div>
       {graph.nodes.length === 0 ? (
-        <div className="graph-empty-state" role="status">
-          <img src={RESOURCE_GROUP_ICON} alt="" />
-          <strong>Nothing to draw</strong>
-          <span>The current scope contains no stored resources.</span>
-        </div>
+        <EmptyState
+          className="graph-empty-state"
+          role="status"
+          icon={<img src={RESOURCE_GROUP_ICON} alt="" />}
+          title="Nothing to draw"
+          detail="The current scope contains no stored resources."
+        />
       ) : null}
       {rendererError ? (
         <div className="graph-renderer-error" role="alert" aria-live="assertive">

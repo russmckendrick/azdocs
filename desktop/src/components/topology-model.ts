@@ -1,4 +1,5 @@
-import type { Edge, EstateSnapshot, Resource, ResourceGroup } from "../types";
+import type { Edge, EdgeKind, EstateSnapshot, Resource, ResourceGroup } from "../types";
+import { stableCompare } from "../ordering";
 
 export interface ResourceTypeCount {
   azureType: string;
@@ -24,17 +25,13 @@ export interface ResourceGroupLink {
   sourceId: string;
   targetId: string;
   count: number;
-  kinds: string[];
+  kinds: EdgeKind[];
 }
 
 export interface ResourceGroupTopology {
   groups: ResourceGroupSummary[];
   links: ResourceGroupLink[];
   resourceGroupByResourceId: Map<string, string>;
-}
-
-function stableCompare(left: string, right: string) {
-  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 function groupMatchKey(subscriptionId: string, name: string) {
@@ -90,7 +87,7 @@ export function buildResourceGroupTopology(estate: EstateSnapshot): ResourceGrou
   const internalLinks = new Map<string, number>();
   const externalLinks = new Map<string, number>();
   const connectedGroups = new Map<string, Set<string>>();
-  const aggregatedLinks = new Map<string, { sourceId: string; targetId: string; count: number; kinds: Set<string> }>();
+  const aggregatedLinks = new Map<string, { sourceId: string; targetId: string; count: number; kinds: Set<EdgeKind> }>();
   for (const edge of estate.edges) {
     const sourceGroupId = resourceGroupByResourceId.get(edge.sourceId);
     const targetGroupId = resourceGroupByResourceId.get(edge.targetId);
@@ -110,7 +107,7 @@ export function buildResourceGroupTopology(estate: EstateSnapshot): ResourceGrou
       sourceId: sourceGroupId,
       targetId: targetGroupId,
       count: 0,
-      kinds: new Set<string>(),
+      kinds: new Set<EdgeKind>(),
     };
     aggregate.count += 1;
     aggregate.kinds.add(edge.kind);
@@ -135,7 +132,7 @@ export function buildResourceGroupTopology(estate: EstateSnapshot): ResourceGrou
       name: group.name,
       subscriptionId: group.subscriptionId,
       subscriptionName: subscriptionNames.get(group.subscriptionId) ?? group.subscriptionId,
-      location: group.location,
+      location: group.location ?? undefined,
       resourceIds: resources.map((resource) => resource.id),
       resourceCount: resources.length,
       findingCount: resources.reduce((total, resource) => total + resource.findingCount, 0),

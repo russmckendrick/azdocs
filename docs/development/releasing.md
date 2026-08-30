@@ -2,13 +2,26 @@
 
 ## CI
 
-`.github/workflows/ci.yml` runs on every push and PR:
+`.github/workflows/ci.yml` runs two jobs on every push and PR.
 
-- `cargo fmt --check`
+**`test`**, across ubuntu-latest, macos-latest and windows-latest:
+
+- `cargo fmt --all --check` (covers both workspace members)
 - `cargo clippy --all-targets --locked -- -D warnings`
 - `cargo test --locked`
 
-across ubuntu-latest, macos-latest, and windows-latest.
+**`desktop`**, on ubuntu-latest, after installing the Tauri system libraries:
+
+- `pnpm install --frozen-lockfile`, then `pnpm run lint`, `pnpm run typecheck`,
+  `pnpm test` and `pnpm run build`
+- `cargo clippy -p azdocs-desktop --all-targets --locked -- -D warnings`
+- `cargo test -p azdocs-desktop --locked`
+
+The frontend uses pnpm, not npm. Both jobs share one lockfile and one `target/`
+now that `desktop/src-tauri` is a workspace member.
+
+> Not yet covered: `pnpm run tauri build` is never exercised, so the packaged
+> bundle is only compiled at release time, and the desktop job is Linux-only.
 
 ## Release builds
 

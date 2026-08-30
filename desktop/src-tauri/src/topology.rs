@@ -10,9 +10,11 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
-use azdocs::model::{Edge, EdgeKind, Resource, ResourceGroup, Subscription};
+use azdocs::model::{Edge, EdgeKind, Resource, ResourceGroup, Subscription, azure_types, network};
+
+use crate::groups;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use ts_rs::TS;
 
 /// How many resource-group cards the estate view draws before whole
 /// subscriptions collapse into expandable lane bars.
@@ -20,8 +22,9 @@ const ESTATE_CARD_BUDGET: usize = 24;
 /// Same-type neighbours beyond this fold into one ×N node in a neighbourhood.
 const NEIGHBOUR_FANOUT_LIMIT: usize = 6;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(optional_fields = nullable)]
 pub struct TopologyRequest {
     pub snapshot_id: Option<String>,
     pub mode: TopologyMode,
@@ -29,8 +32,9 @@ pub struct TopologyRequest {
     pub scope: TopologyScope,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
+#[ts(optional_fields = nullable)]
 pub enum TopologyMode {
     #[serde(rename_all = "camelCase")]
     Estate {
@@ -55,8 +59,9 @@ fn default_depth() -> u32 {
     1
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(optional_fields = nullable)]
 pub struct TopologyScope {
     /// Subscription ids to include; empty means all.
     #[serde(default)]
@@ -82,9 +87,11 @@ fn default_true() -> bool {
     true
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "TopologyGraph", optional_fields = nullable)]
 pub struct TopologyGraphDto {
+    #[ts(type = "TopologyLevel")]
     pub level: String,
     pub lanes: Vec<LaneDto>,
     pub nodes: Vec<TopologyNodeDto>,
@@ -93,8 +100,9 @@ pub struct TopologyGraphDto {
     pub counts: TopologyCountsDto,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "TopologyLane", optional_fields = nullable)]
 pub struct LaneDto {
     pub subscription_id: String,
     pub name: String,
@@ -104,11 +112,13 @@ pub struct LaneDto {
     pub finding_count: usize,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "TopologyNode", optional_fields = nullable)]
 pub struct TopologyNodeDto {
     pub id: String,
     /// resource | resource-group | subscription | vnet | subnet | aggregate
+    #[ts(type = "TopologyNodeKind")]
     pub kind: String,
     pub name: String,
     pub subtitle: String,
@@ -118,6 +128,7 @@ pub struct TopologyNodeDto {
     /// Containment: a subnet's vnet, a placed resource's subnet.
     pub parent_id: Option<String>,
     /// core | unconnected — which shelf the group view lays the node in.
+    #[ts(optional = nullable, type = "TopologyZone")]
     pub zone: Option<String>,
     /// BFS distance from the subject in neighbourhood mode.
     pub hop: Option<u32>,
@@ -129,25 +140,29 @@ pub struct TopologyNodeDto {
     pub group_id: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "TopologyLink", optional_fields = nullable)]
 pub struct TopologyLinkDto {
     pub source_id: String,
     pub target_id: String,
     pub label: String,
+    #[ts(type = "KindClass")]
     pub kind_class: String,
     pub count: usize,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "KindClassCount", optional_fields = nullable)]
 pub struct KindClassCountDto {
     pub class: String,
     pub count: usize,
 }
 
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Default, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "TopologyCounts", optional_fields = nullable)]
 pub struct TopologyCountsDto {
     /// Resources (or groups, at estate level) in scope.
     pub total: usize,
@@ -263,71 +278,38 @@ struct GroupSummary<'a> {
     external_links: usize,
 }
 
-fn group_key(subscription_id: &str, group_name: &str) -> String {
-    format!(
-        "{}\0{}",
-        subscription_id.to_lowercase(),
-        group_name.to_lowercase()
-    )
-}
-
 fn collect_groups<'a>(
     input: &TopologyInput<'a>,
     scoped: &ScopedResources<'a>,
     scope: &TopologyScope,
 ) -> (Vec<GroupSummary<'a>>, HashMap<String, usize>) {
-    let scope_subscriptions: HashSet<&str> =
-        scope.subscriptions.iter().map(|s| s.as_str()).collect();
-    let mut order: Vec<GroupSummary> = Vec::new();
-    let mut index_by_key: HashMap<String, usize> = HashMap::new();
-    for group in input.resource_groups {
-        if !scope_subscriptions.is_empty()
-            && !scope_subscriptions.contains(group.subscription_id.as_str())
-        {
-            continue;
-        }
-        let key = group_key(&group.subscription_id, &group.name);
-        if index_by_key.contains_key(&key) {
-            continue;
-        }
-        index_by_key.insert(key, order.len());
-        order.push(GroupSummary {
-            id: group.id.clone(),
-            name: group.name.clone(),
-            subscription_id: group.subscription_id.clone(),
-            resources: Vec::new(),
-            finding_count: 0,
-            external_links: 0,
-        });
-    }
-    let mut group_by_resource: HashMap<String, usize> = HashMap::new();
-    for resource in &scoped.resources {
-        let name = resource
-            .resource_group
-            .clone()
-            .unwrap_or_else(|| "subscription scope".to_owned());
-        let key = group_key(&resource.subscription_id, &name);
-        let index = *index_by_key.entry(key).or_insert_with(|| {
-            order.push(GroupSummary {
-                id: format!(
-                    "/subscriptions/{}/resourcegroups/{}",
-                    resource.subscription_id.to_lowercase(),
-                    name.to_lowercase()
-                ),
-                name,
-                subscription_id: resource.subscription_id.clone(),
-                resources: Vec::new(),
-                finding_count: 0,
+    // Bucketing (including synthesising a group for resources whose row is
+    // missing) lives in `groups`, shared with the snapshot DTO so the explorer
+    // and the relationship map never disagree about what groups exist.
+    let (buckets, group_by_resource) = groups::bucket_resources(
+        input.resource_groups,
+        scoped.resources.iter().copied(),
+        &scope.subscriptions,
+    );
+    let summaries = buckets
+        .into_iter()
+        .map(|bucket| {
+            let finding_count = bucket
+                .resources
+                .iter()
+                .map(|resource| finding_count(input, &resource.id))
+                .sum();
+            GroupSummary {
+                id: bucket.id,
+                name: bucket.name,
+                subscription_id: bucket.subscription_id,
+                resources: bucket.resources,
+                finding_count,
                 external_links: 0,
-            });
-            order.len() - 1
-        });
-        group_by_resource.insert(resource.id.clone(), index);
-        let summary = &mut order[index];
-        summary.finding_count += finding_count(input, &resource.id);
-        summary.resources.push(resource);
-    }
-    (order, group_by_resource)
+            }
+        })
+        .collect();
+    (summaries, group_by_resource)
 }
 
 fn estate_graph(
@@ -580,10 +562,12 @@ fn group_graph(
         ) else {
             continue;
         };
-        let folds = matches!(
-            source.azure_type.as_str(),
-            "microsoft.network/networkinterfaces" | "microsoft.compute/disks"
-        ) && target.azure_type == "microsoft.compute/virtualmachines"
+        // `azure_types::FOLDS_INTO_VM` is shared with the print diagrams, which
+        // fold the same attachments (`is_represented_by_vm` in
+        // src/diagram/graph.rs). They disagreed about disks until it was one
+        // list.
+        let folds = azure_types::folds_into_vm(&source.azure_type)
+            && target.azure_type == "microsoft.compute/virtualmachines"
             || is_child_of(source, target);
         if folds {
             folded_into.insert(source.id.as_str(), target.id.as_str());
@@ -613,20 +597,13 @@ fn group_graph(
     {
         drawn += 1;
         let vnet_node = format!("vnet:{}", vnet.id);
-        let prefix = vnet
-            .properties
-            .as_ref()
-            .and_then(|p| p.get("addressSpace"))
-            .and_then(|s| s.get("addressPrefixes"))
-            .and_then(Value::as_array)
-            .and_then(|prefixes| prefixes.first())
-            .and_then(Value::as_str)
-            .unwrap_or_default();
+        let prefixes = network::vnet_address_prefixes(vnet);
+        let prefix = prefixes.first().cloned().unwrap_or_default();
         nodes.push(TopologyNodeDto {
             id: vnet_node.clone(),
             kind: "vnet".to_owned(),
             name: vnet.name.clone(),
-            subtitle: prefix.to_owned(),
+            subtitle: prefix,
             azure_type: Some(vnet.azure_type.clone()),
             lane: None,
             parent_id: None,
@@ -638,36 +615,14 @@ fn group_graph(
             resource_id: Some(vnet.id.clone()),
             group_id: None,
         });
-        for subnet in vnet
-            .properties
-            .as_ref()
-            .and_then(|p| p.get("subnets"))
-            .and_then(Value::as_array)
-            .into_iter()
-            .flatten()
-        {
-            let Some(subnet_id) = subnet.get("id").and_then(Value::as_str) else {
-                continue;
-            };
-            let subnet_id = subnet_id.to_lowercase();
-            let name = subnet
-                .get("name")
-                .and_then(Value::as_str)
-                .or_else(|| subnet_id.rsplit('/').next())
-                .unwrap_or("subnet")
-                .to_owned();
-            let prefix = subnet
-                .get("properties")
-                .and_then(|p| p.get("addressPrefix"))
-                .and_then(Value::as_str)
-                .unwrap_or_default();
-            let node_id = format!("subnet:{subnet_id}");
-            subnet_parent.insert(subnet_id, node_id.clone());
+        for subnet in network::vnet_subnets(vnet) {
+            let node_id = format!("subnet:{}", subnet.id);
+            subnet_parent.insert(subnet.id, node_id.clone());
             nodes.push(TopologyNodeDto {
                 id: node_id,
                 kind: "subnet".to_owned(),
-                name,
-                subtitle: prefix.to_owned(),
+                name: subnet.name,
+                subtitle: subnet.address_prefix.unwrap_or_default(),
                 azure_type: None,
                 lane: None,
                 parent_id: Some(vnet_node.clone()),
@@ -805,7 +760,7 @@ fn group_graph(
         nodes.push(TopologyNodeDto {
             id: format!("aggregate:{group_id}:{azure_type}"),
             kind: "aggregate".to_owned(),
-            name: (*azure_type).to_owned(),
+            name: azure_types::display_name(azure_type).to_owned(),
             subtitle: format!("×{}", members.len()),
             azure_type: Some((*azure_type).to_owned()),
             lane: None,
@@ -875,7 +830,7 @@ fn group_graph(
             nodes.push(TopologyNodeDto {
                 id: stub_id,
                 kind: "external".to_owned(),
-                name: (*azure_type).to_owned(),
+                name: azure_types::display_name(azure_type).to_owned(),
                 subtitle: format!("×{} in other groups", members.len()),
                 azure_type: Some((*azure_type).to_owned()),
                 lane: None,
@@ -989,7 +944,7 @@ fn group_graph(
 }
 
 fn is_child_of(child: &Resource, parent: &Resource) -> bool {
-    child.azure_type.matches('/').count() >= 2 && child.id.starts_with(parent.id.as_str())
+    azure_types::is_child_type(&child.azure_type) && child.id.starts_with(parent.id.as_str())
 }
 
 // ---------------------------------------------------------------------------
@@ -1091,7 +1046,7 @@ fn neighbourhood_graph(
             nodes.push(TopologyNodeDto {
                 id,
                 kind: "aggregate".to_owned(),
-                name: (*azure_type).to_owned(),
+                name: azure_types::display_name(azure_type).to_owned(),
                 subtitle: format!("×{}", members.len()),
                 azure_type: Some((*azure_type).to_owned()),
                 lane: None,
@@ -1437,6 +1392,39 @@ mod tests {
             .expect("6 unconnected storage accounts aggregate into one tile");
         assert_eq!(aggregate.count, 6);
         assert_eq!(aggregate.member_ids.len(), 6);
+    }
+
+    #[test]
+    fn aggregate_tiles_use_the_friendly_type_name_when_labelled() {
+        let (subs, groups, resources, edges) = large_estate();
+        let findings = BTreeMap::new();
+        let request = TopologyRequest {
+            snapshot_id: None,
+            mode: TopologyMode::Group {
+                group_id: "/subscriptions/sub-00/resourcegroups/rg-00-00".to_owned(),
+            },
+            scope: TopologyScope::default(),
+        };
+
+        let graph = build(
+            &request,
+            &input(&subs, &groups, &resources, &edges, &findings),
+        );
+
+        let aggregate = graph
+            .nodes
+            .iter()
+            .find(|node| node.kind == "aggregate")
+            .expect("the unconnected storage accounts aggregate into one tile");
+        // The tile used to be labelled with the raw ARM type, so the desktop
+        // read "microsoft.storage/storageaccounts" where every CLI diagram read
+        // "Storage Account" for the same resources.
+        assert_eq!(aggregate.name, "Storage Account");
+        assert_eq!(
+            aggregate.azure_type.as_deref(),
+            Some("microsoft.storage/storageaccounts"),
+            "the machine-readable type stays on the DTO for filtering and icons"
+        );
     }
 
     #[test]

@@ -1,6 +1,10 @@
+// Codegen for desktop/src/generated.ts; only ever exercised by `cargo test`.
+#[cfg(test)]
+mod bindings;
 mod commands;
 mod dto;
 mod error;
+mod groups;
 pub mod topology;
 
 use std::path::PathBuf;

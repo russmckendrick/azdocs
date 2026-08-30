@@ -158,7 +158,7 @@ Virtual Machine" style="image;aspect=fixed;html=1;points=[];align=center;fontSiz
 Private Endpoint" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=10;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;image=img/lib/azure2/networking/Private_Link.svg;" parent="s4-n2" vertex="1">
           <mxGeometry x="424.5" y="40" width="64" height="64" as="geometry"/>
         </mxCell>
-        <mxCell id="s4-n5" value="Not in a virtual network  ·  …" style="swimlane;html=1;startSize=30;rounded=1;arcSize=6;fillColor=#FDF6EC;strokeColor=#D97706;fontSize=12;fontStyle=1;verticalAlign=top;horizontal=1;collapsible=0;" parent="s4-n0" vertex="1">
+        <mxCell id="s4-n5" value="Not in a virtual network  ·  5 resources  ·  1 nested" style="swimlane;html=1;startSize=30;rounded=1;arcSize=6;fillColor=#FDF6EC;strokeColor=#D97706;fontSize=12;fontStyle=1;verticalAlign=top;horizontal=1;collapsible=0;" parent="s4-n0" vertex="1">
           <mxGeometry x="18" y="284" width="644" height="300" as="geometry"/>
         </mxCell>
         <mxCell id="s4-n6" value="AVD Host Pool
@@ -177,18 +177,11 @@ sql-prod" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=10;la
 stprodapp01" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=10;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;image=img/lib/azure2/storage/Storage_Accounts.svg;" parent="s4-n5" vertex="1">
           <mxGeometry x="79.3" y="176" width="64" height="64" as="geometry"/>
         </mxCell>
-        <mxCell id="s4-n10" value="Managed Disk
-vm-app-01-os" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=10;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;image=img/lib/azure2/compute/Disks.svg;" parent="s4-n5" vertex="1">
+        <mxCell id="s4-n10" value="Public IP Address
+vm-app-01-pip" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=10;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;image=img/lib/azure2/networking/Public_IP_Addresses.svg;" parent="s4-n5" vertex="1">
           <mxGeometry x="290" y="176" width="64" height="64" as="geometry"/>
         </mxCell>
-        <mxCell id="s4-n11" value="Public IP Address
-vm-app-01-pip" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=10;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;image=img/lib/azure2/networking/Public_IP_Addresses.svg;" parent="s4-n5" vertex="1">
-          <mxGeometry x="500.7" y="176" width="64" height="64" as="geometry"/>
-        </mxCell>
-        <mxCell id="s4-e0" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=none;strokeColor=#605E5C;" parent="s4-1" source="s4-n10" target="s4-n3" edge="1">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <mxCell id="s4-e1" value="private link" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;dashPattern=1 3;endArrow=open;strokeColor=#8A8886;fontSize=10;" parent="s4-1" source="s4-n4" target="s4-n8" edge="1">
+        <mxCell id="s4-e0" value="private link" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;dashPattern=1 3;endArrow=open;strokeColor=#8A8886;fontSize=10;" parent="s4-1" source="s4-n4" target="s4-n8" edge="1">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
       </root>
@@ -202,7 +195,7 @@ vm-app-01-pip" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=
         <mxCell id="s5-n0" value="rg-dev" style="swimlane;html=1;startSize=30;rounded=1;arcSize=6;fillColor=#F3F2F1;strokeColor=#8A8886;fontSize=12;fontStyle=1;verticalAlign=top;horizontal=1;collapsible=0;" parent="s5-1" vertex="1">
           <mxGeometry x="0" y="0" width="680" height="230" as="geometry"/>
         </mxCell>
-        <mxCell id="s5-n1" value="Not in a virtual network  ·  …" style="swimlane;html=1;startSize=30;rounded=1;arcSize=6;fillColor=#FDF6EC;strokeColor=#D97706;fontSize=12;fontStyle=1;verticalAlign=top;horizontal=1;collapsible=0;" parent="s5-n0" vertex="1">
+        <mxCell id="s5-n1" value="Not in a virtual network  ·  3 resources" style="swimlane;html=1;startSize=30;rounded=1;arcSize=6;fillColor=#FDF6EC;strokeColor=#D97706;fontSize=12;fontStyle=1;verticalAlign=top;horizontal=1;collapsible=0;" parent="s5-n0" vertex="1">
           <mxGeometry x="18" y="44" width="644" height="168" as="geometry"/>
         </mxCell>
         <mxCell id="s5-n2" value="App Service Plan
@@ -240,7 +233,7 @@ web-dev" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=10;lab
 10.0.1.0/24" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#8A8886;verticalAlign=middle;fontSize=12;" parent="s6-n1" vertex="1">
           <mxGeometry x="332" y="40" width="296" height="31" as="geometry"/>
         </mxCell>
-        <mxCell id="s6-n4" value="Not in a virtual network  ·  …" style="swimlane;html=1;startSize=30;rounded=1;arcSize=6;fillColor=#FDF6EC;strokeColor=#D97706;fontSize=12;fontStyle=1;verticalAlign=top;horizontal=1;collapsible=0;" parent="s6-n0" vertex="1">
+        <mxCell id="s6-n4" value="Not in a virtual network  ·  2 resources" style="swimlane;html=1;startSize=30;rounded=1;arcSize=6;fillColor=#FDF6EC;strokeColor=#D97706;fontSize=12;fontStyle=1;verticalAlign=top;horizontal=1;collapsible=0;" parent="s6-n0" vertex="1">
           <mxGeometry x="18" y="153" width="644" height="168" as="geometry"/>
         </mxCell>
         <mxCell id="s6-n5" value="Network Security Group

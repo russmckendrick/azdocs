@@ -1,6 +1,11 @@
 use std::path::PathBuf;
 
 use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
+
+// The arg enums below are part of this crate's public API — the desktop builds
+// `ReportArgs`/`DiagramArgs` from them — so the trait needed to parse one from
+// a string is re-exported rather than making every consumer depend on clap.
+pub use clap::ValueEnum as ArgValue;
 use clap_complete::Shell;
 
 /// Audit and document an Azure estate using Azure Resource Graph.
@@ -225,6 +230,55 @@ pub enum DiagramFormat {
     Both,
     /// Every applicable format
     All,
+}
+
+impl DiagramType {
+    /// The name this type is spelled with on the command line.
+    ///
+    /// Delegates to clap rather than repeating the kebab-case table, so a path
+    /// built from this can never name something `azdocs diagram --type` would
+    /// reject. The desktop builds export paths from it too.
+    pub fn slug(self) -> String {
+        self.to_possible_value()
+            // Statically infallible: no variant is `#[value(skip)]`.
+            .expect("every DiagramType variant is a clap possible value")
+            .get_name()
+            .to_owned()
+    }
+}
+
+impl DiagramType {
+    /// Why this type cannot be rendered in `format`, if it cannot.
+    ///
+    /// Only the workbook restricts anything. Callers decide the policy — the
+    /// CLI skips Mermaid with a note when you asked for `all` but errors when
+    /// you named it, the desktop always errors because its formats are ticked
+    /// explicitly — but the rule and its explanation live here so the two
+    /// cannot tell the user different things.
+    pub fn unsupported_reason(self, format: DiagramFormat) -> Option<&'static str> {
+        (self == Self::Workbook && format == DiagramFormat::Mermaid).then_some(
+            "the workbook is a multi-sheet draw.io file and Mermaid has no sheet \
+             concept — use drawio, or svg/png for per-sheet rasters",
+        )
+    }
+}
+
+impl DiagramFormat {
+    /// File extension for a single-format render.
+    ///
+    /// `None` for `Both`/`All`, which name a set rather than a format and must
+    /// go through [`expand_formats`](crate::commands::diagram::expand_formats)
+    /// first. This cannot come from clap: Mermaid is spelled `mermaid` on the
+    /// command line but writes `.mmd`.
+    pub fn extension(self) -> Option<&'static str> {
+        Some(match self {
+            Self::Drawio => "drawio",
+            Self::Mermaid => "mmd",
+            Self::Svg => "svg",
+            Self::Png => "png",
+            Self::Both | Self::All => return None,
+        })
+    }
 }
 
 #[derive(Debug, Subcommand)]

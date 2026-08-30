@@ -1,3 +1,5 @@
+import { capitalise, preciseDateTime, resourceName } from "../format";
+
 type DataRecord = Record<string, unknown>;
 
 type FlatField = {
@@ -79,7 +81,7 @@ function humanizeKey(key: string) {
   const [first, ...rest] = words;
   const leading = ACRONYMS.has(first.toLowerCase())
     ? first
-    : `${first.charAt(0).toUpperCase()}${first.slice(1)}`;
+    : capitalise(first);
   return [leading, ...rest].join(" ");
 }
 
@@ -95,14 +97,6 @@ function looksLikeIdentifier(path: string[], value: string) {
   return IDENTIFIER_KEY.test(path.map(humanizeKey).join(" ")) || IDENTIFIER_VALUE.test(value);
 }
 
-function formatDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.valueOf())) return undefined;
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "medium",
-  }).format(date);
-}
 
 function ScalarValue({ path = [], value }: { path?: string[]; value: unknown }) {
   if (value === undefined || value === null) {
@@ -126,7 +120,7 @@ function ScalarValue({ path = [], value }: { path?: string[]; value: unknown }) 
   if (text.length === 0) return <span className="adaptive-value empty">Empty string</span>;
 
   if (ISO_DATE.test(text)) {
-    const formatted = formatDate(text);
+    const formatted = preciseDateTime(text);
     if (formatted) {
       return (
         <span className="adaptive-date">
@@ -248,7 +242,7 @@ function sequenceTitle(value: unknown, index: number) {
     for (const key of ["displayName", "name", "label", "id", "type"]) {
       const candidate = value[key];
       if (typeof candidate === "string" && candidate.length > 0) {
-        if (key === "id" && candidate.includes("/")) return candidate.split("/").filter(Boolean).at(-1) ?? candidate;
+        if (key === "id" && candidate.includes("/")) return resourceName(candidate);
         return candidate;
       }
     }

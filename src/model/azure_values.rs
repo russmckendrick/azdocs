@@ -94,7 +94,9 @@ fn humanize_identifier(value: &str) -> String {
             .copied();
         let next = characters.get(index + 1).copied();
 
-        if matches!(current, '_' | '-') {
+        // Whitespace collapses like a separator so a run of them, or a space
+        // sitting before a comma, cannot survive into the output.
+        if matches!(current, '_' | '-') || current.is_whitespace() {
             if !output.ends_with(' ') && !output.is_empty() {
                 output.push(' ');
             }
@@ -155,5 +157,25 @@ mod tests {
             display_kind("microsoft.custom/widgets", "SQLDatabaseV2"),
             "SQL Database V2"
         );
+    }
+
+    #[test]
+    fn unit_maps_comma_separated_kind_when_displaying_a_web_app() {
+        // `app,linux` is what ARG returns for a Linux App Service, and it is
+        // the shape the report now prints.
+        assert_eq!(
+            display_kind("microsoft.web/sites", "app,linux"),
+            "App, Linux"
+        );
+    }
+
+    #[test]
+    fn unit_collapses_whitespace_around_a_comma_when_humanising() {
+        // Whitespace used to survive next to a comma and produce a double
+        // space; it also has to match the TypeScript humaniser, which the
+        // desktop still uses. See desktop/src/azure-values.ts.
+        assert_eq!(humanize_identifier("app , linux"), "app, linux");
+        assert_eq!(humanize_identifier("  padded  "), "padded");
+        assert_eq!(humanize_identifier("a,b"), "a, b");
     }
 }

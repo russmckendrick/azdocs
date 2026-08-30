@@ -7,7 +7,7 @@ expression: content
 [← index](../../index.md) · [subscription: Production](../../subscriptions/production.md)
 
 - **Subscription**: Production
-- **Location**: uksouth
+- **Location**: UK South
 - **Resources**: 11
 
 
@@ -19,7 +19,7 @@ expression: content
 
 | Setting | Value |
 |---|---|
-| Location | uksouth |
+| Location | UK South |
 | Disk Size GB | 64 |
 | Disk State | Attached |
 
@@ -34,7 +34,7 @@ expression: content
 
 | Setting | Value |
 |---|---|
-| Location | uksouth |
+| Location | UK South |
 | Tags | env=prod |
 
 **Related**: vm-app-01-nic (attached_to) · vm-app-01-os (attached_to)
@@ -48,7 +48,7 @@ expression: content
 
 | Setting | Value |
 |---|---|
-| Location | uksouth |
+| Location | UK South |
 | Tags | env=prod |
 | Host Pool Type | Pooled |
 | Load Balancer Type | BreadthFirst |
@@ -65,7 +65,7 @@ expression: content
 
 | Setting | Value |
 |---|---|
-| Location | uksouth |
+| Location | UK South |
 
 **Related**: app (nic_in_subnet) · vm-app-01 (attached_to) · vm-app-01-pip (attached_to)
 
@@ -79,7 +79,7 @@ expression: content
 
 | Setting | Value |
 |---|---|
-| Location | uksouth |
+| Location | UK South |
 
 **Related**: app (nic_in_subnet) · sql-prod (private_endpoint_for)
 
@@ -93,7 +93,7 @@ expression: content
 
 | Setting | Value |
 |---|---|
-| Location | uksouth |
+| Location | UK South |
 | Ip Address | 20.0.0.10 |
 
 **Related**: vm-app-01-nic (attached_to)
@@ -107,7 +107,7 @@ expression: content
 
 | Setting | Value |
 |---|---|
-| Location | uksouth |
+| Location | UK South |
 | Tags | env=prod |
 
 **Related**: app (subnet_of) · vnet-hub (peered_with)
@@ -121,7 +121,7 @@ expression: content
 
 | Setting | Value |
 |---|---|
-| Location | uksouth |
+| Location | UK South |
 | Tags | env=prod |
 | Retention In Days | 30 |
 
@@ -135,7 +135,7 @@ expression: content
 
 | Setting | Value |
 |---|---|
-| Location | uksouth |
+| Location | UK South |
 | Tags | env=prod |
 | Public Network Access | Disabled |
 | Version | 12.0 |
@@ -151,7 +151,7 @@ expression: content
 
 | Setting | Value |
 |---|---|
-| Location | uksouth |
+| Location | UK South |
 | Tags | env=prod |
 | Status | Online |
 | Current Service Objective Name | S0 |
@@ -169,8 +169,8 @@ expression: content
 
 | Setting | Value |
 |---|---|
-| Location | uksouth |
-| Kind | StorageV2 |
+| Location | UK South |
+| Kind | Storage V2 |
 | Allow Blob Public Access | true |
 | Supports Https Traffic Only | true |
 

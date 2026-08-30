@@ -18,8 +18,7 @@ import {
   Tags,
 } from "lucide-react";
 import { chooseDatabase, collectEstate, getBootstrap, getSnapshot, isTauri } from "./api";
-import { ALL_RESOURCES_ICON } from "./azure-icons";
-import { displayLocation } from "./azure-values";
+import { resourceIcon } from "./azure-icons";
 import {
   initialNavigationState,
   navigationReducer,
@@ -43,6 +42,8 @@ import type {
   ThemePreference,
   ViewId,
 } from "./types";
+import { dayMonthTime, errorMessage } from "./format";
+import { matchesResourceSearch, useResourceTypeMap } from "./estate-lookups";
 
 const TopologyView = lazy(() =>
   import("./components/TopologyView").then((module) => ({ default: module.TopologyView })),
@@ -72,19 +73,6 @@ function readThemePreference(): ThemePreference {
   } catch {
     return "system";
   }
-}
-
-function compactDate(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
-
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
 }
 
 function frameLabel(frame: NavigationFrame | undefined, estate?: EstateSnapshot) {
@@ -216,22 +204,12 @@ export default function App() {
       ? estate?.resources.find((resource) => resource.id === location.resourceId)
       : undefined;
   }, [estate, navigation.relationships.location]);
-  const resourceTypeMap = useMemo(
-    () => new Map(estate?.resourceTypes.map((type) => [type.azureType, type]) ?? []),
-    [estate],
-  );
+  const resourceTypeMap = useResourceTypeMap(estate);
   const searchMatches = useMemo(() => {
     const value = search.trim().toLowerCase();
     if (!estate || !value) return [];
     return estate.resources
-      .filter((resource) => [
-        resource.name,
-        resource.azureType,
-        resource.resourceGroup,
-        resource.location,
-        displayLocation(estate.azureMetadata, resource.location),
-        JSON.stringify(resource.tags ?? {}),
-      ].some((candidate) => candidate?.toLowerCase().includes(value)))
+      .filter((resource) => matchesResourceSearch(resource, value, estate.azureMetadata))
       .slice(0, 8);
   }, [estate, search]);
   const shortcutLabel = navigator.platform.toLowerCase().includes("mac") ? "⌘ K" : "Ctrl K";
@@ -346,7 +324,7 @@ export default function App() {
           >
             {bootstrap?.snapshots.map((snapshot) => (
               <option key={snapshot.id} value={snapshot.id}>
-                {compactDate(snapshot.createdAt)} · {snapshot.resources} resources
+                {dayMonthTime(snapshot.createdAt)} · {snapshot.resources} resources
               </option>
             ))}
           </select>
@@ -387,7 +365,7 @@ export default function App() {
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => chooseSearchResult(index)}
                   >
-                    <img src={type?.icon ?? ALL_RESOURCES_ICON} alt="" />
+                    <img src={resourceIcon(type)} alt="" />
                     <span><strong>{resource.name}</strong><small>{type?.displayName ?? resource.azureType} · {resource.resourceGroup}</small></span>
                   </button>
                 );

@@ -34,7 +34,7 @@
 | Location | Count |
 |---|---:|
 {%- for lc in location_counts %}
-| {{ lc.name | md_escape }} | {{ lc.count }} |
+| {{ lc.display | md_escape }} | {{ lc.count }} |
 {%- endfor %}
 
 ## Sections
