@@ -23,7 +23,7 @@ outputs.
 
 ## The PDF and DOCX
 
-Both consume the same internal `PrintDocument` and the same
+Both consume the same internal `PrintDocument` and the same Field Report
 [theme](../reference/themes.md), so they are one document in two containers.
 Content, order, heading levels, table labels and values, captions, icons and
 diagram selection are composed once:
@@ -76,22 +76,16 @@ cannot repeat table headers with the DOCX library used here and approximates a
 full-bleed block cover inside the printable page area. Those native constraints
 do not change the report's content or hierarchy.
 
-## Themes
+## Document design
 
-`[branding] theme` picks the look. Override it for one export with, for
-example, `azdocs report --format all --theme editorial`. All formats pick up the
-[`[branding]` config](configuration.md#branding) — company name, title,
-colours, logo and footer — and the theme derives its palette from your two
-brand colours.
+Every styled export ships in the same **Field Report** language as the desktop:
+paper and ink, serif-led headings, hairline tables, quiet evidence fills, and
+colour reserved for branding and signals. `[branding]` still supplies the
+company name, title, brand colour, logo and footer.
 
-| Theme | Look |
-|---|---|
-| `fluent` | Azure-native: colour band cover, filled table headers, zebra rows |
-| `editorial` | Consultancy report: centred cover, chapter divider pages, hairline tables |
-| `dashboard` | Modern tech: colour block cover, tinted KPI cards, banded tables |
-
-Themes are TOML files, not code — write your own with
-[reference/themes.md](../reference/themes.md).
+`field-report` is the only built-in theme. Themes remain TOML data so an
+organisation can supply a custom document system, or select it for one CLI run
+with `--theme <name>`. See [reference/themes.md](../reference/themes.md).
 
 ## The docs tree
 

@@ -231,8 +231,6 @@ export const mockBootstrap: AppBootstrap = {
   configFound: true,
   hasCredentials: true,
   requiredTags: ["env", "owner"],
-  reportTheme: "dashboard",
-  reportThemes: ["dashboard", "editorial", "fluent"],
   latestSnapshotId: "a7f21f53-2026",
   snapshots: [
     { id: "a7f21f53-2026", createdAt: "2026-08-23T09:42:00Z", tenantId: "tenant-golden", status: "complete", notes: "Weekly estate review", subscriptions: 2, resources: 15, findings: 4 },

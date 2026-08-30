@@ -95,12 +95,11 @@ pnpm run tauri build
   resource-scoped result back to its resource properties.
 - **Snapshots** shows collection history, query health, and added, changed, or
   removed resource IDs compared with the preceding snapshot.
-- **Exports** generates the same offline artifacts as the CLI from the active
-  snapshot. Select one or more report formats (Markdown, HTML, CSV, XLSX, PDF,
-  or DOCX) with any installed report theme, or render a hierarchy, resource,
-  network, per-VNet, per-resource-group, or Draw.io workbook diagram. Diagram
-  exports support Draw.io, Mermaid, SVG, and PNG where the composition allows
-  them, with optional subscription and resource-group scope.
+- **Exports** generates four outcome-led artifacts from the active snapshot:
+  the print-ready PDF Field Report, an editable Word Report, the Excel Data
+  Workbook, or the Draw.io Diagram Workbook. The app deliberately omits format
+  matrices and theme choice; HTML, CSV, Markdown, scoped diagrams, Mermaid,
+  SVG and PNG remain available to CLI and automation users.
 
 The global search shortcut is `Cmd+K` on macOS or `Ctrl+K` on Windows and
 Linux. Every resource pane and navigation action is keyboard reachable.

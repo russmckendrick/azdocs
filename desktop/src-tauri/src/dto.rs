@@ -16,8 +16,6 @@ pub struct AppBootstrap {
     pub config_found: bool,
     pub has_credentials: bool,
     pub required_tags: Vec<String>,
-    pub report_theme: String,
-    pub report_themes: Vec<String>,
     pub snapshots: Vec<SnapshotSummary>,
     pub latest_snapshot_id: Option<String>,
 }
@@ -790,7 +788,6 @@ pub struct ExportRequestDto {
     #[ts(type = "ExportKind")]
     pub export_kind: String,
     pub formats: Vec<String>,
-    pub theme: Option<String>,
     pub diagram_type: Option<String>,
     pub subscription_id: Option<String>,
     pub resource_group: Option<String>,

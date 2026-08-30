@@ -8,11 +8,13 @@ theme is a new TOML file, never new Rust.
 ```toml
 # azdocs.toml
 [branding]
-theme = "dashboard"
+theme = "field-report"
 ```
 
-`dashboard` is the default when `theme` is omitted. Set another built-in or
-custom theme explicitly to override it.
+`field-report` is the default when `theme` is omitted and the only theme
+shipped with azdocs. It carries the desktop's Field Report language into every
+styled export. Set a custom theme explicitly when an organisation needs its
+own document system.
 
 Built-in themes live in `data/themes/` and are embedded in the binary. Drop
 files into `<config dir>/azdocs/themes/` to add your own or replace a built-in
@@ -22,9 +24,7 @@ that lists the names that do exist.
 
 | Theme | Look |
 |---|---|
-| `fluent` | Azure-native. Colour band cover, filled table headers, zebra rows. |
-| `editorial` | Consultancy audit report. Centred cover, chapter divider pages, hairline tables. |
-| `dashboard` | Modern tech. Colour block cover, tinted KPI cards, banded tables. |
+| `field-report` | Paper and ink, serif-led hierarchy, hairline tables, quiet evidence fills, and colour reserved for identity and signals. |
 
 Themes drive the PDF, DOCX, HTML report, docs site and XLSX. The Markdown and
 CSV outputs are deliberately unstyled.
@@ -79,10 +79,12 @@ text = "#a4262c"
 fill = "#f8cecc"
 
 [typography]
-sans      = "IBM Plex Sans"   # PDF + HTML; must be loadable (see Fonts below)
-mono      = "IBM Plex Mono"
-docx_sans = "Aptos"           # Word resolves by name on the reader's machine
-docx_mono = "Aptos Mono"
+serif      = "IBM Plex Serif" # display face for covers, headings and figures
+sans       = "IBM Plex Sans"  # working face for PDF + HTML (see Fonts below)
+mono       = "IBM Plex Mono"
+docx_serif = "Georgia"        # Word resolves these on the reader's machine
+docx_sans  = "Aptos"
+docx_mono  = "Aptos Mono"
 base_pt = 11.0
 small_pt = 9.0
 table_pt = 9.0
@@ -97,17 +99,17 @@ stat_label_pt = 9.0
 line_height = 1.45
 
 [layout]
-cover = "band"            # band | editorial | block
-table = "solid-header"    # solid-header | hairline | banded
-stat  = "card"            # card | outline | bare
-heading_numbering = true
+cover = "editorial"       # band | editorial | block
+table = "hairline"        # solid-header | hairline | banded
+stat  = "bare"            # card | outline | bare
+heading_numbering = false
 divider_pages = false     # a full page before each chapter
 running_header = true
-zebra_rows = true
+zebra_rows = false
 rule_pt = 0.5
-radius_pt = 4.0
-table_inset_pt = 5.5
-cover_band_pt = 96.0
+radius_pt = 3.0
+table_inset_pt = 6.0
+cover_band_pt = 0.0
 ```
 
 ### Layout strategies
@@ -129,9 +131,9 @@ implements all of the variants; a theme picks one.
 
 ## Fonts
 
-The PDF sets its own type: `typst-assets` ships no proportional sans, so
-[IBM Plex](https://github.com/IBM/plex) Sans and Mono are vendored in
-`data/fonts/` under the SIL Open Font License 1.1.
+The PDF sets its own type: [IBM Plex](https://github.com/IBM/plex) Serif, Sans
+and Mono are bundled under the SIL Open Font License 1.1. Serif provides the
+Field Report's display hierarchy; Sans and Mono remain the working faces.
 
 To use a different typeface in the PDF, point `[branding] font_dir` at a
 directory of `.ttf`/`.otf` files and name the family:
@@ -145,11 +147,11 @@ mono_family = "Acme Mono"
 
 **DOCX is different.** OOXML names a font and resolves it on the reader's
 machine, and azdocs cannot embed fonts into a `.docx`, so naming a typeface
-nobody has installed lands back at a Word default. The shipped themes
-therefore set `docx_sans = "Aptos"` and `docx_mono = "Aptos Mono"`, the current
-Microsoft 365 document families on Windows and macOS. Older Office installs
-substitute their configured document defaults. If your organisation deploys
-its own typeface, override those two keys in a user theme.
+nobody has installed lands back at a Word default. The shipped theme uses
+`docx_serif = "Georgia"`, `docx_sans = "Aptos"`, and
+`docx_mono = "Aptos Mono"`. Older Office installs substitute their configured
+document defaults. If your organisation deploys its own typeface, override
+those three keys in a user theme.
 
 ## Native renderer differences
 
@@ -157,8 +159,8 @@ PDF and DOCX receive the same semantic `PrintDocument`, including heading
 numbering intent, divider chapters, running headers, captions and severity
 roles. Their layout engines still have unavoidable differences:
 
-- Typst embeds the configured fonts; Word resolves `docx_sans` and
-  `docx_mono` locally and may reflow the document after editing.
+- Typst embeds the configured fonts; Word resolves `docx_serif`, `docx_sans`
+  and `docx_mono` locally and may reflow the document after editing.
 - The PDF block cover can fill the physical sheet. DOCX represents the same
   strategy as a reversed colour block over the printable area because Word
   does not expose a true full-bleed page background here.
@@ -173,7 +175,7 @@ roles. Their layout engines still have unavoidable differences:
 Copy a built-in as a starting point, edit, and select it:
 
 ```bash
-mkdir -p ~/.config/azdocs/themes && cp data/themes/fluent.toml ~/.config/azdocs/themes/acme.toml
+mkdir -p ~/.config/azdocs/themes && cp data/themes/field-report.toml ~/.config/azdocs/themes/acme.toml
 ```
 
 ```toml

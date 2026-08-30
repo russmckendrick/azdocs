@@ -183,21 +183,21 @@ fn pdf_renders_every_theme_byte_identically_across_runs() {
     }
 }
 
-/// Themes must change layout, not just colour, or they are only a palette.
 #[test]
-fn pdf_themes_produce_different_documents() {
+fn pdf_divider_page_strategy_changes_document_layout() {
     let (report, diagrams) = seeded();
+    let field_report = BrandingContext::default();
+    let mut divided = field_report.clone();
+    divided.tokens.layout.divider_pages = true;
 
-    let fluent = render_locked(&report, &themed("fluent"), &diagrams);
-    let editorial = render_locked(&report, &themed("editorial"), &diagrams);
+    let compact = render_locked(&report, &field_report, &diagrams);
+    let with_dividers = render_locked(&report, &divided, &diagrams);
 
-    // Editorial adds divider pages, so it is the longer document.
-    let (fluent_pages, _) = extract_all_text(&fluent);
-    let (editorial_pages, _) = extract_all_text(&editorial);
+    let (compact_pages, _) = extract_all_text(&compact);
+    let (divider_pages, _) = extract_all_text(&with_dividers);
     assert!(
-        editorial_pages > fluent_pages,
-        "editorial divider pages should lengthen the document \
-         ({editorial_pages} vs {fluent_pages})"
+        divider_pages > compact_pages,
+        "divider pages should lengthen the document ({divider_pages} vs {compact_pages})"
     );
 }
 

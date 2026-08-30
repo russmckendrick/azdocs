@@ -21,7 +21,7 @@ use color::{ColorVars, Rgb};
 static BUILTIN_THEMES: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/data/themes");
 
 /// The theme used when `[branding] theme` is unset.
-pub const DEFAULT_THEME: &str = "dashboard";
+pub const DEFAULT_THEME: &str = "field-report";
 
 /// `<platform config dir>/azdocs/themes`, the drop-in directory for user
 /// themes (same pattern as `querypack::loader::user_queries_dir`).
@@ -85,12 +85,15 @@ pub struct SeverityColors {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Typography {
-    /// Family used by the PDF and HTML; must be loadable by the PDF font book
-    /// (vendored in `data/fonts/` or supplied via `[branding] font_dir`).
+    /// Display family used by covers, headings and prominent figures.
+    pub serif: String,
+    /// Working families used by the PDF and HTML; they must be loadable by the
+    /// PDF font book (vendored or supplied via `[branding] font_dir`).
     pub sans: String,
     pub mono: String,
     /// DOCX resolves fonts by name on the reader's machine and cannot embed
     /// them, so these default to families that ship with Office everywhere.
+    pub docx_serif: String,
     pub docx_sans: String,
     pub docx_mono: String,
     pub base_pt: f32,
@@ -166,19 +169,19 @@ pub enum StatStyle {
 impl Default for Palette {
     fn default() -> Self {
         Self {
-            primary: "$primary".to_owned(),
-            primary_dark: "darken($primary, 0.15)".to_owned(),
-            primary_tint: "lighten($primary, 0.88)".to_owned(),
-            accent: "$accent".to_owned(),
-            accent_tint: "lighten($accent, 0.85)".to_owned(),
-            on_primary: "readable_on($primary)".to_owned(),
-            band: "$primary".to_owned(),
-            on_band: "readable_on($primary)".to_owned(),
-            ink: "#1a1a2e".to_owned(),
-            muted: "#6a6a75".to_owned(),
-            rule: "#d8d8e0".to_owned(),
-            surface: "#ffffff".to_owned(),
-            zebra: "lighten($primary, 0.95)".to_owned(),
+            primary: "#1c2430".to_owned(),
+            primary_dark: "#14181d".to_owned(),
+            primary_tint: "#f3efe7".to_owned(),
+            accent: "$primary".to_owned(),
+            accent_tint: "lighten($primary, 0.9)".to_owned(),
+            on_primary: "#faf8f4".to_owned(),
+            band: "#1c2430".to_owned(),
+            on_band: "#faf8f4".to_owned(),
+            ink: "#1c2430".to_owned(),
+            muted: "#5a6470".to_owned(),
+            rule: "#d8d2c6".to_owned(),
+            surface: "#faf8f4".to_owned(),
+            zebra: "#f3efe7".to_owned(),
             severity: Severity::default(),
         }
     }
@@ -187,10 +190,10 @@ impl Default for Palette {
 impl Default for Severity {
     fn default() -> Self {
         Self {
-            high: SeverityColors::new("#a4262c", "#f8cecc"),
-            medium: SeverityColors::new("#8a5300", "#ffe6cc"),
-            low: SeverityColors::new("#6f5b00", "#fff2cc"),
-            info: SeverityColors::new("#1f4e79", "#dae8fc"),
+            high: SeverityColors::new("#a83a22", "#f5e4df"),
+            medium: SeverityColors::new("#8a6d00", "#f3edd1"),
+            low: SeverityColors::new("#5a6470", "#f3efe7"),
+            info: SeverityColors::new("$primary", "lighten($primary, 0.9)"),
         }
     }
 }
@@ -226,8 +229,10 @@ impl Severity {
 impl Default for Typography {
     fn default() -> Self {
         Self {
+            serif: "IBM Plex Serif".to_owned(),
             sans: "IBM Plex Sans".to_owned(),
             mono: "IBM Plex Mono".to_owned(),
+            docx_serif: "Georgia".to_owned(),
             docx_sans: "Aptos".to_owned(),
             docx_mono: "Aptos Mono".to_owned(),
             base_pt: 11.0,
@@ -249,17 +254,17 @@ impl Default for Typography {
 impl Default for Layout {
     fn default() -> Self {
         Self {
-            cover: CoverStyle::Band,
-            table: TableStyle::SolidHeader,
-            stat: StatStyle::Card,
-            heading_numbering: true,
+            cover: CoverStyle::Editorial,
+            table: TableStyle::Hairline,
+            stat: StatStyle::Bare,
+            heading_numbering: false,
             divider_pages: false,
             running_header: true,
-            zebra_rows: true,
+            zebra_rows: false,
             rule_pt: 0.5,
-            radius_pt: 4.0,
-            table_inset_pt: 5.5,
-            cover_band_pt: 96.0,
+            radius_pt: 3.0,
+            table_inset_pt: 6.0,
+            cover_band_pt: 0.0,
         }
     }
 }
@@ -478,6 +483,13 @@ mod tests {
     }
 
     #[test]
+    fn unit_builtin_pack_contains_only_the_field_report() {
+        let pack = ThemePack::builtin().unwrap();
+
+        assert_eq!(pack.names(), vec![DEFAULT_THEME]);
+    }
+
+    #[test]
     fn unit_builtin_themes_keep_print_type_readable() {
         let pack = ThemePack::builtin().unwrap();
 
@@ -502,24 +514,24 @@ mod tests {
     }
 
     #[test]
-    fn unit_resolve_derives_palette_from_branding_colors() {
+    fn unit_resolve_reserves_branding_color_for_the_accent_role() {
         let spec = ThemeSpec::default();
 
-        let tokens = spec.resolve("fluent", "#204060", "#80a0c0").unwrap();
+        let tokens = spec.resolve(DEFAULT_THEME, "#204060", "#80a0c0").unwrap();
 
-        assert_eq!(tokens.palette.primary, "#204060");
-        assert_eq!(tokens.palette.accent, "#80a0c0");
-        // on_primary must invert for a dark brand colour.
-        assert_eq!(tokens.palette.on_primary, "#ffffff");
+        assert_eq!(tokens.palette.primary, "#1c2430");
+        assert_eq!(tokens.palette.accent, "#204060");
+        assert_eq!(tokens.palette.on_primary, "#faf8f4");
     }
 
     #[test]
-    fn unit_resolve_keeps_headers_legible_for_a_pale_brand_color() {
+    fn unit_resolve_keeps_a_pale_brand_color_out_of_document_chrome() {
         let tokens = ThemeSpec::default()
-            .resolve("fluent", "#ffe066", "#4da3e8")
+            .resolve(DEFAULT_THEME, "#ffe066", "#4da3e8")
             .unwrap();
 
-        assert_eq!(tokens.palette.on_primary, "#111111");
+        assert_eq!(tokens.palette.primary, "#1c2430");
+        assert_eq!(tokens.palette.accent, "#ffe066");
     }
 
     #[test]
@@ -548,7 +560,7 @@ mod tests {
     fn unit_merge_dir_replaces_builtin_theme_by_file_stem() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(
-            dir.path().join("fluent.toml"),
+            dir.path().join("field-report.toml"),
             "description = \"local override\"\n[layout]\ncover = \"editorial\"\n",
         )
         .unwrap();
@@ -556,7 +568,7 @@ mod tests {
 
         pack.merge_dir(dir.path()).unwrap();
 
-        let spec = pack.get("fluent").unwrap();
+        let spec = pack.get(DEFAULT_THEME).unwrap();
         assert_eq!(spec.description, "local override");
         assert_eq!(spec.layout.cover, CoverStyle::Editorial);
     }

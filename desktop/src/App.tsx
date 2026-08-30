@@ -513,7 +513,7 @@ export default function App() {
                 />
               ) : null}
               {view === "exports" && bootstrap && !selectedResource ? (
-                <ExportsView bootstrap={bootstrap} estate={estate} />
+                <ExportsView estate={estate} />
               ) : null}
               {selectedResource ? (
                 <div className={view === "topology" ? "resource-record-overlay" : "resource-record-surface"}>

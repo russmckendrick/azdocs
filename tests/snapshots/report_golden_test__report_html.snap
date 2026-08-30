@@ -10,39 +10,45 @@ expression: "std::fs::read_to_string(&out).unwrap()"
 <style>
 /* Every colour and face below comes from the resolved theme
    (src/report/theme.rs), so the HTML matches the PDF and DOCX. */
-:root { --bg:#ffffff; --fg:#14141f;
-        --muted:#6c6c78; --border:#e2e2ea;
-        --accent:#0078d4; --accent-dark:#005494;
-        --tint:#e6f2fb; --zebra:#f7f7fa;
-        --on-accent:#ffffff;
-        --high:#ffffff; --high-fill:#c0392b;
-        --medium:#ffffff; --medium-fill:#d17b0f;
-        --low:#3d3200; --low-fill:#f2cf4a;
-        --info:#111111; --info-fill:#4da3e8;
-        --radius:6.0px; }
+:root { --bg:#faf8f4; --fg:#1c2430;
+        --muted:#5a6470; --border:#d8d2c6;
+        --primary:#1c2430; --accent:#0078d4;
+        --accent-dark:#14181d;
+        --tint:#f3efe7; --zebra:#f3efe7;
+        --on-accent:#faf8f4;
+        --high:#a83a22; --high-fill:#f5e4df;
+        --medium:#8a6d00; --medium-fill:#f3edd1;
+        --low:#5a6470; --low-fill:#f3efe7;
+        --info:#0078d4; --info-fill:#e6f2fb;
+        --radius:3.0px; }
 @media (prefers-color-scheme: dark) {
-  :root { --bg:#16161d; --fg:#e8e8ef; --muted:#9a9aa5; --border:#3a3a45; --zebra:#1c1c25;
-          --tint:#1e2430; --accent:#4da3e8; }
+  :root { --bg:#14181d; --fg:#e9e4da; --muted:#9a958a; --border:#3a4048; --zebra:#10141a;
+          --tint:#10141a; --accent:#4da3e8; }
 }
 /* The vendored PDF face first; an uninstalled IBM Plex falls through to the
    platform stack rather than forcing a web-font download. */
-body { font: 15px/1.45 "IBM Plex Sans", -apple-system, "Segoe UI", Roboto, sans-serif;
+body { font: 15px/1.5 "IBM Plex Sans", -apple-system, "Segoe UI", Roboto, sans-serif;
        background: var(--bg); color: var(--fg); max-width: 1100px; margin: 0 auto; padding: 2rem 1rem; }
-h1,h2,h3 { line-height: 1.2; } h2 { border-bottom: 1px solid var(--border); padding-bottom: .3rem; margin-top: 2.5rem; }
+h1,h2,h3 { font-family: "IBM Plex Serif", Georgia, serif; line-height: 1.2; }
+h2 { border-bottom: 1px solid var(--border); padding-bottom: .3rem; margin-top: 2.5rem; }
 table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 14px; }
 th, td { text-align: left; padding: .35rem .6rem; border-bottom: 1px solid var(--border); vertical-align: top; }
-th { position: sticky; top: 0; background: var(--tint); }
-tbody tr:nth-child(even) { background: var(--zebra); }
-code { background: rgba(127,127,127,.12); padding: .1em .3em; border-radius: 3px; font-size: 90%; word-break: break-all; }
+th { position: sticky; top: 0;
+     background: transparent;
+     color: var(--fg); }
+code { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+       background: var(--tint); padding: .1em .3em; border-radius: 3px; font-size: 90%; word-break: break-all; }
 .badge { display: inline-block; padding: .05em .55em; border-radius: 999px; font-size: 12px; font-weight: 600; text-transform: uppercase; }
 .badge.high { background: var(--high-fill); color: var(--high); }
 .badge.medium { background: var(--medium-fill); color: var(--medium); }
 .badge.low { background: var(--low-fill); color: var(--low); }
 .badge.info { background: var(--info-fill); color: var(--info); }
 .stats { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
-.stat { background: var(--tint); border-top: 2px solid var(--accent);
+.stat {
         border-radius: var(--radius); padding: .8rem 1.2rem; min-width: 8rem; }
-.stat b { display: block; font-size: 1.6rem; color: var(--accent-dark); } .stat span { color: var(--muted); font-size: 13px; }
+.stat b { display: block; font-family: "IBM Plex Serif", Georgia, serif;
+          font-size: 1.6rem; color: var(--accent-dark); }
+.stat span { color: var(--muted); font-size: 13px; }
 .meta { color: var(--muted); font-size: 13px; }
 input.filter { width: 100%; max-width: 24rem; padding: .4rem .6rem; margin: .3rem 0;
        border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); }

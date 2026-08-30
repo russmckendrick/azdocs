@@ -1,10 +1,10 @@
 use std::path::Path;
 
 use anyhow::Context;
-use rust_xlsxwriter::{Color, Format, Workbook, Worksheet};
+use rust_xlsxwriter::{Color, Format, FormatBorder, Workbook, Worksheet};
 
 use super::branding::BrandingContext;
-use super::theme::ThemeTokens;
+use super::theme::{TableStyle, ThemeTokens};
 use super::{ReportContext, cell_to_string};
 use crate::model::Resource;
 
@@ -17,11 +17,21 @@ fn color(hex: &str) -> Color {
 
 /// Header format from the theme, matching the PDF and DOCX table headers.
 fn header_format(tokens: &ThemeTokens) -> Format {
-    Format::new()
+    let format = Format::new()
         .set_bold()
-        .set_font_name(&tokens.typography.docx_sans)
-        .set_background_color(color(&tokens.palette.primary))
-        .set_font_color(color(&tokens.palette.on_primary))
+        .set_font_name(&tokens.typography.docx_sans);
+    match tokens.layout.table {
+        TableStyle::SolidHeader => format
+            .set_background_color(color(&tokens.palette.primary))
+            .set_font_color(color(&tokens.palette.on_primary)),
+        TableStyle::Banded => format
+            .set_background_color(color(&tokens.palette.primary_tint))
+            .set_font_color(color(&tokens.palette.ink)),
+        TableStyle::Hairline => format
+            .set_font_color(color(&tokens.palette.ink))
+            .set_border_bottom(FormatBorder::Thin)
+            .set_border_bottom_color(color(&tokens.palette.rule)),
+    }
 }
 
 /// One workbook: Summary, Inventory (autofilter), Findings (severity colors),
@@ -87,7 +97,7 @@ fn summary_sheet(
     let title = Format::new()
         .set_bold()
         .set_font_size(16)
-        .set_font_name(&tokens.typography.docx_sans)
+        .set_font_name(&tokens.typography.docx_serif)
         .set_font_color(color(&tokens.palette.primary));
     let subtitle = Format::new()
         .set_font_name(&tokens.typography.docx_sans)
@@ -174,9 +184,12 @@ fn inventory_sheet(
     }
     sheet.autofilter(0, 0, resources.len() as u32, (columns.len() - 1) as u16)?;
     sheet.set_freeze_panes(1, 0)?;
-    sheet.set_column_width(0, 32)?;
-    sheet.set_column_width(1, 36)?;
-    sheet.set_column_width(7, 60)?;
+    for (column, width) in [24.0, 42.0, 18.0, 14.0, 24.0, 20.0, 28.0, 64.0]
+        .into_iter()
+        .enumerate()
+    {
+        sheet.set_column_width(column as u16, width)?;
+    }
     Ok(())
 }
 
@@ -225,8 +238,9 @@ fn findings_sheet(
     }
     sheet.autofilter(0, 0, report.findings.len() as u32, 4)?;
     sheet.set_freeze_panes(1, 0)?;
-    sheet.set_column_width(3, 60)?;
-    sheet.set_column_width(4, 60)?;
+    for (column, width) in [12.0, 16.0, 34.0, 60.0, 64.0].into_iter().enumerate() {
+        sheet.set_column_width(column as u16, width)?;
+    }
     Ok(())
 }
 
@@ -346,20 +360,47 @@ fn category_sheet(
     header: &Format,
 ) -> anyhow::Result<()> {
     let mut row: u32 = 0;
+    let column_count = category
+        .queries
+        .iter()
+        .map(|query| query.columns.len())
+        .max()
+        .unwrap_or_default();
+    let mut widths = vec![0usize; column_count];
     for query in &category.queries {
         sheet.write_with_format(row, 0, &query.name, header)?;
+        if let Some(width) = widths.first_mut() {
+            *width = (*width).max(display_width(&query.name));
+        }
         row += 1;
         for (col, name) in query.columns.iter().enumerate() {
             sheet.write_with_format(row, col as u16, name.as_str(), header)?;
+            widths[col] = widths[col].max(display_width(name));
         }
         row += 1;
         for data_row in &query.rows {
             for (col, name) in query.columns.iter().enumerate() {
-                sheet.write(row, col as u16, cell_to_string(data_row.get(name)))?;
+                let value = cell_to_string(data_row.get(name));
+                widths[col] = widths[col].max(display_width(&value));
+                sheet.write(row, col as u16, value)?;
             }
             row += 1;
         }
         row += 1;
     }
+    for (column, width) in widths.into_iter().enumerate() {
+        // IDs and JSON can be hundreds of characters. Give them a useful
+        // inspection width without letting one value make the sheet unwieldy.
+        let bounded = (width + 2).clamp(12, 48) as f64;
+        sheet.set_column_width(column as u16, bounded)?;
+    }
     Ok(())
+}
+
+fn display_width(value: &str) -> usize {
+    value
+        .lines()
+        .map(|line| line.chars().count())
+        .max()
+        .unwrap_or_default()
 }

@@ -100,6 +100,11 @@ pub struct Ctx<'a> {
 }
 
 impl<'a> Ctx<'a> {
+    pub fn serif(&self) -> RunFonts {
+        let family = &self.tokens.typography.docx_serif;
+        RunFonts::new().ascii(family).hi_ansi(family).cs(family)
+    }
+
     pub fn sans(&self) -> RunFonts {
         let family = &self.tokens.typography.docx_sans;
         RunFonts::new().ascii(family).hi_ansi(family).cs(family)
@@ -217,7 +222,7 @@ fn heading_styles(docx: Docx, tokens: &ThemeTokens) -> Docx {
     let mut docx = docx;
     for (index, (size, color)) in sizes.iter().zip(colors).enumerate() {
         let level = index + 1;
-        let family = &typography.docx_sans;
+        let family = &typography.docx_serif;
         docx = docx.add_style(
             Style::new(format!("Heading{level}"), StyleType::Paragraph)
                 .name(format!("Heading {level}"))
@@ -698,7 +703,7 @@ pub fn resource_index(ctx: &Ctx, items: &[ResourceIndexItem<'_>]) -> Vec<Paragra
                         .size(half_points(ctx.tokens.typography.base_pt))
                         .bold()
                         .color(hex(&ctx.tokens.palette.ink))
-                        .fonts(ctx.sans()),
+                        .fonts(ctx.serif()),
                 );
             if !context.is_empty() {
                 paragraph = paragraph.add_run(
@@ -770,7 +775,7 @@ pub fn stat_row(ctx: &Ctx, stats: &[(String, String)]) -> Vec<Paragraph> {
                         .size(half_points(ctx.tokens.typography.stat_value_pt))
                         .bold()
                         .color(hex(&ctx.tokens.palette.primary_dark))
-                        .fonts(ctx.sans()),
+                        .fonts(ctx.serif()),
                 )
                 .add_run(Run::new().add_break(docx_rs::BreakType::TextWrapping))
                 .add_run(

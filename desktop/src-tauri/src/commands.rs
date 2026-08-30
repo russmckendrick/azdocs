@@ -8,7 +8,6 @@ use azdocs::collect::CollectRequest;
 use azdocs::config::{Config, default_config_path};
 use azdocs::querypack::{QueryKind, QueryPack};
 use azdocs::report::ReportContext;
-use azdocs::report::theme::ThemePack;
 use azdocs::store::Store;
 use tauri::State;
 use tauri::ipc::Channel;
@@ -50,16 +49,6 @@ fn bootstrap_for(path: &Path) -> Result<AppBootstrap, AppError> {
     let (config, source) =
         Config::load_with_source(None).map_err(|error| AppError::Config(error.to_string()))?;
     let has_credentials = config.credentials().is_ok();
-    let theme_pack = match ThemePack::load() {
-        Ok(pack) => pack,
-        Err(_) => ThemePack::builtin().map_err(|error| AppError::Config(error.to_string()))?,
-    };
-    let mut report_themes: Vec<String> =
-        theme_pack.names().into_iter().map(str::to_owned).collect();
-    if !report_themes.contains(&config.branding.theme) {
-        report_themes.push(config.branding.theme.clone());
-        report_themes.sort();
-    }
     let config_path = source
         .clone()
         .unwrap_or_else(default_config_path)
@@ -72,8 +61,6 @@ fn bootstrap_for(path: &Path) -> Result<AppBootstrap, AppError> {
         config_found: source.is_some(),
         has_credentials,
         required_tags: config.audit.required_tags.clone(),
-        report_theme: config.branding.theme,
-        report_themes,
         snapshots,
         latest_snapshot_id,
     })
@@ -358,7 +345,7 @@ fn export_reports(
     let args = ReportArgs {
         snapshot: request.snapshot_id,
         format: formats[0],
-        theme: request.theme,
+        theme: None,
         out: Some(destination.to_path_buf()),
     };
     azdocs::commands::report::run_selected_with_outputs(&config, config_dir, store, &args, &formats)

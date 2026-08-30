@@ -340,11 +340,11 @@ mod tests {
 
     #[test]
     fn report_parses_theme_override() {
-        let cli = Cli::parse_from(["azdocs", "report", "--theme", "editorial"]);
+        let cli = Cli::parse_from(["azdocs", "report", "--theme", "field-report"]);
         let Command::Report(args) = cli.command else {
             panic!("expected report subcommand");
         };
 
-        assert_eq!(args.theme.as_deref(), Some("editorial"));
+        assert_eq!(args.theme.as_deref(), Some("field-report"));
     }
 }

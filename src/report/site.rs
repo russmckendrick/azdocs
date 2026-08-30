@@ -16,15 +16,15 @@ use crate::diagram::assets::{DiagramAsset, DiagramAssetKind};
 /// site is the same design system as the PDF and DOCX rather than a look-alike.
 const STYLE: &str = r#"
 :root { --bg:{surface}; --fg:{ink}; --muted:{muted}; --border:{rule};
-        --accent:{primary}; --tint:{tint}; --zebra:{zebra}; --on-accent:{on_primary};
+        --primary:{primary}; --accent:{accent}; --tint:{tint}; --zebra:{zebra}; --on-accent:{on_primary};
         --high:{high}; --high-fill:{high_fill}; --radius:{radius}px; }
 @media (prefers-color-scheme: dark) {
-  :root { --bg:#16161d; --fg:#e8e8ef; --muted:#9a9aa5; --border:#3a3a45;
-          --tint:#1e2430; --zebra:#1c1c25; --accent:{accent_dark}; }
+  :root { --bg:#14181d; --fg:#e9e4da; --muted:#9a958a; --border:#3a4048;
+          --tint:#10141a; --zebra:#10141a; --accent:{accent_dark}; }
 }
 body { font: 15px/{line_height} "{sans}", -apple-system, "Segoe UI", Roboto, sans-serif;
        background: var(--bg); color: var(--fg); max-width: 1050px; margin: 0 auto; padding: 2rem 1rem; }
-h1,h2,h3 { line-height: 1.2; } h1,h2 { color: var(--accent); }
+h1,h2,h3 { font-family: "{serif}", Georgia, serif; line-height: 1.2; }
 h2 { border-bottom: 1px solid var(--border); padding-bottom: .3rem; margin-top: 2.2rem; }
 a { color: var(--accent); }
 table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 14px; display: block; overflow-x: auto; }
@@ -68,6 +68,7 @@ fn style(branding: &BrandingContext) -> String {
         .replace("{muted}", &palette.muted)
         .replace("{rule}", &palette.rule)
         .replace("{primary}", &palette.primary)
+        .replace("{accent}", &palette.accent)
         .replace("{tint}", &palette.primary_tint)
         .replace("{zebra}", zebra)
         .replace("{on_primary}", &palette.on_primary)
@@ -76,6 +77,7 @@ fn style(branding: &BrandingContext) -> String {
         .replace("{radius}", &tokens.layout.radius_pt.to_string())
         .replace("{line_height}", &tokens.typography.line_height.to_string())
         .replace("{sans}", &tokens.typography.sans)
+        .replace("{serif}", &tokens.typography.serif)
         .replace("{mono}", &tokens.typography.mono)
         .replace("{accent_dark}", &branding.accent_color)
         + &format!(":root {{ --th-bg:{th_bg}; --th-fg:{th_fg}; }}\n")

@@ -6,8 +6,8 @@
 //! Every visual decision comes from the resolved theme, so the DOCX and the
 //! PDF are the same document in two containers. Two things they cannot share:
 //! Word resolves fonts by name on the reader's machine (hence the separate
-//! `docx_sans`/`docx_mono` theme keys), and docx-rs 0.4 cannot repeat a table
-//! header across a page break.
+//! `docx_serif`/`docx_sans`/`docx_mono` theme keys), and docx-rs 0.4 cannot
+//! repeat a table header across a page break.
 
 mod sections;
 mod style;

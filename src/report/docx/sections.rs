@@ -240,13 +240,7 @@ fn cover_title(ctx: &Ctx, cover: &Cover<'_>, align: AlignmentType, reversed: boo
         .line_spacing(LineSpacing::new().before(160).after(240))
         .add_run(
             Run::new()
-                .add_text(
-                    if matches!(ctx.tokens.layout.cover, CoverStyle::Editorial) {
-                        cover.title.to_uppercase()
-                    } else {
-                        cover.title.to_string()
-                    },
-                )
+                .add_text(cover.title.as_ref())
                 .size(half_points(ctx.tokens.typography.title_pt))
                 .bold()
                 .color(hex(if reversed {
@@ -254,7 +248,7 @@ fn cover_title(ctx: &Ctx, cover: &Cover<'_>, align: AlignmentType, reversed: boo
                 } else {
                     &ctx.tokens.palette.primary
                 }))
-                .fonts(ctx.sans()),
+                .fonts(ctx.serif()),
         )
 }
 

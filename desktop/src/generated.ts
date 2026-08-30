@@ -16,7 +16,7 @@ import type {
   TopologyZone,
 } from "./api-types";
 
-export type AppBootstrap = { databasePath: string, configPath: string, configFound: boolean, hasCredentials: boolean, requiredTags: Array<string>, reportTheme: string, reportThemes: Array<string>, snapshots: Array<SnapshotSummary>, latestSnapshotId?: string | null, };
+export type AppBootstrap = { databasePath: string, configPath: string, configFound: boolean, hasCredentials: boolean, requiredTags: Array<string>, snapshots: Array<SnapshotSummary>, latestSnapshotId?: string | null, };
 
 export type SnapshotSummary = { id: string, createdAt: string, tenantId: string, status: SnapshotStatus, notes?: string | null, subscriptions: number, resources: number, findings: number, };
 
@@ -202,7 +202,7 @@ export type CollectResult = { snapshotId: string, status: string, queriesRun: nu
 
 export type CollectionEvent = { "event": "phase", "data": { message: string, } } | { "event": "complete", "data": { snapshotId: string, } } | { "event": "failed", "data": { message: string, } };
 
-export type ExportRequest = { snapshotId: string, destination: string, exportKind: ExportKind, formats: Array<string>, theme?: string | null, diagramType?: string | null, subscriptionId?: string | null, resourceGroup?: string | null, };
+export type ExportRequest = { snapshotId: string, destination: string, exportKind: ExportKind, formats: Array<string>, diagramType?: string | null, subscriptionId?: string | null, resourceGroup?: string | null, };
 
 export type ExportResult = { destination: string, outputs: Array<string>, };
 

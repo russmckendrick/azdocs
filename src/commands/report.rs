@@ -171,12 +171,12 @@ mod tests {
     #[test]
     fn unit_resolve_branding_prefers_cli_theme_when_present() {
         let config = BrandingConfig {
-            theme: "fluent".to_owned(),
+            theme: "missing-theme".to_owned(),
             ..BrandingConfig::default()
         };
 
-        let branding = resolve_branding(&config, None, Some("editorial")).unwrap();
+        let branding = resolve_branding(&config, None, Some("field-report")).unwrap();
 
-        assert_eq!(branding.tokens.name, "editorial");
+        assert_eq!(branding.tokens.name, "field-report");
     }
 }

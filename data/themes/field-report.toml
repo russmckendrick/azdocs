@@ -1,0 +1,69 @@
+# The Field Report: the desktop design language carried into every styled
+# export. Paper, ink and hairline rules form the document chrome; the brand
+# colour is reserved for links and informational signals.
+
+description = "Field Report: paper, ink, serif hierarchy and evidence-led colour."
+
+[palette]
+primary = "#1c2430"
+primary_dark = "#14181d"
+primary_tint = "#f3efe7"
+accent = "$primary"
+accent_tint = "lighten($primary, 0.9)"
+on_primary = "#faf8f4"
+band = "#1c2430"
+on_band = "#faf8f4"
+ink = "#1c2430"
+muted = "#5a6470"
+rule = "#d8d2c6"
+surface = "#faf8f4"
+zebra = "#f3efe7"
+
+[palette.severity.high]
+text = "#a83a22"
+fill = "#f5e4df"
+
+[palette.severity.medium]
+text = "#8a6d00"
+fill = "#f3edd1"
+
+[palette.severity.low]
+text = "#5a6470"
+fill = "#f3efe7"
+
+[palette.severity.info]
+text = "$primary"
+fill = "lighten($primary, 0.9)"
+
+[typography]
+serif = "IBM Plex Serif"
+sans = "IBM Plex Sans"
+mono = "IBM Plex Mono"
+docx_serif = "Georgia"
+docx_sans = "Aptos"
+docx_mono = "Aptos Mono"
+base_pt = 11.0
+small_pt = 9.0
+table_pt = 9.0
+table_header_pt = 9.0
+title_pt = 30.0
+subtitle_pt = 13.0
+h1_pt = 20.0
+h2_pt = 15.0
+h3_pt = 12.0
+stat_value_pt = 22.0
+stat_label_pt = 9.0
+line_height = 1.5
+
+[layout]
+cover = "editorial"
+table = "hairline"
+stat = "bare"
+heading_numbering = false
+divider_pages = false
+running_header = true
+zebra_rows = false
+rule_pt = 0.5
+radius_pt = 3.0
+table_inset_pt = 6.0
+cover_band_pt = 0.0

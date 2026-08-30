@@ -1737,49 +1737,9 @@ button.stat-cell.active {
 .export-composer {
   min-width: 0;
 }
-.export-kind-switch {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  border-top: 2px solid var(--ink);
-  border-bottom: 1px solid var(--line-strong);
-}
-.export-kind-switch button {
-  min-height: 62px;
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 10px 14px;
-  border-right: 1px solid var(--line-strong);
-  color: var(--muted);
-}
-.export-kind-switch button:last-child {
-  border-right: none;
-}
-.export-kind-switch button:hover:not(.active) {
-  color: var(--ink);
-  background: color-mix(in srgb, var(--evidence) 52%, transparent);
-}
-.export-kind-switch button.active {
-  color: var(--ink);
-  background: var(--evidence);
-}
-.export-kind-switch button > span {
-  min-width: 0;
-}
-.export-kind-switch strong,
-.export-kind-switch small {
-  display: block;
-}
-.export-kind-switch strong {
-  font-size: 13px;
-}
-.export-kind-switch small {
-  margin-top: 1px;
-  font-size: 11.5px;
-  color: var(--muted);
-}
 .export-section {
-  padding-top: 18px;
+  border-top: 2px solid var(--ink);
+  padding-top: 16px;
 }
 .export-section-heading {
   display: flex;
@@ -1796,170 +1756,98 @@ button.stat-cell.active {
   font-size: 12px;
   color: var(--muted);
 }
-.text-action {
-  padding: 3px 0;
-  border-bottom: 1px solid var(--accent);
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--accent);
-}
-.text-action:hover {
-  color: var(--accent-hover);
-  border-bottom-color: var(--accent-hover);
-}
-.export-format-list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.export-deliverable-list {
+  margin: 0;
+  padding: 0;
+  border: 0;
   border-top: 1px solid var(--line-strong);
 }
-.export-format-row {
+.export-deliverable-row {
   min-width: 0;
-  min-height: 64px;
+  min-height: 86px;
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) auto;
+  grid-template-columns: 38px minmax(0, 1fr) 20px;
   align-items: center;
-  gap: 10px;
-  padding: 9px 10px;
-  border-right: 1px solid var(--line);
+  gap: 13px;
+  padding: 12px 11px;
   border-bottom: 1px solid var(--line);
   cursor: pointer;
 }
-.export-format-row:nth-child(2n) {
-  border-right: none;
-}
-.export-format-row:hover:not([aria-disabled="true"]) {
+.export-deliverable-row:hover {
   background: color-mix(in srgb, var(--evidence) 48%, transparent);
 }
-.export-format-row.selected {
+.export-deliverable-row.selected {
   background: var(--evidence);
 }
-.export-format-row[aria-disabled="true"] {
-  cursor: default;
-  opacity: 0.55;
-}
-.export-format-row:has(input:focus-visible) {
+.export-deliverable-row:has(input:focus-visible) {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
-.export-format-row input {
+.export-deliverable-row input {
   position: absolute;
   width: 1px;
   height: 1px;
   opacity: 0;
   pointer-events: none;
 }
-.export-check {
-  width: 17px;
-  height: 17px;
+.export-deliverable-icon {
+  width: 36px;
+  height: 36px;
   display: grid;
   place-items: center;
   border: 1px solid var(--line-strong);
   border-radius: 3px;
+  color: var(--muted);
+  background: var(--surface);
+}
+.export-deliverable-row.selected .export-deliverable-icon {
+  color: var(--ink);
+}
+.export-deliverable-copy {
+  min-width: 0;
+}
+.export-deliverable-copy > span {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+.export-deliverable-copy strong {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  color: var(--ink);
+}
+.export-deliverable-copy code {
+  font-size: 11px;
+  color: var(--faint);
+}
+.export-deliverable-copy small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--body);
+}
+.export-deliverable-copy .export-deliverable-use {
+  color: var(--muted);
+}
+.export-choice {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
   color: var(--paper);
   background: var(--surface);
 }
-.export-format-row.selected .export-check {
+.export-deliverable-row.selected .export-choice {
   border-color: var(--ink);
   background: var(--ink);
 }
-.export-format-copy {
-  min-width: 0;
-}
-.export-format-copy strong,
-.export-format-copy small {
-  display: block;
-}
-.export-format-copy strong {
-  font-size: 12.5px;
-  color: var(--ink);
-}
-.export-format-copy small {
-  margin-top: 1px;
-  overflow: hidden;
-  font-size: 11px;
-  color: var(--muted);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.export-format-row code {
-  font-size: 11px;
-  color: var(--muted);
-}
-.export-select-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  padding: 13px 10px;
-  border-bottom: 1px solid var(--line-strong);
-}
-.export-select-row > span {
-  min-width: 0;
-}
-.export-select-row strong,
-.export-select-row small {
-  display: block;
-}
-.export-select-row strong {
-  font-size: 12.5px;
-  color: var(--ink);
-}
-.export-select-row small {
-  margin-top: 1px;
+.export-advanced-note {
+  max-width: 68ch;
+  margin: 13px 0 0;
   font-size: 11.5px;
   color: var(--muted);
-}
-.export-select-row select {
-  min-width: 160px;
-  padding: 6px 28px 6px 9px;
-}
-.export-type-row {
-  padding-top: 4px;
-}
-.export-type-row select {
-  min-width: 210px;
-}
-.diagram-formats {
-  margin-top: 10px;
-}
-.export-scope {
-  display: grid;
-  grid-template-columns: minmax(150px, 1fr) minmax(150px, 0.9fr) minmax(150px, 0.9fr);
-  align-items: end;
-  gap: 16px;
-  padding: 13px 10px;
-  border-bottom: 1px solid var(--line-strong);
-}
-.export-scope > div strong,
-.export-scope > div small,
-.export-scope label span {
-  display: block;
-}
-.export-scope > div strong {
-  font-size: 12.5px;
-  color: var(--ink);
-}
-.export-scope > div small {
-  margin-top: 1px;
-  font-size: 11.5px;
-  color: var(--muted);
-}
-.export-scope label span {
-  margin-bottom: 4px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--muted);
-}
-.export-scope select {
-  width: 100%;
-  padding: 6px 24px 6px 8px;
-}
-.export-scope.disabled {
-  grid-template-columns: minmax(0, 1fr);
-  opacity: 0.65;
-}
-.export-scope.disabled label {
-  display: none;
 }
 .export-dispatch {
   min-width: 0;
@@ -2114,20 +2002,10 @@ button.stat-cell.active {
     border-left: none;
     border-top: 1px solid var(--line-strong);
   }
-  .export-format-list,
-  .export-scope {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .export-format-row {
-    border-right: none;
-  }
-  .export-select-row {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .export-select-row select {
-    width: 100%;
+  .export-deliverable-row {
+    grid-template-columns: 34px minmax(0, 1fr) 18px;
+    gap: 10px;
+    padding-inline: 8px;
   }
 }
 

@@ -6,6 +6,7 @@ use azdocs::config::BrandingConfig;
 use azdocs::diagram::DiagramScope;
 use azdocs::diagram::assets::{self, DiagramAsset};
 use azdocs::report::branding::BrandingContext;
+use azdocs::report::theme::{CoverStyle, TableStyle};
 use azdocs::report::{ReportContext, docx};
 use azdocs::store::Store;
 
@@ -106,9 +107,12 @@ fn docx_footer_carries_branding_text_and_a_page_count() {
 #[test]
 fn docx_cover_embeds_the_matching_azdocs_product_mark() {
     let (report, diagrams) = seeded();
+    let field_report = BrandingContext::default();
+    let mut block_branding = field_report.clone();
+    block_branding.tokens.layout.cover = CoverStyle::Block;
 
-    let light = docx::render(&report, &themed("fluent"), &diagrams).unwrap();
-    let dark = docx::render(&report, &themed("dashboard"), &diagrams).unwrap();
+    let light = docx::render(&report, &field_report, &diagrams).unwrap();
+    let dark = docx::render(&report, &block_branding, &diagrams).unwrap();
 
     let light_mark = azdocs::diagram::png::from_svg_transparent(
         include_str!("../docs/marks/assets/azdocs-mark-primary.svg"),
@@ -118,7 +122,7 @@ fn docx_cover_embeds_the_matching_azdocs_product_mark() {
 
     assert!(archive_contains_media(&light, &light_mark));
     assert!(
-        archive_contains_media_with_corner(&dark, [0x00, 0x4e, 0x8a, 0xff]),
+        archive_contains_media_with_corner(&dark, [0x1c, 0x24, 0x30, 0xff]),
         "the dark-cover mark needs a matte matching the cover rather than a transparent or white square"
     );
 }
@@ -146,7 +150,7 @@ fn docx_requests_a_field_refresh_for_toc_page_numbers() {
 }
 
 #[test]
-fn docx_styles_carry_custom_primary_color() {
+fn docx_reserves_custom_primary_color_for_brand_accents() {
     let (report, diagrams) = seeded();
     let config = BrandingConfig {
         primary_color: "#112233".to_owned(),
@@ -154,11 +158,16 @@ fn docx_styles_carry_custom_primary_color() {
         ..BrandingConfig::default()
     };
     let branding = BrandingContext::resolve(&config, None).unwrap();
+    assert_eq!(branding.tokens.palette.accent, "#112233");
 
     let bytes = docx::render(&report, &branding, &diagrams).unwrap();
 
     let styles = archive_entry(&bytes, "word/styles.xml");
-    assert!(styles.contains("112233"), "heading style color");
+    assert!(styles.contains("1c2430"), "headings use Field Report ink");
+    assert!(
+        !styles.contains("112233"),
+        "brand colour is not document chrome"
+    );
     let document = archive_entry(&bytes, "word/document.xml");
     assert!(document.contains("Contoso Ltd"), "company on cover");
 }
@@ -176,6 +185,10 @@ fn docx_sets_fonts_page_geometry_and_fixed_table_widths() {
     assert!(
         styles.contains(r#"<w:rFonts w:ascii="Aptos""#),
         "document default font must be set, or Word falls back to Times New Roman"
+    );
+    assert!(
+        styles.contains(r#"<w:rFonts w:ascii="Georgia""#),
+        "Field Report headings use the serif display face"
     );
     assert!(styles.contains("w:outlineLvl"), "heading outline levels");
 
@@ -264,21 +277,15 @@ fn docx_type_heading_centres_its_icon_and_keeps_the_level_two_heading_style() {
 }
 
 #[test]
-fn docx_numbering_and_running_header_follow_the_theme_contract() {
+fn docx_field_report_uses_plain_headings_and_a_running_header() {
     let (report, diagrams) = seeded();
 
-    let bytes = docx::render(&report, &themed("fluent"), &diagrams).unwrap();
+    let bytes = docx::render(&report, &BrandingContext::default(), &diagrams).unwrap();
 
-    let numbering = archive_entry(&bytes, "word/numbering.xml");
-    assert!(numbering.contains(r#"w:val="%1.%2""#), "level-2 numbering");
     let document = archive_entry(&bytes, "word/document.xml");
     assert!(
-        document.contains("<w:numPr>"),
-        "headings use the numbering definition"
-    );
-    assert!(
-        document.contains(r#"w:ilvl w:val="1""#),
-        "level-2 headings use the second numbering level"
+        !document.contains("<w:numPr>"),
+        "Field Report headings are names, not chapter numbers"
     );
     let header = archive_entry(&bytes, "word/header1.xml");
     assert!(header.contains("STYLEREF"), "running chapter field");
@@ -296,7 +303,7 @@ fn docx_numbering_and_running_header_follow_the_theme_contract() {
 fn docx_keeps_headings_and_resource_callouts_intact_across_page_breaks() {
     let (report, diagrams) = seeded();
 
-    let bytes = docx::render(&report, &themed("fluent"), &diagrams).unwrap();
+    let bytes = docx::render(&report, &BrandingContext::default(), &diagrams).unwrap();
 
     let document = archive_entry(&bytes, "word/document.xml");
     let overview = document
@@ -338,7 +345,7 @@ fn docx_keeps_headings_and_resource_callouts_intact_across_page_breaks() {
 fn docx_resource_settings_render_as_flowing_facts() {
     let (report, diagrams) = seeded();
 
-    let bytes = docx::render(&report, &themed("fluent"), &diagrams).unwrap();
+    let bytes = docx::render(&report, &BrandingContext::default(), &diagrams).unwrap();
 
     let document = archive_entry(&bytes, "word/document.xml");
     let setting = document
@@ -364,10 +371,12 @@ fn docx_resource_settings_render_as_flowing_facts() {
 }
 
 #[test]
-fn docx_editorial_theme_uses_chapter_divider_pages() {
+fn docx_divider_page_strategy_keeps_real_chapter_headings() {
     let (report, diagrams) = seeded();
+    let mut branding = BrandingContext::default();
+    branding.tokens.layout.divider_pages = true;
 
-    let bytes = docx::render(&report, &themed("editorial"), &diagrams).unwrap();
+    let bytes = docx::render(&report, &branding, &diagrams).unwrap();
 
     let document = archive_entry(&bytes, "word/document.xml");
     assert!(
@@ -383,10 +392,16 @@ fn docx_editorial_theme_uses_chapter_divider_pages() {
 #[test]
 fn docx_implements_band_editorial_and_printable_block_covers() {
     let (report, diagrams) = seeded();
+    let editorial_branding = BrandingContext::default();
+    let mut band_branding = editorial_branding.clone();
+    band_branding.tokens.layout.cover = CoverStyle::Band;
+    band_branding.tokens.layout.cover_band_pt = 96.0;
+    let mut block_branding = editorial_branding.clone();
+    block_branding.tokens.layout.cover = CoverStyle::Block;
 
-    let band = docx::render(&report, &themed("fluent"), &diagrams).unwrap();
-    let editorial = docx::render(&report, &themed("editorial"), &diagrams).unwrap();
-    let block = docx::render(&report, &themed("dashboard"), &diagrams).unwrap();
+    let band = docx::render(&report, &band_branding, &diagrams).unwrap();
+    let editorial = docx::render(&report, &editorial_branding, &diagrams).unwrap();
+    let block = docx::render(&report, &block_branding, &diagrams).unwrap();
 
     let band_document = archive_entry(&band, "word/document.xml");
     let editorial_document = archive_entry(&editorial, "word/document.xml");
@@ -441,24 +456,33 @@ fn docx_estate_overview_contains_only_captioned_overviews() {
     );
 }
 
-/// The layout strategy a theme chooses has to reach the output, or themes are
-/// only a palette swap.
+/// User-authored themes can still choose another table strategy, so the closed
+/// strategy set remains covered even though only one built-in theme ships.
 #[test]
-fn docx_table_headers_differ_between_solid_and_hairline_themes() {
+fn docx_table_headers_differ_between_solid_and_hairline_strategies() {
     let (report, diagrams) = seeded();
+    let hairline_branding = BrandingContext::default();
+    let mut solid_branding = hairline_branding.clone();
+    solid_branding.tokens.layout.table = TableStyle::SolidHeader;
+    let primary = solid_branding
+        .tokens
+        .palette
+        .primary
+        .trim_start_matches('#')
+        .to_owned();
 
-    let solid = docx::render(&report, &themed("fluent"), &diagrams).unwrap();
-    let hairline = docx::render(&report, &themed("editorial"), &diagrams).unwrap();
+    let solid = docx::render(&report, &solid_branding, &diagrams).unwrap();
+    let hairline = docx::render(&report, &hairline_branding, &diagrams).unwrap();
 
     let solid_doc = archive_entry(&solid, "word/document.xml");
     let hairline_doc = archive_entry(&hairline, "word/document.xml");
     assert!(
-        solid_doc.contains(r#"w:fill="0078d4""#),
-        "fluent fills table headers with the primary colour"
+        solid_doc.contains(&format!(r#"w:fill="{primary}""#)),
+        "solid headers use the primary colour"
     );
     assert!(
-        !hairline_doc.contains(r#"w:fill="0078d4""#),
-        "editorial leaves table headers unfilled"
+        !hairline_doc.contains(&format!(r#"w:fill="{primary}""#)),
+        "hairline headers remain unfilled"
     );
 }
 

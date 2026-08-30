@@ -59,6 +59,14 @@
   body,
 )
 
+#let display(body, size, weight: "semibold", fill: ink) = text(
+  font: typ.serif,
+  size: size,
+  weight: weight,
+  fill: fill,
+  body,
+)
+
 // ---------------------------------------------------------------- tables ----
 
 // Header cell styling per table strategy.
@@ -193,7 +201,7 @@
 
 #let stat(value, label) = {
   let body = [
-    #text(size: typ.stat_value_pt * 1pt, weight: "bold", fill: primary-dark)[#cell(value)] \
+    #display(cell(value), typ.stat_value_pt * 1pt, weight: "semibold", fill: primary-dark) \
     #text(size: typ.stat_label_pt * 1pt, fill: muted)[#label]
   ]
   if lay.stat == "card" {
@@ -242,7 +250,7 @@
       #block(inset: (x: 3cm))[
         #if mark-path != "" [#cover-mark(mark-path) #v(0.55cm)]
         #if logo-path != "" [#cover-logo(logo-path) #v(0.8cm)]
-        #text(size: typ.title_pt * 1pt, weight: "bold", fill: on-band)[#cover.title]
+        #display(cover.title, typ.title_pt * 1pt, weight: "semibold", fill: on-band)
         #if cover.subtitle != "" [
           \ #v(0.2cm) #text(size: typ.subtitle_pt * 1pt, fill: on-band.transparentize(20%))[#cover.subtitle]
         ]
@@ -267,7 +275,7 @@
       #block(inset: (x: 2.5cm, top: 3cm))[
         #if mark-path != "" [#cover-mark(mark-path) #v(0.55cm)]
         #if logo-path != "" [#cover-logo(logo-path) #v(0.8cm)]
-        #text(size: typ.title_pt * 1pt, weight: "bold", fill: primary)[#cover.title]
+        #display(cover.title, typ.title_pt * 1pt, weight: "semibold", fill: primary)
         #if cover.subtitle != "" [
           \ #v(0.2cm) #text(size: typ.subtitle_pt * 1pt, fill: muted)[#cover.subtitle]
         ]
@@ -284,9 +292,7 @@
       #align(center)[
         #if mark-path != "" [#cover-mark(mark-path) #v(0.65cm)]
         #if logo-path != "" [#cover-logo(logo-path) #v(1cm)]
-        #text(size: typ.title_pt * 1pt, weight: "semibold", fill: ink)[
-          #upper(cover.title)
-        ]
+        #display(cover.title, typ.title_pt * 1pt, fill: ink)
         #v(0.7cm)
         #line(length: 40%, stroke: rule-stroke)
         #v(0.7cm)
@@ -331,7 +337,7 @@
           if icon-path != "" {
             image(icon-path, width: 30pt, height: 30pt, fit: "contain")
           } else { [] },
-          text(size: typ.h1_pt * 1pt, weight: "bold", fill: primary, upper(it)),
+          text(font: typ.serif, size: typ.h1_pt * 1pt, weight: "semibold", fill: primary, it),
         ),
         line(length: 100%, stroke: 1.5pt + primary),
       ),
@@ -409,6 +415,7 @@
           ),
           text(
             size: heading-size * 1pt,
+            font: typ.serif,
             weight: "semibold",
             fill: primary-dark,
             it,
@@ -547,7 +554,7 @@
       width: 100%,
       stroke: (top: 1.5pt + primary, bottom: 1.5pt + primary),
       inset: (y: 16pt),
-      text(size: (typ.h1_pt + 10) * 1pt, weight: "bold", fill: primary, it),
+      text(font: typ.serif, size: (typ.h1_pt + 10) * 1pt, weight: "semibold", fill: primary, it),
     )
     #heading(level: 1, title)
   ]
@@ -577,17 +584,17 @@
   show heading.where(level: 1): it => block(
     above: 1.8em,
     below: 0.9em,
-    text(size: typ.h1_pt * 1pt, weight: "bold", fill: primary, it),
+    text(font: typ.serif, size: typ.h1_pt * 1pt, weight: "semibold", fill: primary, it),
   )
   show heading.where(level: 2): it => block(
     above: 1.5em,
     below: 0.6em,
-    text(size: typ.h2_pt * 1pt, weight: "semibold", fill: primary-dark, it),
+    text(font: typ.serif, size: typ.h2_pt * 1pt, weight: "semibold", fill: primary-dark, it),
   )
   show heading.where(level: 3): it => block(
     above: 1.2em,
     below: 0.5em,
-    text(size: typ.h3_pt * 1pt, weight: "semibold", fill: ink, it),
+    text(font: typ.serif, size: typ.h3_pt * 1pt, weight: "semibold", fill: ink, it),
   )
   show link: set text(fill: accent)
 
