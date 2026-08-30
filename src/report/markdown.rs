@@ -22,16 +22,9 @@ fn md_escape(value: &str) -> String {
 }
 
 /// Directory- and link-safe version of a display name.
+/// Page slug for a Markdown filename and its anchor.
 pub fn slug(value: &str) -> String {
-    let mut out = String::with_capacity(value.len());
-    for c in value.chars() {
-        if c.is_ascii_alphanumeric() {
-            out.push(c.to_ascii_lowercase());
-        } else if !out.ends_with('-') {
-            out.push('-');
-        }
-    }
-    out.trim_matches('-').to_owned()
+    crate::model::slugify(value)
 }
 
 /// Render rows (JSON objects) as a markdown table with the given columns.

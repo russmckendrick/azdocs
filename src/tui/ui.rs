@@ -196,7 +196,7 @@ fn render_detail(frame: &mut Frame<'_>, app: &App, area: Rect) {
                     } else {
                         ("←", &edge.source_id)
                     };
-                    let name = other.rsplit('/').next().unwrap_or(other);
+                    let name = crate::model::short_name(other);
                     lines.push(Line::from(format!(
                         "  {arrow} {name} ({})",
                         edge.kind.as_str()

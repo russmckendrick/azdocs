@@ -65,13 +65,9 @@ pub enum EdgeStyle {
 
 /// Cap label length so long Azure resource names don't overlap neighbours.
 pub fn truncate_label(value: &str) -> String {
+    /// Long Azure names overlap their neighbours past this.
     const MAX: usize = 30;
-    if value.chars().count() <= MAX {
-        return value.to_owned();
-    }
-    let mut out: String = value.chars().take(MAX - 1).collect();
-    out.push('…');
-    out
+    crate::model::truncate(value, MAX)
 }
 
 /// Scoping filters shared by the builders.
@@ -99,20 +95,7 @@ pub struct NamedGraph {
 /// Filesystem-safe slug: ascii-lowercased alphanumerics, everything else
 /// collapsed to single dashes.
 pub fn slugify(input: &str) -> String {
-    input
-        .chars()
-        .map(|ch| {
-            if ch.is_ascii_alphanumeric() {
-                ch.to_ascii_lowercase()
-            } else {
-                '-'
-            }
-        })
-        .collect::<String>()
-        .split('-')
-        .filter(|segment| !segment.is_empty())
-        .collect::<Vec<_>>()
-        .join("-")
+    crate::model::slugify(input)
 }
 
 const VNET_TYPE: &str = "microsoft.network/virtualnetworks";
@@ -920,12 +903,8 @@ fn is_nic_represented_by_vm(
 }
 
 fn remote_vnet_label(arm_id: &str) -> String {
-    arm_id
-        .rsplit('/')
-        .next()
-        .filter(|segment| !segment.is_empty())
-        .unwrap_or("remote vnet")
-        .to_owned()
+    let name = crate::model::short_name(arm_id);
+    if name.is_empty() { "remote vnet" } else { name }.to_owned()
 }
 
 fn peering_state(edge: &Edge) -> String {

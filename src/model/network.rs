@@ -66,8 +66,7 @@ pub fn vnet_subnets(vnet: &Resource) -> Vec<SubnetInfo> {
                 .and_then(Value::as_str)
                 // From the original id, not the lowercased one: a fallback name
                 // is still display text, and display keeps its casing.
-                .or_else(|| raw_id.rsplit('/').next())
-                .unwrap_or("subnet")
+                .unwrap_or_else(|| super::short_name(raw_id))
                 .to_owned();
             let address_prefix = subnet
                 .pointer("/properties/addressPrefix")
