@@ -19,7 +19,7 @@ import type {
   ReportExportFormat,
 } from "../types";
 import { ViewHeading } from "./view-chrome";
-import { sentenceCase } from "../format";
+import { errorMessage, sentenceCase } from "../format";
 
 const REPORT_FORMATS: Array<{
   id: ReportExportFormat;
@@ -150,7 +150,7 @@ export function ExportsView({
       }, handleEvent);
       setResult(next);
     } catch (caught) {
-      const detail = caught instanceof Error ? caught.message : String(caught);
+      const detail = errorMessage(caught, "The export could not be completed.");
       setError(detail);
       setMessage("Export did not complete.");
     } finally {

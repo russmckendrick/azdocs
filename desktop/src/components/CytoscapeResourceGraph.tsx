@@ -27,6 +27,7 @@ import {
 } from "./topology-presentation";
 import { EmptyState } from "./view-chrome";
 import { useResourceTypeMap } from "../estate-lookups";
+import { errorMessage } from "../format";
 
 export type GraphMode = "neighbourhood" | "estate";
 
@@ -638,7 +639,7 @@ export function CytoscapeResourceGraph({
       cyRef.current = cy;
       setRendererError(undefined);
     } catch (error) {
-      setRendererError(error instanceof Error ? error.message : "The relationship graph could not be initialised.");
+      setRendererError(errorMessage(error, "The relationship graph could not be initialised."));
       return;
     }
 
@@ -1046,7 +1047,7 @@ export function CytoscapeResourceGraph({
         }
       }
     } catch (error) {
-      setRendererError(error instanceof Error ? error.message : "The relationship layout could not be calculated.");
+      setRendererError(errorMessage(error, "The relationship layout could not be calculated."));
       cyRef.current = undefined;
       cy.destroy();
       return;

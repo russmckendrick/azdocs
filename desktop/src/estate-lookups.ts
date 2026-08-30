@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
-import type { EstateSnapshot, ResourceType } from "./types";
+import type { AzureMetadata, EstateSnapshot, Resource, ResourceType } from "./types";
+import { displayLocation } from "./azure-values";
 
 /**
  * Azure type -> its display name, icon and colour.
@@ -48,4 +49,34 @@ export function useEscapeKey(active: boolean, onEscape: () => void) {
     // `onEscape` is a fresh closure each render; `active` is the real trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
+}
+
+/**
+ * Does a resource match a free-text search?
+ *
+ * The global search bar and the estate explorer's filter had near-identical
+ * copies of this candidate list; the global one omitted `subscriptionId`, so
+ * pasting a subscription id into the masthead found nothing while the same
+ * string worked in the explorer. This is the superset, used by both.
+ *
+ * `displayLocation` is included so "UK South" matches a resource stored as
+ * `uksouth`, and tags are searched as their JSON so a value hit works without
+ * the reader knowing the key.
+ */
+export function matchesResourceSearch(
+  resource: Resource,
+  search: string,
+  metadata: AzureMetadata,
+) {
+  const needle = search.trim().toLowerCase();
+  if (!needle) return true;
+  return [
+    resource.name,
+    resource.azureType,
+    resource.location,
+    displayLocation(metadata, resource.location),
+    resource.resourceGroup,
+    resource.subscriptionId,
+    JSON.stringify(resource.tags ?? {}),
+  ].some((candidate) => candidate?.toLowerCase().includes(needle));
 }

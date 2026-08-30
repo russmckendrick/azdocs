@@ -4,7 +4,7 @@ import { getQueryPackMetadata, getQueryRows } from "../api";
 import type { EstateSnapshot, QueryDefMeta, QueryRows } from "../types";
 import { ShowMore, useProgressiveList } from "./progressive-list";
 import { DatabaseStamp, EmptyState, ViewHeading } from "./view-chrome";
-import { capitalise, spaced } from "../format";
+import { capitalise, errorMessage, spaced } from "../format";
 
 
 /// Category dot colours follow the design language: chart slots for the big
@@ -57,7 +57,7 @@ export function InventoryView({ estate, search }: { estate: EstateSnapshot; sear
         if (active) setPack(defs);
       })
       .catch((error) => {
-        if (active) setPackError(error instanceof Error ? error.message : String(error));
+        if (active) setPackError(errorMessage(error, "The query pack could not be read."));
       });
     return () => {
       active = false;

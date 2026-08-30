@@ -19,7 +19,6 @@ import {
 } from "lucide-react";
 import { chooseDatabase, collectEstate, getBootstrap, getSnapshot, isTauri } from "./api";
 import { resourceIcon } from "./azure-icons";
-import { displayLocation } from "./azure-values";
 import {
   initialNavigationState,
   navigationReducer,
@@ -44,7 +43,7 @@ import type {
   ViewId,
 } from "./types";
 import { dayMonthTime, errorMessage } from "./format";
-import { useResourceTypeMap } from "./estate-lookups";
+import { matchesResourceSearch, useResourceTypeMap } from "./estate-lookups";
 
 const TopologyView = lazy(() =>
   import("./components/TopologyView").then((module) => ({ default: module.TopologyView })),
@@ -210,14 +209,7 @@ export default function App() {
     const value = search.trim().toLowerCase();
     if (!estate || !value) return [];
     return estate.resources
-      .filter((resource) => [
-        resource.name,
-        resource.azureType,
-        resource.resourceGroup,
-        resource.location,
-        displayLocation(estate.azureMetadata, resource.location),
-        JSON.stringify(resource.tags ?? {}),
-      ].some((candidate) => candidate?.toLowerCase().includes(value)))
+      .filter((resource) => matchesResourceSearch(resource, value, estate.azureMetadata))
       .slice(0, 8);
   }, [estate, search]);
   const shortcutLabel = navigator.platform.toLowerCase().includes("mac") ? "⌘ K" : "Ctrl K";

@@ -12,10 +12,10 @@ import {
 } from "lucide-react";
 import { ALL_RESOURCES_ICON, RESOURCE_GROUP_ICON, SUBSCRIPTION_ICON, resourceIcon } from "../azure-icons";
 import { displayLocation } from "../azure-values";
-import type { AzureMetadata, EstateSnapshot, Resource, ResourceType, ScopeSelection } from "../types";
+import type { EstateSnapshot, Resource, ResourceType, ScopeSelection } from "../types";
 import { ShowMore, useProgressiveList } from "./progressive-list";
 import { EmptyState } from "./view-chrome";
-import { useResourceTypeMap, useSubscriptionNames } from "../estate-lookups";
+import { matchesResourceSearch, useResourceTypeMap, useSubscriptionNames } from "../estate-lookups";
 
 type SortKey = "name" | "type" | "location" | "findings";
 
@@ -25,20 +25,6 @@ interface EstateExplorerProps {
   scope: ScopeSelection;
   onScopeChange: (scope: ScopeSelection) => void;
   onSelectResource: (id: string) => void;
-}
-
-function includesSearch(resource: Resource, search: string, metadata: AzureMetadata) {
-  if (!search.trim()) return true;
-  const value = search.toLowerCase();
-  return [
-    resource.name,
-    resource.azureType,
-    resource.location,
-    displayLocation(metadata, resource.location),
-    resource.resourceGroup,
-    resource.subscriptionId,
-    JSON.stringify(resource.tags ?? {}),
-  ].some((candidate) => candidate?.toLowerCase().includes(value));
 }
 
 export function EstateExplorer({
@@ -66,7 +52,7 @@ export function EstateExplorer({
       const inGroup = !scope.resourceGroup || resource.resourceGroup === scope.resourceGroup;
       const hasType = !typeFilter || resource.azureType === typeFilter;
       const inLocation = !locationFilter || resource.location === locationFilter;
-      return inSubscription && inGroup && hasType && inLocation && includesSearch(resource, search, estate.azureMetadata);
+      return inSubscription && inGroup && hasType && inLocation && matchesResourceSearch(resource, search, estate.azureMetadata);
     });
     return matches.sort((a, b) => {
       if (sortKey === "findings") return b.findingCount - a.findingCount || a.name.localeCompare(b.name);
