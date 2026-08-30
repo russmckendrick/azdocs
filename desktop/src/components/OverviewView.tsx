@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { displayLocation } from "../azure-values";
 import type { AppBootstrap, EstateSnapshot, ViewId } from "../types";
+import { dayMonth, resourceName } from "../format";
 
 const SEVERITY_SWATCH: Record<string, string> = {
   high: "var(--coral)",
@@ -129,10 +130,10 @@ export function OverviewView({
                   {series.at(-1)?.resources}
                 </text>
                 <text x="4" y="116" fontSize="10.5" fill="var(--faintest)">
-                  {shortDate(series[0]?.createdAt)}
+                  {dayMonth(series[0]?.createdAt)}
                 </text>
                 <text x="556" y="116" textAnchor="end" fontSize="10.5" fill="var(--faintest)">
-                  {shortDate(series.at(-1)?.createdAt)}
+                  {dayMonth(series.at(-1)?.createdAt)}
                 </text>
               </svg>
               <div className="fig-caption">Resource count over the stored snapshots — one measure, so one hue.</div>
@@ -171,7 +172,7 @@ export function OverviewView({
                   <span>
                     <strong>{finding.title}</strong>
                     <small>
-                      {finding.category} · <span className="mono">{finding.resourceId?.split("/").at(-1) ?? "estate-level"}</span>
+                      {finding.category} · <span className="mono">{finding.resourceId ? resourceName(finding.resourceId) : "estate-level"}</span>
                     </small>
                   </span>
                 </button>
@@ -191,7 +192,3 @@ function severityRank(severity: string) {
   return ["high", "medium", "low", "info"].indexOf(severity);
 }
 
-function shortDate(value?: string) {
-  if (!value) return "";
-  return new Intl.DateTimeFormat(undefined, { day: "2-digit", month: "short" }).format(new Date(value));
-}

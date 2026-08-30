@@ -1,4 +1,5 @@
 import type { AppBootstrap, EstateSnapshot, ThemePreference } from "../types";
+import { dayMonthYear } from "../format";
 
 const THEME_OPTIONS: Array<{ id: ThemePreference; label: string }> = [
   { id: "system", label: "System" },
@@ -6,12 +7,6 @@ const THEME_OPTIONS: Array<{ id: ThemePreference; label: string }> = [
   { id: "dark", label: "Dark" },
 ];
 
-function dateOnly(value?: string) {
-  if (!value) return "";
-  return new Intl.DateTimeFormat(undefined, { day: "2-digit", month: "short", year: "numeric" }).format(
-    new Date(value),
-  );
-}
 
 export function SettingsView({
   bootstrap,
@@ -92,7 +87,7 @@ export function SettingsView({
                 {bootstrap.snapshots.length}
               </strong>{" "}
               snapshot{bootstrap.snapshots.length === 1 ? "" : "s"}
-              {oldest && newest ? ` · ${dateOnly(oldest.createdAt)} – ${dateOnly(newest.createdAt)}` : ""}
+              {oldest && newest ? ` · ${dayMonthYear(oldest.createdAt)} – ${dayMonthYear(newest.createdAt)}` : ""}
             </span>
           </div>
         </div>

@@ -13,9 +13,9 @@ import {
 import { ALL_RESOURCES_ICON, RESOURCE_GROUP_ICON, SUBSCRIPTION_ICON } from "../azure-icons";
 import { displayLocation } from "../azure-values";
 import type { AzureMetadata, EstateSnapshot, Resource, ResourceType, ScopeSelection } from "../types";
+import { ShowMore, useProgressiveList } from "./progressive-list";
 
 type SortKey = "name" | "type" | "location" | "findings";
-const RESOURCE_BATCH = 200;
 
 interface EstateExplorerProps {
   estate: EstateSnapshot;
@@ -49,7 +49,6 @@ export function EstateExplorer({
   const [typeFilter, setTypeFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("name");
-  const [visibleCount, setVisibleCount] = useState(RESOURCE_BATCH);
   const [expandedSubscriptions, setExpandedSubscriptions] = useState<Set<string>>(
     () => new Set(estate.subscriptions.length === 1 ? [estate.subscriptions[0].id] : []),
   );
@@ -80,7 +79,8 @@ export function EstateExplorer({
       return a.name.localeCompare(b.name);
     });
   }, [estate.azureMetadata, estate.resources, locationFilter, scope, search, sortKey, typeFilter]);
-  const visibleResources = filtered.slice(0, visibleCount);
+  const list = useProgressiveList(filtered, [locationFilter, scope.resourceGroup, scope.subscriptionId, search, sortKey, typeFilter]);
+  const visibleResources = list.visible;
 
   const activeScopeName = scope.resourceGroup
     ? scope.resourceGroup
@@ -121,7 +121,6 @@ export function EstateExplorer({
     });
   }
 
-  useEffect(() => setVisibleCount(RESOURCE_BATCH), [locationFilter, scope.resourceGroup, scope.subscriptionId, search, sortKey, typeFilter]);
 
   function focusResource(index: number) {
     const resource = visibleResources[index];
@@ -326,10 +325,7 @@ export function EstateExplorer({
             </div>
           ) : null}
           {visibleResources.length < filtered.length ? (
-            <button className="load-more" onClick={() => setVisibleCount((current) => current + RESOURCE_BATCH)}>
-              Show {Math.min(RESOURCE_BATCH, filtered.length - visibleResources.length)} more
-              <span>{visibleResources.length.toLocaleString()} of {filtered.length.toLocaleString()} loaded</span>
-            </button>
+            <ShowMore list={list} />
           ) : null}
         </div>
       </section>

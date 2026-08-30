@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Table2 } from "lucide-react";
 import { getQueryPackMetadata, getQueryRows } from "../api";
 import type { EstateSnapshot, QueryDefMeta, QueryRows } from "../types";
+import { ShowMore, useProgressiveList } from "./progressive-list";
 
-const ROW_BATCH = 250;
 
 /// Category dot colours follow the design language: chart slots for the big
 /// categories, the wider category_color() family for the rest, neutral
@@ -42,7 +42,6 @@ export function InventoryView({ estate, search }: { estate: EstateSnapshot; sear
   const [queryName, setQueryName] = useState<string>();
   const [result, setResult] = useState<QueryRows>();
   const [rowsLoading, setRowsLoading] = useState(false);
-  const [visibleRowCount, setVisibleRowCount] = useState(ROW_BATCH);
 
   const runByName = useMemo(
     () => new Map(estate.queryRuns.map((run) => [run.queryName, run])),
@@ -117,9 +116,9 @@ export function InventoryView({ estate, search }: { estate: EstateSnapshot; sear
     return rows.filter((row) => Object.values(row).some((value) => cellText(value).toLowerCase().includes(needle)));
   }, [result, search]);
   const run = activeQuery ? runByName.get(activeQuery) : undefined;
-  const visibleRows = filteredRows.slice(0, visibleRowCount);
+  const list = useProgressiveList(filteredRows, [activeQuery, search], 250);
+  const visibleRows = list.visible;
 
-  useEffect(() => setVisibleRowCount(ROW_BATCH), [activeQuery, search]);
 
   if (packError) {
     return (
@@ -234,11 +233,7 @@ export function InventoryView({ estate, search }: { estate: EstateSnapshot; sear
                 {search.trim() ? ` matching “${search.trim()}”` : ""}
                 {run?.durationMs !== undefined ? ` · collected in ${run.durationMs} ms` : ""}
               </span>
-              {visibleRows.length < filteredRows.length ? (
-                <button className="load-more inline" onClick={() => setVisibleRowCount((current) => current + ROW_BATCH)}>
-                  Show {Math.min(ROW_BATCH, filteredRows.length - visibleRows.length)} more
-                </button>
-              ) : null}
+              <ShowMore list={list} inline />
               <span className="mono" style={{ marginLeft: "auto", color: "var(--faintest)" }}>
                 queries/{activeCategory}/{activeQuery}.toml
               </span>

@@ -11,6 +11,7 @@ import { ALL_RESOURCES_ICON } from "../azure-icons";
 import { displayKind, displayLocation } from "../azure-values";
 import type { EstateSnapshot, Resource, ResourceType } from "../types";
 import { AdaptiveDataView, describeStoredValue, hasStoredValue } from "./AdaptiveDataView";
+import { resourceName } from "../format";
 
 function prettyRelation(kind: string) {
   return kind.replaceAll("_", " ");
@@ -196,7 +197,7 @@ export function ResourceDetailView({
                       <button onClick={() => other && onSelectResource(other.id)} disabled={!other}>
                         <span className="relation-direction">{outbound ? "OUT" : "IN"}</span>
                         <img src={otherType?.icon ?? ALL_RESOURCES_ICON} alt="" />
-                        <span><strong>{other?.name ?? otherId.split("/").at(-1)}</strong><small>{prettyRelation(edge.kind)}</small></span>
+                        <span><strong>{other?.name ?? resourceName(otherId)}</strong><small>{prettyRelation(edge.kind)}</small></span>
                         {other ? <ChevronRight size={14} /> : null}
                       </button>
                       <EvidenceData label="Relationship evidence" value={relationshipEvidence} compact />

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, CheckCircle2, Filter, ShieldAlert, X } from "lucide-react";
 import type { EstateSnapshot, Finding, Severity } from "../types";
+import { resourceName } from "../format";
+import { ShowMore, useProgressiveList } from "./progressive-list";
 
 const severities: Array<Severity | "all"> = ["all", "high", "medium", "low", "info"];
-const FINDING_BATCH = 200;
 
 export function FindingsView({
   estate,
@@ -16,7 +17,6 @@ export function FindingsView({
 }) {
   const [severity, setSeverity] = useState<Severity | "all">("all");
   const [selectedIndex, setSelectedIndex] = useState<number>();
-  const [visibleCount, setVisibleCount] = useState(FINDING_BATCH);
   const filtered = useMemo(
     () => estate.findings.filter((finding) => {
       const matchesSeverity = severity === "all" || finding.severity === severity;
@@ -26,12 +26,12 @@ export function FindingsView({
     }),
     [estate.findings, search, severity],
   );
-  const visibleFindings = filtered.slice(0, visibleCount);
+  const list = useProgressiveList(filtered, [search, severity]);
+  const visibleFindings = list.visible;
   const selected = selectedIndex === undefined ? undefined : visibleFindings[selectedIndex];
 
   useEffect(() => {
     setSelectedIndex(undefined);
-    setVisibleCount(FINDING_BATCH);
   }, [search, severity]);
 
   useEffect(() => {
@@ -68,17 +68,12 @@ export function FindingsView({
             {visibleFindings.map((finding, index) => (
               <button key={`${finding.queryName}-${finding.resourceId}-${index}`} role="option" aria-selected={selected === finding} className={selected === finding ? "finding-row selected" : "finding-row"} onClick={() => setSelectedIndex(index)}>
                 <span className={`severity-marker ${finding.severity}`}>{finding.severity}</span>
-                <span className="finding-copy"><strong>{finding.title}</strong><small>{finding.category} · {resourceName(finding)}</small></span>
+                <span className="finding-copy"><strong>{finding.title}</strong><small>{finding.category} · {findingSubject(finding)}</small></span>
                 <ArrowRight size={15} />
               </button>
             ))}
             {!filtered.length ? <div className="no-findings"><CheckCircle2 size={30} /><strong>No findings match this view</strong><span>Try another severity or search phrase.</span></div> : null}
-            {visibleFindings.length < filtered.length ? (
-              <button className="load-more" onClick={() => setVisibleCount((current) => current + FINDING_BATCH)}>
-                Show {Math.min(FINDING_BATCH, filtered.length - visibleFindings.length)} more
-                <span>{visibleFindings.length.toLocaleString()} of {filtered.length.toLocaleString()} loaded</span>
-              </button>
-            ) : null}
+            <ShowMore list={list} />
           </div>
         </section>
         <FindingEvidence finding={selected} estate={estate} onOpenResource={onOpenResource} onClose={() => setSelectedIndex(undefined)} />
@@ -87,8 +82,9 @@ export function FindingsView({
   );
 }
 
-function resourceName(finding: Finding) {
-  return finding.resourceId?.split("/").at(-1) ?? "Estate-level";
+/** A finding without a resource id is about the estate, not a resource. */
+function findingSubject(finding: Finding) {
+  return finding.resourceId ? resourceName(finding.resourceId) : "Estate-level";
 }
 
 function FindingEvidence({ finding, estate, onOpenResource, onClose }: { finding?: Finding; estate: EstateSnapshot; onOpenResource: (id: string) => void; onClose: () => void }) {

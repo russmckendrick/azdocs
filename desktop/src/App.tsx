@@ -43,6 +43,7 @@ import type {
   ThemePreference,
   ViewId,
 } from "./types";
+import { dayMonthTime } from "./format";
 
 const TopologyView = lazy(() =>
   import("./components/TopologyView").then((module) => ({ default: module.TopologyView })),
@@ -72,15 +73,6 @@ function readThemePreference(): ThemePreference {
   } catch {
     return "system";
   }
-}
-
-function compactDate(value: string) {
-  return new Intl.DateTimeFormat(undefined, {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
 }
 
 function errorMessage(error: unknown) {
@@ -346,7 +338,7 @@ export default function App() {
           >
             {bootstrap?.snapshots.map((snapshot) => (
               <option key={snapshot.id} value={snapshot.id}>
-                {compactDate(snapshot.createdAt)} · {snapshot.resources} resources
+                {dayMonthTime(snapshot.createdAt)} · {snapshot.resources} resources
               </option>
             ))}
           </select>
