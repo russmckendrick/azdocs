@@ -10,7 +10,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
-use azdocs::model::{Edge, EdgeKind, Resource, ResourceGroup, Subscription};
+use azdocs::model::{Edge, EdgeKind, Resource, ResourceGroup, Subscription, azure_types};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -805,7 +805,7 @@ fn group_graph(
         nodes.push(TopologyNodeDto {
             id: format!("aggregate:{group_id}:{azure_type}"),
             kind: "aggregate".to_owned(),
-            name: (*azure_type).to_owned(),
+            name: azure_types::display_name(azure_type).to_owned(),
             subtitle: format!("×{}", members.len()),
             azure_type: Some((*azure_type).to_owned()),
             lane: None,
@@ -875,7 +875,7 @@ fn group_graph(
             nodes.push(TopologyNodeDto {
                 id: stub_id,
                 kind: "external".to_owned(),
-                name: (*azure_type).to_owned(),
+                name: azure_types::display_name(azure_type).to_owned(),
                 subtitle: format!("×{} in other groups", members.len()),
                 azure_type: Some((*azure_type).to_owned()),
                 lane: None,
@@ -1091,7 +1091,7 @@ fn neighbourhood_graph(
             nodes.push(TopologyNodeDto {
                 id,
                 kind: "aggregate".to_owned(),
-                name: (*azure_type).to_owned(),
+                name: azure_types::display_name(azure_type).to_owned(),
                 subtitle: format!("×{}", members.len()),
                 azure_type: Some((*azure_type).to_owned()),
                 lane: None,
@@ -1437,6 +1437,39 @@ mod tests {
             .expect("6 unconnected storage accounts aggregate into one tile");
         assert_eq!(aggregate.count, 6);
         assert_eq!(aggregate.member_ids.len(), 6);
+    }
+
+    #[test]
+    fn aggregate_tiles_use_the_friendly_type_name_when_labelled() {
+        let (subs, groups, resources, edges) = large_estate();
+        let findings = BTreeMap::new();
+        let request = TopologyRequest {
+            snapshot_id: None,
+            mode: TopologyMode::Group {
+                group_id: "/subscriptions/sub-00/resourcegroups/rg-00-00".to_owned(),
+            },
+            scope: TopologyScope::default(),
+        };
+
+        let graph = build(
+            &request,
+            &input(&subs, &groups, &resources, &edges, &findings),
+        );
+
+        let aggregate = graph
+            .nodes
+            .iter()
+            .find(|node| node.kind == "aggregate")
+            .expect("the unconnected storage accounts aggregate into one tile");
+        // The tile used to be labelled with the raw ARM type, so the desktop
+        // read "microsoft.storage/storageaccounts" where every CLI diagram read
+        // "Storage Account" for the same resources.
+        assert_eq!(aggregate.name, "Storage Account");
+        assert_eq!(
+            aggregate.azure_type.as_deref(),
+            Some("microsoft.storage/storageaccounts"),
+            "the machine-readable type stays on the DTO for filtering and icons"
+        );
     }
 
     #[test]
