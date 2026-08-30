@@ -108,10 +108,33 @@ export interface Finding {
   detail?: unknown;
 }
 
+/**
+ * Mirrors `EdgeKind` in src/model/mod.rs. Keep the two in step: the Rust side is
+ * an exhaustive `match`, so this union is the only thing that can make the
+ * TypeScript mirror fail loudly when a kind is added.
+ */
+export type EdgeKind =
+  | "subnet_of"
+  | "in_vnet"
+  | "peered_with"
+  | "nsg_attached"
+  | "nic_in_subnet"
+  | "attached_to"
+  | "private_endpoint_for"
+  | "dns_linked"
+  | "depends_on"
+  | "runs_on"
+  | "uses_identity"
+  | "logs_to"
+  | "monitors";
+
+/** The coarse family an edge kind belongs to — what the UI filters by. */
+export type KindClass = "network" | "structure" | "data" | "identity" | "monitoring";
+
 export interface Edge {
   sourceId: string;
   targetId: string;
-  kind: string;
+  kind: EdgeKind;
   properties?: unknown;
 }
 

@@ -1,4 +1,4 @@
-import type { Edge, EstateSnapshot, Resource, ResourceGroup } from "../types";
+import type { Edge, EdgeKind, EstateSnapshot, Resource, ResourceGroup } from "../types";
 
 export interface ResourceTypeCount {
   azureType: string;
@@ -24,7 +24,7 @@ export interface ResourceGroupLink {
   sourceId: string;
   targetId: string;
   count: number;
-  kinds: string[];
+  kinds: EdgeKind[];
 }
 
 export interface ResourceGroupTopology {
@@ -90,7 +90,7 @@ export function buildResourceGroupTopology(estate: EstateSnapshot): ResourceGrou
   const internalLinks = new Map<string, number>();
   const externalLinks = new Map<string, number>();
   const connectedGroups = new Map<string, Set<string>>();
-  const aggregatedLinks = new Map<string, { sourceId: string; targetId: string; count: number; kinds: Set<string> }>();
+  const aggregatedLinks = new Map<string, { sourceId: string; targetId: string; count: number; kinds: Set<EdgeKind> }>();
   for (const edge of estate.edges) {
     const sourceGroupId = resourceGroupByResourceId.get(edge.sourceId);
     const targetGroupId = resourceGroupByResourceId.get(edge.targetId);
@@ -110,7 +110,7 @@ export function buildResourceGroupTopology(estate: EstateSnapshot): ResourceGrou
       sourceId: sourceGroupId,
       targetId: targetGroupId,
       count: 0,
-      kinds: new Set<string>(),
+      kinds: new Set<EdgeKind>(),
     };
     aggregate.count += 1;
     aggregate.kinds.add(edge.kind);
