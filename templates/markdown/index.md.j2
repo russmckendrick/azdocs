@@ -21,6 +21,37 @@
 
 **Tag coverage**: {{ tag_coverage.percent }}% ({{ tag_coverage.tagged }} tagged, {{ tag_coverage.untagged }} untagged)
 
+## Governance
+{% if governance.top_keys %}
+**Coverage by tag key** — share of the {{ tag_coverage.tagged }} tagged resources carrying each key.
+
+| Tag key | Resources | Share |
+|---|---:|---:|
+{%- for key in governance.top_keys %}
+| `{{ key.key | md_escape }}` | {{ key.count }} | {{ key.percent }}% |
+{%- endfor %}
+{% else %}
+No tags are stored in this snapshot.
+{% endif %}
+{%- if governance.subscriptions %}
+**Coverage by subscription** — any tag counts here; the required-tag sweep is stricter.
+
+| Subscription | Coverage | Status |
+|---|---:|---|
+{%- for sub in governance.subscriptions %}
+| {{ sub.display_name | md_escape }} | {{ sub.percent }}% | {{ "healthy" if sub.healthy else "below threshold" }} |
+{%- endfor %}
+{%- endif %}
+{% if governance.worst_groups %}
+**Least compliant resource groups** — {{ governance.non_compliant }} resources are missing at least one required tag, recorded by the `missing_required_tags` audit.
+
+| Resource group | Subscription | Resources | Non-compliant | Missed tags | Status |
+|---|---|---:|---:|---|---|
+{%- for group in governance.worst_groups %}
+| {{ group.name | md_escape }} | {{ group.subscription_name | md_escape }} | {{ group.resources }} | {{ group.non_compliant }} | {{ group.missed_tags | join(", ") | md_escape }} | {{ "called out" if group.flagged else "—" }} |
+{%- endfor %}
+{%- endif %}
+
 ## Resources by type
 
 | Type | Azure type | Count |

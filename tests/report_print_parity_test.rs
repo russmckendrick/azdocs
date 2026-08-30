@@ -55,6 +55,8 @@ fn native_print_formats_share_ordered_structure_and_overview_scope() {
         "Executive Summary",
         "Estate overview",
         "Findings",
+        "Governance",
+        "Least compliant resource groups",
         "Resources by type",
         "Production",
         "rg-app",

@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashSet};
 
 use azdocs::model::{Edge, Finding, QueryRun, Resource, ResourceGroup, Subscription, azure_values};
-use azdocs::report::{ReportContext, SeverityCounts};
+use azdocs::report::{GovernanceAnalysis, ReportContext, SeverityCounts};
 use azdocs::store::{SnapshotCounts, SnapshotDiff};
 use serde::Serialize;
 use serde_json::Value;
@@ -87,7 +87,7 @@ pub struct EstateSnapshot {
     pub tag_coverage: TagCoverageDto,
     pub severity_counts: SeverityCountsDto,
     pub azure_metadata: AzureMetadataDto,
-    pub governance_thresholds: GovernanceThresholdsDto,
+    pub governance: GovernanceDto,
     pub subscriptions: Vec<SubscriptionDto>,
     pub resource_groups: Vec<ResourceGroupDto>,
     /// Every group the relationship map can open, synthetic ones included.
@@ -118,27 +118,102 @@ impl AzureMetadataDto {
     }
 }
 
-/// The judgements the backend applies to tag compliance, sent so the explorer
-/// and the printed report call the same estate healthy.
+/// The governance picture, with the thresholds already applied.
 ///
-/// Values, not verdicts, because the desktop still computes its governance
-/// analysis in the frontend. Moving that analysis to Rust would let this carry
-/// the verdict instead — see the cleanup notes.
+/// Verdicts, not values. This used to send `healthyTagCoveragePercent` and
+/// `flaggedNonCompliantShare` for the frontend to compare against, because the
+/// explorer computed the whole analysis itself in a `useMemo` — the second
+/// implementation problem `ResourceGroupSummaryDto` exists to fix, in the one
+/// view where a wrong answer is a compliance claim. `azdocs::report::governance`
+/// is the only implementation now, and it feeds the printed report too.
 #[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(rename = "GovernanceThresholds", optional_fields = nullable)]
-pub struct GovernanceThresholdsDto {
-    /// Coverage at or above this reads as healthy.
-    pub healthy_tag_coverage_percent: u32,
-    /// A group past this share of non-compliant resources is called out.
-    pub flagged_non_compliant_share: f64,
+#[ts(rename = "Governance", optional_fields = nullable)]
+pub struct GovernanceDto {
+    /// How many distinct tag keys the estate uses.
+    pub distinct_keys: usize,
+    /// The most-used keys, busiest first.
+    pub top_keys: Vec<TagKeyCoverageDto>,
+    /// Coverage per subscription that holds resources, by name.
+    pub subscriptions: Vec<SubscriptionCoverageDto>,
+    /// Resources missing at least one required tag.
+    pub non_compliant: usize,
+    /// The groups holding most of them, worst first.
+    pub worst_groups: Vec<GroupComplianceDto>,
 }
 
-impl GovernanceThresholdsDto {
-    fn build() -> Self {
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename = "TagKeyCoverage", optional_fields = nullable)]
+pub struct TagKeyCoverageDto {
+    pub key: String,
+    pub count: usize,
+    /// Share of the *tagged* resources carrying this key.
+    pub percent: u32,
+}
+
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename = "SubscriptionCoverage", optional_fields = nullable)]
+pub struct SubscriptionCoverageDto {
+    pub subscription_id: String,
+    pub display_name: String,
+    pub percent: u32,
+    /// Already judged against the healthy-coverage threshold.
+    pub healthy: bool,
+}
+
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename = "GroupCompliance", optional_fields = nullable)]
+pub struct GroupComplianceDto {
+    pub name: String,
+    pub subscription_name: String,
+    /// Every resource in the group, not just the offenders.
+    pub resources: usize,
+    pub non_compliant: usize,
+    /// Which required tags were missed anywhere in the group, sorted.
+    pub missed_tags: Vec<String>,
+    /// Already judged against the flagged-share threshold.
+    pub flagged: bool,
+}
+
+impl From<&GovernanceAnalysis> for GovernanceDto {
+    fn from(value: &GovernanceAnalysis) -> Self {
         Self {
-            healthy_tag_coverage_percent: azdocs::report::HEALTHY_TAG_COVERAGE_PERCENT,
-            flagged_non_compliant_share: azdocs::report::FLAGGED_NON_COMPLIANT_SHARE,
+            distinct_keys: value.distinct_keys,
+            top_keys: value
+                .top_keys
+                .iter()
+                .map(|key| TagKeyCoverageDto {
+                    key: key.key.clone(),
+                    count: key.count,
+                    percent: key.percent,
+                })
+                .collect(),
+            subscriptions: value
+                .subscriptions
+                .iter()
+                .map(|sub| SubscriptionCoverageDto {
+                    subscription_id: sub.subscription_id.clone(),
+                    display_name: sub.display_name.clone(),
+                    percent: sub.percent,
+                    healthy: sub.healthy,
+                })
+                .collect(),
+            non_compliant: value.non_compliant,
+            worst_groups: value
+                .worst_groups
+                .iter()
+                .map(|group| GroupComplianceDto {
+                    name: group.name.clone(),
+                    subscription_name: group.subscription_name.clone(),
+                    resources: group.resources,
+                    non_compliant: group.non_compliant,
+                    missed_tags: group.missed_tags.clone(),
+                    flagged: group.flagged,
+                })
+                .collect(),
         }
     }
 }
@@ -474,6 +549,7 @@ impl EstateSnapshot {
             percent: context.tag_coverage.percent,
         };
         let severity_counts = SeverityCountsDto::from(&context.severity_counts);
+        let governance = GovernanceDto::from(&context.governance);
 
         // Same bucketing the relationship map uses, so the two never disagree
         // about which groups exist or what a synthesised id looks like.
@@ -527,7 +603,7 @@ impl EstateSnapshot {
             tag_coverage,
             severity_counts,
             azure_metadata: AzureMetadataDto::build(),
-            governance_thresholds: GovernanceThresholdsDto::build(),
+            governance,
             subscriptions: subscriptions.into_iter().map(Into::into).collect(),
             resource_group_summaries,
             resource_groups: resource_groups.into_iter().map(Into::into).collect(),

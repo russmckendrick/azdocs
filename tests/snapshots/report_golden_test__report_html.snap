@@ -113,6 +113,43 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 </table>
 
 
+<h2>Governance</h2>
+<div class="stats">
+  <div class="stat"><b>52%</b><span>tag coverage</span></div>
+  <div class="stat"><b>1</b><span>distinct keys</span></div>
+  <div class="stat"><b>8</b><span>non-compliant</span></div>
+</div>
+
+<table>
+<thead><tr><th>Tag key</th><th>Resources</th><th>Share of 9 tagged</th></tr></thead>
+<tbody>
+<tr><td><code>env</code></td><td>9</td><td>100%</td></tr>
+</tbody>
+</table>
+
+<table>
+<thead><tr><th>Subscription</th><th>Tag coverage</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>Development</td><td>0%</td>
+<td><span class="badge medium">below threshold</span></td></tr>
+<tr><td>Production</td><td>64%</td>
+<td><span class="badge info">healthy</span></td></tr>
+</tbody>
+</table>
+
+<p>8 resources are missing at least one required tag, recorded by the <code>missing_required_tags</code> audit.</p>
+<table>
+<thead><tr><th>Resource group</th><th>Subscription</th><th>Resources</th><th>Non-compliant</th><th>Missed tags</th></tr></thead>
+<tbody>
+<tr><td>rg-app</td><td>Production</td><td>11</td>
+<td>5</td>
+<td><code>env</code></td></tr>
+<tr><td>rg-dev</td><td>Development</td><td>3</td>
+<td><span class="badge high">3</span></td>
+<td><code>env</code></td></tr>
+</tbody>
+</table>
+
 <h2>Resources by type</h2>
 <table>
 <thead><tr><th>Type</th><th>Azure type</th><th>Count</th></tr></thead>

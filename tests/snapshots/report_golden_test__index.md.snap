@@ -23,6 +23,28 @@ expression: content
 
 **Tag coverage**: 52% (9 tagged, 8 untagged)
 
+## Governance
+
+**Coverage by tag key** — share of the 9 tagged resources carrying each key.
+
+| Tag key | Resources | Share |
+|---|---:|---:|
+| `env` | 9 | 100% |
+
+**Coverage by subscription** — any tag counts here; the required-tag sweep is stricter.
+
+| Subscription | Coverage | Status |
+|---|---:|---|
+| Development | 0% | below threshold |
+| Production | 64% | healthy |
+
+**Least compliant resource groups** — 8 resources are missing at least one required tag, recorded by the `missing_required_tags` audit.
+
+| Resource group | Subscription | Resources | Non-compliant | Missed tags | Status |
+|---|---|---:|---:|---|---|
+| rg-app | Production | 11 | 5 | env | — |
+| rg-dev | Development | 3 | 3 | env | called out |
+
 ## Resources by type
 
 | Type | Azure type | Count |

@@ -87,6 +87,47 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 </table>
 {% else %}<p>No findings. 🎉</p>{% endif %}
 
+<h2>Governance</h2>
+<div class="stats">
+  <div class="stat"><b>{{ tag_coverage.percent }}%</b><span>tag coverage</span></div>
+  <div class="stat"><b>{{ governance.distinct_keys }}</b><span>distinct keys</span></div>
+  <div class="stat"><b>{{ governance.non_compliant }}</b><span>non-compliant</span></div>
+</div>
+{% if governance.top_keys %}
+<table>
+<thead><tr><th>Tag key</th><th>Resources</th><th>Share of {{ tag_coverage.tagged }} tagged</th></tr></thead>
+<tbody>
+{%- for key in governance.top_keys %}
+<tr><td><code>{{ key.key }}</code></td><td>{{ key.count }}</td><td>{{ key.percent }}%</td></tr>
+{%- endfor %}
+</tbody>
+</table>
+{% else %}<p>No tags are stored in this snapshot.</p>{% endif %}
+{%- if governance.subscriptions %}
+<table>
+<thead><tr><th>Subscription</th><th>Tag coverage</th><th>Status</th></tr></thead>
+<tbody>
+{%- for sub in governance.subscriptions %}
+<tr><td>{{ sub.display_name }}</td><td>{{ sub.percent }}%</td>
+<td><span class="badge {{ "info" if sub.healthy else "medium" }}">{{ "healthy" if sub.healthy else "below threshold" }}</span></td></tr>
+{%- endfor %}
+</tbody>
+</table>
+{%- endif %}
+{% if governance.worst_groups %}
+<p>{{ governance.non_compliant }} resources are missing at least one required tag, recorded by the <code>missing_required_tags</code> audit.</p>
+<table>
+<thead><tr><th>Resource group</th><th>Subscription</th><th>Resources</th><th>Non-compliant</th><th>Missed tags</th></tr></thead>
+<tbody>
+{%- for group in governance.worst_groups %}
+<tr><td>{{ group.name }}</td><td>{{ group.subscription_name }}</td><td>{{ group.resources }}</td>
+<td>{% if group.flagged %}<span class="badge high">{{ group.non_compliant }}</span>{% else %}{{ group.non_compliant }}{% endif %}</td>
+<td>{% for tag in group.missed_tags %}<code>{{ tag }}</code>{% if not loop.last %} {% endif %}{% endfor %}</td></tr>
+{%- endfor %}
+</tbody>
+</table>
+{%- endif %}
+
 <h2>Resources by type</h2>
 <table>
 <thead><tr><th>Type</th><th>Azure type</th><th>Count</th></tr></thead>

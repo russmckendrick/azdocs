@@ -22,7 +22,7 @@ export type SnapshotSummary = { id: string, createdAt: string, tenantId: string,
 
 export type SnapshotComparison = { baseSnapshotId: string, targetSnapshotId: string, added: Array<string>, removed: Array<string>, changed: Array<string>, };
 
-export type EstateSnapshot = { id: string, createdAt: string, tenantId: string, status: SnapshotStatus, notes?: string | null, totals: Totals, tagCoverage: TagCoverage, severityCounts: SeverityCounts, azureMetadata: AzureMetadata, governanceThresholds: GovernanceThresholds, subscriptions: Array<Subscription>, resourceGroups: Array<ResourceGroup>, 
+export type EstateSnapshot = { id: string, createdAt: string, tenantId: string, status: SnapshotStatus, notes?: string | null, totals: Totals, tagCoverage: TagCoverage, severityCounts: SeverityCounts, azureMetadata: AzureMetadata, governance: Governance, subscriptions: Array<Subscription>, resourceGroups: Array<ResourceGroup>, 
 /**
  * Every group the relationship map can open, synthetic ones included.
  */
@@ -36,15 +36,53 @@ export type SeverityCounts = { high: number, medium: number, low: number, info: 
 
 export type AzureMetadata = { locations: { [key in string]: string }, kinds: { [key in string]: string }, };
 
-export type GovernanceThresholds = { 
+export type Governance = { 
 /**
- * Coverage at or above this reads as healthy.
+ * How many distinct tag keys the estate uses.
  */
-healthyTagCoveragePercent: number, 
+distinctKeys: number, 
 /**
- * A group past this share of non-compliant resources is called out.
+ * The most-used keys, busiest first.
  */
-flaggedNonCompliantShare: number, };
+topKeys: Array<TagKeyCoverage>, 
+/**
+ * Coverage per subscription that holds resources, by name.
+ */
+subscriptions: Array<SubscriptionCoverage>, 
+/**
+ * Resources missing at least one required tag.
+ */
+nonCompliant: number, 
+/**
+ * The groups holding most of them, worst first.
+ */
+worstGroups: Array<GroupCompliance>, };
+
+export type TagKeyCoverage = { key: string, count: number, 
+/**
+ * Share of the *tagged* resources carrying this key.
+ */
+percent: number, };
+
+export type SubscriptionCoverage = { subscriptionId: string, displayName: string, percent: number, 
+/**
+ * Already judged against the healthy-coverage threshold.
+ */
+healthy: boolean, };
+
+export type GroupCompliance = { name: string, subscriptionName: string, 
+/**
+ * Every resource in the group, not just the offenders.
+ */
+resources: number, nonCompliant: number, 
+/**
+ * Which required tags were missed anywhere in the group, sorted.
+ */
+missedTags: Array<string>, 
+/**
+ * Already judged against the flagged-share threshold.
+ */
+flagged: boolean, };
 
 export type Subscription = { id: string, displayName: string, state?: string | null, tags?: Record<string, unknown>, };
 

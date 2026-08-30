@@ -303,9 +303,31 @@ export const mockEstate: EstateSnapshot = {
     (counts, finding) => ({ ...counts, [finding.severity]: counts[finding.severity] + 1 }),
     { high: 0, medium: 0, low: 0, info: 0 },
   ),
-  // Mirrors the Rust constants in src/report/mod.rs; the packaged app gets
-  // these from the backend so the two can never disagree.
-  governanceThresholds: { healthyTagCoveragePercent: 60, flaggedNonCompliantShare: 0.5 },
+  // The packaged app gets this from `azdocs::report::governance`, thresholds
+  // already applied. Illustrative here, and consistent with the fixture above:
+  // everything in Production carries both tags, nothing in Development does.
+  governance: {
+    distinctKeys: 2,
+    topKeys: [
+      { key: "env", count: 10, percent: 100 },
+      { key: "owner", count: 10, percent: 100 },
+    ],
+    subscriptions: [
+      { subscriptionId: "sub-dev", displayName: "Development", percent: 0, healthy: false },
+      { subscriptionId: "sub-prod", displayName: "Production", percent: 100, healthy: true },
+    ],
+    nonCompliant: 5,
+    worstGroups: [
+      {
+        name: "rg-dev",
+        subscriptionName: "Development",
+        resources: 5,
+        nonCompliant: 5,
+        missedTags: ["env", "owner"],
+        flagged: true,
+      },
+    ],
+  },
   azureMetadata: {
     locations: { uksouth: "UK South", ukwest: "UK West" },
     kinds: {

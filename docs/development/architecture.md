@@ -59,7 +59,7 @@ flowchart LR
 | `src/store/` | All SQL. Versioned migrations, snapshot-scoped tables, cascade delete |
 | `src/model/` | Plain data types + `azure_types.rs` display names |
 | `src/collect/` | Runner, `ingest.rs`, `extractors.rs`, `audit.rs` |
-| `src/report/` | `ReportContext` → all report data; `document.rs` composes one semantic `PrintDocument` for PDF + DOCX, while markdown / html / site / csv / xlsx consume `ReportContext` directly. Styled outputs use `BrandingContext`. |
+| `src/report/` | `ReportContext` → all report data; `document.rs` composes one semantic `PrintDocument` for PDF + DOCX, while markdown / html / site / csv / xlsx consume `ReportContext` directly. Styled outputs use `BrandingContext`. `governance.rs` owns the tag thresholds and the analysis applying them, shared with the desktop. |
 | `src/diagram/` | `EstateGraph` builders (incl. per-VNet/per-RG fan-out) → `page` (A4 fractions, density rungs) → `layout` (measure/justify) → `route` (orthogonal connectors) → mermaid / drawio (single + workbook) / svg / png emitters |
 | `src/tui/` | ratatui browse; `App` is a pure state machine, `ui.rs` renders it |
 | `desktop/src-tauri/` | Thin Tauri v2 boundary; opens the shared `Store` per command and maps core models to serialisable DTOs. `topology.rs` builds the explorer's view-ready relationship graphs (estate lanes, group drill-in with folding, ×N aggregation and cross-group ghost stubs, bounded-depth neighbourhoods) with honest drawn/folded/aggregated counts |
@@ -99,3 +99,12 @@ branding and diagram bundle into an ordered `PrintDocument`, then the Typst and
 OOXML backends render the same exhaustive block stream. Content, hierarchy,
 labels, captions and asset placement therefore have one edit point; only
 native layout mechanics remain renderer-specific.
+
+**A judgement is computed once, and travels as a verdict.** Tag governance is
+the worked example: `report/governance.rs` holds `HEALTHY_TAG_COVERAGE_PERCENT`
+and `FLAGGED_NON_COMPLIANT_SHARE` *and* the analysis that applies them, over the
+stored `missing_required_tags` findings rather than whatever `required_tags`
+happens to say today. `ReportContext.governance` renders the print and Markdown
+Governance chapter; `EstateSnapshot.governance` renders the explorer's
+workspace. Both receive `healthy` and `flagged` booleans, not the thresholds —
+sending the numbers is what let the frontend keep its own copy of the rule.

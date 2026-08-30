@@ -4,7 +4,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::Serialize;
 
 use super::branding::BrandingContext;
-use super::{HEALTHY_TAG_COVERAGE_PERCENT, ReportContext, cell_to_string};
+use super::{
+    FLAGGED_NON_COMPLIANT_SHARE, HEALTHY_TAG_COVERAGE_PERCENT, ReportContext, cell_to_string,
+};
 use crate::diagram::assets::{DiagramAsset, DiagramAssetKind};
 
 #[derive(Debug, Serialize)]
@@ -155,6 +157,7 @@ impl<'a> PrintDocument<'a> {
         build_summary(report, &mut blocks);
         build_overviews(diagrams, &mut blocks);
         build_findings(report, &mut blocks);
+        build_governance(report, &mut blocks);
         build_type_index(report, &mut blocks);
         build_estate(report, &group_diagrams, &resource_diagrams, &mut blocks);
         build_evidence(report, &mut blocks);
@@ -310,6 +313,155 @@ fn build_findings<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) {
         for finding in findings {
             blocks.push(finding_callout(finding));
         }
+    }
+}
+
+/// Tag governance: coverage, where it comes from, and who is worst at the
+/// required tags. Same analysis the explorer draws, so a reader comparing the
+/// two sees the same groups called out.
+fn build_governance<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) {
+    let governance = &report.governance;
+    major_chapter(blocks, "Governance", true);
+    blocks.push(Block::Statistics {
+        items: vec![
+            statistic(format!("{}%", report.tag_coverage.percent), "Tag coverage"),
+            statistic(governance.distinct_keys.to_string(), "Distinct keys"),
+            statistic(governance.non_compliant.to_string(), "Non-compliant"),
+        ],
+    });
+
+    if governance.top_keys.is_empty() {
+        empty(blocks, "No tags are stored in this snapshot.");
+    } else {
+        heading(blocks, 2, "Coverage by tag key", None);
+        blocks.push(Block::Paragraph {
+            style: ParagraphStyle::Muted,
+            runs: vec![
+                normal("Share of the "),
+                strong(report.tag_coverage.tagged.to_string()),
+                normal(" tagged resources carrying each key."),
+            ],
+        });
+        blocks.push(Block::Facts {
+            items: governance
+                .top_keys
+                .iter()
+                .map(|key| {
+                    fact(
+                        key.key.as_str(),
+                        format!(
+                            "{} of {} ({}%)",
+                            key.count, report.tag_coverage.tagged, key.percent
+                        ),
+                        true,
+                    )
+                })
+                .collect(),
+        });
+    }
+
+    if !governance.subscriptions.is_empty() {
+        heading(blocks, 2, "Coverage by subscription", None);
+        blocks.push(Block::Paragraph {
+            style: ParagraphStyle::Muted,
+            runs: vec![normal(
+                "Any tag counts here; the required-tag sweep is stricter.",
+            )],
+        });
+        blocks.push(Block::Facts {
+            items: governance
+                .subscriptions
+                .iter()
+                .map(|subscription| {
+                    fact(
+                        subscription.display_name.as_str(),
+                        format!(
+                            "{}% ({})",
+                            subscription.percent,
+                            if subscription.healthy {
+                                "healthy"
+                            } else {
+                                "below threshold"
+                            }
+                        ),
+                        false,
+                    )
+                })
+                .collect(),
+        });
+    }
+
+    if !governance.has_compliance_data() {
+        return;
+    }
+
+    heading(blocks, 2, "Least compliant resource groups", None);
+    blocks.push(Block::Paragraph {
+        style: ParagraphStyle::Body,
+        runs: vec![
+            strong(governance.non_compliant.to_string()),
+            normal(" resources are missing at least one required tag, recorded by the "),
+            mono("missing_required_tags"),
+            normal(" audit."),
+        ],
+    });
+    blocks.push(Block::Table {
+        style: TableKind::Data,
+        columns: vec![
+            TableColumn {
+                label: Cow::Borrowed("Resource group"),
+                mono: false,
+            },
+            TableColumn {
+                label: Cow::Borrowed("Subscription"),
+                mono: false,
+            },
+            TableColumn {
+                label: Cow::Borrowed("Resources"),
+                mono: false,
+            },
+            TableColumn {
+                label: Cow::Borrowed("Non-compliant"),
+                mono: false,
+            },
+            TableColumn {
+                label: Cow::Borrowed("Missed tags"),
+                mono: true,
+            },
+        ],
+        rows: governance
+            .worst_groups
+            .iter()
+            .map(|group| {
+                vec![
+                    Cow::Borrowed(group.name.as_str()),
+                    Cow::Borrowed(group.subscription_name.as_str()),
+                    Cow::Owned(group.resources.to_string()),
+                    Cow::Owned(group.non_compliant.to_string()),
+                    Cow::Owned(group.missed_tags.join(", ")),
+                ]
+            })
+            .collect(),
+    });
+
+    let flagged: Vec<&str> = governance
+        .worst_groups
+        .iter()
+        .filter(|group| group.flagged)
+        .map(|group| group.name.as_str())
+        .collect();
+    if !flagged.is_empty() {
+        blocks.push(Block::Paragraph {
+            style: ParagraphStyle::Muted,
+            runs: vec![
+                normal(format!(
+                    "Past the {}% share this report calls out: ",
+                    (FLAGGED_NON_COMPLIANT_SHARE * 100.0) as u32
+                )),
+                strong(flagged.join(", ")),
+                normal("."),
+            ],
+        });
     }
 }
 
@@ -744,6 +896,9 @@ mod tests {
 
     use super::*;
     use crate::report::details::{Callout, ResourceDetail, ResourceGroupPage, Setting};
+    use crate::report::governance::{
+        GovernanceAnalysis, GroupCompliance, SubscriptionCoverage, TagKeyCoverage,
+    };
     use crate::report::{
         Category, FindingRow, QuerySection, ResourceTypeSection, SeverityCounts,
         SubscriptionSection, TagCoverage, Totals, TypeCount,
@@ -798,6 +953,29 @@ mod tests {
                 tagged: 1,
                 untagged: 0,
                 percent: 100,
+            },
+            governance: GovernanceAnalysis {
+                distinct_keys: 1,
+                top_keys: vec![TagKeyCoverage {
+                    key: "env".to_owned(),
+                    count: 1,
+                    percent: 100,
+                }],
+                subscriptions: vec![SubscriptionCoverage {
+                    subscription_id: "s1".to_owned(),
+                    display_name: "Production".to_owned(),
+                    percent: 100,
+                    healthy: true,
+                }],
+                non_compliant: 1,
+                worst_groups: vec![GroupCompliance {
+                    name: "rg-app".to_owned(),
+                    subscription_name: "Production".to_owned(),
+                    resources: 1,
+                    non_compliant: 1,
+                    missed_tags: vec!["owner".to_owned()],
+                    flagged: true,
+                }],
             },
             categories: vec![Category {
                 name: "storage".to_owned(),

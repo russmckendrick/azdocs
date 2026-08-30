@@ -212,6 +212,17 @@ browser preview may reach it** — it is stripped from a Tauri build, and a
 production component importing it puts a second, drifting implementation back
 in the app. That is what it was doing before.
 
+**So is the governance analysis.** `src/report/governance.rs` owns the tag
+thresholds *and* the analysis applying them — key and subscription coverage,
+who is missing a required tag, which groups are worst, and which of those are
+past the flagged share. It reads the stored `missing_required_tags` findings,
+not today's `required_tags`, so a snapshot always describes the estate as it
+was audited. `ReportContext.governance` feeds the print/markdown Governance
+chapter and `EstateSnapshot.governance` feeds `GovernanceView.tsx`, which now
+only draws it. The wire contract carries **verdicts** (`healthy`, `flagged`),
+never the raw thresholds for a surface to compare against — that shape is what
+let the explorer keep its own `>= 60` and its own `Math.round`.
+
 Frontend rendering has another hard boundary. Read
 `docs/development/desktop-relationships.md` before changing it.
 `topology-layout.ts` owns deterministic zones, connection-aware rails, entry

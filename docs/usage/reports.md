@@ -42,19 +42,24 @@ diagram selection are composed once:
    ×13`) to stay readable; run `azdocs diagram` for full per-resource detail.
 5. **Findings** — every finding as a flowing callout, grouped high to
    informational rather than packed into one table.
-6. **Resources by type** — a lightweight index: every resource of each type
+6. **Governance** — tag coverage by key and by subscription, each judged
+   against the healthy threshold, then the least compliant resource groups from
+   the `missing_required_tags` audit with the groups past the flagged share
+   named. This is the same analysis the desktop explorer's Governance workspace
+   draws, from the same Rust code, so the two never disagree about an estate.
+7. **Resources by type** — a lightweight index: every resource of each type
    with its
    subscription, group and location. The body below is grouped the way Azure
    is, which scatters one type across many groups; this restores the
    compliance sweep ("every storage account") without repeating the detail.
    Each type is a level-2 heading with its Azure icon.
-7. **The estate** — laid out as Azure itself is: **subscription → resource
+8. **The estate** — laid out as Azure itself is: **subscription → resource
    group → resource**. Each group opens with its own summarised diagram, then
    documents every resource inside it: a name plate, a **relationship diagram**
    of the resource and everything attached to it, a definition list of
    settings flattened from its properties, any findings raised against it,
    and its related resources. Per-group diagrams are capped at 60.
-8. **Evidence appendix** — the collected inventory-query results. A compact
+9. **Evidence appendix** — the collected inventory-query results. A compact
    one-row result becomes a definition list; larger result sets remain tables
    because row-to-row comparison is the useful reading mode there.
 

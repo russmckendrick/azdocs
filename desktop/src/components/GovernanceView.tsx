@@ -1,16 +1,17 @@
-import { useMemo } from "react";
 import type { EstateSnapshot } from "../types";
 import { ViewHeading } from "./view-chrome";
-import { useSubscriptionNames } from "../estate-lookups";
 
-interface GroupCompliance {
-  name: string;
-  subscriptionName: string;
-  resources: number;
-  nonCompliant: number;
-  missedTags: string[];
-}
-
+/**
+ * Tag governance, drawn from `estate.governance`.
+ *
+ * The analysis behind this — the key and subscription coverage, who is missing
+ * a required tag, which groups are worst and which are past the threshold — is
+ * `azdocs::report::governance`, the same code the printed report renders. This
+ * view used to compute all of it in a `useMemo` against the *current* config,
+ * so editing `required_tags` changed what an old snapshot appeared to contain
+ * while the stored findings said otherwise. `requiredTags` survives here only
+ * to say whether a sweep is configured at all, which is genuinely config.
+ */
 export function GovernanceView({
   estate,
   requiredTags,
@@ -20,70 +21,8 @@ export function GovernanceView({
   requiredTags: string[];
   onOpenFindings: () => void;
 }) {
-  const subscriptionNames = useSubscriptionNames(estate);
-  // Judgements the Rust side owns, so the explorer and the printed report call
-  // the same estate healthy. They used to be `60` and `/ 2` written inline here.
-  const { healthyTagCoveragePercent, flaggedNonCompliantShare } = estate.governanceThresholds;
-
-  const analysis = useMemo(() => {
-    const keyCounts = new Map<string, number>();
-    let tagged = 0;
-    const subscriptionTotals = new Map<string, { total: number; tagged: number }>();
-    const groupStats = new Map<string, GroupCompliance>();
-    let nonCompliant = 0;
-
-    for (const resource of estate.resources) {
-      const tags = Object.keys(resource.tags ?? {});
-      const hasTags = tags.length > 0;
-      if (hasTags) tagged += 1;
-      for (const key of tags) keyCounts.set(key, (keyCounts.get(key) ?? 0) + 1);
-
-      const subscription = subscriptionTotals.get(resource.subscriptionId) ?? { total: 0, tagged: 0 };
-      subscription.total += 1;
-      if (hasTags) subscription.tagged += 1;
-      subscriptionTotals.set(resource.subscriptionId, subscription);
-
-      const missing = requiredTags.filter((required) => !tags.includes(required));
-      if (requiredTags.length > 0 && missing.length > 0) {
-        nonCompliant += 1;
-        const groupKey = `${resource.subscriptionId}/${resource.resourceGroup ?? "—"}`;
-        const group = groupStats.get(groupKey) ?? {
-          name: resource.resourceGroup ?? "—",
-          subscriptionName: subscriptionNames.get(resource.subscriptionId) ?? resource.subscriptionId,
-          resources: 0,
-          nonCompliant: 0,
-          missedTags: [],
-        };
-        group.nonCompliant += 1;
-        for (const tag of missing) if (!group.missedTags.includes(tag)) group.missedTags.push(tag);
-        groupStats.set(groupKey, group);
-      }
-    }
-
-    // Group sizes come from the full resource list, not just the offenders.
-    for (const resource of estate.resources) {
-      const groupKey = `${resource.subscriptionId}/${resource.resourceGroup ?? "—"}`;
-      const group = groupStats.get(groupKey);
-      if (group) group.resources += 1;
-    }
-
-    const topKeys = [...keyCounts.entries()]
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 6)
-      .map(([key, count]) => ({ key, count, percent: tagged > 0 ? Math.round((count / tagged) * 100) : 0 }));
-
-    const subscriptions = [...subscriptionTotals.entries()].map(([id, totals]) => ({
-      name: subscriptionNames.get(id) ?? id,
-      percent: totals.total > 0 ? Math.round((totals.tagged / totals.total) * 100) : 0,
-    }));
-
-    const worstGroups = [...groupStats.values()]
-      .sort((a, b) => b.nonCompliant - a.nonCompliant || a.name.localeCompare(b.name))
-      .slice(0, 6);
-
-    return { keyCount: keyCounts.size, tagged, topKeys, subscriptions, nonCompliant, worstGroups };
-  }, [estate.resources, requiredTags, subscriptionNames]);
-
+  const { governance } = estate;
+  const enforced = requiredTags.length > 0;
   const governanceFindings = estate.findings.filter((finding) => finding.category === "governance").length;
 
   return (
@@ -91,7 +30,7 @@ export function GovernanceView({
       <ViewHeading
         title="Governance & tags"
         description={
-          requiredTags.length > 0 ? (
+          enforced ? (
             <>
               Required tags from azdocs.toml: <span className="mono">{requiredTags.join(" · ")}</span>
             </>
@@ -107,12 +46,12 @@ export function GovernanceView({
           <span>Tag coverage</span>
         </div>
         <div className="stat-cell">
-          <strong>{analysis.keyCount}</strong>
+          <strong>{governance.distinctKeys}</strong>
           <span>Distinct keys</span>
         </div>
         <div className="stat-cell">
-          <strong className={analysis.nonCompliant > 0 ? "risk" : undefined}>
-            {requiredTags.length > 0 ? analysis.nonCompliant : "—"}
+          <strong className={governance.nonCompliant > 0 ? "risk" : undefined}>
+            {enforced ? governance.nonCompliant : "—"}
           </strong>
           <span>Non-compliant</span>
         </div>
@@ -125,7 +64,7 @@ export function GovernanceView({
       <div className="governance-columns">
         <div className="figure-block">
           <h2 className="figure-title">Coverage by tag key</h2>
-          {analysis.topKeys.map((entry) => (
+          {governance.topKeys.map((entry) => (
             <div className="meter-row" key={entry.key}>
               <span className="meter-key" title={entry.key}>{entry.key}</span>
               <div className="meter">
@@ -134,22 +73,21 @@ export function GovernanceView({
               <span className="meter-val">{entry.percent}%</span>
             </div>
           ))}
-          {analysis.topKeys.length === 0 ? <p className="muted-copy">No tags are stored in this snapshot.</p> : null}
+          {governance.topKeys.length === 0 ? <p className="muted-copy">No tags are stored in this snapshot.</p> : null}
           <div className="fig-caption">
-            Share of the {analysis.tagged} tagged resources carrying each key. One measure, one hue.
+            Share of the {estate.tagCoverage.tagged} tagged resources carrying each key. One measure, one hue.
           </div>
         </div>
         <div className="figure-block">
           <h2 className="figure-title">Coverage by subscription</h2>
-          {analysis.subscriptions.map((entry) => (
-            <div className="meter-row" key={entry.name}>
-              <span className="meter-key sans" title={entry.name}>{entry.name}</span>
+          {governance.subscriptions.map((entry) => (
+            <div className="meter-row" key={entry.subscriptionId}>
+              <span className="meter-key sans" title={entry.displayName}>{entry.displayName}</span>
               <div className="meter">
                 <div
                   style={{
                     width: `${Math.max(2, entry.percent)}%`,
-                    background:
-                      entry.percent >= healthyTagCoveragePercent ? "var(--green)" : "var(--amber)",
+                    background: entry.healthy ? "var(--green)" : "var(--amber)",
                   }}
                 />
               </div>
@@ -160,7 +98,7 @@ export function GovernanceView({
         </div>
       </div>
 
-      {requiredTags.length > 0 ? (
+      {enforced ? (
         <div className="gov-table-wrap">
           <table className="data-grid">
             <thead>
@@ -173,19 +111,12 @@ export function GovernanceView({
               </tr>
             </thead>
             <tbody>
-              {analysis.worstGroups.map((group) => (
+              {governance.worstGroups.map((group) => (
                 <tr key={`${group.subscriptionName}-${group.name}`}>
                   <td>{group.name}</td>
                   <td className="secondary">{group.subscriptionName}</td>
                   <td className="mono-cell numeric">{group.resources}</td>
-                  <td
-                    className={
-                      group.resources > 0
-                        && group.nonCompliant > group.resources * flaggedNonCompliantShare
-                        ? "numeric emphatic flagged"
-                        : "numeric emphatic"
-                    }
-                  >
+                  <td className={group.flagged ? "numeric emphatic flagged" : "numeric emphatic"}>
                     {group.nonCompliant}
                   </td>
                   <td className="missed-tags">
@@ -197,7 +128,7 @@ export function GovernanceView({
                   </td>
                 </tr>
               ))}
-              {analysis.worstGroups.length === 0 ? (
+              {governance.worstGroups.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="all-clear">
                     Every resource carries all required tags.
