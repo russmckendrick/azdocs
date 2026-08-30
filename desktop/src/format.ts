@@ -80,3 +80,16 @@ export function resourceName(id: string | null | undefined) {
   if (!id) return "";
   return id.split("/").filter(Boolean).at(-1) ?? id;
 }
+
+/**
+ * A message to show the reader for a thrown value.
+ *
+ * `catch` gives `unknown`; this narrows it in one place rather than each call
+ * site inventing its own `instanceof Error` check. `fallback` covers the cases
+ * where `String(error)` would surface something like "[object Object]".
+ */
+export function errorMessage(error: unknown, fallback = "Something went wrong.") {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === "string" && error) return error;
+  return fallback;
+}

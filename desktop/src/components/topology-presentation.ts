@@ -1,5 +1,6 @@
 import type { TopologyGraph, TopologyLink } from "../types";
 import type { Placement } from "./topology-layout";
+import { stableCompare } from "../ordering";
 
 export type RelationshipLabelSide = "left" | "right" | "top" | "bottom";
 export type ConnectorPortSide = RelationshipLabelSide;
@@ -68,10 +69,6 @@ export interface RelationshipLabelPlacement {
   side: RelationshipLabelSide;
   x: number;
   y: number;
-}
-
-function stableCompare(left: string, right: string) {
-  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 function linkKey(link: TopologyLink, index: number) {

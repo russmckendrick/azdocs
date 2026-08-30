@@ -1,4 +1,5 @@
 import type { Edge, EdgeKind, EstateSnapshot, Resource, ResourceGroup } from "../types";
+import { stableCompare } from "../ordering";
 
 export interface ResourceTypeCount {
   azureType: string;
@@ -31,10 +32,6 @@ export interface ResourceGroupTopology {
   groups: ResourceGroupSummary[];
   links: ResourceGroupLink[];
   resourceGroupByResourceId: Map<string, string>;
-}
-
-function stableCompare(left: string, right: string) {
-  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 function groupMatchKey(subscriptionId: string, name: string) {

@@ -35,18 +35,13 @@ import {
   resolveAggregateActivation,
   toggleSubscriptionLane,
 } from "./topology-view-state";
+import { errorMessage } from "../format";
 
 const ALL_KIND_CLASSES = ["network", "structure", "data", "identity", "monitoring"] as const;
 
 interface TopologyError {
   message: string;
   hasPrevious: boolean;
-}
-
-function errorMessage(error: unknown) {
-  return error instanceof Error && error.message
-    ? error.message
-    : "The relationship graph could not be refreshed.";
 }
 
 export function TopologyView({
@@ -175,7 +170,7 @@ export function TopologyView({
       })
       .catch((error: unknown) => {
         if (requestTokenRef.current !== token) return;
-        const failed = refreshFailed(Boolean(topology), errorMessage(error));
+        const failed = refreshFailed(Boolean(topology), errorMessage(error, "The relationship graph could not be refreshed."));
         setTopologyStale(failed.stale);
         setTopologyError(failed.error);
       });

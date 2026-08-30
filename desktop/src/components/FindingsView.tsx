@@ -3,8 +3,9 @@ import { ArrowRight, CheckCircle2, Filter, ShieldAlert, X } from "lucide-react";
 import type { EstateSnapshot, Finding, Severity } from "../types";
 import { resourceName } from "../format";
 import { ShowMore, useProgressiveList } from "./progressive-list";
+import { SEVERITIES } from "../ordering";
 
-const severities: Array<Severity | "all"> = ["all", "high", "medium", "low", "info"];
+const severities: Array<Severity | "all"> = ["all", ...SEVERITIES];
 
 export function FindingsView({
   estate,
@@ -52,7 +53,7 @@ export function FindingsView({
         </div>
       </header>
       <div className="severity-tally" aria-label="Finding severity counts">
-        {(["high", "medium", "low", "info"] as Severity[]).map((item) => (
+        {SEVERITIES.map((item) => (
           <button key={item} className={severity === item ? `severity-box ${item} active` : `severity-box ${item}`} onClick={() => setSeverity(severity === item ? "all" : item)}>
             <strong>{estate.severityCounts[item]}</strong><span>{item}</span>
           </button>

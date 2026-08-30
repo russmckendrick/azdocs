@@ -2,13 +2,7 @@ import { useMemo } from "react";
 import { displayLocation } from "../azure-values";
 import type { AppBootstrap, EstateSnapshot, ViewId } from "../types";
 import { dayMonth, resourceName } from "../format";
-
-const SEVERITY_SWATCH: Record<string, string> = {
-  high: "var(--coral)",
-  medium: "var(--amber)",
-  low: "var(--muted)",
-  info: "var(--accent)",
-};
+import { SEVERITY_TOKEN, severityRank } from "../ordering";
 
 function sparkPath(values: number[], width: number, height: number) {
   const min = Math.min(...values);
@@ -166,7 +160,7 @@ export function OverviewView({
                   key={`${finding.queryName}-${index}`}
                   onClick={() => (finding.resourceId ? onOpenResource(finding.resourceId) : onOpenView("findings"))}
                 >
-                  <span className="sev" style={{ color: SEVERITY_SWATCH[finding.severity] }}>
+                  <span className="sev" style={{ color: SEVERITY_TOKEN[finding.severity] }}>
                     {finding.severity.toUpperCase().slice(0, 4)}
                   </span>
                   <span>
@@ -188,7 +182,4 @@ export function OverviewView({
   );
 }
 
-function severityRank(severity: string) {
-  return ["high", "medium", "low", "info"].indexOf(severity);
-}
 

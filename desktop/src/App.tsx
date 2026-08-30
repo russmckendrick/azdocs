@@ -43,7 +43,7 @@ import type {
   ThemePreference,
   ViewId,
 } from "./types";
-import { dayMonthTime } from "./format";
+import { dayMonthTime, errorMessage } from "./format";
 
 const TopologyView = lazy(() =>
   import("./components/TopologyView").then((module) => ({ default: module.TopologyView })),
@@ -73,10 +73,6 @@ function readThemePreference(): ThemePreference {
   } catch {
     return "system";
   }
-}
-
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
 }
 
 function frameLabel(frame: NavigationFrame | undefined, estate?: EstateSnapshot) {
