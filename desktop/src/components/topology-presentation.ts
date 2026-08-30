@@ -2,9 +2,12 @@ import type { TopologyGraph, TopologyLink } from "../types";
 import type { Placement } from "./topology-layout";
 
 export type RelationshipLabelSide = "left" | "right" | "top" | "bottom";
+export type ConnectorPortSide = RelationshipLabelSide;
 
 export interface LinkPresentation {
   edgeId: string;
+  sourcePortId: string;
+  targetPortId: string;
   index: number;
   sourceId: string;
   targetId: string;
@@ -27,11 +30,38 @@ export interface ConnectorGeometry {
   taxiTurn: string;
 }
 
+export interface ConnectorPort {
+  side: ConnectorPortSide;
+  offset: number;
+}
+
+export interface ConnectorPortAssignment extends ConnectorGeometry {
+  sourceId: string;
+  targetId: string;
+  sourcePortId: string;
+  targetPortId: string;
+  sourcePort: ConnectorPort;
+  targetPort: ConnectorPort;
+}
+
 export interface LabelRect {
   x1: number;
   y1: number;
   x2: number;
   y2: number;
+}
+
+export function connectorPortPosition(bounds: LabelRect, port: ConnectorPort): Placement {
+  if (port.side === "left") {
+    return { x: bounds.x1, y: bounds.y1 + (bounds.y2 - bounds.y1) * port.offset };
+  }
+  if (port.side === "right") {
+    return { x: bounds.x2, y: bounds.y1 + (bounds.y2 - bounds.y1) * port.offset };
+  }
+  if (port.side === "top") {
+    return { x: bounds.x1 + (bounds.x2 - bounds.x1) * port.offset, y: bounds.y1 };
+  }
+  return { x: bounds.x1 + (bounds.x2 - bounds.x1) * port.offset, y: bounds.y2 };
 }
 
 export interface RelationshipLabelPlacement {
@@ -94,6 +124,8 @@ export function buildLinkPresentations(graph: TopologyGraph): LinkPresentation[]
     const turn = Math.min(70, Math.max(30, 50 + targetSlot * 8 + sourceSlot * 4));
     return {
       edgeId: `relationship-${index}`,
+      sourcePortId: `relationship-${index}:source-port`,
+      targetPortId: `relationship-${index}:target-port`,
       index,
       sourceId: link.sourceId,
       targetId: link.targetId,
@@ -107,30 +139,149 @@ export function buildLinkPresentations(graph: TopologyGraph): LinkPresentation[]
   });
 }
 
+function connectorSides(source: Placement, target: Placement) {
+  const deltaX = target.x - source.x;
+  const deltaY = target.y - source.y;
+  if (Math.abs(deltaX) >= Math.abs(deltaY)) {
+    return {
+      sourceSide: (deltaX >= 0 ? "right" : "left") as ConnectorPortSide,
+      targetSide: (deltaX >= 0 ? "left" : "right") as ConnectorPortSide,
+      taxiDirection: "horizontal" as const,
+    };
+  }
+  return {
+    sourceSide: (deltaY >= 0 ? "bottom" : "top") as ConnectorPortSide,
+    targetSide: (deltaY >= 0 ? "top" : "bottom") as ConnectorPortSide,
+    taxiDirection: "vertical" as const,
+  };
+}
+
+function portOffset(position: number, count: number) {
+  // Keep ports clear of card corners while using enough of a compound frame's
+  // boundary to turn a shared anchor into visibly separate approaches.
+  return 0.15 + ((position + 1) / (count + 1)) * 0.7;
+}
+
+function projectedPortOffsets(endpoints: Array<{ oppositeAxis: number }>, axisStart: number, axisEnd: number) {
+  const axisLength = Math.max(1, axisEnd - axisStart);
+  const minimum = 0.15;
+  const maximum = 0.85;
+  const gap = Math.min(14 / axisLength, (maximum - minimum) / Math.max(1, endpoints.length - 1));
+  const desired = endpoints.map((endpoint) => Math.min(
+    maximum,
+    Math.max(minimum, (endpoint.oppositeAxis - axisStart) / axisLength),
+  ));
+  const offsets = [...desired];
+  for (let index = 1; index < offsets.length; index += 1) {
+    offsets[index] = Math.max(offsets[index], offsets[index - 1] + gap);
+  }
+
+  const desiredCentre = desired.reduce((total, value) => total + value, 0) / desired.length;
+  const packedCentre = offsets.reduce((total, value) => total + value, 0) / offsets.length;
+  const lowerShift = minimum - offsets[0];
+  const upperShift = maximum - offsets[offsets.length - 1];
+  const shift = Math.min(upperShift, Math.max(lowerShift, desiredCentre - packedCentre));
+  return offsets.map((offset) => offset + shift);
+}
+
+export function connectorPortAssignments(
+  presentations: readonly LinkPresentation[],
+  positions: ReadonlyMap<string, Placement>,
+  bounds: ReadonlyMap<string, LabelRect> = new Map(),
+): ConnectorPortAssignment[] {
+  type Endpoint = {
+    edgeId: string;
+    endpoint: "source" | "target";
+    nodeId: string;
+    side: ConnectorPortSide;
+    oppositeAxis: number;
+  };
+  type Working = {
+    presentation: LinkPresentation;
+    sourceSide: ConnectorPortSide;
+    targetSide: ConnectorPortSide;
+    taxiDirection: "horizontal" | "vertical";
+  };
+
+  const working: Working[] = [];
+  const endpointGroups = new Map<string, Endpoint[]>();
+  for (const presentation of presentations) {
+    const source = positions.get(presentation.sourceId) ?? { x: 0, y: 0 };
+    const target = positions.get(presentation.targetId) ?? { x: 0, y: 0 };
+    const sides = connectorSides(source, target);
+    working.push({ presentation, ...sides });
+    const endpoints: Endpoint[] = [
+      {
+        edgeId: presentation.edgeId,
+        endpoint: "source",
+        nodeId: presentation.sourceId,
+        side: sides.sourceSide,
+        oppositeAxis: sides.sourceSide === "left" || sides.sourceSide === "right" ? target.y : target.x,
+      },
+      {
+        edgeId: presentation.edgeId,
+        endpoint: "target",
+        nodeId: presentation.targetId,
+        side: sides.targetSide,
+        oppositeAxis: sides.targetSide === "left" || sides.targetSide === "right" ? source.y : source.x,
+      },
+    ];
+    for (const endpoint of endpoints) {
+      const key = `${endpoint.nodeId}\0${endpoint.side}`;
+      endpointGroups.set(key, [...(endpointGroups.get(key) ?? []), endpoint]);
+    }
+  }
+
+  const offsets = new Map<string, number>();
+  for (const endpoints of endpointGroups.values()) {
+    endpoints.sort((left, right) => left.oppositeAxis - right.oppositeAxis
+      || stableCompare(left.edgeId, right.edgeId)
+      || stableCompare(left.endpoint, right.endpoint));
+    const first = endpoints[0];
+    const endpointBounds = bounds.get(first.nodeId);
+    const verticalSide = first.side === "left" || first.side === "right";
+    const projected = endpointBounds
+      ? projectedPortOffsets(
+        endpoints,
+        verticalSide ? endpointBounds.y1 : endpointBounds.x1,
+        verticalSide ? endpointBounds.y2 : endpointBounds.x2,
+      )
+      : endpoints.map((_, position) => portOffset(position, endpoints.length));
+    for (const [position, endpoint] of endpoints.entries()) {
+      offsets.set(`${endpoint.edgeId}\0${endpoint.endpoint}`, projected[position]);
+    }
+  }
+
+  return working.map(({ presentation, sourceSide, targetSide, taxiDirection }) => {
+    const sourceOffset = offsets.get(`${presentation.edgeId}\0source`) ?? 0.5;
+    const targetOffset = offsets.get(`${presentation.edgeId}\0target`) ?? 0.5;
+    const turn = Math.min(70, Math.max(
+      30,
+      50 + (targetOffset - 0.5) * 32 + (sourceOffset - 0.5) * 18,
+    ));
+    return {
+      edgeId: presentation.edgeId,
+      sourceId: presentation.sourceId,
+      targetId: presentation.targetId,
+      sourcePortId: presentation.sourcePortId,
+      targetPortId: presentation.targetPortId,
+      sourcePort: { side: sourceSide, offset: sourceOffset },
+      targetPort: { side: targetSide, offset: targetOffset },
+      taxiDirection,
+      taxiTurn: `${Number(turn.toFixed(1))}%`,
+    };
+  });
+}
+
 export function connectorGeometries(
   presentations: readonly LinkPresentation[],
   positions: ReadonlyMap<string, Placement>,
 ): ConnectorGeometry[] {
-  return presentations.map((presentation) => {
-    const source = positions.get(presentation.sourceId);
-    const target = positions.get(presentation.targetId);
-    const deltaX = (target?.x ?? 0) - (source?.x ?? 0);
-    const deltaY = (target?.y ?? 0) - (source?.y ?? 0);
-    const horizontal = Math.abs(deltaX) >= Math.abs(deltaY);
-    if (horizontal) {
-      return {
-        edgeId: presentation.edgeId,
-        taxiDirection: "horizontal",
-        taxiTurn: presentation.taxiTurn,
-      };
-    }
-
-    return {
-      edgeId: presentation.edgeId,
-      taxiDirection: "vertical",
-      taxiTurn: presentation.taxiTurn,
-    };
-  });
+  return connectorPortAssignments(presentations, positions).map((assignment) => ({
+    edgeId: assignment.edgeId,
+    taxiDirection: assignment.taxiDirection,
+    taxiTurn: assignment.taxiTurn,
+  }));
 }
 
 export function activeRelationshipLabels(

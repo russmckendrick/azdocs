@@ -17,7 +17,8 @@ import {
 import {
   activeRelationshipLabels,
   buildLinkPresentations,
-  connectorGeometries,
+  connectorPortAssignments,
+  connectorPortPosition,
   placeRelationshipLabel,
   resolveTraceNode,
   type ActiveRelationshipLabel,
@@ -281,6 +282,20 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
       },
     },
     {
+      selector: "node.connector-port",
+      style: {
+        width: 2,
+        height: 2,
+        "background-opacity": 0,
+        "border-width": 0,
+        opacity: 0,
+        events: "no",
+        label: "",
+        "z-index": 0,
+        "z-index-compare": "manual",
+      },
+    },
+    {
       selector: "edge.relationship-edge",
       style: {
         width: "mapData(weight, 1, 20, 1.2, 3)",
@@ -298,8 +313,8 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
         "target-arrow-shape": "triangle",
         "target-arrow-color": "data(color)",
         "arrow-scale": 0.66,
-        "source-distance-from-node": "5px",
-        "target-distance-from-node": "7px",
+        "source-distance-from-node": "0px",
+        "target-distance-from-node": "0px",
         "overlay-opacity": 0,
         "underlay-opacity": 0,
         events: "no",
@@ -393,12 +408,38 @@ function graphElements(
   }
   graph.links.forEach((link, index) => {
     const presentation = presentations[index];
+    elements.push(
+      {
+        group: "nodes",
+        data: {
+          id: presentation.sourcePortId,
+          kind: "connector-port",
+          logicalNodeId: link.sourceId,
+        },
+        classes: "connector-port",
+        selectable: false,
+        grabbable: false,
+      },
+      {
+        group: "nodes",
+        data: {
+          id: presentation.targetPortId,
+          kind: "connector-port",
+          logicalNodeId: link.targetId,
+        },
+        classes: "connector-port",
+        selectable: false,
+        grabbable: false,
+      },
+    );
     elements.push({
       group: "edges",
       data: {
         id: presentation.edgeId,
-        source: link.sourceId,
-        target: link.targetId,
+        source: presentation.sourcePortId,
+        target: presentation.targetPortId,
+        logicalSource: link.sourceId,
+        logicalTarget: link.targetId,
         weight: link.count,
         color: kindClassColor(link.kindClass),
         taxiTurn: presentation.taxiTurn,
@@ -603,6 +644,7 @@ export function CytoscapeResourceGraph({
     }
 
     let labelFrame = 0;
+    let connectorFrame = 0;
     let resizeFrame = 0;
     let motionFrame = 0;
     let lastMotionPaint = 0;
@@ -748,7 +790,7 @@ export function CytoscapeResourceGraph({
     }
 
     function handleNodeOver(event: cytoscape.EventObject) {
-      if (["lane", "subnet"].includes(event.target.data("kind"))) return;
+      if (["lane", "subnet", "connector-port"].includes(event.target.data("kind"))) return;
       event.target.addClass("hovered");
       setPointerTraceNodeId(event.target.id());
       activeHost.style.cursor = "pointer";
@@ -766,8 +808,15 @@ export function CytoscapeResourceGraph({
         cy.nodes().removeClass("trace-source trace-peer trace-muted");
         cy.edges(".relationship-edge").removeClass("trace-active trace-muted");
         if (node.empty()) return;
-        const activeEdges = node.connectedEdges(".relationship-edge");
-        const peers = activeEdges.connectedNodes().difference(node);
+        const activeEdges = cy.edges(".relationship-edge").filter((edge) => (
+          edge.data("logicalSource") === nodeId || edge.data("logicalTarget") === nodeId
+        ));
+        const peerIds = activeEdges.map((edge) => (
+          edge.data("logicalSource") === nodeId
+            ? edge.data("logicalTarget") as string
+            : edge.data("logicalSource") as string
+        ));
+        const peers = collectionFor(peerIds);
         node.addClass("trace-source");
         peers.addClass("trace-peer");
         cy.nodes()
@@ -791,6 +840,7 @@ export function CytoscapeResourceGraph({
       activeHost.style.cursor = "pointer";
     });
     cy.on("pan zoom position resize", queueLabelSync);
+    cy.on("position", "node:not(.connector-port)", queueConnectorGeometry);
     document.addEventListener("visibilitychange", handleVisibility);
     reduceMotion.addEventListener("change", handleMotionPreference);
 
@@ -828,11 +878,16 @@ export function CytoscapeResourceGraph({
       const plan = layoutPlanRef.current;
       if (!plan) return undefined;
       const selectedId = selectedNodeRef.current;
-      const targetIds = cameraTargetIds(plan, cy.nodes().map((node) => node.id()), mode, selectedId);
+      const targetIds = cameraTargetIds(
+        plan,
+        cy.nodes().not(".connector-port").map((node) => node.id()),
+        mode,
+        selectedId,
+      );
       const requested = collectionFor(targetIds);
       const targetIdSet = new Set(targetIds);
       const connectingEdges = cy.edges(".relationship-edge").filter((edge) => (
-        targetIdSet.has(edge.source().id()) && targetIdSet.has(edge.target().id())
+        targetIdSet.has(edge.data("logicalSource")) && targetIdSet.has(edge.data("logicalTarget"))
       ));
       const target = requested.nonempty() ? requested.union(connectingEdges) : cy.elements();
       const profile = cameraProfile(
@@ -917,6 +972,53 @@ export function CytoscapeResourceGraph({
       );
     }
 
+    function syncConnectorGeometry(plan: TopologyLayoutPlan) {
+      const connectorPositions = new Map(plan.positions);
+      const connectorBounds = new Map<string, LabelRect>();
+      for (const node of cy.nodes().not(".connector-port")) {
+        connectorPositions.set(node.id(), node.position());
+        connectorBounds.set(
+          node.id(),
+          node.boundingBox({ includeLabels: false, includeOverlays: false }),
+        );
+      }
+      cy.batch(() => {
+        for (const assignment of connectorPortAssignments(
+          linkPresentations,
+          connectorPositions,
+          connectorBounds,
+        )) {
+          const source = cy.getElementById(assignment.sourceId);
+          const target = cy.getElementById(assignment.targetId);
+          const sourcePort = cy.getElementById(assignment.sourcePortId);
+          const targetPort = cy.getElementById(assignment.targetPortId);
+          if (source.empty() || target.empty() || sourcePort.empty() || targetPort.empty()) continue;
+          sourcePort.position(connectorPortPosition(
+            connectorBounds.get(assignment.sourceId) ?? source.boundingBox({ includeLabels: false, includeOverlays: false }),
+            assignment.sourcePort,
+          ));
+          targetPort.position(connectorPortPosition(
+            connectorBounds.get(assignment.targetId) ?? target.boundingBox({ includeLabels: false, includeOverlays: false }),
+            assignment.targetPort,
+          ));
+          cy.getElementById(assignment.edgeId)
+            .data("taxiTurn", assignment.taxiTurn)
+            .style({
+              "taxi-direction": assignment.taxiDirection,
+            });
+        }
+      });
+    }
+
+    function queueConnectorGeometry() {
+      if (connectorFrame !== 0) return;
+      connectorFrame = window.requestAnimationFrame(() => {
+        connectorFrame = 0;
+        const plan = layoutPlanRef.current;
+        if (plan) syncConnectorGeometry(plan);
+      });
+    }
+
     function applyLayout() {
       const plan = layoutTopology(graph, {
         width: activeHost.clientWidth,
@@ -929,19 +1031,7 @@ export function CytoscapeResourceGraph({
           if (!node.empty() && !node.isParent()) node.position({ x: placement.x, y: placement.y });
         }
       });
-      const connectorPositions = new Map(plan.positions);
-      for (const node of cy.nodes()) {
-        if (!connectorPositions.has(node.id())) connectorPositions.set(node.id(), node.position());
-      }
-      cy.batch(() => {
-        for (const geometry of connectorGeometries(linkPresentations, connectorPositions)) {
-          cy.getElementById(geometry.edgeId)
-            .data("taxiTurn", geometry.taxiTurn)
-            .style({
-              "taxi-direction": geometry.taxiDirection,
-            });
-        }
-      });
+      syncConnectorGeometry(plan);
     }
 
     try {
@@ -1001,6 +1091,7 @@ export function CytoscapeResourceGraph({
 
     return () => {
       window.cancelAnimationFrame(labelFrame);
+      window.cancelAnimationFrame(connectorFrame);
       window.cancelAnimationFrame(resizeFrame);
       window.cancelAnimationFrame(motionFrame);
       resizeObserver.disconnect();

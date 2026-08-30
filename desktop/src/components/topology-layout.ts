@@ -249,6 +249,21 @@ function neighbourAverageY(
   return neighbours.reduce((total, value) => total + value, 0) / neighbours.length;
 }
 
+function packedRailYs(desiredValues: readonly number[]) {
+  const step = GRAPH_SIZE.resourceHeight + 40;
+  const desired = desiredValues.map((value) => Number.isFinite(value) ? value : 0);
+  const packed: number[] = [];
+  for (const value of desired) {
+    const previous = packed.length > 0 ? packed[packed.length - 1] : Number.NEGATIVE_INFINITY;
+    packed.push(Math.max(value, previous + step));
+  }
+  if (packed.length === 0) return packed;
+  const desiredCentre = desired.reduce((total, value) => total + value, 0) / desired.length;
+  const packedCentre = packed.reduce((total, value) => total + value, 0) / packed.length;
+  const shift = Math.max(-packed[0], desiredCentre - packedCentre);
+  return packed.map((value) => value + shift);
+}
+
 function layoutGroup(graph: TopologyGraph, viewport: GraphViewport): TopologyLayoutPlan {
   const positions = new Map<string, Placement>();
   const children = childMap(graph);
@@ -321,27 +336,36 @@ function layoutGroup(graph: TopologyGraph, viewport: GraphViewport): TopologyLay
         : vertical;
     });
   const freeWidth = Math.max(GRAPH_SIZE.resourceWidth, coreWidth - freeX);
-  const freeColumns = Math.min(free.length || 1, columnCount(freeWidth, GRAPH_SIZE.resourceWidth, 44, 3));
-  const columnBottoms = Array.from({ length: freeColumns }, () => Number.NEGATIVE_INFINITY);
-  for (const node of free) {
-    const desiredY = neighbourAverageY(graph, coreAnchors, node.id);
-    let column = 0;
-    let y = Number.POSITIVE_INFINITY;
-    for (let candidate = 0; candidate < freeColumns; candidate += 1) {
-      const nextY = Number.isFinite(desiredY)
-        ? Math.max(desiredY, columnBottoms[candidate] + 40)
-        : Math.max(0, columnBottoms[candidate] + 40);
-      if (nextY < y) {
-        column = candidate;
-        y = nextY;
-      }
+  const availableColumns = columnCount(freeWidth, GRAPH_SIZE.resourceWidth, 44, 2);
+  const freeColumns = free.length <= 6 ? 1 : Math.min(free.length || 1, availableColumns);
+  if (freeColumns === 1) {
+    const railY = packedRailYs(free.map((node) => neighbourAverageY(graph, coreAnchors, node.id)));
+    for (const [index, node] of free.entries()) {
+      positions.set(node.id, { x: freeX, y: railY[index] });
+      coreNodeIds.push(node.id);
     }
-    positions.set(node.id, {
-      x: freeX + column * (GRAPH_SIZE.resourceWidth + 44),
-      y,
-    });
-    columnBottoms[column] = y + GRAPH_SIZE.resourceHeight;
-    coreNodeIds.push(node.id);
+  } else {
+    const columnBottoms = Array.from({ length: freeColumns }, () => Number.NEGATIVE_INFINITY);
+    for (const node of free) {
+      const desiredY = neighbourAverageY(graph, coreAnchors, node.id);
+      let column = 0;
+      let y = Number.POSITIVE_INFINITY;
+      for (let candidate = 0; candidate < freeColumns; candidate += 1) {
+        const nextY = Number.isFinite(desiredY)
+          ? Math.max(desiredY, columnBottoms[candidate] + 40)
+          : Math.max(0, columnBottoms[candidate] + 40);
+        if (nextY < y) {
+          column = candidate;
+          y = nextY;
+        }
+      }
+      positions.set(node.id, {
+        x: freeX + column * (GRAPH_SIZE.resourceWidth + 44),
+        y,
+      });
+      columnBottoms[column] = y + GRAPH_SIZE.resourceHeight;
+      coreNodeIds.push(node.id);
+    }
   }
 
   const external = graph.nodes

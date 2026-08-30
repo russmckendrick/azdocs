@@ -4,6 +4,8 @@ import {
   activeRelationshipLabels,
   buildLinkPresentations,
   connectorGeometries,
+  connectorPortAssignments,
+  connectorPortPosition,
   placeRelationshipLabel,
   relationshipLabelSide,
   resolveTraceNode,
@@ -57,6 +59,90 @@ describe("relationship presentation", () => {
     expect(geometry.map((edge) => edge.taxiDirection)).toEqual(["horizontal", "horizontal", "vertical"]);
     expect(new Set(geometry.map((edge) => edge.taxiTurn)).size).toBe(3);
     expect(connectorGeometries(presentations, positions)).toEqual(geometry);
+  });
+
+  it("orders shared boundary ports by the opposite endpoint position", () => {
+    const presentations = buildLinkPresentations(sharedTarget);
+    const positions = new Map([
+      ["a", { x: -300, y: 120 }],
+      ["b", { x: -300, y: -120 }],
+      ["c", { x: -300, y: 0 }],
+      ["subject", { x: 0, y: 0 }],
+    ]);
+    const assignments = connectorPortAssignments(presentations, positions);
+    const targetOffsets = new Map(assignments.map((assignment) => [
+      assignment.sourceId,
+      assignment.targetPort.offset,
+    ]));
+
+    expect(targetOffsets.get("b") ?? 0).toBeLessThan(targetOffsets.get("c") ?? 0);
+    expect(targetOffsets.get("c") ?? 0).toBeLessThan(targetOffsets.get("a") ?? 0);
+    expect(new Set(assignments.map((assignment) => assignment.targetPort.offset)).size).toBe(3);
+    expect(connectorPortAssignments(presentations, positions)).toEqual(assignments);
+  });
+
+  it("projects compound-frame ports towards their peers instead of spanning the whole frame", () => {
+    const presentations = buildLinkPresentations(sharedTarget);
+    const positions = new Map([
+      ["a", { x: -300, y: -120 }],
+      ["b", { x: -300, y: 0 }],
+      ["c", { x: -300, y: 120 }],
+      ["subject", { x: 0, y: 0 }],
+    ]);
+    const assignments = connectorPortAssignments(presentations, positions, new Map([
+      ["subject", { x1: -100, y1: -300, x2: 100, y2: 300 }],
+    ]));
+
+    expect(assignments.map((assignment) => assignment.targetPort.offset)).toEqual([0.3, 0.5, 0.7]);
+  });
+
+  it("keeps reciprocal routes paired around their projected frame approach", () => {
+    const reciprocal = graph([
+      { sourceId: "peer", targetId: "frame", label: "peered with", kindClass: "network", count: 1 },
+      { sourceId: "frame", targetId: "peer", label: "peered with", kindClass: "network", count: 1 },
+    ]);
+    const assignments = connectorPortAssignments(
+      buildLinkPresentations(reciprocal),
+      new Map([
+        ["peer", { x: -300, y: 100 }],
+        ["frame", { x: 0, y: 0 }],
+      ]),
+      new Map([
+        ["frame", { x1: -100, y1: -300, x2: 100, y2: 300 }],
+      ]),
+    );
+    const frameOffsets = assignments.map((assignment) => (
+      assignment.sourceId === "frame" ? assignment.sourcePort.offset : assignment.targetPort.offset
+    ));
+
+    expect((frameOffsets[0] + frameOffsets[1]) / 2).toBeCloseTo(2 / 3);
+    expect(Math.abs(frameOffsets[0] - frameOffsets[1])).toBeGreaterThan(0.02);
+  });
+
+  it("places invisible ports directly on the selected node boundary", () => {
+    const bounds = { x1: 100, y1: 200, x2: 300, y2: 400 };
+
+    expect(connectorPortPosition(bounds, { side: "left", offset: 0.25 })).toEqual({ x: 100, y: 250 });
+    expect(connectorPortPosition(bounds, { side: "right", offset: 0.75 })).toEqual({ x: 300, y: 350 });
+    expect(connectorPortPosition(bounds, { side: "top", offset: 0.25 })).toEqual({ x: 150, y: 200 });
+    expect(connectorPortPosition(bounds, { side: "bottom", offset: 0.75 })).toEqual({ x: 250, y: 400 });
+  });
+
+  it("moves a connector to the opposite boundary after a node crosses its peer", () => {
+    const presentations = buildLinkPresentations(graph([
+      { sourceId: "peer", targetId: "subject", label: "attached to", kindClass: "structure", count: 1 },
+    ]));
+    const before = connectorPortAssignments(presentations, new Map([
+      ["peer", { x: -200, y: 0 }],
+      ["subject", { x: 0, y: 0 }],
+    ]));
+    const after = connectorPortAssignments(presentations, new Map([
+      ["peer", { x: 200, y: 0 }],
+      ["subject", { x: 0, y: 0 }],
+    ]));
+
+    expect(before[0].targetPort.side).toBe("left");
+    expect(after[0].targetPort.side).toBe("right");
   });
 
   it("anchors labels at the endpoint opposite the traced node", () => {

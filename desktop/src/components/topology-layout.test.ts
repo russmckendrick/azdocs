@@ -147,6 +147,32 @@ describe.each([1440, 1060, 800])("topology layout at %ipx", (width) => {
     expect(plan.positions.get("external")?.y).toBe(memberY);
   });
 
+  it("stacks connected peers on one service rail so links do not pass through sibling cards", () => {
+    const services = ["service-a", "service-b", "service-c", "service-d"];
+    const groupView = graph("group", [
+      node("vnet", "vnet"),
+      node("subnet", "subnet", { parentId: "vnet" }),
+      node("member", "resource", { parentId: "subnet", zone: "core" }),
+      ...services.map((id) => node(id, "resource", { zone: "core" })),
+    ], {
+      links: services.map((id) => ({
+        sourceId: "member",
+        targetId: id,
+        label: "monitors",
+        kindClass: "monitoring",
+        count: 1,
+      })),
+    });
+    const plan = layoutTopology(groupView, { width, height: 760 });
+    const servicePositions = services.map((id) => plan.positions.get(id));
+
+    expect(new Set(servicePositions.map((position) => position?.x)).size).toBe(1);
+    for (let index = 1; index < servicePositions.length; index += 1) {
+      expect((servicePositions[index]?.y ?? 0) - (servicePositions[index - 1]?.y ?? 0))
+        .toBeGreaterThanOrEqual(GRAPH_SIZE.resourceHeight + 40);
+    }
+  });
+
   it("centres a neighbourhood subject with inbound left, outbound right, and second hops outside", () => {
     const neighbourhood = graph("neighbourhood", [
       node("subject", "resource", { hop: 0 }),
