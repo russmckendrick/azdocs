@@ -10,9 +10,8 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
-use azdocs::model::{Edge, EdgeKind, Resource, ResourceGroup, Subscription, azure_types};
+use azdocs::model::{Edge, EdgeKind, Resource, ResourceGroup, Subscription, azure_types, network};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use ts_rs::TS;
 
 /// How many resource-group cards the estate view draws before whole
@@ -627,20 +626,13 @@ fn group_graph(
     {
         drawn += 1;
         let vnet_node = format!("vnet:{}", vnet.id);
-        let prefix = vnet
-            .properties
-            .as_ref()
-            .and_then(|p| p.get("addressSpace"))
-            .and_then(|s| s.get("addressPrefixes"))
-            .and_then(Value::as_array)
-            .and_then(|prefixes| prefixes.first())
-            .and_then(Value::as_str)
-            .unwrap_or_default();
+        let prefixes = network::vnet_address_prefixes(vnet);
+        let prefix = prefixes.first().cloned().unwrap_or_default();
         nodes.push(TopologyNodeDto {
             id: vnet_node.clone(),
             kind: "vnet".to_owned(),
             name: vnet.name.clone(),
-            subtitle: prefix.to_owned(),
+            subtitle: prefix,
             azure_type: Some(vnet.azure_type.clone()),
             lane: None,
             parent_id: None,
@@ -652,36 +644,14 @@ fn group_graph(
             resource_id: Some(vnet.id.clone()),
             group_id: None,
         });
-        for subnet in vnet
-            .properties
-            .as_ref()
-            .and_then(|p| p.get("subnets"))
-            .and_then(Value::as_array)
-            .into_iter()
-            .flatten()
-        {
-            let Some(subnet_id) = subnet.get("id").and_then(Value::as_str) else {
-                continue;
-            };
-            let subnet_id = subnet_id.to_lowercase();
-            let name = subnet
-                .get("name")
-                .and_then(Value::as_str)
-                .or_else(|| subnet_id.rsplit('/').next())
-                .unwrap_or("subnet")
-                .to_owned();
-            let prefix = subnet
-                .get("properties")
-                .and_then(|p| p.get("addressPrefix"))
-                .and_then(Value::as_str)
-                .unwrap_or_default();
-            let node_id = format!("subnet:{subnet_id}");
-            subnet_parent.insert(subnet_id, node_id.clone());
+        for subnet in network::vnet_subnets(vnet) {
+            let node_id = format!("subnet:{}", subnet.id);
+            subnet_parent.insert(subnet.id, node_id.clone());
             nodes.push(TopologyNodeDto {
                 id: node_id,
                 kind: "subnet".to_owned(),
-                name,
-                subtitle: prefix.to_owned(),
+                name: subnet.name,
+                subtitle: subnet.address_prefix.unwrap_or_default(),
                 azure_type: None,
                 lane: None,
                 parent_id: Some(vnet_node.clone()),

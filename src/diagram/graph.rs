@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::error::StoreError;
-use crate::model::{Edge, EdgeKind, Resource, azure_types};
+use crate::model::{Edge, EdgeKind, Resource, azure_types, network};
 use crate::store::Store;
 
 use super::page::DiagramDetail;
@@ -485,42 +485,19 @@ impl EstateGraph {
         parent: Option<usize>,
         node_ids: &mut HashMap<String, usize>,
     ) -> usize {
-        let prefixes = vnet
-            .properties
-            .as_ref()
-            .and_then(|p| p.get("addressSpace"))
-            .and_then(|a| a.get("addressPrefixes"))
-            .and_then(|p| p.as_array())
-            .map(|list| {
-                list.iter()
-                    .filter_map(|v| v.as_str())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            });
-        let vnet_node = self.add_node(&vnet.name, prefixes, NodeKind::Vnet, parent);
+        let prefixes = network::vnet_address_prefixes(vnet);
+        let label = (!prefixes.is_empty()).then(|| prefixes.join(", "));
+        let vnet_node = self.add_node(&vnet.name, label, NodeKind::Vnet, parent);
         node_ids.insert(vnet.id.clone(), vnet_node);
 
-        for subnet in vnet
-            .properties
-            .as_ref()
-            .and_then(|p| p.get("subnets"))
-            .and_then(|s| s.as_array())
-            .into_iter()
-            .flatten()
-        {
-            let Some(subnet_id) = subnet.get("id").and_then(|v| v.as_str()) else {
-                continue;
-            };
-            let name = subnet
-                .get("name")
-                .and_then(|v| v.as_str())
-                .unwrap_or_else(|| subnet_id.rsplit('/').next().unwrap_or("subnet"));
-            let prefix = subnet
-                .pointer("/properties/addressPrefix")
-                .and_then(|v| v.as_str())
-                .map(str::to_owned);
-            let subnet_node = self.add_node(name, prefix, NodeKind::Subnet, Some(vnet_node));
-            node_ids.insert(subnet_id.to_lowercase(), subnet_node);
+        for subnet in network::vnet_subnets(vnet) {
+            let subnet_node = self.add_node(
+                &subnet.name,
+                subnet.address_prefix,
+                NodeKind::Subnet,
+                Some(vnet_node),
+            );
+            node_ids.insert(subnet.id, subnet_node);
         }
         vnet_node
     }

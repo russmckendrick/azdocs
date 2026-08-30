@@ -1,5 +1,6 @@
 pub mod azure_types;
 pub mod azure_values;
+pub mod network;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
