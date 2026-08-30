@@ -12,6 +12,7 @@ import { displayKind, displayLocation } from "../azure-values";
 import type { EstateSnapshot, Resource, ResourceType } from "../types";
 import { AdaptiveDataView, describeStoredValue, hasStoredValue } from "./AdaptiveDataView";
 import { resourceName } from "../format";
+import { EmptyState } from "./view-chrome";
 
 function prettyRelation(kind: string) {
   return kind.replaceAll("_", " ");
@@ -148,7 +149,11 @@ export function ResourceDetailView({
                 ))}
               </div>
             ) : (
-              <div className="resource-record-clear"><CircleDot size={17} /><span>No audit findings are linked to this resource.</span></div>
+              <EmptyState
+                className="resource-record-clear"
+                icon={<CircleDot size={17} />}
+                detail="No audit findings are linked to this resource."
+              />
             )}
           </section>
 

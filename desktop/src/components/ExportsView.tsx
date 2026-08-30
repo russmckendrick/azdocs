@@ -18,6 +18,7 @@ import type {
   ExportResult,
   ReportExportFormat,
 } from "../types";
+import { ViewHeading } from "./view-chrome";
 
 const REPORT_FORMATS: Array<{
   id: ReportExportFormat;
@@ -162,17 +163,17 @@ export function ExportsView({
 
   return (
     <div className="exports-workspace">
-      <header className="view-heading export-heading">
-        <div>
-          <h1>Exports</h1>
-          <p>Turn the active stored snapshot into reports and diagrams. Generation stays offline.</p>
-        </div>
+      <ViewHeading
+        title="Exports"
+        description="Turn the active stored snapshot into reports and diagrams. Generation stays offline."
+        modifier="export-heading"
+      >
         <div className="export-snapshot" aria-label="Export source">
           <span>Snapshot</span>
           <strong>{estate.resources.length.toLocaleString()} resources</strong>
           <small className="mono">{estate.id}</small>
         </div>
-      </header>
+      </ViewHeading>
 
       <div className="export-layout">
         <div className="export-composer">

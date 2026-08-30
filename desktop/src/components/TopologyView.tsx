@@ -36,6 +36,7 @@ import {
   toggleSubscriptionLane,
 } from "./topology-view-state";
 import { errorMessage } from "../format";
+import { EmptyState } from "./view-chrome";
 
 const ALL_KIND_CLASSES = ["network", "structure", "data", "identity", "monitoring"] as const;
 
@@ -442,9 +443,20 @@ export function TopologyView({
         {topology ? (
           <CytoscapeResourceGraph graph={topology} estate={estate} theme={theme} selectedNodeId={selectedNodeId} expandedAggregateId={expandedAggregateId} motionEnabled={active && motionEnabled && !motionReduced} camera={camera} onActivate={activateGraphItem} />
         ) : topologyError ? (
-          <div className="graph-empty-state" role="status"><AlertTriangle size={24} /><strong>No relationship graph is available</strong><span>Retry the request or return to the estate after checking the stored snapshot.</span></div>
+          <EmptyState
+            className="graph-empty-state"
+            role="status"
+            icon={<AlertTriangle size={24} />}
+            title="No relationship graph is available"
+            detail="Retry the request or return to the estate after checking the stored snapshot."
+          />
         ) : (
-          <div className="graph-empty-state" role="status"><img src={RESOURCE_GROUP_ICON} alt="" /><strong>Building the relationship graph…</strong></div>
+          <EmptyState
+            className="graph-empty-state"
+            role="status"
+            icon={<img src={RESOURCE_GROUP_ICON} alt="" />}
+            title="Building the relationship graph…"
+          />
         )}
 
         <footer className="topology-status-rail" aria-label="Relationship graph status and legend">

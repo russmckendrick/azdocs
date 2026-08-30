@@ -4,6 +4,7 @@ import { compareSnapshots } from "../api";
 import type { AppBootstrap, EstateSnapshot, SnapshotComparison } from "../types";
 import { dateTime, dayMonth, resourceName } from "../format";
 import { ShowMore, useProgressiveList } from "./progressive-list";
+import { DatabaseStamp, ViewHeading } from "./view-chrome";
 
 
 
@@ -74,13 +75,17 @@ export function HistoryView({ bootstrap, estate, onLoadSnapshot }: { bootstrap: 
 
   return (
     <div className="history-workspace">
-      <header className="view-heading history-heading">
-        <div>
-          <h1>Changes</h1>
-          <p>Immutable estate observations, newest first. Compare any two without querying Azure.</p>
-        </div>
-        <div className="database-stamp"><Rows3 size={17} /><span><small>SQLite source</small><strong>{resourceName(bootstrap.databasePath)}</strong></span></div>
-      </header>
+      <ViewHeading
+        title="Changes"
+        description="Immutable estate observations, newest first. Compare any two without querying Azure."
+        modifier="history-heading"
+      >
+        <DatabaseStamp
+          icon={<Rows3 size={17} />}
+          label="SQLite source"
+          value={resourceName(bootstrap.databasePath)}
+        />
+      </ViewHeading>
       <div className="history-columns">
         <section className="snapshot-ledger">
           <div className="snapshot-head"><span>Captured</span><span>Estate</span><span>Findings</span><span>Status</span></div>

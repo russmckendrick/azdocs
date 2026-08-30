@@ -3,6 +3,7 @@ import { Table2 } from "lucide-react";
 import { getQueryPackMetadata, getQueryRows } from "../api";
 import type { EstateSnapshot, QueryDefMeta, QueryRows } from "../types";
 import { ShowMore, useProgressiveList } from "./progressive-list";
+import { DatabaseStamp, EmptyState, ViewHeading } from "./view-chrome";
 
 
 /// Category dot colours follow the design language: chart slots for the big
@@ -123,41 +124,32 @@ export function InventoryView({ estate, search }: { estate: EstateSnapshot; sear
   if (packError) {
     return (
       <div className="inventory-workspace">
-        <header className="view-heading">
-          <div>
-            <h1>Inventory</h1>
-            <p>The query pack could not be loaded: {packError}</p>
-          </div>
-        </header>
+        <ViewHeading title="Inventory" description={`The query pack could not be loaded: ${packError}`} />
       </div>
     );
   }
 
   return (
     <div className="inventory-workspace">
-      <header className="view-heading">
-        <div>
-          <h1>Inventory</h1>
-          <p>
-            The shaped rows every collected query stored for this snapshot — the same tables the reports print,
-            browsable per category.
-          </p>
-        </div>
-        <div className="database-stamp">
-          <Table2 size={17} />
-          <span>
-            <small>Collected queries</small>
-            <strong>{inventory.length} inventory · {estate.queryRuns.length} total</strong>
-          </span>
-        </div>
-      </header>
+      <ViewHeading
+        title="Inventory"
+        description="The shaped rows every collected query stored for this snapshot — the same tables the reports print, browsable per category."
+      >
+        <DatabaseStamp
+          icon={<Table2 size={17} />}
+          label="Collected queries"
+          value={<>{inventory.length} inventory · {estate.queryRuns.length} total</>}
+        />
+      </ViewHeading>
 
       {categories.length === 0 ? (
-        <div className="inventory-empty">
-          <Table2 size={30} strokeWidth={1.4} />
-          <strong>No shaped inventory rows in this snapshot</strong>
-          <span className="muted-copy">Collect a snapshot to fill the per-query tables.</span>
-        </div>
+        <EmptyState
+          className="inventory-empty"
+          icon={<Table2 size={30} strokeWidth={1.4} />}
+          title="No shaped inventory rows in this snapshot"
+          detail="Collect a snapshot to fill the per-query tables."
+          detailClassName="muted-copy"
+        />
       ) : (
         <div className="inventory-columns">
           <nav className="inv-cats" aria-label="Query categories">

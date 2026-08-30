@@ -4,6 +4,7 @@ import type { EstateSnapshot, Finding, Severity } from "../types";
 import { resourceName } from "../format";
 import { ShowMore, useProgressiveList } from "./progressive-list";
 import { SEVERITIES } from "../ordering";
+import { EmptyState, ViewHeading } from "./view-chrome";
 
 const severities: Array<Severity | "all"> = ["all", ...SEVERITIES];
 
@@ -46,12 +47,11 @@ export function FindingsView({
 
   return (
     <div className="findings-workspace">
-      <header className="view-heading findings-heading">
-        <div>
-          <h1>Audit findings</h1>
-          <p>Stored evidence ordered by severity, linked back to exact resources.</p>
-        </div>
-      </header>
+      <ViewHeading
+        title="Audit findings"
+        description="Stored evidence ordered by severity, linked back to exact resources."
+        modifier="findings-heading"
+      />
       <div className="severity-tally" aria-label="Finding severity counts">
         {SEVERITIES.map((item) => (
           <button key={item} className={severity === item ? `severity-box ${item} active` : `severity-box ${item}`} onClick={() => setSeverity(severity === item ? "all" : item)}>
@@ -73,7 +73,14 @@ export function FindingsView({
                 <ArrowRight size={15} />
               </button>
             ))}
-            {!filtered.length ? <div className="no-findings"><CheckCircle2 size={30} /><strong>No findings match this view</strong><span>Try another severity or search phrase.</span></div> : null}
+            {!filtered.length ? (
+              <EmptyState
+                className="no-findings"
+                icon={<CheckCircle2 size={30} />}
+                title="No findings match this view"
+                detail="Try another severity or search phrase."
+              />
+            ) : null}
             <ShowMore list={list} />
           </div>
         </section>

@@ -3,6 +3,7 @@ import { displayLocation } from "../azure-values";
 import type { AppBootstrap, EstateSnapshot, ViewId } from "../types";
 import { dayMonth, resourceName } from "../format";
 import { SEVERITY_TOKEN, severityRank } from "../ordering";
+import { DatabaseStamp, ViewHeading } from "./view-chrome";
 
 function sparkPath(values: number[], width: number, height: number) {
   const min = Math.min(...values);
@@ -47,21 +48,20 @@ export function OverviewView({
 
   return (
     <div className="overview-workspace">
-      <header className="view-heading">
-        <div>
-          <h1>Overview</h1>
-          <p>
+      <ViewHeading
+        title="Overview"
+        description={
+          <>
             {estate.tenantId} · {estate.totals.subscriptions} subscriptions · {estate.totals.resourceGroups} resource
             groups · {estate.locations.length} regions
-          </p>
-        </div>
-        <div className="database-stamp">
-          <span>
-            <small>Snapshot</small>
-            <strong>{estate.id.slice(0, 8)} · {estate.status}</strong>
-          </span>
-        </div>
-      </header>
+          </>
+        }
+      >
+        <DatabaseStamp
+          label="Snapshot"
+          value={<>{estate.id.slice(0, 8)} · {estate.status}</>}
+        />
+      </ViewHeading>
 
       <div className="stat-strip">
         <button className="stat-cell" onClick={() => onOpenView("estate")}>

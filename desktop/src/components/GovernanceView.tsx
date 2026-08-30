@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { EstateSnapshot } from "../types";
+import { ViewHeading } from "./view-chrome";
 
 interface GroupCompliance {
   name: string;
@@ -86,20 +87,18 @@ export function GovernanceView({
 
   return (
     <div className="governance-workspace">
-      <header className="view-heading">
-        <div>
-          <h1>Governance &amp; tags</h1>
-          <p>
-            {requiredTags.length > 0 ? (
-              <>
-                Required tags from azdocs.toml: <span className="mono">{requiredTags.join(" · ")}</span>
-              </>
-            ) : (
-              "No required tags are configured — coverage is reported, compliance is not enforced."
-            )}
-          </p>
-        </div>
-      </header>
+      <ViewHeading
+        title="Governance & tags"
+        description={
+          requiredTags.length > 0 ? (
+            <>
+              Required tags from azdocs.toml: <span className="mono">{requiredTags.join(" · ")}</span>
+            </>
+          ) : (
+            "No required tags are configured — coverage is reported, compliance is not enforced."
+          )
+        }
+      />
 
       <div className="stat-strip">
         <div className="stat-cell">

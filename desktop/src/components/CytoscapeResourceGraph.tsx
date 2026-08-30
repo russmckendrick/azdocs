@@ -25,6 +25,7 @@ import {
   type LabelRect,
   type LinkPresentation,
 } from "./topology-presentation";
+import { EmptyState } from "./view-chrome";
 
 export type GraphMode = "neighbourhood" | "estate";
 
@@ -1557,11 +1558,13 @@ export function CytoscapeResourceGraph({
       </div>
       <div className="sr-only" aria-live="polite">{selectedSummary}</div>
       {graph.nodes.length === 0 ? (
-        <div className="graph-empty-state" role="status">
-          <img src={RESOURCE_GROUP_ICON} alt="" />
-          <strong>Nothing to draw</strong>
-          <span>The current scope contains no stored resources.</span>
-        </div>
+        <EmptyState
+          className="graph-empty-state"
+          role="status"
+          icon={<img src={RESOURCE_GROUP_ICON} alt="" />}
+          title="Nothing to draw"
+          detail="The current scope contains no stored resources."
+        />
       ) : null}
       {rendererError ? (
         <div className="graph-renderer-error" role="alert" aria-live="assertive">

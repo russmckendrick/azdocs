@@ -14,6 +14,7 @@ import { ALL_RESOURCES_ICON, RESOURCE_GROUP_ICON, SUBSCRIPTION_ICON } from "../a
 import { displayLocation } from "../azure-values";
 import type { AzureMetadata, EstateSnapshot, Resource, ResourceType, ScopeSelection } from "../types";
 import { ShowMore, useProgressiveList } from "./progressive-list";
+import { EmptyState } from "./view-chrome";
 
 type SortKey = "name" | "type" | "location" | "findings";
 
@@ -237,7 +238,13 @@ export function EstateExplorer({
                                     </button>
                                   );
                                 })
-                              : <div className="tree-empty-row"><img src={ALL_RESOURCES_ICON} alt="" /><span>No stored resources</span></div>}
+                              : (
+                                <EmptyState
+                                  className="tree-empty-row"
+                                  icon={<img src={ALL_RESOURCES_ICON} alt="" />}
+                                  detail="No stored resources"
+                                />
+                              )}
                           </div>
                         ) : null}
                       </div>
@@ -318,11 +325,12 @@ export function EstateExplorer({
             />
           ))}
           {!filtered.length ? (
-            <div className="no-results">
-              <SearchX size={28} />
-              <strong>No resources match this view</strong>
-              <span>Clear a filter or search the whole snapshot.</span>
-            </div>
+            <EmptyState
+              className="no-results"
+              icon={<SearchX size={28} />}
+              title="No resources match this view"
+              detail="Clear a filter or search the whole snapshot."
+            />
           ) : null}
           {visibleResources.length < filtered.length ? (
             <ShowMore list={list} />
