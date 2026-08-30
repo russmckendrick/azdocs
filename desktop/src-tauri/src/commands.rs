@@ -2,6 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use azdocs::arg::ArgClient;
+use azdocs::cli::ArgValue;
 use azdocs::cli::{DiagramArgs, DiagramFormat, DiagramType, ReportArgs, ReportFormat};
 use azdocs::collect::CollectRequest;
 use azdocs::config::{Config, default_config_path};
@@ -292,67 +293,41 @@ pub async fn collect_snapshot(
     result
 }
 
+/// Parse a value the frontend sent into the CLI enum it names.
+///
+/// clap already derives these kebab-case names, so asking it is the only way
+/// the desktop and `azdocs diagram --type ...` cannot drift apart. The three
+/// hand-written match tables this replaced had done exactly that job.
+fn parse_value<T: ArgValue>(kind: &str, value: &str) -> Result<T, AppError> {
+    T::from_str(value, true).map_err(|_| AppError::Export(format!("unsupported {kind} `{value}`")))
+}
+
 fn report_format(value: &str) -> Result<ReportFormat, AppError> {
-    match value {
-        "md" => Ok(ReportFormat::Md),
-        "html" => Ok(ReportFormat::Html),
-        "csv" => Ok(ReportFormat::Csv),
-        "xlsx" => Ok(ReportFormat::Xlsx),
-        "pdf" => Ok(ReportFormat::Pdf),
-        "docx" => Ok(ReportFormat::Docx),
-        other => Err(AppError::Export(format!(
-            "unsupported report format `{other}`"
-        ))),
+    let format: ReportFormat = parse_value("report format", value)?;
+    // `all` is a CLI convenience meaning "every format". The desktop sends an
+    // explicit list, so accepting it here would silently widen the export.
+    if format == ReportFormat::All {
+        return Err(AppError::Export(
+            "report format `all` must be expanded into explicit formats".to_owned(),
+        ));
     }
+    Ok(format)
 }
 
 fn diagram_type(value: &str) -> Result<DiagramType, AppError> {
-    match value {
-        "hierarchy" => Ok(DiagramType::Hierarchy),
-        "resources" => Ok(DiagramType::Resources),
-        "network" => Ok(DiagramType::Network),
-        "vnets" => Ok(DiagramType::Vnets),
-        "resource-groups" => Ok(DiagramType::ResourceGroups),
-        "workbook" => Ok(DiagramType::Workbook),
-        other => Err(AppError::Export(format!(
-            "unsupported diagram type `{other}`"
-        ))),
-    }
+    parse_value("diagram type", value)
 }
 
 fn diagram_format(value: &str) -> Result<DiagramFormat, AppError> {
-    match value {
-        "drawio" => Ok(DiagramFormat::Drawio),
-        "mermaid" => Ok(DiagramFormat::Mermaid),
-        "svg" => Ok(DiagramFormat::Svg),
-        "png" => Ok(DiagramFormat::Png),
-        other => Err(AppError::Export(format!(
-            "unsupported diagram format `{other}`"
-        ))),
+    let format: DiagramFormat = parse_value("diagram format", value)?;
+    // Same reasoning as `all` above: these name a set, and the desktop has to
+    // know each concrete format to name its output file.
+    if format.extension().is_none() {
+        return Err(AppError::Export(format!(
+            "diagram format `{value}` names a set; send the formats explicitly"
+        )));
     }
-}
-
-fn diagram_type_slug(value: DiagramType) -> &'static str {
-    match value {
-        DiagramType::Hierarchy => "hierarchy",
-        DiagramType::Resources => "resources",
-        DiagramType::Network => "network",
-        DiagramType::Vnets => "vnets",
-        DiagramType::ResourceGroups => "resource-groups",
-        DiagramType::Workbook => "workbook",
-    }
-}
-
-fn diagram_format_extension(value: DiagramFormat) -> &'static str {
-    match value {
-        DiagramFormat::Drawio => "drawio",
-        DiagramFormat::Mermaid => "mmd",
-        DiagramFormat::Svg => "svg",
-        DiagramFormat::Png => "png",
-        DiagramFormat::Both | DiagramFormat::All => {
-            unreachable!("desktop expands multi-format diagram requests")
-        }
-    }
+    Ok(format)
 }
 
 fn diagram_output_target(
@@ -361,17 +336,18 @@ fn diagram_output_target(
     format: DiagramFormat,
 ) -> PathBuf {
     match diagram_type {
-        DiagramType::Vnets | DiagramType::ResourceGroups => destination
-            .join("diagrams")
-            .join(diagram_type_slug(diagram_type)),
+        DiagramType::Vnets | DiagramType::ResourceGroups => {
+            destination.join("diagrams").join(diagram_type.slug())
+        }
         DiagramType::Workbook if format != DiagramFormat::Drawio => {
             destination.join("diagrams").join("workbook")
         }
         DiagramType::Workbook => destination.join("azdocs-workbook.drawio"),
         _ => destination.join(format!(
             "azdocs-{}.{}",
-            diagram_type_slug(diagram_type),
-            diagram_format_extension(format)
+            diagram_type.slug(),
+            // Checked by `diagram_format`, which rejects the set aliases.
+            format.extension().unwrap_or("out")
         )),
     }
 }
@@ -446,8 +422,8 @@ fn export_diagrams(
         let _ = on_event.send(ExportEvent::Phase {
             message: format!(
                 "Rendering {} as {}",
-                diagram_type_slug(kind),
-                diagram_format_extension(format)
+                kind.slug(),
+                format.extension().unwrap_or("out")
             ),
         });
         let args = DiagramArgs {
@@ -523,6 +499,43 @@ pub async fn export_snapshot(
 #[cfg(test)]
 mod export_tests {
     use super::*;
+
+    #[test]
+    fn unit_parses_the_names_clap_accepts_when_reading_a_request() {
+        assert_eq!(report_format("md").unwrap(), ReportFormat::Md);
+        assert_eq!(report_format("DOCX").unwrap(), ReportFormat::Docx);
+        assert_eq!(
+            diagram_type("resource-groups").unwrap(),
+            DiagramType::ResourceGroups
+        );
+        assert_eq!(diagram_format("mermaid").unwrap(), DiagramFormat::Mermaid);
+    }
+
+    #[test]
+    fn unit_rejects_the_set_aliases_when_reading_a_request() {
+        // clap accepts these on the command line as "every format"; the
+        // desktop sends an explicit list, so honouring them here would widen
+        // the export beyond what the user ticked.
+        assert!(report_format("all").is_err());
+        assert!(diagram_format("both").is_err());
+        assert!(diagram_format("all").is_err());
+    }
+
+    #[test]
+    fn unit_rejects_an_unknown_value_when_reading_a_request() {
+        assert!(report_format("pptx").is_err());
+        assert!(diagram_type("galaxy").is_err());
+        assert!(diagram_format("bmp").is_err());
+    }
+
+    #[test]
+    fn unit_names_the_mermaid_extension_mmd_not_mermaid() {
+        // The command-line name and the file extension differ for exactly one
+        // format, which is why `extension()` cannot come from clap.
+        assert_eq!(DiagramFormat::Mermaid.extension(), Some("mmd"));
+        assert_eq!(DiagramFormat::Both.extension(), None);
+        assert_eq!(DiagramType::ResourceGroups.slug(), "resource-groups");
+    }
 
     #[test]
     fn unit_single_diagram_targets_a_named_file_in_the_destination() {

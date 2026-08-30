@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+use anyhow::anyhow;
+
 use crate::cli::{DiagramArgs, DiagramFormat, DiagramType};
 use crate::diagram::graph::NamedGraph;
 use crate::diagram::page::DiagramDetail;
@@ -50,7 +52,11 @@ pub fn run_with_outputs(store: &Store, args: &DiagramArgs) -> anyhow::Result<Vec
     }
 }
 
-fn expand_formats(format: DiagramFormat) -> Vec<DiagramFormat> {
+/// Expand the multi-format aliases into the concrete formats they stand for.
+///
+/// Public because the desktop has to pre-expand before it can name output
+/// files; it previously had its own copy of the rule.
+pub fn expand_formats(format: DiagramFormat) -> Vec<DiagramFormat> {
     match format {
         DiagramFormat::Both => vec![DiagramFormat::Drawio, DiagramFormat::Mermaid],
         DiagramFormat::All => vec![
@@ -67,22 +73,20 @@ fn render_one(
     graph: &EstateGraph,
     format: DiagramFormat,
 ) -> anyhow::Result<(&'static str, Vec<u8>)> {
-    Ok(match format {
-        DiagramFormat::Drawio => ("drawio", drawio::render(graph).into_bytes()),
-        DiagramFormat::Mermaid => ("mmd", mermaid::render(graph).into_bytes()),
-        DiagramFormat::Svg => (
-            "svg",
-            svg::render_for(graph, DiagramDetail::Full).into_bytes(),
-        ),
-        DiagramFormat::Png => (
-            "png",
-            png::from_svg(
-                &svg::render_for(graph, DiagramDetail::Full),
-                png::DEFAULT_SCALE,
-            )?,
-        ),
-        DiagramFormat::Both | DiagramFormat::All => unreachable!("expanded by expand_formats"),
-    })
+    let extension = format
+        .extension()
+        .ok_or_else(|| anyhow!("{format:?} names a set of formats; expand it first"))?;
+    let bytes = match format {
+        DiagramFormat::Drawio => drawio::render(graph).into_bytes(),
+        DiagramFormat::Mermaid => mermaid::render(graph).into_bytes(),
+        DiagramFormat::Svg => svg::render_for(graph, DiagramDetail::Full).into_bytes(),
+        DiagramFormat::Png => png::from_svg(
+            &svg::render_for(graph, DiagramDetail::Full),
+            png::DEFAULT_SCALE,
+        )?,
+        DiagramFormat::Both | DiagramFormat::All => unreachable!("rejected above"),
+    };
+    Ok((extension, bytes))
 }
 
 fn warn_if_large(name: &str, graph: &EstateGraph) {
