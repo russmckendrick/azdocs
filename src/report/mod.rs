@@ -18,7 +18,9 @@ use serde::Serialize;
 use serde_json::Value;
 
 use crate::error::StoreError;
-use crate::model::azure_types;
+// Re-exported so the emitters can keep importing it from their parent module.
+pub(crate) use crate::model::rows::cell_to_string;
+use crate::model::{azure_types, rows};
 use crate::querypack::{QueryKind, QueryPack};
 use crate::store::Store;
 
@@ -218,11 +220,7 @@ impl ReportContext {
             if rows.is_empty() {
                 continue;
             }
-            let columns: Vec<String> = rows
-                .first()
-                .and_then(Value::as_object)
-                .map(|map| map.keys().cloned().collect())
-                .unwrap_or_default();
+            let columns = rows::columns(&rows);
             categories
                 .entry(def.category.clone())
                 .or_default()
@@ -418,13 +416,4 @@ pub(crate) fn page_columns(columns: &[String]) -> Vec<&str> {
         .filter(|c| *c != "id")
         .take(6)
         .collect()
-}
-
-/// Render a JSON cell for a table: strings bare, everything else compact JSON.
-pub(crate) fn cell_to_string(value: Option<&Value>) -> String {
-    match value {
-        None | Some(Value::Null) => String::new(),
-        Some(Value::String(s)) => s.clone(),
-        Some(other) => other.to_string(),
-    }
 }

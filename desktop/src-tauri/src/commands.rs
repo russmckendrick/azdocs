@@ -105,16 +105,9 @@ pub fn query_rows(
     let store = Store::open(&database_path(&state)?)?;
     let snapshot_id = store.resolve_snapshot(snapshot_id.as_deref().unwrap_or("latest"))?;
     let rows = store.query_results(&snapshot_id, &query_name)?;
-    // serde_json's preserve_order feature keeps the collected column order, so
-    // the first row's keys are the grid's column order.
-    let columns = rows
-        .first()
-        .and_then(|row| row.as_object())
-        .map(|object| object.keys().cloned().collect())
-        .unwrap_or_default();
     Ok(QueryRowsDto {
         query_name,
-        columns,
+        columns: azdocs::model::rows::columns(&rows),
         rows,
     })
 }

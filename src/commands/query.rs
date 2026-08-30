@@ -7,6 +7,7 @@ use serde_json::Value;
 use crate::arg::ArgClient;
 use crate::cli::QueryOutputFormat;
 use crate::config::Config;
+use crate::model::rows::{cell_to_string, columns};
 use crate::querypack::QueryPack;
 
 /// Run one query live against ARG and print the rows.
@@ -114,21 +115,6 @@ fn print_rows(rows: &[Value], format: QueryOutputFormat) -> anyhow::Result<()> {
 
 /// Column order follows the first row's key order (ARG preserves the
 /// projection order in objectArray results).
-fn columns(rows: &[Value]) -> Vec<String> {
-    let Some(Value::Object(first)) = rows.first() else {
-        return Vec::new();
-    };
-    first.keys().cloned().collect()
-}
-
-fn cell_text(value: Option<&Value>) -> String {
-    match value {
-        None | Some(Value::Null) => String::new(),
-        Some(Value::String(s)) => s.clone(),
-        Some(other) => other.to_string(),
-    }
-}
-
 fn print_table(rows: &[Value]) {
     if rows.is_empty() {
         println!("(no rows)");
@@ -139,7 +125,7 @@ fn print_table(rows: &[Value]) {
     table.load_style(comfy_table::presets::UTF8_BORDERS_ONLY);
     table.set_header(&columns);
     for row in rows {
-        table.add_row(columns.iter().map(|c| cell_text(row.get(c))));
+        table.add_row(columns.iter().map(|c| cell_to_string(row.get(c))));
     }
     println!("{table}");
 }
@@ -149,29 +135,8 @@ fn print_csv(rows: &[Value]) -> anyhow::Result<()> {
     let mut writer = csv::Writer::from_writer(std::io::stdout());
     writer.write_record(&columns)?;
     for row in rows {
-        writer.write_record(columns.iter().map(|c| cell_text(row.get(c))))?;
+        writer.write_record(columns.iter().map(|c| cell_to_string(row.get(c))))?;
     }
     writer.flush()?;
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use serde_json::json;
-
-    use super::*;
-
-    #[test]
-    fn columns_follow_first_row_key_order() {
-        let rows = vec![json!({"id": "a", "name": "x", "location": "uk"})];
-
-        assert_eq!(columns(&rows), vec!["id", "name", "location"]);
-    }
-
-    #[test]
-    fn cell_text_renders_nested_values_as_json() {
-        let value = json!({"tags": {"env": "prod"}});
-
-        assert_eq!(cell_text(value.get("tags")), r#"{"env":"prod"}"#);
-    }
 }
