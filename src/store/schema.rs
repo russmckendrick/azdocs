@@ -101,6 +101,18 @@ const MIGRATIONS: &[&str] = &[
         PRIMARY KEY (snapshot_id, query_name, row_index)
     );
     ",
+    // 2: drop indexes whose only readers are gone.
+    //
+    // `idx_resources_type` served `Store::resources_of_type` and
+    // `idx_edges_target` served `Store::edges_for_resource`. Both methods were
+    // removed: every caller loads the full set for a snapshot and filters in
+    // memory, so the indexes only cost insert time and file size on collect.
+    // IF EXISTS keeps this idempotent for databases created before migration 1
+    // was the whole schema.
+    "
+    DROP INDEX IF EXISTS idx_resources_type;
+    DROP INDEX IF EXISTS idx_edges_target;
+    ",
 ];
 
 pub fn migrate(conn: &Connection) -> Result<(), StoreError> {

@@ -35,21 +35,6 @@ impl Store {
         let rows = statement.query_map([snapshot_id], edge_from_row)?;
         Ok(rows.collect::<Result<_, _>>()?)
     }
-
-    /// Edges that touch `resource_id` in either direction.
-    pub fn edges_for_resource(
-        &self,
-        snapshot_id: &str,
-        resource_id: &str,
-    ) -> Result<Vec<Edge>, StoreError> {
-        let mut statement = self.conn().prepare(
-            "SELECT source_id, target_id, edge_type, properties
-             FROM edges WHERE snapshot_id = ?1 AND (source_id = ?2 OR target_id = ?2)
-             ORDER BY source_id, target_id, edge_type",
-        )?;
-        let rows = statement.query_map([snapshot_id, resource_id], edge_from_row)?;
-        Ok(rows.collect::<Result<_, _>>()?)
-    }
 }
 
 fn edge_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Edge> {
