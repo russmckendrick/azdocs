@@ -17,7 +17,11 @@ import {
   ZoomOut,
 } from "lucide-react";
 import type { EstateSnapshot, TopologyGraph, TopologyRequest } from "../types";
-import type { RelationshipWorkspaceState } from "../navigation-state";
+import {
+  cloneRelationshipWorkspace,
+  locationKey,
+  type RelationshipWorkspaceState,
+} from "../navigation-state";
 import { getTopology } from "../api";
 import { RESOURCE_GROUP_ICON } from "../azure-icons";
 import {
@@ -130,12 +134,7 @@ export function TopologyView({
   // losing spatial context.
   useEffect(() => {
     if (mode === "neighbourhood" && !selected) return;
-    const controls: RelationshipWorkspaceState = {
-      ...workspace,
-      location: { ...workspace.location },
-      excludedClasses: [...excludedClasses],
-      expandedSubscriptions: expandedSubscriptions ? [...expandedSubscriptions] : undefined,
-    };
+    const controls = cloneRelationshipWorkspace(workspace);
     const request: TopologyRequest = {
       snapshotId: estate.id,
       mode:
@@ -207,18 +206,14 @@ export function TopologyView({
   }, []);
 
   useEffect(() => {
-    const locationKey = workspace.location.kind === "estate"
-      ? "estate"
-      : workspace.location.kind === "group"
-        ? `group:${workspace.location.groupId}`
-        : `neighbourhood:${workspace.location.resourceId}`;
+    const key = locationKey(workspace.location);
     if (!lastLocationRef.current) {
-      lastLocationRef.current = locationKey;
+      lastLocationRef.current = key;
       requestCamera("core");
       return;
     }
-    if (lastLocationRef.current === locationKey) return;
-    lastLocationRef.current = locationKey;
+    if (lastLocationRef.current === key) return;
+    lastLocationRef.current = key;
     requestCamera("core");
   }, [workspace.location]);
 
@@ -325,14 +320,7 @@ export function TopologyView({
   function revertGraph() {
     const controls = successfulControlsRef.current;
     if (!controls) return;
-    onWorkspaceChange({
-      ...controls,
-      location: { ...controls.location },
-      excludedClasses: [...controls.excludedClasses],
-      expandedSubscriptions: controls.expandedSubscriptions
-        ? [...controls.expandedSubscriptions]
-        : undefined,
-    });
+    onWorkspaceChange(cloneRelationshipWorkspace(controls));
     setTopologyError(undefined);
     setTopologyStale(false);
     requestCamera("core");

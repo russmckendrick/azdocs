@@ -57,7 +57,14 @@ export function initialNavigationState(): NavigationState {
   };
 }
 
-function cloneRelationshipWorkspace(
+/**
+ * A deep-enough copy for the history stack and for capturing the controls that
+ * produced a successful graph.
+ *
+ * TopologyView had this spread out by hand twice; the arrays must be copied or
+ * a later mutation would rewrite a frame the user has already navigated past.
+ */
+export function cloneRelationshipWorkspace(
   workspace: RelationshipWorkspaceState,
 ): RelationshipWorkspaceState {
   return {
@@ -82,7 +89,13 @@ function pushCurrent(state: NavigationState) {
   return [...state.history, currentFrame(state)].slice(-MAX_HISTORY);
 }
 
-function locationKey(location: RelationshipLocation) {
+/**
+ * Stable identity for "which graph is on screen".
+ *
+ * The reducer and TopologyView derived this independently, so a new location
+ * kind had to be added in two places for history and camera resets to agree.
+ */
+export function locationKey(location: RelationshipLocation) {
   if (location.kind === "estate") return "estate";
   return location.kind === "group"
     ? `group:${location.groupId}`
