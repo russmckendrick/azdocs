@@ -1,6 +1,9 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::anyhow;
+
+/// Default export root when no `--out` is given.
+const DEFAULT_ROOT: &str = "output";
 
 use crate::cli::{DiagramArgs, DiagramFormat, DiagramType};
 use crate::diagram::graph::NamedGraph;
@@ -49,6 +52,39 @@ pub fn run_with_outputs(store: &Store, args: &DiagramArgs) -> anyhow::Result<Vec
             "resource-groups",
         ),
         DiagramType::Workbook => workbook(store, &snapshot_id, &scope, args),
+    }
+}
+
+/// Where a diagram lands when the caller names no explicit output path.
+///
+/// `root` is `output/` for the CLI and the directory the user picked for the
+/// desktop's Exports workspace. One function so the two layouts cannot drift —
+/// they already had, on where a workbook's rasters go.
+///
+/// Callers expand set aliases first (see [`expand_formats`]); the fallback
+/// extension is deliberately conspicuous so a caller that forgot is obvious in
+/// the filename rather than plausibly wrong.
+pub fn default_output_path(
+    root: &Path,
+    diagram_type: DiagramType,
+    format: DiagramFormat,
+) -> PathBuf {
+    match diagram_type {
+        // One file per scope, so this names a directory.
+        DiagramType::Vnets | DiagramType::ResourceGroups => {
+            root.join("diagrams").join(diagram_type.slug())
+        }
+        // draw.io holds every sheet in one file; a raster cannot, so it fans
+        // out into a directory beside the other fan-out types.
+        DiagramType::Workbook if format == DiagramFormat::Drawio => {
+            root.join("azdocs-workbook.drawio")
+        }
+        DiagramType::Workbook => root.join("diagrams").join(diagram_type.slug()),
+        _ => root.join(format!(
+            "azdocs-{}.{}",
+            diagram_type.slug(),
+            format.extension().unwrap_or("unexpanded")
+        )),
     }
 }
 
@@ -119,7 +155,7 @@ fn single(
         let out = match (&args.out, formats.len()) {
             (Some(path), 1) => path.clone(),
             (Some(path), _) => path.with_extension(extension),
-            (None, _) => PathBuf::from("output").join(format!("azdocs-{type_name}.{extension}")),
+            (None, _) => default_output_path(Path::new(DEFAULT_ROOT), args.diagram_type, *format),
         };
         write_out(&out, &content)?;
         println!("{type_name} diagram -> {}", out.display());
@@ -138,10 +174,9 @@ fn fan_out(
         return Ok(Vec::new());
     }
     // Fan-out writes one file per graph, so --out names a directory here.
-    let dir = args
-        .out
-        .clone()
-        .unwrap_or_else(|| PathBuf::from("output").join("diagrams").join(kind_dir));
+    let dir = args.out.clone().unwrap_or_else(|| {
+        default_output_path(Path::new(DEFAULT_ROOT), args.diagram_type, args.format)
+    });
     let formats = expand_formats(args.format);
     let mut outputs = Vec::new();
     for named in graphs {
@@ -218,7 +253,13 @@ fn workbook(
                     .out
                     .clone()
                     .filter(|path| path.extension().is_some())
-                    .unwrap_or_else(|| PathBuf::from("output").join("azdocs-workbook.drawio"));
+                    .unwrap_or_else(|| {
+                        default_output_path(
+                            Path::new(DEFAULT_ROOT),
+                            DiagramType::Workbook,
+                            DiagramFormat::Drawio,
+                        )
+                    });
                 let named_sheets: Vec<(&str, &EstateGraph)> = sheets
                     .iter()
                     .map(|(name, _, graph)| (*name, *graph))
@@ -234,7 +275,9 @@ fn workbook(
                     .out
                     .clone()
                     .filter(|path| path.extension().is_none())
-                    .unwrap_or_else(|| PathBuf::from("output").join("diagrams"));
+                    .unwrap_or_else(|| {
+                        default_output_path(Path::new(DEFAULT_ROOT), DiagramType::Workbook, format)
+                    });
                 for (name, slug, graph) in &sheets {
                     let (extension, content) = render_one(graph, format)?;
                     let out = dir.join(format!("{slug}.{extension}"));
@@ -247,4 +290,85 @@ fn workbook(
         }
     }
     Ok(outputs)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unit_names_a_single_diagram_after_its_type_and_extension() {
+        assert_eq!(
+            default_output_path(
+                Path::new("output"),
+                DiagramType::Network,
+                DiagramFormat::Svg
+            ),
+            Path::new("output/azdocs-network.svg")
+        );
+        // Mermaid writes .mmd, not .mermaid.
+        assert_eq!(
+            default_output_path(
+                Path::new("output"),
+                DiagramType::Hierarchy,
+                DiagramFormat::Mermaid
+            ),
+            Path::new("output/azdocs-hierarchy.mmd")
+        );
+    }
+
+    #[test]
+    fn unit_gives_each_fan_out_type_its_own_directory() {
+        assert_eq!(
+            default_output_path(
+                Path::new("output"),
+                DiagramType::Vnets,
+                DiagramFormat::Drawio
+            ),
+            Path::new("output/diagrams/vnets")
+        );
+        assert_eq!(
+            default_output_path(
+                Path::new("output"),
+                DiagramType::ResourceGroups,
+                DiagramFormat::Png
+            ),
+            Path::new("output/diagrams/resource-groups")
+        );
+    }
+
+    #[test]
+    fn unit_splits_the_workbook_by_whether_the_format_holds_sheets() {
+        // draw.io keeps every sheet in one file...
+        assert_eq!(
+            default_output_path(
+                Path::new("output"),
+                DiagramType::Workbook,
+                DiagramFormat::Drawio
+            ),
+            Path::new("output/azdocs-workbook.drawio")
+        );
+        // ...a raster cannot, so it fans out beside the other fan-out types.
+        assert_eq!(
+            default_output_path(
+                Path::new("output"),
+                DiagramType::Workbook,
+                DiagramFormat::Svg
+            ),
+            Path::new("output/diagrams/workbook")
+        );
+    }
+
+    #[test]
+    fn unit_roots_everything_at_the_directory_it_is_given() {
+        // The desktop passes the directory the user picked, not `output/`.
+        assert_eq!(
+            default_output_path(
+                Path::new("/tmp/exports"),
+                DiagramType::Network,
+                DiagramFormat::Png
+            ),
+            Path::new("/tmp/exports/azdocs-network.png")
+        );
+    }
 }

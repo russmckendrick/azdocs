@@ -330,28 +330,6 @@ fn diagram_format(value: &str) -> Result<DiagramFormat, AppError> {
     Ok(format)
 }
 
-fn diagram_output_target(
-    destination: &Path,
-    diagram_type: DiagramType,
-    format: DiagramFormat,
-) -> PathBuf {
-    match diagram_type {
-        DiagramType::Vnets | DiagramType::ResourceGroups => {
-            destination.join("diagrams").join(diagram_type.slug())
-        }
-        DiagramType::Workbook if format != DiagramFormat::Drawio => {
-            destination.join("diagrams").join("workbook")
-        }
-        DiagramType::Workbook => destination.join("azdocs-workbook.drawio"),
-        _ => destination.join(format!(
-            "azdocs-{}.{}",
-            diagram_type.slug(),
-            // Checked by `diagram_format`, which rejects the set aliases.
-            format.extension().unwrap_or("out")
-        )),
-    }
-}
-
 fn export_reports(
     request: ExportRequestDto,
     destination: &Path,
@@ -432,7 +410,11 @@ fn export_diagrams(
             format,
             subscription: request.subscription_id.clone(),
             resource_group: request.resource_group.clone(),
-            out: Some(diagram_output_target(destination, kind, format)),
+            out: Some(azdocs::commands::diagram::default_output_path(
+                destination,
+                kind,
+                format,
+            )),
         };
         outputs.extend(
             azdocs::commands::diagram::run_with_outputs(store, &args)
@@ -539,7 +521,7 @@ mod export_tests {
 
     #[test]
     fn unit_single_diagram_targets_a_named_file_in_the_destination() {
-        let path = diagram_output_target(
+        let path = azdocs::commands::diagram::default_output_path(
             Path::new("exports"),
             DiagramType::Network,
             DiagramFormat::Svg,
@@ -550,7 +532,7 @@ mod export_tests {
 
     #[test]
     fn unit_fan_out_diagrams_target_their_own_directory() {
-        let path = diagram_output_target(
+        let path = azdocs::commands::diagram::default_output_path(
             Path::new("exports"),
             DiagramType::ResourceGroups,
             DiagramFormat::Png,
@@ -562,7 +544,7 @@ mod export_tests {
     #[test]
     fn unit_workbook_targets_a_file_for_drawio_and_a_directory_for_rasters() {
         assert_eq!(
-            diagram_output_target(
+            azdocs::commands::diagram::default_output_path(
                 Path::new("exports"),
                 DiagramType::Workbook,
                 DiagramFormat::Drawio,
@@ -570,7 +552,7 @@ mod export_tests {
             Path::new("exports/azdocs-workbook.drawio")
         );
         assert_eq!(
-            diagram_output_target(
+            azdocs::commands::diagram::default_output_path(
                 Path::new("exports"),
                 DiagramType::Workbook,
                 DiagramFormat::Svg,

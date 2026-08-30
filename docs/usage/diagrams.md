@@ -26,7 +26,12 @@ full A4 portrait page, so they stay readable in print. See
 (`output/azdocs-<type>.<ext>`). The fan-out types write one file per scope
 under `output/diagrams/vnets/` and `output/diagrams/resource-groups/`
 (`--out` names the directory instead). The workbook writes
-`output/azdocs-workbook.drawio`.
+`output/azdocs-workbook.drawio` — or, for `svg`/`png`, one file per sheet under
+`output/diagrams/workbook/`, since a raster cannot hold multiple sheets.
+
+The desktop's Exports workspace writes the same layout under the directory you
+pick, because both go through one function
+(`commands::diagram::default_output_path`).
 
 A `network` diagram is shaped like this (this is actual azdocs Mermaid output
 style — GitHub renders it natively):
