@@ -973,7 +973,7 @@ fn group_graph(
 }
 
 fn is_child_of(child: &Resource, parent: &Resource) -> bool {
-    child.azure_type.matches('/').count() >= 2 && child.id.starts_with(parent.id.as_str())
+    azure_types::is_child_type(&child.azure_type) && child.id.starts_with(parent.id.as_str())
 }
 
 // ---------------------------------------------------------------------------

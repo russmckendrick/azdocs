@@ -680,7 +680,7 @@ impl EstateGraph {
                     r.azure_type != VNET_TYPE
                         && !node_ids.contains_key(&r.id)
                         && !is_nic_represented_by_vm(r, &edges, &by_id)
-                        && !is_child_resource_type(&r.azure_type)
+                        && !azure_types::is_child_type(&r.azure_type)
                 })
                 .collect();
             if !standalone.is_empty() {
@@ -901,13 +901,6 @@ fn vm_representative<'a>(
         .and_then(|e| by_id.get(e.target_id.as_str()).copied())
         .filter(|owner| owner.azure_type == "microsoft.compute/virtualmachines")
         .unwrap_or(resource)
-}
-
-/// Child resources (`provider/parent/child`, e.g. VM extensions or SQL
-/// databases) live inside their parent and would only clutter the
-/// "Standalone Resources" container as free-floating nodes.
-fn is_child_resource_type(azure_type: &str) -> bool {
-    azure_type.matches('/').count() > 1
 }
 
 fn is_nic_represented_by_vm(
