@@ -156,6 +156,22 @@ browser-preview stand-in). Subnets are not resource rows, so
 `desktop/src-tauri/src/dto.rs` collapses subnet-ended edges onto the owning
 VNet before they reach the frontend.
 
+Frontend rendering has another hard boundary. Read
+`docs/development/desktop-relationships.md` before changing it.
+`topology-layout.ts` owns deterministic zones, connection-aware rails, entry
+sets and camera profiles; `topology-presentation.ts` owns pure connector-port,
+taxi-channel and label-placement decisions; `CytoscapeResourceGraph.tsx`
+coordinates paint and interaction. Every logical link renders through its own
+invisible source and target boundary-port nodes, ordered on each side by the
+opposite endpoint's spatial position. The edge retains `logicalSource` and
+`logicalTarget`; tracing, counts, cameras, navigation and accessibility must
+never use the synthetic endpoints. Relationship text is a DOM overlay above
+all connector paint, never a Cytoscape edge label. Group entry includes the
+connected core and external rail but excludes the unconnected shelf;
+neighbourhood entry excludes second hops; estate entry includes collapsed
+subscription bars. Do not replace these rules with direct logical-node edges,
+shared ports, name-only grids or indiscriminate Fit all.
+
 ## Testing layout
 
 - `tests/common/mod.rs` — canonical fixture estate (2 subs, peered VNets,

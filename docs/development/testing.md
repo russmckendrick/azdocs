@@ -37,7 +37,10 @@ flowchart TD
 | Diagram geometry | Every canvas lands on a page fraction; every connector segment is axis-aligned; routes are deterministic | `src/diagram/svg.rs`, `src/diagram/route.rs`, `src/diagram/page.rs` |
 | TUI | `TestBackend` buffer snapshots + key-event sequences | `tests/tui_test.rs` |
 | Desktop topology | Pure-function tests over a synthetic 1,000-resource estate: drawn + folded + aggregated always equals total, deterministic output, fan-out folding, scope filters counted | `desktop/src-tauri/src/topology.rs` |
-| Desktop relationship UI | Vitest at 1440/1060/800px: deterministic zones, directional neighbourhoods, camera targets, spatial navigation, lane and retained-error state | `desktop/src/components/topology-layout.test.ts`, `desktop/src/components/topology-view-state.test.ts` |
+| Desktop relationship UI | Vitest at 1440/1060/800px: deterministic zones, rail alignment, directional neighbourhoods, camera targets, spatial navigation, per-edge boundary ports, taxi channels, label placement, trace priority, and retained-error state | `desktop/src/components/topology-layout.test.ts`, `desktop/src/components/topology-presentation.test.ts`, `desktop/src/components/topology-view-state.test.ts` |
+
+The full relationship rendering and screenshot review contract is in
+[Desktop relationship maps](desktop-relationships.md#tests-and-review).
 
 ## The fixture estate
 

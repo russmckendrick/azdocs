@@ -27,6 +27,21 @@
    draws only its own whitelist — extend that deliberately if the kind should
    appear in printed diagrams.
 
+### Change the desktop relationship renderer
+
+Read [Desktop relationship maps](desktop-relationships.md) before editing the
+layout or Cytoscape component. Keep graph semantics in Rust, deterministic
+placement in `topology-layout.ts`, and pure connector/label decisions in
+`topology-presentation.ts`. A rendered relationship uses two invisible
+boundary-port nodes, while tracing and camera logic continue to use its
+logical source and target ids. Never move relationship text back into
+Cytoscape edge labels.
+
+Add or update pure-function tests for every geometry change, including peer
+ordering at shared endpoints and behaviour after a node crosses its peer.
+Run `npm test` and `npm run build` in `desktop/`, then review estate, group,
+and neighbourhood scopes at all documented viewport widths in both themes.
+
 ### Polish a resource type
 
 - Display names: `data/display_names.toml`, `data/azure_locations.toml`, and

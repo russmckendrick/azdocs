@@ -15,6 +15,7 @@ cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D w
 | Page | Covers |
 |---|---|
 | [Architecture](architecture.md) | Modules, data flow, the design decisions and why |
+| [Desktop relationship maps](desktop-relationships.md) | Topology ownership, scope layouts, connector ports, label layers, cameras and anti-regression tests |
 | [Data model](data-model.md) | SQLite schema, migrations, snapshot diffing |
 | [Azure display metadata](azure-metadata.md) | Friendly resource types, locations, kinds, and the Microsoft refresh flow |
 | [Testing](testing.md) | Test layers, the fixture estate, golden files |

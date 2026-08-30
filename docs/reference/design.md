@@ -163,13 +163,24 @@ scales text below 11px.
 Pointer hover, keyboard focus, and the selected neighbourhood subject trace an
 incident route in that priority order. Active connectors use deterministic
 orthogonal channels and boundary anchor slots; unrelated graph content recedes
-without disappearing. Relationship text belongs to the active trace and is a
-DOM overlay above every connector rather than Cytoscape edge paint. Opaque
+without disappearing. Every logical link owns an invisible source and target
+port on the real node or compound-frame boundary. Ports on the same side are
+ordered by the opposite endpoint's spatial position, clamped clear of corners,
+and separated before Cytoscape draws the round-taxi route. This is what keeps
+shared endpoints from collapsing into one trunk; direct logical-node edges are
+not an acceptable fallback.
+
+The paint stack is field → idle links → active links → relationship labels →
+node labels and controls. Relationship text belongs to the active trace and is
+a DOM overlay above every connector rather than Cytoscape edge paint. Opaque
 token-backed plates sit beside the remote endpoint, use stable slots when
-several links share it, and resynchronise through pan, zoom, drag, resize, and
-camera animation. The independently announced route summary remains available
-to assistive technology. Hidden windows, the pause control, and reduced-motion
-preferences stop connector motion.
+several links share it, avoid node and label obstacles, and resynchronise
+through pan, zoom, drag, resize, and camera animation. Synthetic port ids never
+participate in trace, counts, camera targets, navigation, or accessible
+summaries. The independently announced route summary remains available to
+assistive technology. Hidden windows, the pause control, and reduced-motion
+preferences stop connector motion. The complete engineering and regression
+contract is [Desktop relationship maps](../development/desktop-relationships.md).
 
 One click and Enter share the same primary activation model: a group opens its
 group map and a resource opens its resource record. A separate, visible

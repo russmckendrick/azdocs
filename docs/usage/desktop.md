@@ -7,8 +7,11 @@ built by the Rust side (`topology_graph`) with one non-negotiable rule:
 into its host (NICs and disks into their VM, child resources into their ARM
 parent), or aggregated into a ×N tile — and the status chip states the exact
 arithmetic. Nothing is silently truncated. Resource nodes are draggable, the
-canvas supports pan and zoom, links are boundary-anchored and orthogonal, and
-directional flow motion is optional.
+canvas supports pan and zoom, and directional flow motion is optional. Each
+link receives its own invisible source and target boundary ports: shared
+endpoints fan into stable, spatially ordered taxi channels instead of sharing
+one trunk. Relationship names are DOM label plates above the canvas, so no
+connector can paint over their text.
 Every resource uses the vendored Microsoft Azure service icon resolved for its
 ARM type.
 It does not maintain a second inventory and it does not query Azure while you
@@ -63,7 +66,11 @@ npm run tauri build
 
   Zoom is semantic: full labels at readable scale, primary labels at the
   middle rung, then icon/count overview tiles. Text is never rendered below
-  11px and relationship labels appear only on the selected path. The camera
+  11px and relationship labels appear only on the active traced path. Keyboard
+  focus wins over pointer hover, which wins over the selected neighbourhood
+  subject; unrelated routes fade without disappearing. Each active label sits
+  beside the remote endpoint on an opaque plate and moves with pan, zoom,
+  drag, resize, and camera animation. The camera
   adapts its fit to the graph level and available viewport: sparse group and
   neighbourhood maps may zoom above 1:1, while Fit all remains an overview.
   Scope changes and drill actions use Cytoscape's native viewport animation
@@ -88,6 +95,12 @@ npm run tauri build
   resource-scoped result back to its resource properties.
 - **Snapshots** shows collection history, query health, and added, changed, or
   removed resource IDs compared with the preceding snapshot.
+- **Exports** generates the same offline artifacts as the CLI from the active
+  snapshot. Select one or more report formats (Markdown, HTML, CSV, XLSX, PDF,
+  or DOCX) with any installed report theme, or render a hierarchy, resource,
+  network, per-VNet, per-resource-group, or Draw.io workbook diagram. Diagram
+  exports support Draw.io, Mermaid, SVG, and PNG where the composition allows
+  them, with optional subscription and resource-group scope.
 
 The global search shortcut is `Cmd+K` on macOS or `Ctrl+K` on Windows and
 Linux. Every resource pane and navigation action is keyboard reachable.
@@ -121,6 +134,20 @@ flowchart LR
 All other desktop commands open the selected database for one request and
 return serialisable snapshot data. The SQLite connection is not shared across
 webview commands.
+
+## Offline exports
+
+The **Exports** workspace uses a native directory picker; the selected path is
+sent to Rust only for the duration of the export. The webview receives progress
+and a sorted manifest of completed files, but it never receives general file
+system access. Existing configuration still supplies report branding, custom
+themes, logos, and fonts.
+
+Reports compose shared diagram assets once even when several formats are
+selected. Per-VNet and per-resource-group diagrams fan out beneath the chosen
+directory, while the workbook writes an editable `.drawio` file or one SVG/PNG
+per sheet. Every export reads only the selected SQLite snapshot and does not
+contact Azure.
 
 ## Browser preview
 
