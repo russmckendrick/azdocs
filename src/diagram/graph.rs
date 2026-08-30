@@ -903,6 +903,13 @@ fn vm_representative<'a>(
         .unwrap_or(resource)
 }
 
+/// Only NICs fold into their VM here.
+///
+/// The desktop topology builder also folds `microsoft.compute/disks`
+/// (`desktop/src-tauri/src/topology.rs`), so an OS disk is a tile of its own in
+/// a printed diagram and invisible in the explorer. The two have never been
+/// reconciled; changing either moves output (here, every diagram golden), so it
+/// is a design call rather than a tidy-up.
 fn is_nic_represented_by_vm(
     resource: &Resource,
     edges: &[Edge],

@@ -593,6 +593,10 @@ fn group_graph(
         ) else {
             continue;
         };
+        // Disks fold here but not in the print diagrams, which only fold NICs
+        // (`is_nic_represented_by_vm` in src/diagram/graph.rs). The two have
+        // never been reconciled — an OS disk is a tile of its own on paper and
+        // invisible in the explorer.
         let folds = matches!(
             source.azure_type.as_str(),
             "microsoft.network/networkinterfaces" | "microsoft.compute/disks"
