@@ -10,6 +10,7 @@ import type {
   ResourceType,
   Severity,
 } from "./types";
+import { buildResourceGroupTopology } from "./components/topology-model";
 
 const ids = {
   vnetHub: "/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/virtualnetworks/vnet-hub",
@@ -319,6 +320,10 @@ export const mockEstate: EstateSnapshot = {
     { id: "/subscriptions/sub-prod/resourcegroups/rg-app", name: "rg-app", subscriptionId: "sub-prod", location: "uksouth" },
     { id: "/subscriptions/sub-dev/resourcegroups/rg-dev", name: "rg-dev", subscriptionId: "sub-dev", location: "ukwest" },
   ],
+  // The packaged app gets these from Rust. The preview derives them from the
+  // same fixture with `buildResourceGroupTopology`, below the declaration —
+  // see the note there on why the preview keeps its own copy of that rule.
+  resourceGroupSummaries: [],
   resources,
   resourceTypes,
   locations: [
@@ -377,3 +382,17 @@ export function mockExportOutputs(request: ExportRequest) {
     return `${root}/azdocs-${diagramType}.${extension}`;
   });
 }
+
+// Filled in after construction because the derivation needs the finished estate.
+// `buildResourceGroupTopology` is the browser preview's own implementation of
+// the bucketing Rust does in `groups.rs`; it stays here (and only here) because
+// the preview has no Rust to call, and it is stripped from the packaged build.
+mockEstate.resourceGroupSummaries = buildResourceGroupTopology(mockEstate).groups.map((group) => ({
+  id: group.id,
+  name: group.name,
+  subscriptionId: group.subscriptionId,
+  subscriptionName: group.subscriptionName,
+  resourceCount: group.resourceCount,
+  findingCount: group.findingCount,
+  resourceIds: group.resourceIds,
+}));

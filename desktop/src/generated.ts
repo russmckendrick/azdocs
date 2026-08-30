@@ -22,7 +22,11 @@ export type SnapshotSummary = { id: string, createdAt: string, tenantId: string,
 
 export type SnapshotComparison = { baseSnapshotId: string, targetSnapshotId: string, added: Array<string>, removed: Array<string>, changed: Array<string>, };
 
-export type EstateSnapshot = { id: string, createdAt: string, tenantId: string, status: SnapshotStatus, notes?: string | null, totals: Totals, tagCoverage: TagCoverage, severityCounts: SeverityCounts, azureMetadata: AzureMetadata, subscriptions: Array<Subscription>, resourceGroups: Array<ResourceGroup>, resources: Array<Resource>, resourceTypes: Array<ResourceType>, locations: Array<NameCount>, findings: Array<Finding>, edges: Array<Edge>, queryRuns: Array<QueryRun>, previousDiff?: SnapshotComparison | null, };
+export type EstateSnapshot = { id: string, createdAt: string, tenantId: string, status: SnapshotStatus, notes?: string | null, totals: Totals, tagCoverage: TagCoverage, severityCounts: SeverityCounts, azureMetadata: AzureMetadata, subscriptions: Array<Subscription>, resourceGroups: Array<ResourceGroup>, 
+/**
+ * Every group the relationship map can open, synthetic ones included.
+ */
+resourceGroupSummaries: Array<ResourceGroupSummary>, resources: Array<Resource>, resourceTypes: Array<ResourceType>, locations: Array<NameCount>, findings: Array<Finding>, edges: Array<Edge>, queryRuns: Array<QueryRun>, previousDiff?: SnapshotComparison | null, };
 
 export type Totals = { subscriptions: number, resourceGroups: number, resources: number, findings: number, };
 
@@ -35,6 +39,16 @@ export type AzureMetadata = { locations: { [key in string]: string }, kinds: { [
 export type Subscription = { id: string, displayName: string, state?: string | null, tags?: Record<string, unknown>, };
 
 export type ResourceGroup = { id: string, name: string, subscriptionId: string, location?: string | null, tags?: Record<string, unknown>, };
+
+export type ResourceGroupSummary = { id: string, name: string, subscriptionId: string, 
+/**
+ * Resolved here so the UI never has to join against the subscription list.
+ */
+subscriptionName: string, resourceCount: number, findingCount: number, 
+/**
+ * Resource ids in this group, ordered by name then id.
+ */
+resourceIds: Array<string>, };
 
 export type Resource = { id: string, displayId: string, name: string, azureType: string, kind?: string | null, location?: string | null, resourceGroup?: string | null, subscriptionId: string, tags?: Record<string, unknown>, sku?: unknown, identity?: unknown, properties?: Record<string, unknown>, findingCount: number, edgeCount: number, };
 

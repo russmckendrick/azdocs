@@ -59,6 +59,7 @@ pub fn generated_typescript() -> String {
     decl::<AzureMetadataDto>(&mut out, &cfg);
     decl::<SubscriptionDto>(&mut out, &cfg);
     decl::<ResourceGroupDto>(&mut out, &cfg);
+    decl::<ResourceGroupSummaryDto>(&mut out, &cfg);
     decl::<ResourceDto>(&mut out, &cfg);
     decl::<ResourceTypeDto>(&mut out, &cfg);
     decl::<NameCountDto>(&mut out, &cfg);

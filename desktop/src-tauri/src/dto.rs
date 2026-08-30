@@ -89,6 +89,8 @@ pub struct EstateSnapshot {
     pub azure_metadata: AzureMetadataDto,
     pub subscriptions: Vec<SubscriptionDto>,
     pub resource_groups: Vec<ResourceGroupDto>,
+    /// Every group the relationship map can open, synthetic ones included.
+    pub resource_group_summaries: Vec<ResourceGroupSummaryDto>,
     pub resources: Vec<ResourceDto>,
     pub resource_types: Vec<ResourceTypeDto>,
     pub locations: Vec<NameCountDto>,
@@ -199,6 +201,28 @@ impl From<ResourceGroup> for ResourceGroupDto {
             tags: value.tags,
         }
     }
+}
+
+/// A resource group as the relationship map needs it: display-ready, and
+/// including groups synthesised for resources whose group row is missing.
+///
+/// This exists because the frontend was deriving exactly this — the join key,
+/// the synthetic-group rule, the subscription-name lookup — in
+/// `topology-model.ts`, in the production render path, from a second
+/// implementation that had already drifted from the Rust one.
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename = "ResourceGroupSummary", optional_fields = nullable)]
+pub struct ResourceGroupSummaryDto {
+    pub id: String,
+    pub name: String,
+    pub subscription_id: String,
+    /// Resolved here so the UI never has to join against the subscription list.
+    pub subscription_name: String,
+    pub resource_count: usize,
+    pub finding_count: usize,
+    /// Resource ids in this group, ordered by name then id.
+    pub resource_ids: Vec<String>,
 }
 
 #[derive(Debug, Serialize, TS)]
@@ -425,6 +449,48 @@ impl EstateSnapshot {
         };
         let severity_counts = SeverityCountsDto::from(&context.severity_counts);
 
+        // Same bucketing the relationship map uses, so the two never disagree
+        // about which groups exist or what a synthesised id looks like.
+        let subscription_names: BTreeMap<&str, &str> = subscriptions
+            .iter()
+            .map(|s| (s.subscription_id.as_str(), s.display_name.as_str()))
+            .collect();
+        let (buckets, _) = crate::groups::bucket_resources(&resource_groups, &resources, &[]);
+        let mut resource_group_summaries: Vec<ResourceGroupSummaryDto> = buckets
+            .into_iter()
+            .map(|bucket| {
+                let mut members: Vec<&Resource> = bucket.resources;
+                members.sort_by(|left, right| {
+                    left.name
+                        .cmp(&right.name)
+                        .then_with(|| left.id.cmp(&right.id))
+                });
+                ResourceGroupSummaryDto {
+                    subscription_name: subscription_names
+                        .get(bucket.subscription_id.as_str())
+                        .map(|name| (*name).to_owned())
+                        .unwrap_or_else(|| bucket.subscription_id.clone()),
+                    resource_count: members.len(),
+                    finding_count: members
+                        .iter()
+                        .map(|r| finding_counts.get(&r.id).copied().unwrap_or_default())
+                        .sum(),
+                    resource_ids: members.iter().map(|r| r.id.clone()).collect(),
+                    id: bucket.id,
+                    name: bucket.name,
+                    subscription_id: bucket.subscription_id,
+                }
+            })
+            .collect();
+        // Ordered for display: subscription, then group, then id as the
+        // deterministic tie-breaker.
+        resource_group_summaries.sort_by(|left, right| {
+            left.subscription_name
+                .cmp(&right.subscription_name)
+                .then_with(|| left.name.cmp(&right.name))
+                .then_with(|| left.id.cmp(&right.id))
+        });
+
         Self {
             id: context.snapshot_id,
             created_at: context.created_at,
@@ -436,6 +502,7 @@ impl EstateSnapshot {
             severity_counts,
             azure_metadata: AzureMetadataDto::build(),
             subscriptions: subscriptions.into_iter().map(Into::into).collect(),
+            resource_group_summaries,
             resource_groups: resource_groups.into_iter().map(Into::into).collect(),
             resources: resources
                 .into_iter()

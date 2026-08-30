@@ -31,7 +31,6 @@ import {
   type GraphCameraMode,
   type GraphCameraRequest,
 } from "./CytoscapeResourceGraph";
-import { buildResourceGroupTopology } from "./topology-model";
 import {
   refreshFailed,
   refreshStarted,
@@ -99,14 +98,19 @@ export function TopologyView({
   const requestTokenRef = useRef(0);
   const successfulControlsRef = useRef<RelationshipWorkspaceState | undefined>(undefined);
 
-  const resourceGroupTopology = useMemo(() => buildResourceGroupTopology(estate), [estate]);
-  const activeResourceGroup = resourceGroupTopology.groups.find((group) => group.id === activeResourceGroupId);
-  const selectedResourceGroupId = selected
-    ? resourceGroupTopology.resourceGroupByResourceId.get(selected.id)
-    : undefined;
-  const selectedResourceGroup = resourceGroupTopology.groups.find(
-    (group) => group.id === selectedResourceGroupId,
-  );
+  // Group membership is decided in Rust and arrives on the snapshot; deriving
+  // it again here is what let the two drift apart on synthetic-group ids.
+  const resourceGroups = estate.resourceGroupSummaries;
+  const groupByResourceId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const group of resourceGroups) {
+      for (const id of group.resourceIds) map.set(id, group.id);
+    }
+    return map;
+  }, [resourceGroups]);
+  const activeResourceGroup = resourceGroups.find((group) => group.id === activeResourceGroupId);
+  const selectedResourceGroupId = selected ? groupByResourceId.get(selected.id) : undefined;
+  const selectedResourceGroup = resourceGroups.find((group) => group.id === selectedResourceGroupId);
   const selectedNodeId = mode === "neighbourhood" ? selected?.id : undefined;
 
   function nextWorkspace(update: Partial<RelationshipWorkspaceState>) {
@@ -191,11 +195,11 @@ export function TopologyView({
   useEffect(() => {
     if (workspace.location.kind !== "group") return;
     const groupId = workspace.location.groupId;
-    if (resourceGroupTopology.groups.some((group) => group.id === groupId)) return;
+    if (resourceGroups.some((group) => group.id === groupId)) return;
     replaceWorkspace({ location: { kind: "estate" }, expandedAggregateId: undefined });
     // The workspace callback is intentionally driven by the controlled location.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resourceGroupTopology, workspace.location]);
+  }, [resourceGroups, workspace.location]);
 
   useEffect(() => {
     const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -235,14 +239,14 @@ export function TopologyView({
       : "Select a resource to explore its neighbourhood"
     : activeResourceGroup
       ? `${activeResourceGroup.subscriptionName} · ${activeResourceGroup.resourceCount} resources`
-      : `${resourceGroupTopology.groups.length} groups · ${estate.resources.length.toLocaleString()} resources`;
+      : `${resourceGroups.length} groups · ${estate.resources.length.toLocaleString()} resources`;
 
   function requestCamera(cameraMode: GraphCameraMode) {
     setCamera((current) => ({ mode: cameraMode, nonce: current.nonce + 1 }));
   }
 
   function openResourceGroup(id: string) {
-    const group = resourceGroupTopology.groups.find((candidate) => candidate.id === id);
+    const group = resourceGroups.find((candidate) => candidate.id === id);
     if (!group) return;
     navigateWorkspace({ location: { kind: "group", groupId: id }, expandedAggregateId: undefined });
     setHelpOpen(false);

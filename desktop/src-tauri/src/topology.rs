@@ -11,6 +11,8 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use azdocs::model::{Edge, EdgeKind, Resource, ResourceGroup, Subscription, azure_types, network};
+
+use crate::groups;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -276,71 +278,38 @@ struct GroupSummary<'a> {
     external_links: usize,
 }
 
-fn group_key(subscription_id: &str, group_name: &str) -> String {
-    format!(
-        "{}\0{}",
-        subscription_id.to_lowercase(),
-        group_name.to_lowercase()
-    )
-}
-
 fn collect_groups<'a>(
     input: &TopologyInput<'a>,
     scoped: &ScopedResources<'a>,
     scope: &TopologyScope,
 ) -> (Vec<GroupSummary<'a>>, HashMap<String, usize>) {
-    let scope_subscriptions: HashSet<&str> =
-        scope.subscriptions.iter().map(|s| s.as_str()).collect();
-    let mut order: Vec<GroupSummary> = Vec::new();
-    let mut index_by_key: HashMap<String, usize> = HashMap::new();
-    for group in input.resource_groups {
-        if !scope_subscriptions.is_empty()
-            && !scope_subscriptions.contains(group.subscription_id.as_str())
-        {
-            continue;
-        }
-        let key = group_key(&group.subscription_id, &group.name);
-        if index_by_key.contains_key(&key) {
-            continue;
-        }
-        index_by_key.insert(key, order.len());
-        order.push(GroupSummary {
-            id: group.id.clone(),
-            name: group.name.clone(),
-            subscription_id: group.subscription_id.clone(),
-            resources: Vec::new(),
-            finding_count: 0,
-            external_links: 0,
-        });
-    }
-    let mut group_by_resource: HashMap<String, usize> = HashMap::new();
-    for resource in &scoped.resources {
-        let name = resource
-            .resource_group
-            .clone()
-            .unwrap_or_else(|| "subscription scope".to_owned());
-        let key = group_key(&resource.subscription_id, &name);
-        let index = *index_by_key.entry(key).or_insert_with(|| {
-            order.push(GroupSummary {
-                id: format!(
-                    "/subscriptions/{}/resourcegroups/{}",
-                    resource.subscription_id.to_lowercase(),
-                    name.to_lowercase()
-                ),
-                name,
-                subscription_id: resource.subscription_id.clone(),
-                resources: Vec::new(),
-                finding_count: 0,
+    // Bucketing (including synthesising a group for resources whose row is
+    // missing) lives in `groups`, shared with the snapshot DTO so the explorer
+    // and the relationship map never disagree about what groups exist.
+    let (buckets, group_by_resource) = groups::bucket_resources(
+        input.resource_groups,
+        scoped.resources.iter().copied(),
+        &scope.subscriptions,
+    );
+    let summaries = buckets
+        .into_iter()
+        .map(|bucket| {
+            let finding_count = bucket
+                .resources
+                .iter()
+                .map(|resource| finding_count(input, &resource.id))
+                .sum();
+            GroupSummary {
+                id: bucket.id,
+                name: bucket.name,
+                subscription_id: bucket.subscription_id,
+                resources: bucket.resources,
+                finding_count,
                 external_links: 0,
-            });
-            order.len() - 1
-        });
-        group_by_resource.insert(resource.id.clone(), index);
-        let summary = &mut order[index];
-        summary.finding_count += finding_count(input, &resource.id);
-        summary.resources.push(resource);
-    }
-    (order, group_by_resource)
+            }
+        })
+        .collect();
+    (summaries, group_by_resource)
 }
 
 fn estate_graph(

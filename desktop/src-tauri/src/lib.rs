@@ -4,6 +4,7 @@ mod bindings;
 mod commands;
 mod dto;
 mod error;
+mod groups;
 pub mod topology;
 
 use std::path::PathBuf;
