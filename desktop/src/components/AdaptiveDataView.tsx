@@ -1,4 +1,4 @@
-import { preciseDateTime, resourceName } from "../format";
+import { capitalise, preciseDateTime, resourceName } from "../format";
 
 type DataRecord = Record<string, unknown>;
 
@@ -81,7 +81,7 @@ function humanizeKey(key: string) {
   const [first, ...rest] = words;
   const leading = ACRONYMS.has(first.toLowerCase())
     ? first
-    : `${first.charAt(0).toUpperCase()}${first.slice(1)}`;
+    : capitalise(first);
   return [leading, ...rest].join(" ");
 }
 

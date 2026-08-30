@@ -18,7 +18,7 @@ import {
   Tags,
 } from "lucide-react";
 import { chooseDatabase, collectEstate, getBootstrap, getSnapshot, isTauri } from "./api";
-import { ALL_RESOURCES_ICON } from "./azure-icons";
+import { resourceIcon } from "./azure-icons";
 import { displayLocation } from "./azure-values";
 import {
   initialNavigationState,
@@ -373,7 +373,7 @@ export default function App() {
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => chooseSearchResult(index)}
                   >
-                    <img src={type?.icon ?? ALL_RESOURCES_ICON} alt="" />
+                    <img src={resourceIcon(type)} alt="" />
                     <span><strong>{resource.name}</strong><small>{type?.displayName ?? resource.azureType} · {resource.resourceGroup}</small></span>
                   </button>
                 );

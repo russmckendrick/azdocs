@@ -4,6 +4,7 @@ import { getQueryPackMetadata, getQueryRows } from "../api";
 import type { EstateSnapshot, QueryDefMeta, QueryRows } from "../types";
 import { ShowMore, useProgressiveList } from "./progressive-list";
 import { DatabaseStamp, EmptyState, ViewHeading } from "./view-chrome";
+import { capitalise, spaced } from "../format";
 
 
 /// Category dot colours follow the design language: chart slots for the big
@@ -163,7 +164,7 @@ export function InventoryView({ estate, search }: { estate: EstateSnapshot; sear
                 }}
               >
                 <span className="cat-dot" style={{ background: `var(${categoryVar(name)})` }} />
-                {name[0].toUpperCase() + name.slice(1)}
+                {capitalise(name)}
                 <b>{defs.length}</b>
               </button>
             ))}
@@ -176,7 +177,7 @@ export function InventoryView({ estate, search }: { estate: EstateSnapshot; sear
                 <select value={activeQuery ?? ""} onChange={(event) => setQueryName(event.target.value)}>
                   {queries.map((def) => (
                     <option key={def.name} value={def.name}>
-                      {def.name.replaceAll("_", " ")} · {runByName.get(def.name)?.rowCount ?? 0} rows
+                      {spaced(def.name)} · {runByName.get(def.name)?.rowCount ?? 0} rows
                     </option>
                   ))}
                 </select>

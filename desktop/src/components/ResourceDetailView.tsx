@@ -7,16 +7,16 @@ import {
   GitBranch,
   ListTree,
 } from "lucide-react";
-import { ALL_RESOURCES_ICON } from "../azure-icons";
+import { resourceIcon } from "../azure-icons";
 import { displayKind, displayLocation } from "../azure-values";
 import type { EstateSnapshot, Resource, ResourceType } from "../types";
 import { AdaptiveDataView, describeStoredValue, hasStoredValue } from "./AdaptiveDataView";
-import { resourceName } from "../format";
+import { resourceName, spaced } from "../format";
 import { EmptyState } from "./view-chrome";
 import { useEscapeKey, useResourceTypeMap } from "../estate-lookups";
 
 function prettyRelation(kind: string) {
-  return kind.replaceAll("_", " ");
+  return spaced(kind);
 }
 
 export function ResourceDetailView({
@@ -88,7 +88,7 @@ export function ResourceDetailView({
           <ArrowLeft size={15} /> {backLabel}
         </button>
         <div className="resource-record-title">
-          <img src={type?.icon ?? ALL_RESOURCES_ICON} alt="" />
+          <img src={resourceIcon(type)} alt="" />
           <div>
             <h1 id="resource-record-title">{resource.name}</h1>
             <p>{type?.displayName ?? resource.azureType}</p>
@@ -194,7 +194,7 @@ export function ResourceDetailView({
                     <article key={`${edge.sourceId}-${edge.targetId}-${edge.kind}-${index}`}>
                       <button onClick={() => other && onSelectResource(other.id)} disabled={!other}>
                         <span className="relation-direction">{outbound ? "OUT" : "IN"}</span>
-                        <img src={otherType?.icon ?? ALL_RESOURCES_ICON} alt="" />
+                        <img src={resourceIcon(otherType)} alt="" />
                         <span><strong>{other?.name ?? resourceName(otherId)}</strong><small>{prettyRelation(edge.kind)}</small></span>
                         {other ? <ChevronRight size={14} /> : null}
                       </button>

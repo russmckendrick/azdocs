@@ -10,7 +10,7 @@ import {
   SearchX,
   X,
 } from "lucide-react";
-import { ALL_RESOURCES_ICON, RESOURCE_GROUP_ICON, SUBSCRIPTION_ICON } from "../azure-icons";
+import { ALL_RESOURCES_ICON, RESOURCE_GROUP_ICON, SUBSCRIPTION_ICON, resourceIcon } from "../azure-icons";
 import { displayLocation } from "../azure-values";
 import type { AzureMetadata, EstateSnapshot, Resource, ResourceType, ScopeSelection } from "../types";
 import { ShowMore, useProgressiveList } from "./progressive-list";
@@ -227,7 +227,7 @@ export function EstateExplorer({
                                       }}
                                       title={resource.name}
                                     >
-                                      <img src={resourceType?.icon ?? ALL_RESOURCES_ICON} alt="" />
+                                      <img src={resourceIcon(resourceType)} alt="" />
                                       <span>{resource.name}</span>
                                       {resource.findingCount > 0 ? <em>{resource.findingCount}</em> : null}
                                     </button>
@@ -355,7 +355,7 @@ function ResourceRow({
   return (
     <button className="resource-row" data-resource-index={index} data-resource-id={resource.id} tabIndex={tabIndex} onClick={onSelect} role="option" aria-selected="false">
       <span className="resource-identity">
-        <img src={type?.icon ?? ALL_RESOURCES_ICON} alt="" />
+        <img src={resourceIcon(type)} alt="" />
         <span>
           <strong>{resource.name}</strong>
           <small>{type?.displayName ?? resource.azureType}</small>

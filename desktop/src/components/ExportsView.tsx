@@ -19,6 +19,7 @@ import type {
   ReportExportFormat,
 } from "../types";
 import { ViewHeading } from "./view-chrome";
+import { sentenceCase } from "../format";
 
 const REPORT_FORMATS: Array<{
   id: ReportExportFormat;
@@ -52,10 +53,6 @@ const DIAGRAM_FORMATS: Array<{ id: DiagramExportFormat; label: string; detail: s
 
 function toggle<T extends string>(values: T[], value: T) {
   return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
-}
-
-function sentenceCase(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1).replaceAll("-", " ");
 }
 
 function relativeOutput(result: ExportResult, output: string) {

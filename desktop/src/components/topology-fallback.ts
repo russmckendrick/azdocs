@@ -15,6 +15,7 @@ import type {
   TopologyRequest,
 } from "../types";
 import { buildResourceGroupTopology, resourceGroupNodeId } from "./topology-model";
+import { spaced } from "../format";
 
 const NEIGHBOUR_FANOUT_LIMIT = 6;
 const ESTATE_CARD_BUDGET = 24;
@@ -311,7 +312,7 @@ function groupGraph(estate: EstateSnapshot, groupId: string): TopologyGraph {
       merged.set(key, {
         sourceId: source,
         targetId: target,
-        label: edge.kind.replaceAll("_", " "),
+        label: spaced(edge.kind),
         kindClass: edgeKindClass(edge.kind),
         count: 1,
       });
@@ -438,7 +439,7 @@ function neighbourhoodGraph(
       merged.set(key, {
         sourceId: source,
         targetId: target,
-        label: edge.kind.replaceAll("_", " "),
+        label: spaced(edge.kind),
         kindClass: edgeKindClass(edge.kind),
         count: 1,
       });

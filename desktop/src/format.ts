@@ -93,3 +93,24 @@ export function errorMessage(error: unknown, fallback = "Something went wrong.")
   if (typeof error === "string" && error) return error;
   return fallback;
 }
+
+/** First letter upper-cased, everything else untouched. */
+export function capitalise(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+/**
+ * Underscores and dashes to spaces.
+ *
+ * Machine identifiers reach the UI in several dialects — `nsg_attached` from an
+ * edge kind, `storage_public_blob_access` from a query name, `field-report`
+ * from a theme stem — and each site was doing its own `replaceAll`.
+ */
+export function spaced(value: string) {
+  return value.replaceAll(/[_-]+/g, " ");
+}
+
+/** `spaced`, then capitalised: `field-report` becomes `Field report`. */
+export function sentenceCase(value: string) {
+  return capitalise(spaced(value));
+}
