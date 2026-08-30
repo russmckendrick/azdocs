@@ -87,6 +87,7 @@ pub struct EstateSnapshot {
     pub tag_coverage: TagCoverageDto,
     pub severity_counts: SeverityCountsDto,
     pub azure_metadata: AzureMetadataDto,
+    pub governance_thresholds: GovernanceThresholdsDto,
     pub subscriptions: Vec<SubscriptionDto>,
     pub resource_groups: Vec<ResourceGroupDto>,
     /// Every group the relationship map can open, synthetic ones included.
@@ -113,6 +114,31 @@ impl AzureMetadataDto {
         Self {
             locations: azure_values::location_display_names().clone(),
             kinds: azure_values::kind_display_names().clone(),
+        }
+    }
+}
+
+/// The judgements the backend applies to tag compliance, sent so the explorer
+/// and the printed report call the same estate healthy.
+///
+/// Values, not verdicts, because the desktop still computes its governance
+/// analysis in the frontend. Moving that analysis to Rust would let this carry
+/// the verdict instead — see the cleanup notes.
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename = "GovernanceThresholds", optional_fields = nullable)]
+pub struct GovernanceThresholdsDto {
+    /// Coverage at or above this reads as healthy.
+    pub healthy_tag_coverage_percent: u32,
+    /// A group past this share of non-compliant resources is called out.
+    pub flagged_non_compliant_share: f64,
+}
+
+impl GovernanceThresholdsDto {
+    fn build() -> Self {
+        Self {
+            healthy_tag_coverage_percent: azdocs::report::HEALTHY_TAG_COVERAGE_PERCENT,
+            flagged_non_compliant_share: azdocs::report::FLAGGED_NON_COMPLIANT_SHARE,
         }
     }
 }
@@ -501,6 +527,7 @@ impl EstateSnapshot {
             tag_coverage,
             severity_counts,
             azure_metadata: AzureMetadataDto::build(),
+            governance_thresholds: GovernanceThresholdsDto::build(),
             subscriptions: subscriptions.into_iter().map(Into::into).collect(),
             resource_group_summaries,
             resource_groups: resource_groups.into_iter().map(Into::into).collect(),

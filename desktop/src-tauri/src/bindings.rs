@@ -57,6 +57,7 @@ pub fn generated_typescript() -> String {
     decl::<TagCoverageDto>(&mut out, &cfg);
     decl::<SeverityCountsDto>(&mut out, &cfg);
     decl::<AzureMetadataDto>(&mut out, &cfg);
+    decl::<GovernanceThresholdsDto>(&mut out, &cfg);
     decl::<SubscriptionDto>(&mut out, &cfg);
     decl::<ResourceGroupDto>(&mut out, &cfg);
     decl::<ResourceGroupSummaryDto>(&mut out, &cfg);

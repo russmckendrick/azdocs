@@ -2943,6 +2943,40 @@ button.stat-cell.active {
 
 /* ------------------------------------------------------------ governance */
 
+/* Cell modifiers for the compliance ledger. These were inline `style` props,
+   which put colour decisions in JSX instead of the token layer. */
+.data-grid td.numeric,
+.data-grid th.numeric {
+  text-align: right;
+}
+.data-grid td.secondary {
+  color: var(--muted);
+}
+.data-grid td.emphatic {
+  font-weight: 600;
+  color: var(--ink);
+}
+/* Past `flaggedNonCompliantShare` — the threshold is the backend's, this is
+   only how it is drawn. Colour is the signal set, never decoration. */
+.data-grid td.emphatic.flagged {
+  color: var(--coral);
+}
+.data-grid td.all-clear {
+  color: var(--green);
+  font-weight: 600;
+}
+.governance-workspace .missed-tags .tag-chip {
+  margin-right: 6px;
+}
+.fig-caption.spaced {
+  margin-top: 8px;
+}
+/* The caption sets its own text italic; a machine value inside it must not
+   inherit that. */
+.fig-caption .mono.upright {
+  font-style: normal;
+}
+
 .governance-columns {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);

@@ -85,11 +85,39 @@ pub struct SeverityCounts {
     pub info: usize,
 }
 
+/// Tag coverage at or above this reads as healthy.
+///
+/// A threshold is a product judgement, not a rendering detail, so it lives
+/// here rather than in whichever surface happens to draw it. The desktop used
+/// to carry its own `>= 60` in a JSX ternary while the reports made no
+/// judgement at all, which meant the same estate could look fine in print and
+/// amber in the explorer.
+pub const HEALTHY_TAG_COVERAGE_PERCENT: u32 = 60;
+
+/// A resource group with more than this share of its resources missing a
+/// required tag is called out rather than merely listed.
+pub const FLAGGED_NON_COMPLIANT_SHARE: f64 = 0.5;
+
+/// Is a group's non-compliance high enough to call out?
+///
+/// Strictly greater than the share, so an even split is not yet flagged, and
+/// an empty group never is.
+pub fn is_group_flagged(non_compliant: usize, resources: usize) -> bool {
+    resources > 0 && non_compliant as f64 > resources as f64 * FLAGGED_NON_COMPLIANT_SHARE
+}
+
 #[derive(Debug, Serialize)]
 pub struct TagCoverage {
     pub tagged: usize,
     pub untagged: usize,
     pub percent: u32,
+}
+
+impl TagCoverage {
+    /// Is coverage at or above [`HEALTHY_TAG_COVERAGE_PERCENT`]?
+    pub fn is_healthy(&self) -> bool {
+        self.percent >= HEALTHY_TAG_COVERAGE_PERCENT
+    }
 }
 
 /// One inventory category with the shaped rows of each of its queries.
@@ -435,4 +463,46 @@ pub(crate) fn page_columns(columns: &[String]) -> Vec<&str> {
         .filter(|c| *c != "id")
         .take(6)
         .collect()
+}
+
+#[cfg(test)]
+mod threshold_tests {
+    use super::{
+        FLAGGED_NON_COMPLIANT_SHARE, HEALTHY_TAG_COVERAGE_PERCENT, TagCoverage, is_group_flagged,
+    };
+
+    fn coverage(percent: u32) -> TagCoverage {
+        TagCoverage {
+            tagged: 0,
+            untagged: 0,
+            percent,
+        }
+    }
+
+    #[test]
+    fn unit_treats_the_threshold_itself_as_healthy_when_judging_coverage() {
+        assert!(coverage(HEALTHY_TAG_COVERAGE_PERCENT).is_healthy());
+        assert!(coverage(HEALTHY_TAG_COVERAGE_PERCENT + 1).is_healthy());
+        assert!(!coverage(HEALTHY_TAG_COVERAGE_PERCENT - 1).is_healthy());
+    }
+
+    #[test]
+    fn unit_flags_a_group_only_past_the_share_when_judging_compliance() {
+        // An even split is not yet flagged.
+        assert!(!is_group_flagged(5, 10));
+        assert!(is_group_flagged(6, 10));
+        assert!(!is_group_flagged(0, 10));
+    }
+
+    #[test]
+    fn unit_never_flags_an_empty_group_when_judging_compliance() {
+        assert!(!is_group_flagged(0, 0));
+        // Guard against a divide-by-zero reading as "everything is broken".
+        assert!(!is_group_flagged(3, 0));
+    }
+
+    #[test]
+    fn unit_keeps_the_share_a_proportion_when_read() {
+        assert!((0.0..=1.0).contains(&FLAGGED_NON_COMPLIANT_SHARE));
+    }
 }

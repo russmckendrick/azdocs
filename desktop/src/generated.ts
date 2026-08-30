@@ -22,7 +22,7 @@ export type SnapshotSummary = { id: string, createdAt: string, tenantId: string,
 
 export type SnapshotComparison = { baseSnapshotId: string, targetSnapshotId: string, added: Array<string>, removed: Array<string>, changed: Array<string>, };
 
-export type EstateSnapshot = { id: string, createdAt: string, tenantId: string, status: SnapshotStatus, notes?: string | null, totals: Totals, tagCoverage: TagCoverage, severityCounts: SeverityCounts, azureMetadata: AzureMetadata, subscriptions: Array<Subscription>, resourceGroups: Array<ResourceGroup>, 
+export type EstateSnapshot = { id: string, createdAt: string, tenantId: string, status: SnapshotStatus, notes?: string | null, totals: Totals, tagCoverage: TagCoverage, severityCounts: SeverityCounts, azureMetadata: AzureMetadata, governanceThresholds: GovernanceThresholds, subscriptions: Array<Subscription>, resourceGroups: Array<ResourceGroup>, 
 /**
  * Every group the relationship map can open, synthetic ones included.
  */
@@ -35,6 +35,16 @@ export type TagCoverage = { tagged: number, untagged: number, percent: number, }
 export type SeverityCounts = { high: number, medium: number, low: number, info: number, };
 
 export type AzureMetadata = { locations: { [key in string]: string }, kinds: { [key in string]: string }, };
+
+export type GovernanceThresholds = { 
+/**
+ * Coverage at or above this reads as healthy.
+ */
+healthyTagCoveragePercent: number, 
+/**
+ * A group past this share of non-compliant resources is called out.
+ */
+flaggedNonCompliantShare: number, };
 
 export type Subscription = { id: string, displayName: string, state?: string | null, tags?: Record<string, unknown>, };
 

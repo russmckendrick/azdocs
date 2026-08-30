@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use serde::Serialize;
 
 use super::branding::BrandingContext;
-use super::{ReportContext, cell_to_string};
+use super::{HEALTHY_TAG_COVERAGE_PERCENT, ReportContext, cell_to_string};
 use crate::diagram::assets::{DiagramAsset, DiagramAssetKind};
 
 #[derive(Debug, Serialize)]
@@ -218,7 +218,13 @@ fn build_summary<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) {
             strong(report.tag_coverage.untagged.to_string()),
             normal(" are untagged, giving "),
             strong(format!("{}%", report.tag_coverage.percent)),
-            normal(" tag coverage."),
+            normal(if report.tag_coverage.is_healthy() {
+                " tag coverage, at or above the "
+            } else {
+                " tag coverage, below the "
+            }),
+            strong(format!("{HEALTHY_TAG_COVERAGE_PERCENT}%")),
+            normal(" this report treats as healthy."),
         ],
     });
 

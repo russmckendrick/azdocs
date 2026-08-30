@@ -101,6 +101,36 @@ fn pdf_contains_title_findings_and_resource_group_text() {
     assert!(text.contains("rg-app"), "resource group name missing");
 }
 
+/// Tag coverage is judged against a named threshold rather than printed bare,
+/// so the report and the desktop explorer agree about what "healthy" means.
+#[test]
+fn pdf_states_tag_coverage_against_the_healthy_threshold() {
+    let (report, diagrams) = seeded();
+    // The canonical fixture sits at 52%, so this exercises the unhealthy
+    // branch. If the fixture ever crosses 60% the expectation flips with it
+    // rather than silently passing on the wrong sentence.
+    let healthy = report.tag_coverage.is_healthy();
+    let expected = if healthy {
+        "at or above the 60%"
+    } else {
+        "below the 60%"
+    };
+
+    let bytes = render_locked(&report, &BrandingContext::default(), &diagrams);
+
+    let (_, text) = extract_all_text(&bytes);
+    let text: String = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(
+        text.contains(expected),
+        "the report should judge {}% coverage as `{expected}`",
+        report.tag_coverage.percent
+    );
+    assert!(
+        text.contains("this report treats as healthy"),
+        "the threshold should be named, not applied silently"
+    );
+}
+
 /// The per-resource detail is the point of the report: each resource's own
 /// settings, reached through the estate structure.
 #[test]

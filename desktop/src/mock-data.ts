@@ -303,6 +303,9 @@ export const mockEstate: EstateSnapshot = {
     (counts, finding) => ({ ...counts, [finding.severity]: counts[finding.severity] + 1 }),
     { high: 0, medium: 0, low: 0, info: 0 },
   ),
+  // Mirrors the Rust constants in src/report/mod.rs; the packaged app gets
+  // these from the backend so the two can never disagree.
+  governanceThresholds: { healthyTagCoveragePercent: 60, flaggedNonCompliantShare: 0.5 },
   azureMetadata: {
     locations: { uksouth: "UK South", ukwest: "UK West" },
     kinds: {
