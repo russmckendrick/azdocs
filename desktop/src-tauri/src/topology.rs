@@ -562,14 +562,12 @@ fn group_graph(
         ) else {
             continue;
         };
-        // Disks fold here but not in the print diagrams, which only fold NICs
-        // (`is_nic_represented_by_vm` in src/diagram/graph.rs). The two have
-        // never been reconciled — an OS disk is a tile of its own on paper and
-        // invisible in the explorer.
-        let folds = matches!(
-            source.azure_type.as_str(),
-            "microsoft.network/networkinterfaces" | "microsoft.compute/disks"
-        ) && target.azure_type == "microsoft.compute/virtualmachines"
+        // `azure_types::FOLDS_INTO_VM` is shared with the print diagrams, which
+        // fold the same attachments (`is_represented_by_vm` in
+        // src/diagram/graph.rs). They disagreed about disks until it was one
+        // list.
+        let folds = azure_types::folds_into_vm(&source.azure_type)
+            && target.azure_type == "microsoft.compute/virtualmachines"
             || is_child_of(source, target);
         if folds {
             folded_into.insert(source.id.as_str(), target.id.as_str());

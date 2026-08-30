@@ -1,6 +1,6 @@
 use std::fmt::Write as _;
 
-use super::graph::{EdgeStyle, EstateGraph, NodeKind, truncate_label};
+use super::graph::{EdgeStyle, EstateGraph, NodeKind, node_label};
 
 /// Emitters warn above this: deeply nested Mermaid becomes unreadable.
 pub const NODE_WARN_THRESHOLD: usize = 150;
@@ -73,12 +73,8 @@ fn emit_node(
     let node = &graph.nodes[index];
     let indent = "    ".repeat(depth);
     let label = match &node.sublabel {
-        Some(sub) => format!(
-            "{}<br/><i>{}</i>",
-            escape(&truncate_label(&node.label)),
-            escape(sub)
-        ),
-        None => escape(&truncate_label(&node.label)),
+        Some(sub) => format!("{}<br/><i>{}</i>", escape(&node_label(node)), escape(sub)),
+        None => escape(&node_label(node)),
     };
     if node.kind.is_container() && !children[index].is_empty() {
         let _ = writeln!(out, "{indent}subgraph n{index}[\"{label}\"]");

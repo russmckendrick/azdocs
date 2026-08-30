@@ -1,7 +1,7 @@
 use quick_xml::events::{BytesDecl, BytesStart, Event};
 use quick_xml::writer::Writer;
 
-use super::graph::{EdgeStyle, EstateGraph, NodeKind, truncate_label};
+use super::graph::{EdgeStyle, EstateGraph, NodeKind, node_label};
 use super::icons;
 use super::layout::{self, Placement};
 
@@ -136,8 +136,8 @@ fn node_cell(
         .map(|p| format!("{prefix}n{p}"))
         .unwrap_or_else(|| format!("{prefix}1"));
     let label = match &node.sublabel {
-        Some(sub) => format!("{}\n{}", truncate_label(&node.label), sub),
-        None => truncate_label(&node.label),
+        Some(sub) => format!("{}\n{}", node_label(node), sub),
+        None => node_label(node),
     };
     let style = style_for_node(graph, index, node);
 
