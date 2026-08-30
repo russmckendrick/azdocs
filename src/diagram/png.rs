@@ -22,6 +22,16 @@ fn fontdb() -> Arc<usvg::fontdb::Database> {
 
 /// Rasterise an SVG document to PNG bytes on a white background.
 pub fn from_svg(svg: &str, scale: f32) -> Result<Vec<u8>, DiagramError> {
+    render(svg, scale, true)
+}
+
+/// Rasterise an SVG while preserving its transparent background. Product
+/// marks need this path when Word places them on a coloured cover.
+pub fn from_svg_transparent(svg: &str, scale: f32) -> Result<Vec<u8>, DiagramError> {
+    render(svg, scale, false)
+}
+
+fn render(svg: &str, scale: f32, paper_background: bool) -> Result<Vec<u8>, DiagramError> {
     let options = usvg::Options {
         fontdb: fontdb(),
         ..usvg::Options::default()
@@ -33,7 +43,9 @@ pub fn from_svg(svg: &str, scale: f32) -> Result<Vec<u8>, DiagramError> {
     let height = (size.height() * scale) as u32;
     let mut pixmap = resvg::tiny_skia::Pixmap::new(width, height)
         .ok_or(DiagramError::Pixmap { width, height })?;
-    pixmap.fill(resvg::tiny_skia::Color::WHITE);
+    if paper_background {
+        pixmap.fill(resvg::tiny_skia::Color::WHITE);
+    }
 
     let transform = resvg::tiny_skia::Transform::from_scale(scale, scale);
     resvg::render(&tree, transform, &mut pixmap.as_mut());
@@ -62,5 +74,18 @@ mod tests {
     #[test]
     fn from_svg_rejects_invalid_svg() {
         assert!(from_svg("not svg at all", DEFAULT_SCALE).is_err());
+    }
+
+    #[test]
+    fn from_svg_transparent_preserves_clear_pixels() {
+        let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20">
+  <circle cx="10" cy="10" r="4" fill="#0078d4"/>
+</svg>"##;
+
+        let png = from_svg_transparent(svg, 1.0).unwrap();
+        let image = image::load_from_memory(&png).unwrap().to_rgba8();
+
+        assert_eq!(image.get_pixel(0, 0).0[3], 0);
+        assert_eq!(image.get_pixel(10, 10).0[3], 255);
     }
 }

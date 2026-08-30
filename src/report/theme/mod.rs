@@ -228,20 +228,20 @@ impl Default for Typography {
         Self {
             sans: "IBM Plex Sans".to_owned(),
             mono: "IBM Plex Mono".to_owned(),
-            docx_sans: "Calibri".to_owned(),
-            docx_mono: "Consolas".to_owned(),
-            base_pt: 10.0,
-            small_pt: 8.0,
-            table_pt: 7.5,
-            table_header_pt: 8.0,
-            title_pt: 28.0,
-            subtitle_pt: 13.0,
-            h1_pt: 18.0,
-            h2_pt: 13.0,
-            h3_pt: 11.0,
-            stat_value_pt: 18.0,
-            stat_label_pt: 8.0,
-            line_height: 1.4,
+            docx_sans: "Aptos".to_owned(),
+            docx_mono: "Aptos Mono".to_owned(),
+            base_pt: 11.0,
+            small_pt: 9.0,
+            table_pt: 9.0,
+            table_header_pt: 9.0,
+            title_pt: 32.0,
+            subtitle_pt: 14.0,
+            h1_pt: 20.0,
+            h2_pt: 15.0,
+            h3_pt: 12.0,
+            stat_value_pt: 22.0,
+            stat_label_pt: 9.0,
+            line_height: 1.45,
         }
     }
 }
@@ -258,8 +258,8 @@ impl Default for Layout {
             zebra_rows: true,
             rule_pt: 0.5,
             radius_pt: 4.0,
-            table_inset_pt: 4.5,
-            cover_band_pt: 90.0,
+            table_inset_pt: 5.5,
+            cover_band_pt: 96.0,
         }
     }
 }
@@ -474,6 +474,19 @@ mod tests {
                 !tokens.description.is_empty(),
                 "theme {name} needs a description"
             );
+        }
+    }
+
+    #[test]
+    fn unit_builtin_themes_keep_print_type_readable() {
+        let pack = ThemePack::builtin().unwrap();
+
+        for name in pack.names() {
+            let typography = &pack.get(name).unwrap().typography;
+            assert!(typography.base_pt >= 10.5, "theme {name} body type");
+            assert!(typography.small_pt >= 8.5, "theme {name} small type");
+            assert!(typography.table_pt >= 8.5, "theme {name} table type");
+            assert!(typography.h3_pt >= 11.5, "theme {name} tertiary heading");
         }
     }
 

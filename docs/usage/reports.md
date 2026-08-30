@@ -17,8 +17,9 @@ Everything lands under `./output/` by default:
 | `pdf` | `output/report.pdf` | Print-ready document — see below |
 | `docx` | `output/report.docx` | The same document, editable in Word |
 
-The summary tables in the PDF and DOCX are trimmed to page width (~6 columns,
-no raw ARM ids) — the full data always lives in the CSV/XLSX/HTML outputs.
+Wide evidence tables in the PDF and DOCX are trimmed to page width (~6
+columns, no raw ARM ids). The full data always lives in the CSV/XLSX/HTML
+outputs.
 
 ## The PDF and DOCX
 
@@ -32,10 +33,17 @@ diagram selection are composed once:
    its page numbers after laying out the document. If an editor or security
    policy suppresses automatic field updates, select the TOC and choose
    **Update Field** (or press `Ctrl+A`, then `F9` in desktop Word).
-3. **Executive summary** — KPI figures, severity breakdown, resources by type.
-4. **Findings** — every finding, colour-coded by severity.
-5. **Category tables** — the inventory query results, trimmed to page width.
-6. **Resources by type** — an index: every resource of each type with its
+3. **Executive summary** — KPI figures, a short snapshot narrative, the largest
+   resource types and locations, and the highest-priority findings.
+4. **Estate overview** — hierarchy and network diagrams early in the report so
+   they orient the detail that follows. Each is emitted at a fixed share of an
+   A4 portrait page (quarter, third, half or full) and flows, so several can
+   tile onto one sheet. Resources are aggregated by type (`Storage Account
+   ×13`) to stay readable; run `azdocs diagram` for full per-resource detail.
+5. **Findings** — every finding as a flowing callout, grouped high to
+   informational rather than packed into one table.
+6. **Resources by type** — a lightweight index: every resource of each type
+   with its
    subscription, group and location. The body below is grouped the way Azure
    is, which scatters one type across many groups; this restores the
    compliance sweep ("every storage account") without repeating the detail.
@@ -43,19 +51,18 @@ diagram selection are composed once:
 7. **The estate** — laid out as Azure itself is: **subscription → resource
    group → resource**. Each group opens with its own summarised diagram, then
    documents every resource inside it: a name plate, a **relationship diagram**
-   of the resource and everything attached to it, a **settings table**
-   flattened from its properties, any findings raised against it, and its
-   related resources.
-8. **Diagrams** — the estate overviews: hierarchy and network topology. Each is
-   emitted at a fixed share of an A4 portrait page (quarter, third, half or
-   full) and flows, so several tile onto one sheet. Per-group diagrams are not
-   repeated here — they live with their group in section 7. Resources are
-   aggregated by type (`Storage Account ×13`) to stay readable; run
-   `azdocs diagram` for the full per-resource detail. Per-group diagrams are
-   capped at 60. See [Diagram standards](../reference/diagrams.md).
+   of the resource and everything attached to it, a definition list of
+   settings flattened from its properties, any findings raised against it,
+   and its related resources. Per-group diagrams are capped at 60.
+8. **Evidence appendix** — the collected inventory-query results. A compact
+   one-row result becomes a definition list; larger result sets remain tables
+   because row-to-row comparison is the useful reading mode there.
+
+See [Diagram standards](../reference/diagrams.md) for the report and CLI
+diagram contracts.
 
 Resources with no relationships get no diagram — a lone box says nothing the
-settings table does not. Per-resource diagrams are capped at 250 for a single
+settings list does not. Per-resource diagrams are capped at 250 for a single
 report; passing the cap is logged.
 
 Pagination can differ because Typst lays out a fixed print document while Word
@@ -92,9 +99,11 @@ output/docs/
 └── resources/<sub>/<rg>.md      # per-resource detail pages
 ```
 
-The **detail pages** are the deep end: one section per resource with a
-settings table flattened from its properties, warning callouts for findings on
-that resource, and related-resource links derived from the relationship edges.
+The **detail pages** are the deep end: one section per resource with settings
+flattened from its properties, warning callouts for findings on that resource,
+and related-resource links derived from the relationship edges. The Markdown
+and HTML docs tree keeps its tabular settings presentation; the print formats
+use the flowing definition-list treatment described above.
 
 ## The HTML report
 

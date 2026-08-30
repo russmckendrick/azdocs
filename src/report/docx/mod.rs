@@ -1,7 +1,7 @@
 //! Native DOCX report via `docx-rs`: cover, TOC field (marked for refresh when
-//! Word lays out the document), executive summary, findings with severity shading, capped
-//! per-category tables, subscriptions, rasterised overview diagrams and a
-//! branded footer. No external binaries.
+//! Word lays out the document), executive summary, estate overview, prioritised
+//! findings, resource index, Azure hierarchy, evidence appendix and a branded
+//! footer. No external binaries.
 //!
 //! Every visual decision comes from the resolved theme, so the DOCX and the
 //! PDF are the same document in two containers. Two things they cannot share:

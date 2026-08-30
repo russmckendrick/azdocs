@@ -92,8 +92,9 @@ The PDF sets its own type — IBM Plex Sans and Mono, vendored in `data/fonts/`
 
 The DOCX cannot do this: OOXML names a font and Word resolves it on the
 reader's machine, and azdocs cannot embed fonts into a `.docx`. The shipped
-themes therefore ask Word for Calibri and Consolas, which come with Office on
-Windows and macOS. Override `docx_sans`/`docx_mono` in a theme file if your
+themes therefore ask Word for Aptos and Aptos Mono, the current Microsoft 365
+document families on Windows and macOS. Older Office installs substitute their
+configured defaults. Override `docx_sans`/`docx_mono` in a theme file if your
 organisation deploys its own typeface.
 
 ## Environment overrides

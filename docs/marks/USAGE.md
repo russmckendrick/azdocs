@@ -13,7 +13,8 @@ apply its own launch treatment; do not place them inside a second badge.
 | Dark masthead or footer | `azdocs-lockup-reversed.svg` |
 | Application launcher, avatar | Matching `azdocs-app-icon-*.svg` mark |
 | Favicon or compact navigation | Matching standalone mark |
-| PDF/DOCX cover, slide, social background | Matching `azdocs-background-*.svg` motif |
+| PDF/DOCX cover | `azdocs-mark-primary.svg` on paper; `azdocs-mark-mono-paper.svg` on a dark cover block |
+| Slide or social background | Matching `azdocs-background-*.svg` motif |
 | Single-colour print or fabrication | Matching `azdocs-mark-mono-*.svg` mark |
 
 ## Construction

@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Serialize;
 
@@ -16,6 +16,7 @@ pub(crate) struct PrintDocument<'a> {
 
 #[derive(Debug, Serialize)]
 pub(crate) struct Cover<'a> {
+    pub product_mark: bool,
     pub title: Cow<'a, str>,
     pub subtitle: Cow<'a, str>,
     pub company: Cow<'a, str>,
@@ -31,6 +32,7 @@ pub(crate) enum Block<'a> {
     Chapter {
         title: Cow<'a, str>,
         break_before: bool,
+        divider: bool,
     },
     Heading {
         level: u8,
@@ -49,6 +51,12 @@ pub(crate) enum Block<'a> {
         columns: Vec<TableColumn<'a>>,
         rows: Vec<Vec<Cow<'a, str>>>,
     },
+    Facts {
+        items: Vec<Fact<'a>>,
+    },
+    ResourceIndex {
+        items: Vec<ResourceIndexItem<'a>>,
+    },
     ResourcePlate {
         name: Cow<'a, str>,
     },
@@ -58,6 +66,7 @@ pub(crate) enum Block<'a> {
     Callout {
         severity: Cow<'a, str>,
         title: Cow<'a, str>,
+        detail: Option<Cow<'a, str>>,
     },
     Diagram {
         slug: Cow<'a, str>,
@@ -98,12 +107,25 @@ pub(crate) struct Statistic<'a> {
     pub label: Cow<'a, str>,
 }
 
+#[derive(Debug, Serialize)]
+pub(crate) struct Fact<'a> {
+    pub label: Cow<'a, str>,
+    pub value: Cow<'a, str>,
+    pub mono: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub(crate) struct ResourceIndexItem<'a> {
+    pub name: Cow<'a, str>,
+    pub subscription: Cow<'a, str>,
+    pub resource_group: Cow<'a, str>,
+    pub location: Cow<'a, str>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum TableKind {
     Data,
-    Findings,
-    Settings,
 }
 
 #[derive(Debug, Serialize)]
@@ -131,14 +153,15 @@ impl<'a> PrintDocument<'a> {
             .collect();
 
         build_summary(report, &mut blocks);
+        build_overviews(diagrams, &mut blocks);
         build_findings(report, &mut blocks);
-        build_categories(report, &mut blocks);
         build_type_index(report, &mut blocks);
         build_estate(report, &group_diagrams, &resource_diagrams, &mut blocks);
-        build_overviews(diagrams, &mut blocks);
+        build_evidence(report, &mut blocks);
 
         Self {
             cover: Cover {
+                product_mark: true,
                 title: Cow::Borrowed(&branding.title),
                 subtitle: Cow::Borrowed(&branding.subtitle),
                 company: Cow::Borrowed(&branding.company),
@@ -147,7 +170,7 @@ impl<'a> PrintDocument<'a> {
                 collected: Cow::Borrowed(&report.created_at),
                 status: Cow::Borrowed(&report.status),
             },
-            toc_depth: 2,
+            toc_depth: 1,
             blocks,
         }
     }
@@ -163,7 +186,7 @@ impl<'a> PrintDocument<'a> {
 }
 
 fn build_summary<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) {
-    chapter(blocks, "Executive Summary", false);
+    major_chapter(blocks, "Executive Summary", false);
     blocks.push(Block::Statistics {
         items: vec![
             statistic(report.totals.subscriptions.to_string(), "Subscriptions"),
@@ -174,78 +197,131 @@ fn build_summary<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) {
         ],
     });
 
-    let severity = &report.severity_counts;
     blocks.push(Block::Paragraph {
         style: ParagraphStyle::Body,
         runs: vec![
-            normal("Findings by severity: "),
-            severity_run(severity.high.to_string(), "high"),
-            normal(" high, "),
-            severity_run(severity.medium.to_string(), "medium"),
-            normal(" medium, "),
-            severity_run(severity.low.to_string(), "low"),
-            normal(" low, "),
-            severity_run(severity.info.to_string(), "info"),
-            normal(" info. "),
+            normal("This snapshot covers "),
+            strong(report.totals.resources.to_string()),
+            normal(" resources across "),
+            strong(report.totals.resource_groups.to_string()),
+            normal(" resource groups in "),
+            strong(report.totals.subscriptions.to_string()),
+            normal(" subscriptions. It records "),
+            strong(report.totals.findings.to_string()),
+            normal(" findings, including "),
+            severity_run(report.severity_counts.high.to_string(), "high"),
+            normal(" high and "),
+            severity_run(report.severity_counts.medium.to_string(), "medium"),
+            normal(" medium priority items. "),
             strong(report.tag_coverage.tagged.to_string()),
             normal(" resources are tagged and "),
             strong(report.tag_coverage.untagged.to_string()),
-            normal(" are untagged."),
+            normal(" are untagged, giving "),
+            strong(format!("{}%", report.tag_coverage.percent)),
+            normal(" tag coverage."),
         ],
     });
 
-    heading(blocks, 2, "Resources by type", None);
-    blocks.push(Block::Table {
-        style: TableKind::Data,
-        columns: columns(&[("Type", false), ("Azure type", true), ("Count", false)]),
-        rows: report
-            .type_counts
-            .iter()
-            .map(|item| {
-                vec![
-                    Cow::Borrowed(item.display.as_str()),
-                    Cow::Borrowed(item.azure_type.as_str()),
-                    Cow::Owned(item.count.to_string()),
-                ]
-            })
-            .collect(),
+    if !report.type_counts.is_empty() {
+        heading(blocks, 2, "Largest resource types", None);
+        blocks.push(Block::Facts {
+            items: report
+                .type_counts
+                .iter()
+                .take(8)
+                .map(|item| fact(item.display.as_str(), resource_count(item.count), false))
+                .collect(),
+        });
+    }
+
+    if !report.location_counts.is_empty() {
+        heading(blocks, 2, "Geographic footprint", None);
+        blocks.push(Block::Facts {
+            items: report
+                .location_counts
+                .iter()
+                .take(6)
+                .map(|item| fact(item.name.as_str(), resource_count(item.count), false))
+                .collect(),
+        });
+    }
+
+    let mut priority: Vec<_> = report
+        .findings
+        .iter()
+        .filter(|finding| matches!(finding.severity.as_str(), "high" | "medium"))
+        .collect();
+    priority.sort_by(|left, right| {
+        severity_rank(&left.severity)
+            .cmp(&severity_rank(&right.severity))
+            .then(left.category.cmp(&right.category))
+            .then(left.title.cmp(&right.title))
     });
+    if !priority.is_empty() {
+        heading(blocks, 2, "Priority findings", None);
+        for finding in priority.into_iter().take(5) {
+            blocks.push(finding_callout(finding));
+        }
+    }
 }
 
 fn build_findings<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) {
-    chapter(blocks, "Findings", false);
+    major_chapter(blocks, "Findings", true);
     if report.findings.is_empty() {
         empty(blocks, "No findings.");
         return;
     }
-    blocks.push(Block::Table {
-        style: TableKind::Findings,
-        columns: columns(&[
-            ("Severity", false),
-            ("Title", false),
-            ("Category", false),
-            ("Check", true),
-        ]),
-        rows: report
+    blocks.push(Block::Statistics {
+        items: vec![
+            statistic(report.severity_counts.high.to_string(), "High"),
+            statistic(report.severity_counts.medium.to_string(), "Medium"),
+            statistic(report.severity_counts.low.to_string(), "Low"),
+            statistic(report.severity_counts.info.to_string(), "Info"),
+        ],
+    });
+    blocks.push(Block::Paragraph {
+        style: ParagraphStyle::Body,
+        runs: vec![normal(
+            "Findings are grouped by priority so the most consequential work can be reviewed first. The evidence appendix retains the underlying query output.",
+        )],
+    });
+
+    for (severity, title) in [
+        ("high", "High priority"),
+        ("medium", "Medium priority"),
+        ("low", "Low priority"),
+        ("info", "Informational"),
+    ] {
+        let findings: Vec<_> = report
             .findings
             .iter()
-            .map(|finding| {
-                vec![
-                    Cow::Borrowed(finding.severity.as_str()),
-                    Cow::Borrowed(finding.title.as_str()),
-                    Cow::Borrowed(finding.category.as_str()),
-                    Cow::Borrowed(finding.query_name.as_str()),
-                ]
-            })
-            .collect(),
-    });
+            .filter(|finding| finding.severity == severity)
+            .collect();
+        if findings.is_empty() {
+            continue;
+        }
+        heading(blocks, 2, title, None);
+        for finding in findings {
+            blocks.push(finding_callout(finding));
+        }
+    }
 }
 
-fn build_categories<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) {
+fn build_evidence<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) {
+    if report.categories.is_empty() {
+        return;
+    }
+    major_chapter(blocks, "Evidence appendix", true);
+    blocks.push(Block::Paragraph {
+        style: ParagraphStyle::Body,
+        runs: vec![normal(
+            "The following sections preserve the collected inventory evidence. Compact results are presented as facts; larger result sets remain tables for comparison and audit use.",
+        )],
+    });
     for category in &report.categories {
-        chapter(blocks, capitalise(&category.name), false);
+        heading(blocks, 2, capitalise(&category.name), None);
         for query in &category.queries {
-            heading(blocks, 2, query.name.as_str(), None);
+            heading(blocks, 3, query.name.as_str(), None);
             if !query.description.is_empty() {
                 blocks.push(Block::Paragraph {
                     style: ParagraphStyle::Muted,
@@ -274,6 +350,21 @@ fn build_categories<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) 
                 .collect();
             if table_columns.is_empty() || query.rows.is_empty() {
                 empty(blocks, "No results.");
+            } else if query.rows.len() == 1 && table_columns.len() <= 6 {
+                let row = &query.rows[0];
+                blocks.push(Block::Facts {
+                    items: query
+                        .print_columns
+                        .iter()
+                        .map(|column| {
+                            fact(
+                                display_label(column),
+                                cell_to_string(row.get(column)),
+                                looks_like_identifier(column),
+                            )
+                        })
+                        .collect(),
+                });
             } else {
                 blocks.push(Block::Table {
                     style: TableKind::Data,
@@ -286,7 +377,13 @@ fn build_categories<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) 
 }
 
 fn build_type_index<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) {
-    chapter(blocks, "Resources by type", false);
+    major_chapter(blocks, "Resources by type", true);
+    blocks.push(Block::Paragraph {
+        style: ParagraphStyle::Body,
+        runs: vec![normal(
+            "This index keeps a compliance sweep by resource type available before the estate is documented in its Azure hierarchy.",
+        )],
+    });
     for section in &report.resource_types {
         heading(
             blocks,
@@ -294,24 +391,15 @@ fn build_type_index<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) 
             section.display.as_str(),
             Some(section.azure_type.as_str()),
         );
-        blocks.push(Block::Table {
-            style: TableKind::Data,
-            columns: columns(&[
-                ("Name", false),
-                ("Subscription", false),
-                ("Resource group", false),
-                ("Location", false),
-            ]),
-            rows: section
+        blocks.push(Block::ResourceIndex {
+            items: section
                 .resources
                 .iter()
-                .map(|detail| {
-                    vec![
-                        Cow::Borrowed(detail.name.as_str()),
-                        Cow::Borrowed(detail.subscription_name.as_str()),
-                        option_text(detail.resource_group.as_deref()),
-                        option_text(detail.location.as_deref()),
-                    ]
+                .map(|detail| ResourceIndexItem {
+                    name: Cow::Borrowed(detail.name.as_str()),
+                    subscription: Cow::Borrowed(detail.subscription_name.as_str()),
+                    resource_group: option_text(detail.resource_group.as_deref()),
+                    location: option_text(detail.location.as_deref()),
                 })
                 .collect(),
         });
@@ -326,31 +414,58 @@ fn build_estate<'a>(
 ) {
     for subscription in &report.subscriptions {
         chapter(blocks, subscription.display_name.as_str(), true);
-        blocks.push(Block::Paragraph {
-            style: ParagraphStyle::Muted,
-            runs: vec![
-                mono(subscription.subscription_id.as_str()),
-                normal(" · "),
-                normal(subscription.resource_count.to_string()),
-                normal(" resources"),
-            ],
-        });
-
         let group_prefix = format!("{}/", subscription.subscription_id.to_lowercase());
-        for page in report
+        let pages: Vec<_> = report
             .details
             .iter()
             .filter(|page| page.group_key.starts_with(&group_prefix))
-        {
+            .collect();
+        let subscription_findings: usize = pages
+            .iter()
+            .flat_map(|page| &page.resources)
+            .map(|detail| detail.findings.len())
+            .sum();
+        blocks.push(Block::Paragraph {
+            style: ParagraphStyle::Body,
+            runs: vec![
+                strong(subscription.resource_count.to_string()),
+                normal(" resources across "),
+                strong(pages.len().to_string()),
+                normal(" resource groups, with "),
+                strong(subscription_findings.to_string()),
+                normal(" findings recorded in this snapshot."),
+            ],
+        });
+        blocks.push(Block::Paragraph {
+            style: ParagraphStyle::Muted,
+            runs: vec![mono(subscription.subscription_id.as_str())],
+        });
+
+        for page in pages {
             heading(blocks, 2, page.resource_group.as_str(), None);
+            let types: BTreeSet<_> = page
+                .resources
+                .iter()
+                .map(|detail| detail.azure_type.as_str())
+                .collect();
+            let group_findings: usize = page
+                .resources
+                .iter()
+                .map(|detail| detail.findings.len())
+                .sum();
             let mut runs = vec![
-                normal(page.resources.len().to_string()),
-                normal(" resources"),
+                strong(page.resources.len().to_string()),
+                normal(" resources across "),
+                strong(types.len().to_string()),
+                normal(" resource types"),
             ];
             if let Some(location) = &page.location {
                 runs.push(normal(" · "));
                 runs.push(normal(location.as_str()));
             }
+            runs.push(normal(" · "));
+            runs.push(strong(group_findings.to_string()));
+            runs.push(normal(" findings"));
             blocks.push(Block::Paragraph {
                 style: ParagraphStyle::Muted,
                 runs,
@@ -367,19 +482,15 @@ fn build_estate<'a>(
                 blocks.push(Block::ResourcePlate {
                     name: Cow::Borrowed(detail.name.as_str()),
                 });
-                let mut context = vec![
-                    normal(detail.display_type.as_str()),
-                    normal(" · "),
-                    normal(detail.subscription_name.as_str()),
-                ];
-                if let Some(resource_group) = &detail.resource_group {
-                    context.push(normal(" · "));
-                    context.push(normal(resource_group.as_str()));
-                }
+                let mut context = vec![normal(detail.display_type.as_str())];
                 if let Some(location) = &detail.location {
                     context.push(normal(" · "));
                     context.push(normal(location.as_str()));
                 }
+                context.push(normal(" · "));
+                context.push(normal(relationship_count(detail.related.len())));
+                context.push(normal(" · "));
+                context.push(normal(finding_count(detail.findings.len())));
                 blocks.push(Block::Paragraph {
                     style: ParagraphStyle::Muted,
                     runs: context,
@@ -402,17 +513,12 @@ fn build_estate<'a>(
                 if detail.settings.is_empty() {
                     empty(blocks, "No settings recorded.");
                 } else {
-                    blocks.push(Block::Table {
-                        style: TableKind::Settings,
-                        columns: columns(&[("Setting", false), ("Value", false)]),
-                        rows: detail
+                    blocks.push(Block::Facts {
+                        items: detail
                             .settings
                             .iter()
                             .map(|setting| {
-                                vec![
-                                    Cow::Borrowed(setting.key.as_str()),
-                                    Cow::Borrowed(setting.value.as_str()),
-                                ]
+                                fact(setting.key.as_str(), setting.value.as_str(), false)
                             })
                             .collect(),
                     });
@@ -424,6 +530,7 @@ fn build_estate<'a>(
                         blocks.push(Block::Callout {
                             severity: Cow::Borrowed(callout.severity.as_str()),
                             title: Cow::Borrowed(callout.title.as_str()),
+                            detail: None,
                         });
                     }
                 }
@@ -452,7 +559,13 @@ fn build_overviews<'a>(diagrams: &'a [DiagramAsset], blocks: &mut Vec<Block<'a>>
     if overviews.is_empty() {
         return;
     }
-    chapter(blocks, "Diagrams", false);
+    major_chapter(blocks, "Estate overview", true);
+    blocks.push(Block::Paragraph {
+        style: ParagraphStyle::Body,
+        runs: vec![normal(
+            "These overview diagrams orient the detailed subscription and resource-group sections that follow. Resource-group diagrams remain with their own sections.",
+        )],
+    });
     for asset in overviews {
         blocks.push(Block::Diagram {
             slug: Cow::Borrowed(asset.slug.as_str()),
@@ -461,10 +574,23 @@ fn build_overviews<'a>(diagrams: &'a [DiagramAsset], blocks: &mut Vec<Block<'a>>
     }
 }
 
+fn major_chapter<'a>(
+    blocks: &mut Vec<Block<'a>>,
+    title: impl Into<Cow<'a, str>>,
+    break_before: bool,
+) {
+    blocks.push(Block::Chapter {
+        title: title.into(),
+        break_before,
+        divider: true,
+    });
+}
+
 fn chapter<'a>(blocks: &mut Vec<Block<'a>>, title: impl Into<Cow<'a, str>>, break_before: bool) {
     blocks.push(Block::Chapter {
         title: title.into(),
         break_before,
+        divider: false,
     });
 }
 
@@ -493,14 +619,54 @@ fn empty<'a>(blocks: &mut Vec<Block<'a>>, text: &'static str) {
     });
 }
 
-fn columns<'a>(values: &[(&'static str, bool)]) -> Vec<TableColumn<'a>> {
-    values
-        .iter()
-        .map(|(label, mono)| TableColumn {
-            label: Cow::Borrowed(*label),
-            mono: *mono,
-        })
-        .collect()
+fn fact<'a>(
+    label: impl Into<Cow<'a, str>>,
+    value: impl Into<Cow<'a, str>>,
+    mono: bool,
+) -> Fact<'a> {
+    Fact {
+        label: label.into(),
+        value: value.into(),
+        mono,
+    }
+}
+
+fn finding_callout<'a>(finding: &'a super::FindingRow) -> Block<'a> {
+    Block::Callout {
+        severity: Cow::Borrowed(finding.severity.as_str()),
+        title: Cow::Borrowed(finding.title.as_str()),
+        detail: Some(Cow::Owned(format!(
+            "{} · {}",
+            capitalise(&finding.category),
+            finding.query_name
+        ))),
+    }
+}
+
+fn severity_rank(severity: &str) -> u8 {
+    match severity {
+        "high" => 0,
+        "medium" => 1,
+        "low" => 2,
+        "info" => 3,
+        _ => 4,
+    }
+}
+
+fn resource_count(count: usize) -> String {
+    counted(count, "resource", "resources")
+}
+
+fn relationship_count(count: usize) -> String {
+    counted(count, "relationship", "relationships")
+}
+
+fn finding_count(count: usize) -> String {
+    counted(count, "finding", "findings")
+}
+
+fn counted(count: usize, singular: &str, plural: &str) -> String {
+    format!("{count} {}", if count == 1 { singular } else { plural })
 }
 
 fn statistic<'a>(value: String, label: &'static str) -> Statistic<'a> {
@@ -769,27 +935,23 @@ mod tests {
     }
 
     #[test]
-    fn unit_build_resolves_shared_table_labels_and_json_cells() {
+    fn unit_build_resolves_shared_fact_labels_and_json_cells() {
         let report = report();
         let diagrams = diagrams();
         let branding = BrandingContext::default();
         let document = PrintDocument::build(&report, &branding, &diagrams);
 
-        let table = document.blocks.iter().find_map(|block| match block {
-            Block::Table { columns, rows, .. }
-                if columns.iter().any(|column| column.label == "Azure type")
-                    && columns
-                        .iter()
-                        .any(|column| column.label == "Resource group")
-                    && rows
-                        .iter()
-                        .any(|row| row.iter().any(|value| value == "[1,true]")) =>
+        let facts = document.blocks.iter().find_map(|block| match block {
+            Block::Facts { items }
+                if items.iter().any(|item| item.label == "Azure type")
+                    && items.iter().any(|item| item.label == "Resource group")
+                    && items.iter().any(|item| item.value == "[1,true]") =>
             {
                 Some(())
             }
             _ => None,
         });
-        assert_eq!(table, Some(()));
+        assert_eq!(facts, Some(()));
     }
 
     #[test]
@@ -830,10 +992,10 @@ mod tests {
         assert_eq!(
             markers,
             vec![
-                ("group", Some("rg-app")),
-                ("resource", None),
                 ("hierarchy", Some("Azure hierarchy")),
                 ("network", Some("Azure network")),
+                ("group", Some("rg-app")),
+                ("resource", None),
             ]
         );
     }
@@ -848,13 +1010,15 @@ mod tests {
         assert_eq!(
             (
                 document.toc_depth,
+                document.cover.product_mark,
                 document.cover.tenant.as_ref(),
                 document.cover.snapshot.as_ref(),
                 document.cover.collected.as_ref(),
                 document.cover.status.as_ref(),
             ),
             (
-                2,
+                1,
+                true,
                 "tenant-1",
                 "snapshot-1",
                 "2026-08-17T10:00:00+00:00",

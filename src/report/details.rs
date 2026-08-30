@@ -1,6 +1,6 @@
 //! Per-resource detail pages: one page per resource group, one section per
-//! resource with a settings table flattened from the stored properties bag,
-//! finding callouts, and related-resource links — Cloudockit style, offline.
+//! resource with settings flattened from the stored properties bag, finding
+//! callouts, and related-resource links — Cloudockit style, offline.
 
 use serde::Serialize;
 use serde_json::Value;

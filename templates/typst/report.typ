@@ -8,6 +8,8 @@
 #let branding = json(bytes(sys.inputs.branding))
 #let icons = json(bytes(sys.inputs.icons))
 #let logo-path = sys.inputs.at("logo", default: "")
+#let product-mark-primary = sys.inputs.at("product-mark-primary", default: "")
+#let product-mark-on-dark = sys.inputs.at("product-mark-on-dark", default: "")
 
 #set document(
   title: print-doc.cover.title,
@@ -16,7 +18,13 @@
 
 #show: body => setup(branding, body)
 
-#cover(print-doc.cover, branding, logo-path)
+#cover(
+  print-doc.cover,
+  branding,
+  logo-path,
+  product-mark-primary,
+  product-mark-on-dark,
+)
 
 #set page(
   header: running-header(branding),
@@ -46,7 +54,11 @@
 
 #let render-block(item) = {
   if item.kind == "chapter" {
-    chapter(item.title, break_before: item.break_before)
+    chapter(
+      item.title,
+      break_before: item.break_before,
+      divider: item.divider,
+    )
   } else if item.kind == "heading" {
     let icon-path = if item.icon == none {
       ""
@@ -59,21 +71,32 @@
       icon-heading(item.level, item.title, icon-path)
     }
   } else if item.kind == "paragraph" {
-    block(text(
-      size: if item.style == "muted" { typ.small_pt * 1pt } else { typ.base_pt * 1pt },
-      fill: if item.style == "muted" { muted } else { ink },
-      render-runs(item.runs),
-    ))
+    block(
+      above: 0.1em,
+      below: if item.style == "muted" { 0.65em } else { 0.85em },
+      text(
+        size: if item.style == "muted" { typ.small_pt * 1pt } else { typ.base_pt * 1pt },
+        fill: if item.style == "muted" { muted } else { ink },
+        render-runs(item.runs),
+      ),
+    )
   } else if item.kind == "statistics" {
-    stat-row(item.items.map(entry => (entry.value, entry.label)))
+    block(
+      below: 0.9em,
+      stat-row(item.items.map(entry => (entry.value, entry.label))),
+    )
   } else if item.kind == "table" {
     print-table(item.style, item.columns, item.rows)
+  } else if item.kind == "facts" {
+    fact-list(item.items)
+  } else if item.kind == "resource_index" {
+    resource-index(item.items)
   } else if item.kind == "resource_plate" {
     resource-plate(item.name)
   } else if item.kind == "sub_label" {
     sub-label(item.title)
   } else if item.kind == "callout" {
-    callout(item.severity, item.title)
+    callout(item.severity, item.title, detail: item.detail)
   } else if item.kind == "diagram" {
     let picture = image("/diagrams/" + item.slug + ".svg", width: 100%)
     if item.caption == none {

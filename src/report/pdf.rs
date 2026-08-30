@@ -20,6 +20,7 @@ use typst_pdf::{PdfOptions, PdfStandards, Timestamp};
 use super::ReportContext;
 use super::branding::BrandingContext;
 use super::document::PrintDocument;
+use super::mark;
 use crate::diagram::assets::DiagramAsset;
 
 static TYPST_TEMPLATES: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/templates/typst");
@@ -150,6 +151,23 @@ impl ReportWorld {
             let id = FileId::new(None, VirtualPath::new(path.as_str()));
             files.insert(id, Bytes::new(logo.bytes.clone()));
             inputs.insert("logo".into(), Value::Str(path.into()));
+        }
+        if document.cover.product_mark {
+            for (path, bytes) in [
+                (mark::PRIMARY_VIRTUAL_PATH, mark::PRIMARY_SVG),
+                (mark::ON_DARK_VIRTUAL_PATH, mark::ON_DARK_SVG),
+            ] {
+                let id = FileId::new(None, VirtualPath::new(path));
+                files.insert(id, Bytes::new(bytes.to_vec()));
+            }
+            inputs.insert(
+                "product-mark-primary".into(),
+                Value::Str(mark::PRIMARY_VIRTUAL_PATH.into()),
+            );
+            inputs.insert(
+                "product-mark-on-dark".into(),
+                Value::Str(mark::ON_DARK_VIRTUAL_PATH.into()),
+            );
         }
 
         let mut sources = BTreeMap::new();

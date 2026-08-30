@@ -81,20 +81,20 @@ fill = "#f8cecc"
 [typography]
 sans      = "IBM Plex Sans"   # PDF + HTML; must be loadable (see Fonts below)
 mono      = "IBM Plex Mono"
-docx_sans = "Calibri"         # Word resolves by name on the reader's machine
-docx_mono = "Consolas"
-base_pt = 10.0
-small_pt = 8.0
-table_pt = 7.5
-table_header_pt = 8.0
-title_pt = 30.0
-subtitle_pt = 13.0
-h1_pt = 18.0
-h2_pt = 13.0
-h3_pt = 11.0
-stat_value_pt = 19.0
-stat_label_pt = 7.5
-line_height = 1.4
+docx_sans = "Aptos"           # Word resolves by name on the reader's machine
+docx_mono = "Aptos Mono"
+base_pt = 11.0
+small_pt = 9.0
+table_pt = 9.0
+table_header_pt = 9.0
+title_pt = 32.0
+subtitle_pt = 14.0
+h1_pt = 20.0
+h2_pt = 15.0
+h3_pt = 12.0
+stat_value_pt = 22.0
+stat_label_pt = 9.0
+line_height = 1.45
 
 [layout]
 cover = "band"            # band | editorial | block
@@ -106,7 +106,7 @@ running_header = true
 zebra_rows = true
 rule_pt = 0.5
 radius_pt = 4.0
-table_inset_pt = 4.5
+table_inset_pt = 5.5
 cover_band_pt = 96.0
 ```
 
@@ -146,9 +146,10 @@ mono_family = "Acme Mono"
 **DOCX is different.** OOXML names a font and resolves it on the reader's
 machine, and azdocs cannot embed fonts into a `.docx`, so naming a typeface
 nobody has installed lands back at a Word default. The shipped themes
-therefore set `docx_sans = "Calibri"` and `docx_mono = "Consolas"`, which come
-with Office on Windows and macOS. If your organisation deploys its own
-typeface, override those two keys in a user theme.
+therefore set `docx_sans = "Aptos"` and `docx_mono = "Aptos Mono"`, the current
+Microsoft 365 document families on Windows and macOS. Older Office installs
+substitute their configured document defaults. If your organisation deploys
+its own typeface, override those two keys in a user theme.
 
 ## Native renderer differences
 

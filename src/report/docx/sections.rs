@@ -13,6 +13,7 @@ use super::style::{self, Ctx, half_points, hex, pt_to_emu, twips_to_emu};
 use crate::diagram::assets::DiagramAsset;
 use crate::report::branding::BrandingContext;
 use crate::report::document::{Block, Cover, ParagraphStyle, TableKind, TextRun, TextStyle};
+use crate::report::mark;
 use crate::report::theme::CoverStyle;
 
 pub fn header(branding: &BrandingContext, ctx: &Ctx) -> Header {
@@ -102,20 +103,30 @@ pub fn cover(mut docx: Docx, ctx: &Ctx, cover: &Cover<'_>, branding: &BrandingCo
     match ctx.tokens.layout.cover {
         CoverStyle::Band => {
             docx = docx.add_table(cover_band(ctx));
+            if let Some(mark) = product_mark_picture(ctx, cover, false) {
+                docx = docx.add_paragraph(cover_identity(mark, AlignmentType::Left));
+            }
             if let Some(logo) = logo_picture(branding, ctx) {
-                docx = docx.add_paragraph(Paragraph::new().add_run(logo));
+                docx = docx.add_paragraph(cover_identity(logo, AlignmentType::Left));
             }
             docx = add_cover_text(docx, ctx, cover, AlignmentType::Left, false);
         }
         CoverStyle::Editorial => {
+            if let Some(mark) = product_mark_picture(ctx, cover, false) {
+                docx = docx.add_paragraph(cover_identity(mark, AlignmentType::Center));
+            }
             if let Some(logo) = logo_picture(branding, ctx) {
-                docx =
-                    docx.add_paragraph(Paragraph::new().align(AlignmentType::Center).add_run(logo));
+                docx = docx.add_paragraph(cover_identity(logo, AlignmentType::Center));
             }
             docx = add_cover_text(docx, ctx, cover, AlignmentType::Center, false);
         }
         CoverStyle::Block => {
-            docx = docx.add_table(block_cover(ctx, cover, logo_picture(branding, ctx)));
+            docx = docx.add_table(block_cover(
+                ctx,
+                cover,
+                product_mark_picture(ctx, cover, true),
+                logo_picture(branding, ctx),
+            ));
         }
     }
     if page_filling_table {
@@ -146,7 +157,12 @@ fn cover_band(ctx: &Ctx) -> Table {
         .margins(TableCellMargins::new().margin(0, 0, 0, 0))
 }
 
-fn block_cover(ctx: &Ctx, cover: &Cover<'_>, logo: Option<Run>) -> Table {
+fn block_cover(
+    ctx: &Ctx,
+    cover: &Cover<'_>,
+    product_mark: Option<Run>,
+    logo: Option<Run>,
+) -> Table {
     let mut cell = TableCell::new()
         .width(ctx.usable_twips as usize, WidthType::Dxa)
         .vertical_align(VAlignType::Center)
@@ -155,8 +171,11 @@ fn block_cover(ctx: &Ctx, cover: &Cover<'_>, logo: Option<Run>) -> Table {
                 .shd_type(ShdType::Clear)
                 .fill(hex(&ctx.tokens.palette.band)),
         );
+    if let Some(product_mark) = product_mark {
+        cell = cell.add_paragraph(cover_identity(product_mark, AlignmentType::Center));
+    }
     if let Some(logo) = logo {
-        cell = cell.add_paragraph(Paragraph::new().align(AlignmentType::Center).add_run(logo));
+        cell = cell.add_paragraph(cover_identity(logo, AlignmentType::Center));
     }
     cell = cell.add_paragraph(cover_title(ctx, cover, AlignmentType::Center, true));
     if !cover.subtitle.is_empty() {
@@ -208,53 +227,69 @@ fn add_cover_text(
     docx.add_paragraph(cover_metadata(ctx, cover, align, reversed))
 }
 
+fn cover_identity(run: Run, align: AlignmentType) -> Paragraph {
+    Paragraph::new()
+        .align(align)
+        .line_spacing(LineSpacing::new().after(160))
+        .add_run(run)
+}
+
 fn cover_title(ctx: &Ctx, cover: &Cover<'_>, align: AlignmentType, reversed: bool) -> Paragraph {
-    Paragraph::new().align(align).add_run(
-        Run::new()
-            .add_text(
-                if matches!(ctx.tokens.layout.cover, CoverStyle::Editorial) {
-                    cover.title.to_uppercase()
+    Paragraph::new()
+        .align(align)
+        .line_spacing(LineSpacing::new().before(160).after(240))
+        .add_run(
+            Run::new()
+                .add_text(
+                    if matches!(ctx.tokens.layout.cover, CoverStyle::Editorial) {
+                        cover.title.to_uppercase()
+                    } else {
+                        cover.title.to_string()
+                    },
+                )
+                .size(half_points(ctx.tokens.typography.title_pt))
+                .bold()
+                .color(hex(if reversed {
+                    &ctx.tokens.palette.on_band
                 } else {
-                    cover.title.to_string()
-                },
-            )
-            .size(half_points(ctx.tokens.typography.title_pt))
-            .bold()
-            .color(hex(if reversed {
-                &ctx.tokens.palette.on_band
-            } else {
-                &ctx.tokens.palette.primary
-            }))
-            .fonts(ctx.sans()),
-    )
+                    &ctx.tokens.palette.primary
+                }))
+                .fonts(ctx.sans()),
+        )
 }
 
 fn cover_subtitle(ctx: &Ctx, subtitle: &str, align: AlignmentType, reversed: bool) -> Paragraph {
-    Paragraph::new().align(align).add_run(
-        Run::new()
-            .add_text(subtitle)
-            .size(half_points(ctx.tokens.typography.subtitle_pt))
-            .color(hex(if reversed {
-                &ctx.tokens.palette.on_band
-            } else {
-                &ctx.tokens.palette.muted
-            }))
-            .fonts(ctx.sans()),
-    )
+    Paragraph::new()
+        .align(align)
+        .line_spacing(LineSpacing::new().after(140))
+        .add_run(
+            Run::new()
+                .add_text(subtitle)
+                .size(half_points(ctx.tokens.typography.subtitle_pt))
+                .color(hex(if reversed {
+                    &ctx.tokens.palette.on_band
+                } else {
+                    &ctx.tokens.palette.muted
+                }))
+                .fonts(ctx.sans()),
+        )
 }
 
 fn cover_company(ctx: &Ctx, company: &str, align: AlignmentType, reversed: bool) -> Paragraph {
-    Paragraph::new().align(align).add_run(
-        Run::new()
-            .add_text(company)
-            .size(half_points(ctx.tokens.typography.subtitle_pt))
-            .color(hex(if reversed {
-                &ctx.tokens.palette.on_band
-            } else {
-                &ctx.tokens.palette.ink
-            }))
-            .fonts(ctx.sans()),
-    )
+    Paragraph::new()
+        .align(align)
+        .line_spacing(LineSpacing::new().after(280))
+        .add_run(
+            Run::new()
+                .add_text(company)
+                .size(half_points(ctx.tokens.typography.subtitle_pt))
+                .color(hex(if reversed {
+                    &ctx.tokens.palette.on_band
+                } else {
+                    &ctx.tokens.palette.ink
+                }))
+                .fonts(ctx.sans()),
+        )
 }
 
 fn cover_metadata(ctx: &Ctx, cover: &Cover<'_>, align: AlignmentType, reversed: bool) -> Paragraph {
@@ -280,6 +315,7 @@ fn cover_metadata(ctx: &Ctx, cover: &Cover<'_>, align: AlignmentType, reversed: 
     };
     Paragraph::new()
         .align(align)
+        .line_spacing(LineSpacing::new().before(160))
         .add_run(label("Tenant "))
         .add_run(value(&cover.tenant))
         .add_run(label(" · Snapshot "))
@@ -314,8 +350,9 @@ pub fn render(mut docx: Docx, ctx: &Ctx, blocks: &[Block<'_>], assets: &[Diagram
             Block::Chapter {
                 title,
                 break_before,
+                divider,
             } => {
-                docx = render_chapter(docx, ctx, title, *break_before, first_chapter);
+                docx = render_chapter(docx, ctx, title, *break_before, *divider, first_chapter);
                 first_chapter = false;
             }
             Block::Heading { level, title, icon } => {
@@ -362,20 +399,30 @@ pub fn render(mut docx: Docx, ctx: &Ctx, blocks: &[Block<'_>], assets: &[Diagram
                     TableKind::Data => {
                         docx.add_table(style::data_table(ctx, &headers, &body, &mono_columns))
                     }
-                    TableKind::Findings => {
-                        docx.add_table(style::findings_table(ctx, &headers, &body, &mono_columns))
-                    }
-                    TableKind::Settings => docx.add_table(style::settings_table(ctx, &body)),
                 };
             }
+            Block::Facts { items } => {
+                for paragraph in style::fact_list(ctx, items) {
+                    docx = docx.add_paragraph(paragraph);
+                }
+            }
+            Block::ResourceIndex { items } => {
+                for paragraph in style::resource_index(ctx, items) {
+                    docx = docx.add_paragraph(paragraph);
+                }
+            }
             Block::ResourcePlate { name } => {
-                docx = docx.add_table(style::resource_plate(ctx, name));
+                docx = docx.add_paragraph(style::resource_plate(ctx, name));
             }
             Block::SubLabel { title } => {
                 docx = docx.add_paragraph(style::sub_label(ctx, title));
             }
-            Block::Callout { severity, title } => {
-                docx = docx.add_table(style::callout(ctx, severity, title));
+            Block::Callout {
+                severity,
+                title,
+                detail,
+            } => {
+                docx = docx.add_paragraph(style::callout(ctx, severity, title, detail.as_deref()));
             }
             Block::Diagram { slug, caption } => {
                 let Some(asset) = assets_by_slug.get(slug.as_ref()) else {
@@ -383,8 +430,12 @@ pub fn render(mut docx: Docx, ctx: &Ctx, blocks: &[Block<'_>], assets: &[Diagram
                     continue;
                 };
                 if let Some(run) = diagram_run(ctx, asset) {
-                    docx = docx
-                        .add_paragraph(Paragraph::new().align(AlignmentType::Center).add_run(run));
+                    docx = docx.add_paragraph(
+                        Paragraph::new()
+                            .align(AlignmentType::Center)
+                            .line_spacing(LineSpacing::new().after(100))
+                            .add_run(run),
+                    );
                     if let Some(caption) = caption {
                         docx = docx.add_paragraph(style::caption(ctx, caption));
                     }
@@ -398,8 +449,15 @@ pub fn render(mut docx: Docx, ctx: &Ctx, blocks: &[Block<'_>], assets: &[Diagram
     docx
 }
 
-fn render_chapter(mut docx: Docx, ctx: &Ctx, title: &str, break_before: bool, first: bool) -> Docx {
-    if ctx.tokens.layout.divider_pages {
+fn render_chapter(
+    mut docx: Docx,
+    ctx: &Ctx,
+    title: &str,
+    break_before: bool,
+    divider: bool,
+    first: bool,
+) -> Docx {
+    if ctx.tokens.layout.divider_pages && divider {
         if !first {
             docx = docx.add_paragraph(page_break());
         }
@@ -411,11 +469,19 @@ fn render_chapter(mut docx: Docx, ctx: &Ctx, title: &str, break_before: bool, fi
 }
 
 fn rich_paragraph(ctx: &Ctx, paragraph_style: ParagraphStyle, runs: &[TextRun<'_>]) -> Paragraph {
-    let mut paragraph = Paragraph::new();
     let size = match paragraph_style {
         ParagraphStyle::Body => ctx.tokens.typography.base_pt,
         ParagraphStyle::Muted => ctx.tokens.typography.small_pt,
     };
+    let after = match paragraph_style {
+        ParagraphStyle::Body => (ctx.tokens.typography.base_pt * 13.0).round() as u32,
+        ParagraphStyle::Muted => (ctx.tokens.typography.small_pt * 10.0).round() as u32,
+    };
+    let mut paragraph = Paragraph::new().line_spacing(
+        LineSpacing::new()
+            .line((ctx.tokens.typography.line_height * 240.0).round() as i32)
+            .after(after),
+    );
     for text_run in runs {
         let mut run = Run::new()
             .add_text(if text_run.style == TextStyle::Mono {
@@ -474,6 +540,43 @@ fn logo_picture(branding: &BrandingContext, ctx: &Ctx) -> Option<Run> {
     );
     let emu = |value: u32| (f64::from(value) * scale).round().max(1.0) as u32;
     Some(Run::new().add_image(Pic::new(&png).size(emu(width), emu(height))))
+}
+
+fn product_mark_picture(ctx: &Ctx, cover: &Cover<'_>, on_dark: bool) -> Option<Run> {
+    if !cover.product_mark {
+        return None;
+    }
+    let svg = if on_dark {
+        mark::ON_DARK_SVG
+    } else {
+        mark::PRIMARY_SVG
+    };
+    let svg = std::str::from_utf8(svg).ok()?;
+    // LibreOffice loses subsequent cover text after a transparent image inside
+    // an exactly sized, filled table cell. Give the dark-cover variant an
+    // opaque matte matching the cell; the light covers can retain transparency.
+    let dark_svg = on_dark.then(|| svg_on_background(svg, &hex(&ctx.tokens.palette.band)));
+    let png = if let Some(dark_svg) = dark_svg {
+        crate::diagram::png::from_svg(&dark_svg?, 0.25)
+    } else {
+        crate::diagram::png::from_svg_transparent(svg, 0.25)
+    }
+    .map_err(|error| tracing::warn!(%error, "skipping unrenderable azdocs product mark"))
+    .ok()?;
+    image::load_from_memory(&png)
+        .map_err(|error| tracing::warn!(%error, "skipping undecodable azdocs product mark"))
+        .ok()?;
+    let side = pt_to_emu(48.0);
+    Some(Run::new().add_image(Pic::new(&png).size(side, side)))
+}
+
+fn svg_on_background(svg: &str, fill: &str) -> Option<String> {
+    let svg_start = svg.find("<svg")?;
+    let tag_end = svg_start + svg[svg_start..].find('>')? + 1;
+    let (head, tail) = svg.split_at(tag_end);
+    Some(format!(
+        "{head}<rect width=\"100%\" height=\"100%\" fill=\"#{fill}\"/>{tail}"
+    ))
 }
 
 fn icon_run(ctx: &Ctx, azure_type: &str, level: usize) -> Option<Run> {

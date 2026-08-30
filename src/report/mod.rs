@@ -3,6 +3,7 @@ pub mod csv;
 pub mod details;
 pub mod docx;
 pub mod html;
+mod mark;
 pub mod markdown;
 pub mod pdf;
 pub mod site;
@@ -337,9 +338,8 @@ impl ReportContext {
             }
         }
 
-        // The by-type view the print formats document resource by resource.
-        // Ordered by resource count then type so the biggest estates surface
-        // first, matching the "Resources by type" summary table.
+        // The by-type view feeds the print formats' compliance index. Ordered
+        // by resource count then type so the biggest estates surface first.
         let subscription_names: BTreeMap<&str, &str> = subscriptions
             .iter()
             .map(|sub| (sub.subscription_id.as_str(), sub.display_name.as_str()))

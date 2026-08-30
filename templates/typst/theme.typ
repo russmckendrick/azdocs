@@ -99,7 +99,7 @@
   if columns.len() == 0 or rows.len() == 0 {
     return block(text(size: typ.small_pt * 1pt, fill: muted, style: "italic")[No results.])
   }
-  block(breakable: true, table(
+  block(above: 0.25em, below: 0.85em, breakable: true, table(
     columns: if widths == none { columns.map(_ => auto) } else { widths },
     inset: lay.table_inset_pt * 1pt,
     stroke: table-stroke,
@@ -115,63 +115,79 @@
   ))
 }
 
-#let severity-cell(severity) = table.cell(fill: sev(severity, "fill"))[
-  #text(size: typ.table_pt * 1pt, weight: "semibold", fill: sev(severity, "text"), severity)
-]
-
-#let empty-state(body) = block(
+#let empty-state(body) = block(below: 0.8em,
   text(size: typ.small_pt * 1pt, fill: muted, style: "italic", body),
 )
 
-#let table-value(value, mono-value: false, strong: false) = if mono-value {
+#let table-value(value, mono-value: false) = if mono-value {
   mono(breakable(value), size: typ.table_pt * 1pt)
 } else {
   text(
     size: typ.table_pt * 1pt,
-    weight: if strong { "semibold" } else { "regular" },
     breakable(value),
   )
 }
 
 /// Render a display-ready semantic table. Labels and JSON value formatting
 /// have already been resolved by PrintDocument, so no report logic lives here.
-#let print-table(kind, columns, rows) = {
+#let print-table(_kind, columns, rows) = {
   if columns.len() == 0 or rows.len() == 0 {
     return empty-state("No results.")
   }
-  if kind == "settings" {
-    block(breakable: true, table(
-      columns: (0.34fr, 0.66fr),
-      inset: lay.table_inset_pt * 1pt,
-      stroke: table-stroke,
-      fill: row-fill,
-      ..rows
-        .map(row => (
-          table-value(row.at(0, default: ""), strong: true),
-          table-value(row.at(1, default: "")),
-        ))
-        .flatten(),
-    ))
-  } else {
-    block(breakable: true, table(
-      columns: columns.map(_ => auto),
-      inset: lay.table_inset_pt * 1pt,
-      stroke: table-stroke,
-      fill: row-fill,
-      table.header(repeat: true, ..columns.map(column => header-cell(column.label))),
-      ..rows
-        .map(row => row.enumerate().map(((index, value)) => {
-          if kind == "findings" and index == 0 {
-            severity-cell(value)
-          } else {
-            let column = columns.at(index)
-            table-value(value, mono-value: column.mono)
-          }
-        }))
-        .flatten(),
-    ))
-  }
+  block(above: 0.25em, below: 0.85em, breakable: true, table(
+    columns: columns.map(_ => auto),
+    inset: lay.table_inset_pt * 1pt,
+    stroke: table-stroke,
+    fill: row-fill,
+    table.header(repeat: true, ..columns.map(column => header-cell(column.label))),
+    ..rows
+      .map(row => row.enumerate().map(((index, value)) => {
+        let column = columns.at(index)
+        table-value(value, mono-value: column.mono)
+      }))
+      .flatten(),
+  ))
 }
+
+/// A compact definition list for settings and small query results. The
+/// semantic document decides which values are identifiers; this renderer only
+/// controls their presentation.
+#let fact-list(items) = block(width: 100%, below: 0.85em, breakable: true)[
+  #for item in items {
+    block(width: 100%, breakable: false, above: 0.2em, below: 0.45em)[
+      #grid(
+        columns: (0.31fr, 0.69fr),
+        gutter: 12pt,
+        text(
+          size: (typ.base_pt - 1) * 1pt,
+          weight: "semibold",
+          fill: primary-dark,
+          item.label,
+        ),
+        if item.mono {
+          mono(breakable(item.value), size: (typ.base_pt - 1) * 1pt)
+        } else {
+          text(size: (typ.base_pt - 1) * 1pt, breakable(item.value))
+        },
+      )
+    ]
+  }
+]
+
+/// A flowing resource index: the resource name leads, with its Azure context
+/// kept on the same visual line where space permits.
+#let resource-index(items) = block(width: 100%, below: 0.9em, breakable: true)[
+  #for item in items {
+    let metadata = (item.subscription, item.resource_group, item.location)
+      .filter(value => value != "")
+      .join(" · ")
+    block(width: 100%, breakable: false, above: 0.18em, below: 0.5em)[
+      #text(size: typ.base_pt * 1pt, weight: "semibold", fill: ink)[#item.name]
+      #h(8pt)
+      #text(size: typ.small_pt * 1pt, fill: muted)[#metadata]
+    ]
+  }
+]
 
 // ----------------------------------------------------------------- stats ----
 
@@ -214,11 +230,17 @@
   image(logo-path, width: 6cm, height: height, fit: "contain")
 }
 
-#let cover(cover, branding, logo-path) = {
+#let cover-mark(mark-path) = if mark-path != "" {
+  image(mark-path, width: 1.35cm, height: 1.35cm, fit: "contain")
+}
+
+#let cover(cover, branding, logo-path, primary-mark-path, on-dark-mark-path) = {
+  let mark-path = if lay.cover == "block" { on-dark-mark-path } else { primary-mark-path }
   if lay.cover == "block" {
     page(footer: none, header: none, margin: 0pt, fill: band)[
       #v(1fr)
       #block(inset: (x: 3cm))[
+        #if mark-path != "" [#cover-mark(mark-path) #v(0.55cm)]
         #if logo-path != "" [#cover-logo(logo-path) #v(0.8cm)]
         #text(size: typ.title_pt * 1pt, weight: "bold", fill: on-band)[#cover.title]
         #if cover.subtitle != "" [
@@ -243,6 +265,7 @@
     page(footer: none, header: none, margin: 0pt)[
       #block(width: 100%, height: lay.cover_band_pt * 1pt, fill: band)
       #block(inset: (x: 2.5cm, top: 3cm))[
+        #if mark-path != "" [#cover-mark(mark-path) #v(0.55cm)]
         #if logo-path != "" [#cover-logo(logo-path) #v(0.8cm)]
         #text(size: typ.title_pt * 1pt, weight: "bold", fill: primary)[#cover.title]
         #if cover.subtitle != "" [
@@ -259,6 +282,7 @@
     page(footer: none, header: none)[
       #v(2fr)
       #align(center)[
+        #if mark-path != "" [#cover-mark(mark-path) #v(0.65cm)]
         #if logo-path != "" [#cover-logo(logo-path) #v(1cm)]
         #text(size: typ.title_pt * 1pt, weight: "semibold", fill: ink)[
           #upper(cover.title)
@@ -320,40 +344,46 @@
 /// chapter can find one resource without reading the settings tables.
 #let resource-plate(name) = block(
   width: 100%,
-  fill: if lay.table == "hairline" { none } else { primary },
-  stroke: if lay.table == "hairline" { (bottom: 1pt + primary) } else { none },
-  radius: if lay.table == "hairline" { 0pt } else { radius },
-  inset: (x: 8pt, y: 5pt),
-  above: 1.4em,
-  below: 0.7em,
+  fill: if lay.table == "hairline" { none } else { primary-tint },
+  stroke: (left: 3pt + primary, bottom: rule-stroke),
+  radius: 0pt,
+  inset: (x: 10pt, y: 7pt),
+  above: 1.7em,
+  below: 0.9em,
   text(
     size: typ.h3_pt * 1pt,
     weight: "bold",
-    fill: if lay.table == "hairline" { primary } else { on-primary },
-    upper(name),
+    fill: primary-dark,
+    name,
   ),
 )
 
 /// Small labelled rule introducing a sub-block (Settings, Findings, Related).
-#let sub-label(title) = block(width: 100%, above: 1em, below: 0.5em)[
+#let sub-label(title) = block(width: 100%, above: 1.2em, below: 0.65em)[
   #text(size: typ.small_pt * 1pt, weight: "semibold", fill: primary-dark, title)
   #v(0.15em)
   #line(length: 100%, stroke: rule-stroke)
 ]
 
-#let callout(severity, title) = block(
+#let callout(severity, title, detail: none) = block(
   width: 100%,
-  fill: sev(severity, "fill"),
   stroke: (left: 2.5pt + sev(severity, "text")),
-  inset: (x: 7pt, y: 5pt),
-  above: 0.4em,
-  below: 0.4em,
+  inset: (x: 9pt, y: 4pt),
+  above: 0.35em,
+  below: 0.55em,
 )[
-  #text(size: typ.table_pt * 1pt, weight: "bold", fill: sev(severity, "text"))[
-    #upper(severity)
+  #box(
+    fill: sev(severity, "fill"),
+    radius: 2pt,
+    inset: (x: 4pt, y: 2pt),
+    text(size: typ.small_pt * 1pt, weight: "bold", fill: sev(severity, "text"), upper(severity)),
+  )
+  #h(8pt)
+  #text(size: typ.base_pt * 1pt)[#title]
+  #if detail != none [
+    #v(0.18em)
+    #text(size: typ.small_pt * 1pt, fill: muted)[#detail]
   ]
-  #h(6pt)
-  #text(size: typ.table_pt * 1pt)[#title]
 ]
 
 /// A level-preserving heading with its Azure resource-type icon. Keeping the
@@ -507,7 +537,7 @@
 /// Start a top-level chapter. Themes with divider pages get the heading alone
 /// on its own page; the heading itself moves there rather than being repeated
 /// after the divider, so the title appears once and the outline still sees it.
-#let chapter(title, break_before: false) = if lay.divider_pages {
+#let chapter(title, break_before: false, divider: false) = if lay.divider_pages and divider {
   pagebreak(weak: true)
   v(1fr)
   [

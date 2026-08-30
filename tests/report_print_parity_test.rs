@@ -42,7 +42,7 @@ fn assert_ordered(text: &str, markers: &[&str], format: &str) {
 }
 
 #[test]
-fn native_print_formats_share_ordered_structure_and_overview_gallery_scope() {
+fn native_print_formats_share_ordered_structure_and_overview_scope() {
     let (report, diagrams) = seeded();
     let branding = BrandingContext::default();
 
@@ -53,31 +53,51 @@ fn native_print_formats_share_ordered_structure_and_overview_gallery_scope() {
 
     let markers = [
         "Executive Summary",
-        "Resources by type",
+        "Estate overview",
         "Findings",
-        "Networking",
         "Resources by type",
         "Production",
         "rg-app",
-        "Diagrams",
+        "Evidence appendix",
+        "Networking",
     ];
-    assert_ordered(&pdf_text, &markers, "PDF");
-    assert_ordered(&docx_xml, &markers, "DOCX");
+    let pdf_body = &pdf_text[pdf_text
+        .rfind("Executive Summary")
+        .expect("PDF report body")..];
+    let docx_body = &docx_xml[docx_xml
+        .rfind("Executive Summary")
+        .expect("DOCX report body")..];
+    assert_ordered(pdf_body, &markers, "PDF");
+    assert_ordered(docx_body, &markers, "DOCX");
 
-    let pdf_gallery = &pdf_text[pdf_text.rfind("Diagrams").expect("PDF gallery")..];
-    let docx_gallery = &docx_xml[docx_xml.rfind("Diagrams").expect("DOCX gallery")..];
+    let pdf_overview_start = pdf_text
+        .rfind("Estate overview")
+        .expect("PDF estate overview");
+    let pdf_overview_end = pdf_overview_start
+        + pdf_text[pdf_overview_start..]
+            .find("Findings")
+            .expect("PDF findings after overview");
+    let docx_overview_start = docx_xml
+        .rfind("Estate overview")
+        .expect("DOCX estate overview");
+    let docx_overview_end = docx_overview_start
+        + docx_xml[docx_overview_start..]
+            .find("Findings")
+            .expect("DOCX findings after overview");
+    let pdf_overview = &pdf_text[pdf_overview_start..pdf_overview_end];
+    let docx_overview = &docx_xml[docx_overview_start..docx_overview_end];
     for asset in diagrams
         .iter()
         .filter(|asset| asset.kind == DiagramAssetKind::ResourceGroup)
     {
         assert!(
-            !pdf_gallery.contains(&asset.title),
-            "resource-group diagram leaked into PDF gallery: {}",
+            !pdf_overview.contains(&asset.title),
+            "resource-group diagram leaked into PDF overview: {}",
             asset.title
         );
         assert!(
-            !docx_gallery.contains(&asset.title),
-            "resource-group diagram leaked into DOCX gallery: {}",
+            !docx_overview.contains(&asset.title),
+            "resource-group diagram leaked into DOCX overview: {}",
             asset.title
         );
     }

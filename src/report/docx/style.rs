@@ -5,13 +5,16 @@
 //! does for the PDF.
 
 use docx_rs::{
-    AbstractNumbering, AlignmentType, BorderType, Docx, IndentLevel, Level, LevelJc, LevelText,
-    LineSpacing, NumberFormat, Numbering, NumberingId, PageMargin, Paragraph, Run, RunFonts,
-    Shading, ShdType, Start, Style, StyleType, Table, TableBorder, TableBorderPosition,
-    TableBorders, TableCell, TableCellMargins, TableLayoutType, TableRow, VAlignType, WidthType,
+    AbstractNumbering, AlignmentType, BorderType, BreakType, Docx, IndentLevel, Level, LevelJc,
+    LevelText, LineSpacing, NumberFormat, Numbering, NumberingId, PageMargin, Paragraph,
+    ParagraphBorder, ParagraphBorderPosition, ParagraphBorders, Run, RunFonts, Shading, ShdType,
+    SpecialIndentType, Start, Style, StyleType, Tab, TabValueType, Table, TableBorder,
+    TableBorderPosition, TableBorders, TableCell, TableCellMargins, TableLayoutType, TableRow,
+    VAlignType, WidthType,
 };
 
 use crate::report::branding::BrandingContext;
+use crate::report::document::{Fact, ResourceIndexItem};
 use crate::report::theme::{TableStyle, ThemeTokens};
 
 /// Twips (twentieths of a point) per inch — the unit Word measures pages in.
@@ -230,8 +233,8 @@ fn heading_styles(docx: Docx, tokens: &ThemeTokens) -> Docx {
                 .fonts(RunFonts::new().ascii(family).hi_ansi(family).cs(family))
                 .line_spacing(
                     LineSpacing::new()
-                        .before(320 - (index as u32 * 80))
-                        .after(140),
+                        .before([380, 280, 220][index])
+                        .after([200, 150, 110][index]),
                 ),
         );
     }
@@ -271,20 +274,23 @@ pub fn heading(ctx: &Ctx, level: usize, text: &str) -> Paragraph {
 }
 
 pub fn empty_state(ctx: &Ctx, text: &str) -> Paragraph {
-    Paragraph::new().add_run(
-        Run::new()
-            .add_text(text)
-            .size(half_points(ctx.tokens.typography.small_pt))
-            .italic()
-            .color(hex(&ctx.tokens.palette.muted))
-            .fonts(ctx.sans()),
-    )
+    Paragraph::new()
+        .line_spacing(LineSpacing::new().after(140))
+        .add_run(
+            Run::new()
+                .add_text(text)
+                .size(half_points(ctx.tokens.typography.small_pt))
+                .italic()
+                .color(hex(&ctx.tokens.palette.muted))
+                .fonts(ctx.sans()),
+        )
 }
 
 pub fn caption(ctx: &Ctx, text: &str) -> Paragraph {
     Paragraph::new()
         .style("Caption")
         .align(AlignmentType::Center)
+        .line_spacing(LineSpacing::new().before(60).after(180))
         .add_run(
             Run::new()
                 .add_text(text)
@@ -460,12 +466,13 @@ fn body_cell(ctx: &Ctx, value: &str, width: u32, zebra: bool, mono: bool) -> Tab
 /// support, so the best available is `cant_split`, which at least keeps the
 /// header from being torn in half. The PDF does repeat its headers.
 fn shell(ctx: &Ctx, widths: &[u32], rows: Vec<TableRow>) -> Table {
+    let inset = (ctx.tokens.layout.table_inset_pt * TWIPS_PER_POINT).round() as usize;
     Table::new(rows)
         .layout(TableLayoutType::Fixed)
         .width(ctx.usable_twips as usize, WidthType::Dxa)
         .set_grid(widths.iter().map(|w| *w as usize).collect())
         .set_borders(borders(ctx))
-        .margins(TableCellMargins::new().margin(40, 80, 40, 80))
+        .margins(TableCellMargins::new().margin(inset, inset, inset, inset))
 }
 
 /// A data table. `mono_columns` names columns rendered in the monospace face
@@ -503,57 +510,6 @@ pub fn data_table(
                 })
                 .collect(),
         ));
-    }
-    shell(ctx, &widths, table_rows)
-}
-
-/// The findings table: same shell, but the severity cell carries the severity
-/// colours from the theme.
-pub fn findings_table(
-    ctx: &Ctx,
-    headers: &[String],
-    rows: &[Vec<String>],
-    mono_columns: &[usize],
-) -> Table {
-    let widths = column_widths(headers, rows, ctx.usable_twips);
-
-    let mut table_rows = vec![
-        TableRow::new(
-            headers
-                .iter()
-                .enumerate()
-                .map(|(i, h)| header_cell(ctx, h, widths[i]))
-                .collect(),
-        )
-        .cant_split(),
-    ];
-    for (index, row) in rows.iter().enumerate() {
-        let zebra = ctx.tokens.layout.zebra_rows && index % 2 == 1;
-        let severity = &row[0];
-        let colors = ctx.tokens.palette.severity.level(severity);
-        let severity_cell = TableCell::new()
-            .width(widths[0] as usize, WidthType::Dxa)
-            .shading(
-                Shading::new()
-                    .shd_type(ShdType::Clear)
-                    .fill(hex(colors.map_or(&ctx.tokens.palette.zebra, |c| &c.fill))),
-            )
-            .add_paragraph(
-                Paragraph::new().add_run(
-                    Run::new()
-                        .add_text(severity)
-                        .size(half_points(ctx.tokens.typography.table_pt))
-                        .bold()
-                        .color(hex(colors.map_or(&ctx.tokens.palette.ink, |c| &c.text)))
-                        .fonts(ctx.sans()),
-                ),
-            );
-        table_rows.push(TableRow::new(vec![
-            severity_cell,
-            body_cell(ctx, &row[1], widths[1], zebra, mono_columns.contains(&1)),
-            body_cell(ctx, &row[2], widths[2], zebra, mono_columns.contains(&2)),
-            body_cell(ctx, &row[3], widths[3], zebra, mono_columns.contains(&3)),
-        ]));
     }
     shell(ctx, &widths, table_rows)
 }
@@ -621,54 +577,47 @@ pub fn icon_heading(ctx: &Ctx, level: usize, icon: Option<Run>, display: &str) -
 /// Icon size relative to the level-1 heading, shared by the PDF and DOCX.
 pub const ICON_SCALE: f32 = 1.4;
 
-/// Name plate above each resource's detail, matching the PDF: a filled band
-/// (or an underline for hairline themes) carrying the resource name.
-pub fn resource_plate(ctx: &Ctx, name: &str) -> Table {
+/// Name plate above each resource's detail. A paragraph band keeps the scan
+/// marker without turning every resource into another table.
+pub fn resource_plate(ctx: &Ctx, name: &str) -> Paragraph {
     let tokens = ctx.tokens;
     let hairline = matches!(tokens.layout.table, TableStyle::Hairline);
-    let widths = [ctx.usable_twips];
-
-    let mut cell = TableCell::new()
-        .width(ctx.usable_twips as usize, WidthType::Dxa)
-        .add_paragraph(
-            Paragraph::new().add_run(
-                Run::new()
-                    .add_text(name.to_uppercase())
-                    .size(half_points(tokens.typography.h3_pt))
-                    .bold()
-                    .color(hex(if hairline {
-                        &tokens.palette.primary
-                    } else {
-                        &tokens.palette.on_primary
-                    }))
-                    .fonts(ctx.sans()),
-            ),
-        );
-    if !hairline {
-        cell = cell.shading(
-            Shading::new()
-                .shd_type(ShdType::Clear)
-                .fill(hex(&tokens.palette.primary)),
-        );
-    }
-
-    let borders = if hairline {
-        TableBorders::with_empty().set(
-            TableBorder::new(TableBorderPosition::Bottom)
-                .border_type(BorderType::Single)
-                .size(eighths(1.0))
+    let borders = ParagraphBorders::with_empty()
+        .set(
+            ParagraphBorder::new(ParagraphBorderPosition::Left)
+                .val(BorderType::Single)
+                .size(eighths(3.0))
+                .space(4)
                 .color(hex(&tokens.palette.primary)),
         )
-    } else {
-        TableBorders::with_empty()
-    };
-
-    Table::new(vec![TableRow::new(vec![cell])])
-        .layout(TableLayoutType::Fixed)
-        .width(ctx.usable_twips as usize, WidthType::Dxa)
-        .set_grid(widths.iter().map(|w| *w as usize).collect())
+        .set(
+            ParagraphBorder::new(ParagraphBorderPosition::Bottom)
+                .val(BorderType::Single)
+                .size(eighths(tokens.layout.rule_pt))
+                .color(hex(&tokens.palette.rule)),
+        );
+    let mut paragraph = Paragraph::new()
+        .keep_next(true)
+        .keep_lines(true)
+        .indent(Some(160), None, Some(160), None)
+        .line_spacing(LineSpacing::new().before(360).after(150))
         .set_borders(borders)
-        .margins(TableCellMargins::new().margin(60, 120, 60, 120))
+        .add_run(
+            Run::new()
+                .add_text(name)
+                .size(half_points(tokens.typography.h3_pt))
+                .bold()
+                .color(hex(&tokens.palette.primary_dark))
+                .fonts(ctx.sans()),
+        );
+    if !hairline {
+        paragraph.property = paragraph.property.shading(
+            Shading::new()
+                .shd_type(ShdType::Clear)
+                .fill(hex(&tokens.palette.primary_tint)),
+        );
+    }
+    paragraph
 }
 
 /// Small labelled rule introducing a sub-block (Settings, Findings, Related).
@@ -682,98 +631,130 @@ pub fn sub_label(ctx: &Ctx, title: &str) -> Paragraph {
                 .color(hex(&ctx.tokens.palette.primary_dark))
                 .fonts(ctx.sans()),
         )
-        .line_spacing(LineSpacing::new().before(200).after(60))
+        .line_spacing(LineSpacing::new().before(260).after(100))
 }
 
-/// Two-column key/value table for a resource's settings.
-pub fn settings_table(ctx: &Ctx, settings: &[Vec<String>]) -> Table {
+/// Definition-list paragraphs for settings and compact evidence. Hanging
+/// indents align wrapped values under one another without a table grid.
+pub fn fact_list(ctx: &Ctx, items: &[Fact<'_>]) -> Vec<Paragraph> {
     let key_width = ctx.usable_twips / 3;
-    let widths = vec![key_width, ctx.usable_twips - key_width];
-    let zebra = ctx.tokens.layout.zebra_rows;
-
-    let rows = settings
+    let fact_pt = (ctx.tokens.typography.base_pt - 1.0).max(ctx.tokens.typography.table_pt);
+    items
         .iter()
-        .enumerate()
-        .map(|(index, row)| {
-            let striped = zebra && index % 2 == 1;
-            let key = row.first().map(String::as_str).unwrap_or("");
-            let value = row.get(1).map(String::as_str).unwrap_or("");
-            TableRow::new(vec![
-                {
-                    let mut cell = TableCell::new()
-                        .width(widths[0] as usize, WidthType::Dxa)
-                        .add_paragraph(
-                            Paragraph::new().add_run(
-                                Run::new()
-                                    .add_text(key)
-                                    .size(half_points(ctx.tokens.typography.table_pt))
-                                    .bold()
-                                    .fonts(ctx.sans()),
-                            ),
-                        );
-                    if striped {
-                        cell = cell.shading(
-                            Shading::new()
-                                .shd_type(ShdType::Clear)
-                                .fill(hex(&ctx.tokens.palette.zebra)),
-                        );
-                    }
-                    cell
-                },
-                body_cell(ctx, value, widths[1], striped, false),
-            ])
+        .map(|item| {
+            let value = Run::new()
+                .add_text(wrappable(&item.value))
+                .size(half_points(fact_pt));
+            let value = if item.mono {
+                value.fonts(ctx.mono())
+            } else {
+                value.fonts(ctx.sans())
+            };
+            Paragraph::new()
+                .add_tab(Tab::new().val(TabValueType::Left).pos(key_width as usize))
+                .indent(
+                    Some(key_width as i32),
+                    Some(SpecialIndentType::Hanging(key_width as i32)),
+                    None,
+                    None,
+                )
+                .keep_lines(true)
+                .line_spacing(LineSpacing::new().before(30).after(90))
+                .add_run(
+                    Run::new()
+                        .add_text(item.label.as_ref())
+                        .size(half_points(fact_pt))
+                        .bold()
+                        .color(hex(&ctx.tokens.palette.primary_dark))
+                        .fonts(ctx.sans()),
+                )
+                .add_run(Run::new().add_tab())
+                .add_run(value)
         })
-        .collect();
-
-    shell(ctx, &widths, rows)
+        .collect()
 }
 
-/// A finding attached to a resource: severity tag in its own tinted cell,
-/// title alongside.
-pub fn callout(ctx: &Ctx, severity: &str, title: &str) -> Table {
-    let tag_width = ctx.usable_twips / 8;
-    let widths = [tag_width, ctx.usable_twips - tag_width];
+/// A flowing resource index with the name first and its Azure context in a
+/// quieter typographic register.
+pub fn resource_index(ctx: &Ctx, items: &[ResourceIndexItem<'_>]) -> Vec<Paragraph> {
+    items
+        .iter()
+        .map(|item| {
+            let context = [
+                item.subscription.as_ref(),
+                item.resource_group.as_ref(),
+                item.location.as_ref(),
+            ]
+            .into_iter()
+            .filter(|value| !value.is_empty())
+            .collect::<Vec<_>>()
+            .join(" · ");
+            let mut paragraph = Paragraph::new()
+                .keep_lines(true)
+                .line_spacing(LineSpacing::new().before(30).after(110))
+                .add_run(
+                    Run::new()
+                        .add_text(item.name.as_ref())
+                        .size(half_points(ctx.tokens.typography.base_pt))
+                        .bold()
+                        .color(hex(&ctx.tokens.palette.ink))
+                        .fonts(ctx.sans()),
+                );
+            if !context.is_empty() {
+                paragraph = paragraph.add_run(
+                    Run::new()
+                        .add_text(format!("  —  {context}"))
+                        .size(half_points(ctx.tokens.typography.small_pt))
+                        .color(hex(&ctx.tokens.palette.muted))
+                        .fonts(ctx.sans()),
+                );
+            }
+            paragraph
+        })
+        .collect()
+}
+
+/// A finding callout with a semantic severity border and tint. Keeping it as a
+/// paragraph lets findings read as a sequence rather than another table.
+pub fn callout(ctx: &Ctx, severity: &str, title: &str, detail: Option<&str>) -> Paragraph {
     let colors = ctx.tokens.palette.severity.level(severity);
     let fill = hex(colors.map_or(&ctx.tokens.palette.zebra, |c| &c.fill));
-
-    let shaded =
-        |cell: TableCell| cell.shading(Shading::new().shd_type(ShdType::Clear).fill(fill.clone()));
-    let row = TableRow::new(vec![
-        shaded(
-            TableCell::new()
-                .width(widths[0] as usize, WidthType::Dxa)
-                .add_paragraph(
-                    Paragraph::new().add_run(
-                        Run::new()
-                            .add_text(severity.to_uppercase())
-                            .size(half_points(ctx.tokens.typography.table_pt))
-                            .bold()
-                            .color(hex(colors.map_or(&ctx.tokens.palette.ink, |c| &c.text)))
-                            .fonts(ctx.sans()),
-                    ),
-                ),
-        ),
-        shaded(
-            TableCell::new()
-                .width(widths[1] as usize, WidthType::Dxa)
-                .add_paragraph(
-                    Paragraph::new().add_run(
-                        Run::new()
-                            .add_text(title)
-                            .size(half_points(ctx.tokens.typography.table_pt))
-                            .fonts(ctx.sans()),
-                    ),
-                ),
-        ),
-    ])
-    .cant_split();
-
-    Table::new(vec![row])
-        .layout(TableLayoutType::Fixed)
-        .width(ctx.usable_twips as usize, WidthType::Dxa)
-        .set_grid(widths.iter().map(|w| *w as usize).collect())
-        .set_borders(TableBorders::with_empty())
-        .margins(TableCellMargins::new().margin(50, 100, 50, 100))
+    let border = ParagraphBorder::new(ParagraphBorderPosition::Left)
+        .val(BorderType::Single)
+        .size(eighths(2.5))
+        .space(5)
+        .color(hex(colors.map_or(&ctx.tokens.palette.ink, |c| &c.text)));
+    let mut paragraph = Paragraph::new()
+        .keep_lines(true)
+        .indent(Some(120), None, Some(120), None)
+        .line_spacing(LineSpacing::new().before(70).after(130))
+        .set_borders(ParagraphBorders::with_empty().set(border))
+        .add_run(
+            Run::new()
+                .add_text(format!(" {} ", severity.to_uppercase()))
+                .size(half_points(ctx.tokens.typography.small_pt))
+                .bold()
+                .color(hex(colors.map_or(&ctx.tokens.palette.ink, |c| &c.text)))
+                .shading(Shading::new().shd_type(ShdType::Clear).fill(fill))
+                .fonts(ctx.sans()),
+        )
+        .add_run(
+            Run::new()
+                .add_text(format!("  {title}"))
+                .size(half_points(ctx.tokens.typography.base_pt))
+                .fonts(ctx.sans()),
+        );
+    if let Some(detail) = detail {
+        paragraph = paragraph.add_run(
+            Run::new()
+                .add_break(BreakType::TextWrapping)
+                .add_text(detail)
+                .size(half_points(ctx.tokens.typography.small_pt))
+                .color(hex(&ctx.tokens.palette.muted))
+                .fonts(ctx.sans()),
+        );
+    }
+    paragraph
 }
 
 /// The executive-summary statistics, laid out per the theme's `stat` strategy:
@@ -833,11 +814,12 @@ pub fn stat_table(ctx: &Ctx, stats: &[(String, String)]) -> Table {
         })
         .collect();
 
+    let inset = (ctx.tokens.layout.table_inset_pt * TWIPS_PER_POINT).round() as usize;
     let mut table = Table::new(vec![TableRow::new(cells)])
         .layout(TableLayoutType::Fixed)
         .width(ctx.usable_twips as usize, WidthType::Dxa)
         .set_grid(widths.iter().map(|w| *w as usize).collect())
-        .margins(TableCellMargins::new().margin(80, 100, 80, 100));
+        .margins(TableCellMargins::new().margin(inset, inset, inset, inset));
 
     table = match ctx.tokens.layout.stat {
         crate::report::theme::StatStyle::Bare => table.set_borders(TableBorders::with_empty()),

@@ -64,7 +64,8 @@ never hardcode a palette.
 
 Edit the composition once in `src/report/document.rs`. Its `PrintDocument`
 builder owns the cover metadata, TOC depth, chapter order, shared labels,
-display-ready table values, icon references, captions and diagram placement.
+display-ready fact and table values, icon references, captions and diagram
+placement.
 The Typst and DOCX backends are exhaustive renderers of those blocks and must
 not reconstruct report-specific loops or lookup maps.
 
