@@ -25,7 +25,7 @@ fn header_format(tokens: &ThemeTokens) -> Format {
 }
 
 /// One workbook: Summary, Inventory (autofilter), Findings (severity colors),
-/// and one sheet per inventory category.
+/// Governance, and one sheet per inventory category.
 pub fn write(
     report: &ReportContext,
     branding: &BrandingContext,
@@ -49,6 +49,12 @@ pub fn write(
     )?;
     findings_sheet(
         workbook.add_worksheet().set_name("Findings")?,
+        report,
+        tokens,
+        &header,
+    )?;
+    governance_sheet(
+        workbook.add_worksheet().set_name("Governance")?,
         report,
         tokens,
         &header,
@@ -222,6 +228,116 @@ fn findings_sheet(
     sheet.set_column_width(3, 60)?;
     sheet.set_column_width(4, 60)?;
     Ok(())
+}
+
+/// The same three tables the report and the explorer draw, from the same
+/// analysis: coverage by key, coverage by subscription, and the least
+/// compliant resource groups. Verdicts arrive already decided
+/// (`healthy`/`flagged`); this sheet only colours them.
+fn governance_sheet(
+    sheet: &mut Worksheet,
+    report: &ReportContext,
+    tokens: &ThemeTokens,
+    header: &Format,
+) -> anyhow::Result<()> {
+    let governance = &report.governance;
+    // A flagged group reads as a finding, so it uses the finding palette.
+    let flagged = Format::new()
+        .set_background_color(color(&tokens.palette.severity.high.fill))
+        .set_font_color(color(&tokens.palette.severity.high.text));
+
+    let mut row = table(
+        sheet,
+        0,
+        &["Tag coverage %", "Distinct keys", "Non-compliant"],
+        header,
+    )?;
+    sheet.write(row, 0, report.tag_coverage.percent)?;
+    sheet.write(row, 1, governance.distinct_keys as u32)?;
+    sheet.write(row, 2, governance.non_compliant as u32)?;
+    row += 2;
+
+    row = table(
+        sheet,
+        row,
+        &["Tag key", "Resources", "Share of tagged %"],
+        header,
+    )?;
+    for key in &governance.top_keys {
+        sheet.write(row, 0, &key.key)?;
+        sheet.write(row, 1, key.count as u32)?;
+        sheet.write(row, 2, key.percent)?;
+        row += 1;
+    }
+    row += 1;
+
+    row = table(
+        sheet,
+        row,
+        &["Subscription", "Tag coverage %", "Status"],
+        header,
+    )?;
+    for subscription in &governance.subscriptions {
+        sheet.write(row, 0, &subscription.display_name)?;
+        sheet.write(row, 1, subscription.percent)?;
+        sheet.write(
+            row,
+            2,
+            if subscription.healthy {
+                "healthy"
+            } else {
+                "below threshold"
+            },
+        )?;
+        row += 1;
+    }
+    row += 1;
+
+    row = table(
+        sheet,
+        row,
+        &[
+            "Resource group",
+            "Subscription",
+            "Resources",
+            "Non-compliant",
+            "Missed tags",
+        ],
+        header,
+    )?;
+    for group in &governance.worst_groups {
+        sheet.write(row, 0, &group.name)?;
+        sheet.write(row, 1, &group.subscription_name)?;
+        sheet.write(row, 2, group.resources as u32)?;
+        let count = group.non_compliant as u32;
+        if group.flagged {
+            sheet.write_with_format(row, 3, count, &flagged)?;
+        } else {
+            sheet.write(row, 3, count)?;
+        }
+        sheet.write(row, 4, group.missed_tags.join(", "))?;
+        row += 1;
+    }
+
+    sheet.set_column_width(0, 28)?;
+    sheet.set_column_width(1, 24)?;
+    sheet.set_column_width(2, 18)?;
+    sheet.set_column_width(3, 16)?;
+    sheet.set_column_width(4, 32)?;
+    Ok(())
+}
+
+/// Write one header row and return the row the body starts on.
+fn table(
+    sheet: &mut Worksheet,
+    row: u32,
+    columns: &[&str],
+    header: &Format,
+) -> anyhow::Result<u32> {
+    for (col, label) in columns.iter().enumerate() {
+        sheet.write_with_format(row, col as u16, *label, header)?;
+    }
+    Ok(row + 1)
 }
 
 fn category_sheet(

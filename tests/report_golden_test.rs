@@ -114,6 +114,16 @@ fn findings_csv_orders_high_severity_first() {
     assert!(second_line.starts_with("high,"), "got: {second_line}");
 }
 
+/// One entry of a written workbook, as text.
+fn xlsx_part(bytes: &[u8], name: &str) -> String {
+    use std::io::Read;
+    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
+    let mut entry = archive.by_name(name).unwrap();
+    let mut content = String::new();
+    entry.read_to_string(&mut content).unwrap();
+    content
+}
+
 #[test]
 fn xlsx_workbook_writes_all_sheets() {
     let (store, id) = seeded_context();
@@ -124,6 +134,52 @@ fn xlsx_workbook_writes_all_sheets() {
 
     xlsx::write(&report, &BrandingContext::default(), &resources, &out).unwrap();
 
-    let size = std::fs::metadata(&out).unwrap().len();
-    assert!(size > 4096, "workbook suspiciously small: {size} bytes");
+    let bytes = std::fs::read(&out).unwrap();
+    let workbook = xlsx_part(&bytes, "xl/workbook.xml");
+    for sheet in [
+        "Summary",
+        "Inventory",
+        "Findings",
+        "Governance",
+        "networking queries",
+    ] {
+        assert!(
+            workbook.contains(&format!("name=\"{sheet}\"")),
+            "workbook is missing the {sheet} sheet"
+        );
+    }
+}
+
+/// The workbook carries the same governance analysis as the printed report,
+/// not a second one computed here.
+#[test]
+fn xlsx_governance_sheet_carries_the_worst_groups() {
+    let (store, id) = seeded_context();
+    let report = ReportContext::build(&store, &id).unwrap();
+    let resources = store.resources(&id).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("azdocs.xlsx");
+
+    xlsx::write(&report, &BrandingContext::default(), &resources, &out).unwrap();
+
+    let strings = xlsx_part(&std::fs::read(&out).unwrap(), "xl/sharedStrings.xml");
+    for expected in [
+        "Distinct keys",
+        "Share of tagged %",
+        "below threshold",
+        "Non-compliant",
+        "Missed tags",
+    ] {
+        assert!(
+            strings.contains(expected),
+            "governance sheet is missing {expected:?}"
+        );
+    }
+    let worst = &report.governance.worst_groups[0];
+    assert!(worst.flagged || !worst.missed_tags.is_empty());
+    assert!(
+        strings.contains(worst.name.as_str()),
+        "governance sheet is missing the worst group {}",
+        worst.name
+    );
 }

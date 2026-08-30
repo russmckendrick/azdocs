@@ -13,7 +13,7 @@ Everything lands under `./output/` by default:
 | `md` | `output/docs/` | Markdown docs tree (works in any Git host or wiki) |
 | `html` | `output/report.html` + `output/docs-html/` | Single self-contained report **and** a multi-page HTML site |
 | `csv` | `output/inventory.csv`, `output/findings.csv` | Flat exports |
-| `xlsx` | `output/azdocs.xlsx` | Summary, Inventory (autofilter), Findings (severity colours), one sheet per category |
+| `xlsx` | `output/azdocs.xlsx` | Summary, Inventory (autofilter), Findings (severity colours), Governance (tag coverage and the least compliant groups), one sheet per category |
 | `pdf` | `output/report.pdf` | Print-ready document — see below |
 | `docx` | `output/report.docx` | The same document, editable in Word |
 
