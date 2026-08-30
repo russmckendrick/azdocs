@@ -4,6 +4,7 @@ import {
   Boxes,
   ChevronDown,
   FileClock,
+  FileOutput,
   FolderSearch2,
   GitBranch,
   LayoutGrid,
@@ -26,6 +27,7 @@ import {
   type RelationshipWorkspaceState,
 } from "./navigation-state";
 import { EstateExplorer } from "./components/EstateExplorer";
+import { ExportsView } from "./components/ExportsView";
 import { FindingsView } from "./components/FindingsView";
 import { GovernanceView } from "./components/GovernanceView";
 import { HistoryView } from "./components/HistoryView";
@@ -58,6 +60,7 @@ const views: Array<{
   { id: "findings", label: "Findings", icon: ShieldCheck },
   { id: "governance", label: "Governance", icon: Tags },
   { id: "history", label: "Changes", icon: FileClock },
+  { id: "exports", label: "Exports", icon: FileOutput },
 ];
 
 const THEME_STORAGE_KEY = "azdocs-theme";
@@ -531,6 +534,9 @@ export default function App() {
                   onLoadSnapshot={(id) => void loadSnapshot(id)}
                 />
               ) : null}
+              {view === "exports" && bootstrap && !selectedResource ? (
+                <ExportsView bootstrap={bootstrap} estate={estate} />
+              ) : null}
               {selectedResource ? (
                 <div className={view === "topology" ? "resource-record-overlay" : "resource-record-surface"}>
                   <ResourceDetailView
@@ -558,8 +564,10 @@ export default function App() {
         <span className="status-spacer" />
         <span>{selectedResource ?? relationshipResource
           ? `${(selectedResource ?? relationshipResource)?.edgeCount} relationships · ${(selectedResource ?? relationshipResource)?.findingCount} findings`
-          : view === "topology" && estate
-            ? `${estate.edges.length} stored relationships`
+            : view === "topology" && estate
+              ? `${estate.edges.length} stored relationships`
+            : view === "exports" && estate
+              ? `${estate.id} · ready for offline export`
             : "No resource selected"}</span>
       </footer>
     </div>

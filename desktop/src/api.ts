@@ -7,6 +7,9 @@ import type {
   AppBootstrap,
   CollectionEvent,
   CollectResult,
+  ExportEvent,
+  ExportRequest,
+  ExportResult,
   EstateSnapshot,
   QueryDefMeta,
   QueryRows,
@@ -48,6 +51,16 @@ export async function chooseDatabase(): Promise<AppBootstrap | undefined> {
   });
   if (!path) return undefined;
   return invoke<AppBootstrap>("open_database", { path });
+}
+
+export async function chooseExportDirectory(): Promise<string | undefined> {
+  if (!isTauri) return "/Users/demo/Documents/azdocs-exports";
+  const path = await open({
+    title: "Choose an export directory",
+    multiple: false,
+    directory: true,
+  });
+  return typeof path === "string" ? path : undefined;
 }
 
 export async function getQueryPackMetadata(): Promise<QueryDefMeta[]> {
@@ -98,4 +111,45 @@ export async function collectEstate(
     request: { subscriptions: [], notes: "Collected from azdocs desktop" },
     onEvent: channel,
   });
+}
+
+function mockExportOutputs(request: ExportRequest) {
+  const root = request.destination.replace(/[\\/]+$/, "");
+  if (request.exportKind === "reports") {
+    return request.formats.flatMap((format) => {
+      if (format === "md") return [`${root}/docs/index.md`];
+      if (format === "html") return [`${root}/report.html`, `${root}/docs-html/index.html`];
+      if (format === "csv") return [`${root}/inventory.csv`, `${root}/findings.csv`];
+      if (format === "xlsx") return [`${root}/azdocs.xlsx`];
+      return [`${root}/report.${format}`];
+    });
+  }
+
+  const diagramType = request.diagramType ?? "network";
+  return request.formats.map((format) => {
+    const extension = format === "mermaid" ? "mmd" : format;
+    if (diagramType === "workbook" && format === "drawio") {
+      return `${root}/azdocs-workbook.drawio`;
+    }
+    if (diagramType === "workbook" || diagramType === "vnets" || diagramType === "resource-groups") {
+      return `${root}/diagrams/${diagramType}/example.${extension}`;
+    }
+    return `${root}/azdocs-${diagramType}.${extension}`;
+  });
+}
+
+export async function exportSnapshot(
+  request: ExportRequest,
+  onUpdate: (event: ExportEvent) => void,
+): Promise<ExportResult> {
+  if (!isTauri) {
+    onUpdate({ event: "phase", data: { message: "Composing offline export preview" } });
+    await pause(720);
+    const outputs = mockExportOutputs(request);
+    onUpdate({ event: "complete", data: { outputCount: outputs.length } });
+    return { destination: request.destination, outputs };
+  }
+  const channel = new Channel<ExportEvent>();
+  channel.onmessage = onUpdate;
+  return invoke<ExportResult>("export_snapshot", { request, onEvent: channel });
 }

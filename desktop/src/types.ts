@@ -6,6 +6,7 @@ export type ViewId =
   | "findings"
   | "governance"
   | "history"
+  | "exports"
   | "settings";
 export type Severity = "high" | "medium" | "low" | "info";
 export type ThemePreference = "system" | "light" | "dark";
@@ -16,6 +17,8 @@ export interface AppBootstrap {
   configFound: boolean;
   hasCredentials: boolean;
   requiredTags: string[];
+  reportTheme: string;
+  reportThemes: string[];
   snapshots: SnapshotSummary[];
   latestSnapshotId?: string;
 }
@@ -246,3 +249,35 @@ export interface CollectResult {
   queriesFailed: number;
   rowsIngested: number;
 }
+
+export type ExportKind = "reports" | "diagrams";
+export type ReportExportFormat = "md" | "html" | "csv" | "xlsx" | "pdf" | "docx";
+export type DiagramExportType =
+  | "hierarchy"
+  | "resources"
+  | "network"
+  | "vnets"
+  | "resource-groups"
+  | "workbook";
+export type DiagramExportFormat = "drawio" | "mermaid" | "svg" | "png";
+
+export interface ExportRequest {
+  snapshotId: string;
+  destination: string;
+  exportKind: ExportKind;
+  formats: string[];
+  theme?: string;
+  diagramType?: DiagramExportType;
+  subscriptionId?: string;
+  resourceGroup?: string;
+}
+
+export interface ExportResult {
+  destination: string;
+  outputs: string[];
+}
+
+export type ExportEvent =
+  | { event: "phase"; data: { message: string } }
+  | { event: "complete"; data: { outputCount: number } }
+  | { event: "failed"; data: { message: string } };

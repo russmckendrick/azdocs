@@ -2,10 +2,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use azdocs::arg::ArgClient;
+use azdocs::cli::{DiagramArgs, DiagramFormat, DiagramType, ReportArgs, ReportFormat};
 use azdocs::collect::CollectRequest;
 use azdocs::config::{Config, default_config_path};
 use azdocs::querypack::{QueryKind, QueryPack};
 use azdocs::report::ReportContext;
+use azdocs::report::theme::ThemePack;
 use azdocs::store::Store;
 use tauri::State;
 use tauri::ipc::Channel;
@@ -13,7 +15,8 @@ use tauri::ipc::Channel;
 use crate::AppState;
 use crate::dto::{
     AppBootstrap, CollectRequestDto, CollectResultDto, CollectionEvent, EstateSnapshot,
-    QueryDefDto, QueryRowsDto, SnapshotComparison, SnapshotSummary,
+    ExportEvent, ExportRequestDto, ExportResultDto, QueryDefDto, QueryRowsDto, SnapshotComparison,
+    SnapshotSummary,
 };
 use crate::error::AppError;
 use crate::topology::{self, TopologyGraphDto, TopologyRequest};
@@ -46,6 +49,19 @@ fn bootstrap_for(path: &Path) -> Result<AppBootstrap, AppError> {
     let (config, source) =
         Config::load_with_source(None).map_err(|error| AppError::Config(error.to_string()))?;
     let has_credentials = config.credentials().is_ok();
+    let theme_pack = match ThemePack::load() {
+        Ok(pack) => pack,
+        Err(_) => ThemePack::builtin().map_err(|error| AppError::Config(error.to_string()))?,
+    };
+    let mut report_themes: Vec<String> = theme_pack
+        .names()
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
+    if !report_themes.contains(&config.branding.theme) {
+        report_themes.push(config.branding.theme.clone());
+        report_themes.sort();
+    }
     let config_path = source
         .clone()
         .unwrap_or_else(default_config_path)
@@ -58,6 +74,8 @@ fn bootstrap_for(path: &Path) -> Result<AppBootstrap, AppError> {
         config_found: source.is_some(),
         has_credentials,
         required_tags: config.audit.required_tags.clone(),
+        report_theme: config.branding.theme,
+        report_themes,
         snapshots,
         latest_snapshot_id,
     })
@@ -282,4 +300,285 @@ pub async fn collect_snapshot(
         });
     }
     result
+}
+
+fn report_format(value: &str) -> Result<ReportFormat, AppError> {
+    match value {
+        "md" => Ok(ReportFormat::Md),
+        "html" => Ok(ReportFormat::Html),
+        "csv" => Ok(ReportFormat::Csv),
+        "xlsx" => Ok(ReportFormat::Xlsx),
+        "pdf" => Ok(ReportFormat::Pdf),
+        "docx" => Ok(ReportFormat::Docx),
+        other => Err(AppError::Export(format!(
+            "unsupported report format `{other}`"
+        ))),
+    }
+}
+
+fn diagram_type(value: &str) -> Result<DiagramType, AppError> {
+    match value {
+        "hierarchy" => Ok(DiagramType::Hierarchy),
+        "resources" => Ok(DiagramType::Resources),
+        "network" => Ok(DiagramType::Network),
+        "vnets" => Ok(DiagramType::Vnets),
+        "resource-groups" => Ok(DiagramType::ResourceGroups),
+        "workbook" => Ok(DiagramType::Workbook),
+        other => Err(AppError::Export(format!(
+            "unsupported diagram type `{other}`"
+        ))),
+    }
+}
+
+fn diagram_format(value: &str) -> Result<DiagramFormat, AppError> {
+    match value {
+        "drawio" => Ok(DiagramFormat::Drawio),
+        "mermaid" => Ok(DiagramFormat::Mermaid),
+        "svg" => Ok(DiagramFormat::Svg),
+        "png" => Ok(DiagramFormat::Png),
+        other => Err(AppError::Export(format!(
+            "unsupported diagram format `{other}`"
+        ))),
+    }
+}
+
+fn diagram_type_slug(value: DiagramType) -> &'static str {
+    match value {
+        DiagramType::Hierarchy => "hierarchy",
+        DiagramType::Resources => "resources",
+        DiagramType::Network => "network",
+        DiagramType::Vnets => "vnets",
+        DiagramType::ResourceGroups => "resource-groups",
+        DiagramType::Workbook => "workbook",
+    }
+}
+
+fn diagram_format_extension(value: DiagramFormat) -> &'static str {
+    match value {
+        DiagramFormat::Drawio => "drawio",
+        DiagramFormat::Mermaid => "mmd",
+        DiagramFormat::Svg => "svg",
+        DiagramFormat::Png => "png",
+        DiagramFormat::Both | DiagramFormat::All => {
+            unreachable!("desktop expands multi-format diagram requests")
+        }
+    }
+}
+
+fn diagram_output_target(
+    destination: &Path,
+    diagram_type: DiagramType,
+    format: DiagramFormat,
+) -> PathBuf {
+    match diagram_type {
+        DiagramType::Vnets | DiagramType::ResourceGroups => destination
+            .join("diagrams")
+            .join(diagram_type_slug(diagram_type)),
+        DiagramType::Workbook if format != DiagramFormat::Drawio => {
+            destination.join("diagrams").join("workbook")
+        }
+        DiagramType::Workbook => destination.join("azdocs-workbook.drawio"),
+        _ => destination.join(format!(
+            "azdocs-{}.{}",
+            diagram_type_slug(diagram_type),
+            diagram_format_extension(format)
+        )),
+    }
+}
+
+fn export_reports(
+    request: ExportRequestDto,
+    destination: &Path,
+    store: &Store,
+    on_event: &Channel<ExportEvent>,
+) -> Result<Vec<PathBuf>, AppError> {
+    let mut formats = Vec::new();
+    for value in &request.formats {
+        let format = report_format(value)?;
+        if !formats.contains(&format) {
+            formats.push(format);
+        }
+    }
+    if formats.is_empty() {
+        return Err(AppError::Export(
+            "select at least one report format".to_owned(),
+        ));
+    }
+
+    let _ = on_event.send(ExportEvent::Phase {
+        message: format!("Composing {} report format(s)", formats.len()),
+    });
+    let (config, source) = Config::load_with_source(None)
+        .map_err(|error| AppError::Config(error.to_string()))?;
+    let config_dir = source.as_deref().and_then(Path::parent);
+    let args = ReportArgs {
+        snapshot: request.snapshot_id,
+        format: formats[0],
+        theme: request.theme,
+        out: Some(destination.to_path_buf()),
+    };
+    azdocs::commands::report::run_selected_with_outputs(
+        &config,
+        config_dir,
+        store,
+        &args,
+        &formats,
+    )
+    .map_err(|error| AppError::Export(error.to_string()))
+}
+
+fn export_diagrams(
+    request: ExportRequestDto,
+    destination: &Path,
+    store: &Store,
+    on_event: &Channel<ExportEvent>,
+) -> Result<Vec<PathBuf>, AppError> {
+    let kind = request
+        .diagram_type
+        .as_deref()
+        .ok_or_else(|| AppError::Export("select a diagram type".to_owned()))
+        .and_then(diagram_type)?;
+    let mut formats = Vec::new();
+    for value in &request.formats {
+        let format = diagram_format(value)?;
+        if !formats.contains(&format) {
+            formats.push(format);
+        }
+    }
+    if formats.is_empty() {
+        return Err(AppError::Export(
+            "select at least one diagram format".to_owned(),
+        ));
+    }
+    if kind == DiagramType::Workbook && formats.contains(&DiagramFormat::Mermaid) {
+        return Err(AppError::Export(
+            "the workbook cannot be exported as Mermaid because Mermaid has no sheet concept"
+                .to_owned(),
+        ));
+    }
+
+    let mut outputs = Vec::new();
+    for format in formats {
+        let _ = on_event.send(ExportEvent::Phase {
+            message: format!(
+                "Rendering {} as {}",
+                diagram_type_slug(kind),
+                diagram_format_extension(format)
+            ),
+        });
+        let args = DiagramArgs {
+            snapshot: request.snapshot_id.clone(),
+            diagram_type: kind,
+            format,
+            subscription: request.subscription_id.clone(),
+            resource_group: request.resource_group.clone(),
+            out: Some(diagram_output_target(destination, kind, format)),
+        };
+        outputs.extend(
+            azdocs::commands::diagram::run_with_outputs(store, &args)
+                .map_err(|error| AppError::Export(error.to_string()))?,
+        );
+    }
+    Ok(outputs)
+}
+
+#[tauri::command]
+pub async fn export_snapshot(
+    request: ExportRequestDto,
+    on_event: Channel<ExportEvent>,
+    state: State<'_, AppState>,
+) -> Result<ExportResultDto, AppError> {
+    let database = database_path(&state)?;
+    let failure_channel = on_event.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        let destination = PathBuf::from(&request.destination);
+        if request.destination.trim().is_empty() {
+            return Err(AppError::Export("choose an output directory".to_owned()));
+        }
+        if destination.exists() && !destination.is_dir() {
+            return Err(AppError::Export(format!(
+                "output destination is not a directory: {}",
+                destination.display()
+            )));
+        }
+        let store = Store::open(&database)?;
+        store.resolve_snapshot(&request.snapshot_id)?;
+        let export_kind = request.export_kind.clone();
+        let mut outputs = match export_kind.as_str() {
+            "reports" => export_reports(request, &destination, &store, &on_event)?,
+            "diagrams" => export_diagrams(request, &destination, &store, &on_event)?,
+            other => {
+                return Err(AppError::Export(format!(
+                    "unsupported export kind `{other}`"
+                )));
+            }
+        };
+        outputs.sort();
+        outputs.dedup();
+        let output_count = outputs.len();
+        let _ = on_event.send(ExportEvent::Complete { output_count });
+        Ok(ExportResultDto {
+            destination: destination.display().to_string(),
+            outputs: outputs
+                .into_iter()
+                .map(|path| path.display().to_string())
+                .collect(),
+        })
+    })
+    .await
+    .map_err(|error| AppError::Export(error.to_string()))?;
+
+    if let Err(error) = &result {
+        let _ = failure_channel.send(ExportEvent::Failed {
+            message: error.to_string(),
+        });
+    }
+    result
+}
+
+#[cfg(test)]
+mod export_tests {
+    use super::*;
+
+    #[test]
+    fn unit_single_diagram_targets_a_named_file_in_the_destination() {
+        let path = diagram_output_target(
+            Path::new("exports"),
+            DiagramType::Network,
+            DiagramFormat::Svg,
+        );
+
+        assert_eq!(path, Path::new("exports/azdocs-network.svg"));
+    }
+
+    #[test]
+    fn unit_fan_out_diagrams_target_their_own_directory() {
+        let path = diagram_output_target(
+            Path::new("exports"),
+            DiagramType::ResourceGroups,
+            DiagramFormat::Png,
+        );
+
+        assert_eq!(path, Path::new("exports/diagrams/resource-groups"));
+    }
+
+    #[test]
+    fn unit_workbook_targets_a_file_for_drawio_and_a_directory_for_rasters() {
+        assert_eq!(
+            diagram_output_target(
+                Path::new("exports"),
+                DiagramType::Workbook,
+                DiagramFormat::Drawio,
+            ),
+            Path::new("exports/azdocs-workbook.drawio")
+        );
+        assert_eq!(
+            diagram_output_target(
+                Path::new("exports"),
+                DiagramType::Workbook,
+                DiagramFormat::Svg,
+            ),
+            Path::new("exports/diagrams/workbook")
+        );
+    }
 }

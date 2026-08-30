@@ -14,6 +14,8 @@ pub struct AppBootstrap {
     pub config_found: bool,
     pub has_credentials: bool,
     pub required_tags: Vec<String>,
+    pub report_theme: String,
+    pub report_themes: Vec<String>,
     pub snapshots: Vec<SnapshotSummary>,
     pub latest_snapshot_id: Option<String>,
 }
@@ -562,5 +564,33 @@ pub struct CollectResultDto {
 pub enum CollectionEvent {
     Phase { message: String },
     Complete { snapshot_id: String },
+    Failed { message: String },
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ExportRequestDto {
+    pub snapshot_id: String,
+    pub destination: String,
+    pub export_kind: String,
+    pub formats: Vec<String>,
+    pub theme: Option<String>,
+    pub diagram_type: Option<String>,
+    pub subscription_id: Option<String>,
+    pub resource_group: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportResultDto {
+    pub destination: String,
+    pub outputs: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(tag = "event", content = "data", rename_all = "camelCase")]
+pub enum ExportEvent {
+    Phase { message: String },
+    Complete { output_count: usize },
     Failed { message: String },
 }

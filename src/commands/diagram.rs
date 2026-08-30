@@ -7,6 +7,14 @@ use crate::diagram::{DiagramScope, EstateGraph, drawio, mermaid, png, svg};
 use crate::store::Store;
 
 pub fn run(store: &Store, args: &DiagramArgs) -> anyhow::Result<()> {
+    run_with_outputs(store, args).map(|_| ())
+}
+
+/// Generate diagrams and return every file written by the request.
+///
+/// The CLI retains its existing progress output; the desktop app consumes the
+/// returned paths so fan-out exports can report their complete manifest.
+pub fn run_with_outputs(store: &Store, args: &DiagramArgs) -> anyhow::Result<Vec<PathBuf>> {
     let snapshot_id = store.resolve_snapshot(&args.snapshot)?;
     let scope = DiagramScope {
         subscription: args.subscription.clone(),
@@ -94,9 +102,14 @@ fn write_out(path: &PathBuf, content: &[u8]) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn single(args: &DiagramArgs, graph: &EstateGraph, type_name: &str) -> anyhow::Result<()> {
+fn single(
+    args: &DiagramArgs,
+    graph: &EstateGraph,
+    type_name: &str,
+) -> anyhow::Result<Vec<PathBuf>> {
     warn_if_large(type_name, graph);
     let formats = expand_formats(args.format);
+    let mut outputs = Vec::new();
     for format in &formats {
         let (extension, content) = render_one(graph, *format)?;
         let out = match (&args.out, formats.len()) {
@@ -106,14 +119,19 @@ fn single(args: &DiagramArgs, graph: &EstateGraph, type_name: &str) -> anyhow::R
         };
         write_out(&out, &content)?;
         println!("{type_name} diagram -> {}", out.display());
+        outputs.push(out);
     }
-    Ok(())
+    Ok(outputs)
 }
 
-fn fan_out(args: &DiagramArgs, graphs: &[NamedGraph], kind_dir: &str) -> anyhow::Result<()> {
+fn fan_out(
+    args: &DiagramArgs,
+    graphs: &[NamedGraph],
+    kind_dir: &str,
+) -> anyhow::Result<Vec<PathBuf>> {
     if graphs.is_empty() {
         println!("No {kind_dir} diagrams to write for this snapshot.");
-        return Ok(());
+        return Ok(Vec::new());
     }
     // Fan-out writes one file per graph, so --out names a directory here.
     let dir = args
@@ -121,6 +139,7 @@ fn fan_out(args: &DiagramArgs, graphs: &[NamedGraph], kind_dir: &str) -> anyhow:
         .clone()
         .unwrap_or_else(|| PathBuf::from("output").join("diagrams").join(kind_dir));
     let formats = expand_formats(args.format);
+    let mut outputs = Vec::new();
     for named in graphs {
         warn_if_large(&named.sheet_name, &named.graph);
         for format in &formats {
@@ -128,9 +147,10 @@ fn fan_out(args: &DiagramArgs, graphs: &[NamedGraph], kind_dir: &str) -> anyhow:
             let out = dir.join(format!("{}.{extension}", named.slug));
             write_out(&out, &content)?;
             println!("{} -> {}", named.sheet_name, out.display());
+            outputs.push(out);
         }
     }
-    Ok(())
+    Ok(outputs)
 }
 
 fn workbook(
@@ -138,7 +158,7 @@ fn workbook(
     snapshot_id: &str,
     scope: &DiagramScope,
     args: &DiagramArgs,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<Vec<PathBuf>> {
     let formats = match args.format {
         DiagramFormat::Mermaid | DiagramFormat::Both => anyhow::bail!(
             "the workbook is a multi-sheet draw.io file and Mermaid has no sheet concept — \
@@ -185,6 +205,7 @@ fn workbook(
         warn_if_large(name, graph);
     }
 
+    let mut outputs = Vec::new();
     for format in formats {
         match format {
             DiagramFormat::Drawio => {
@@ -200,6 +221,7 @@ fn workbook(
                     .collect();
                 write_out(&out, drawio::render_workbook(&named_sheets).as_bytes())?;
                 println!("workbook ({} sheets) -> {}", sheets.len(), out.display());
+                outputs.push(out);
             }
             DiagramFormat::Svg | DiagramFormat::Png => {
                 // Rasters cannot hold multiple sheets, so each sheet becomes
@@ -214,10 +236,11 @@ fn workbook(
                     let out = dir.join(format!("{slug}.{extension}"));
                     write_out(&out, &content)?;
                     println!("{name} -> {}", out.display());
+                    outputs.push(out);
                 }
             }
             _ => unreachable!("filtered above"),
         }
     }
-    Ok(())
+    Ok(outputs)
 }

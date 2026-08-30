@@ -13,14 +13,19 @@ pub fn run(
     store: &Store,
     args: &ReportArgs,
 ) -> anyhow::Result<()> {
-    let out_root = args.out.clone().unwrap_or_else(|| PathBuf::from("output"));
-    std::fs::create_dir_all(&out_root)?;
-    let snapshot_id = store.resolve_snapshot(&args.snapshot)?;
-    let context = ReportContext::build(store, &snapshot_id)?;
-    let branding = resolve_branding(&config.branding, config_dir, args.theme.as_deref())?;
-    let resources = store.resources(&snapshot_id)?;
-    let findings = store.findings(&snapshot_id)?;
+    run_with_outputs(config, config_dir, store, args).map(|_| ())
+}
 
+/// Generate a report and return the primary path for every written artifact.
+///
+/// The CLI keeps printing its established progress messages while the desktop
+/// boundary uses the returned paths to present a deterministic export receipt.
+pub fn run_with_outputs(
+    config: &Config,
+    config_dir: Option<&Path>,
+    store: &Store,
+    args: &ReportArgs,
+) -> anyhow::Result<Vec<PathBuf>> {
     let formats: &[ReportFormat] = match args.format {
         ReportFormat::All => &[
             ReportFormat::Md,
@@ -32,6 +37,32 @@ pub fn run(
         ],
         single => &[single],
     };
+    run_selected_with_outputs(config, config_dir, store, args, formats)
+}
+
+/// Generate a caller-selected set of report formats in one composition pass.
+/// Styled formats therefore share the expensive diagram build just as
+/// `--format all` does, without forcing callers to request every format.
+pub fn run_selected_with_outputs(
+    config: &Config,
+    config_dir: Option<&Path>,
+    store: &Store,
+    args: &ReportArgs,
+    formats: &[ReportFormat],
+) -> anyhow::Result<Vec<PathBuf>> {
+    if formats.is_empty() {
+        anyhow::bail!("select at least one report format");
+    }
+    if formats.contains(&ReportFormat::All) {
+        anyhow::bail!("callers must expand the `all` report format");
+    }
+    let out_root = args.out.clone().unwrap_or_else(|| PathBuf::from("output"));
+    std::fs::create_dir_all(&out_root)?;
+    let snapshot_id = store.resolve_snapshot(&args.snapshot)?;
+    let context = ReportContext::build(store, &snapshot_id)?;
+    let branding = resolve_branding(&config.branding, config_dir, args.theme.as_deref())?;
+    let resources = store.resources(&snapshot_id)?;
+    let findings = store.findings(&snapshot_id)?;
 
     // HTML (docs site), PDF and DOCX all embed the prerendered diagram assets;
     // build them once.
@@ -61,20 +92,26 @@ pub fn run(
         )?);
     }
 
+    let mut outputs = Vec::new();
     for format in formats {
         match format {
             ReportFormat::Md => {
                 let out_dir = out_root.join("docs");
                 report::markdown::write(&context, &out_dir)?;
-                println!("Markdown docs -> {}", out_dir.join("index.md").display());
+                let out = out_dir.join("index.md");
+                println!("Markdown docs -> {}", out.display());
+                outputs.push(out);
             }
             ReportFormat::Html => {
                 let out = out_root.join("report.html");
                 report::html::write(&context, &branding, &out)?;
                 println!("HTML report -> {}", out.display());
+                outputs.push(out);
                 let site_dir = out_root.join("docs-html");
                 report::site::write(&context, &branding, &diagrams, &site_dir)?;
-                println!("HTML docs -> {}", site_dir.join("index.html").display());
+                let site_index = site_dir.join("index.html");
+                println!("HTML docs -> {}", site_index.display());
+                outputs.push(site_index);
             }
             ReportFormat::Csv => {
                 let inventory = out_root.join("inventory.csv");
@@ -86,26 +123,31 @@ pub fn run(
                     inventory.display(),
                     findings_path.display()
                 );
+                outputs.push(inventory);
+                outputs.push(findings_path);
             }
             ReportFormat::Xlsx => {
                 let out = out_root.join("azdocs.xlsx");
                 report::xlsx::write(&context, &branding, &resources, &out)?;
                 println!("XLSX workbook -> {}", out.display());
+                outputs.push(out);
             }
             ReportFormat::Pdf => {
                 let out = out_root.join("report.pdf");
                 report::pdf::write(&context, &branding, &diagrams, &out)?;
                 println!("PDF report -> {}", out.display());
+                outputs.push(out);
             }
             ReportFormat::Docx => {
                 let out = out_root.join("report.docx");
                 report::docx::write(&context, &branding, &diagrams, &out)?;
                 println!("DOCX report -> {}", out.display());
+                outputs.push(out);
             }
             ReportFormat::All => unreachable!("expanded above"),
         }
     }
-    Ok(())
+    Ok(outputs)
 }
 
 fn resolve_branding(

@@ -42,6 +42,7 @@ pub fn run() {
             commands::collect_snapshot,
             commands::query_pack_metadata,
             commands::query_rows,
+            commands::export_snapshot,
         ])
         .run(tauri::generate_context!());
 

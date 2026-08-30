@@ -12,6 +12,8 @@ pub enum AppError {
     Config(String),
     #[error("collection error: {0}")]
     Collection(String),
+    #[error("export error: {0}")]
+    Export(String),
 }
 
 impl Serialize for AppError {
