@@ -697,13 +697,16 @@ fn group_graph(
         }
     }
 
-    // Which resources are connected to anything drawable?
+    // Which resources are connected to anything drawable? Cross-group edges
+    // count too: their other endpoint becomes an external stub below, so the
+    // in-group resource must stay in the connected core rather than sending a
+    // real connector down to the "unconnected" shelf.
     let mut link_touch: HashSet<&str> = HashSet::new();
     for edge in input.edges {
-        if member_ids.contains(edge.source_id.as_str())
-            && member_ids.contains(edge.target_id.as_str())
-        {
+        if member_ids.contains(edge.source_id.as_str()) {
             link_touch.insert(edge.source_id.as_str());
+        }
+        if member_ids.contains(edge.target_id.as_str()) {
             link_touch.insert(edge.target_id.as_str());
         }
     }
@@ -1466,6 +1469,45 @@ mod tests {
                 .iter()
                 .any(|link| link.source_id.ends_with("/pe-0") && link.target_id == stub.id),
             "the cross-group link is drawn to the stub"
+        );
+    }
+
+    #[test]
+    fn group_view_keeps_cross_group_only_endpoints_in_the_connected_core() {
+        let subs = vec![subscription("sub-a", "A")];
+        let groups = vec![group("sub-a", "rg-a"), group("sub-a", "rg-shared")];
+        let identity = resource(
+            "sub-a",
+            "rg-a",
+            "app-identity",
+            "microsoft.managedidentity/userassignedidentities",
+        );
+        let app = resource("sub-a", "rg-shared", "shared-app", "microsoft.web/sites");
+        let resources = vec![identity.clone(), app.clone()];
+        let edges = vec![edge(&app, &identity, EdgeKind::UsesIdentity)];
+        let findings = BTreeMap::new();
+        let request = TopologyRequest {
+            snapshot_id: None,
+            mode: TopologyMode::Group {
+                group_id: "/subscriptions/sub-a/resourcegroups/rg-a".to_owned(),
+            },
+            scope: TopologyScope::default(),
+        };
+
+        let graph = build(
+            &request,
+            &input(&subs, &groups, &resources, &edges, &findings),
+        );
+
+        let identity_node = graph
+            .nodes
+            .iter()
+            .find(|node| node.resource_id.as_deref() == Some(identity.id.as_str()))
+            .expect("the identity is represented as its own node");
+        assert_eq!(identity_node.zone.as_deref(), Some("core"));
+        assert!(
+            graph.links.iter().any(|link| link.target_id == identity.id),
+            "the cross-group connector terminates in the visible core"
         );
     }
 

@@ -230,10 +230,8 @@ function groupGraph(estate: EstateSnapshot, groupId: string): TopologyGraph {
 
   const touched = new Set<string>();
   for (const edge of estate.edges) {
-    if (memberIds.has(edge.sourceId) && memberIds.has(edge.targetId)) {
-      touched.add(edge.sourceId);
-      touched.add(edge.targetId);
-    }
+    if (memberIds.has(edge.sourceId)) touched.add(edge.sourceId);
+    if (memberIds.has(edge.targetId)) touched.add(edge.targetId);
   }
   const foldedHosts = new Map<string, string[]>();
   for (const [child, host] of foldedInto) {

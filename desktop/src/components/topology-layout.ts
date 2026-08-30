@@ -14,6 +14,7 @@ export interface TopologyLayoutPlan {
   positions: Map<string, Placement>;
   coreNodeIds: string[];
   secondaryNodeIds: string[];
+  entryNodeIds: string[];
 }
 
 export type TopologyCameraTarget = "core" | "selection" | "all";
@@ -65,7 +66,7 @@ export function cameraProfile(
 }
 
 export function cameraEntryZoom(level: TopologyGraph["level"], targetZoom: number) {
-  const multiplier = level === "estate" ? 1.12 : 0.8;
+  const multiplier = level === "estate" ? 0.88 : 0.8;
   return clamp(targetZoom * multiplier, 0.1, 2.2);
 }
 
@@ -77,6 +78,8 @@ export function cameraTargetIds(
 ) {
   if (mode === "selection" && selectedNodeId && allNodeIds.includes(selectedNodeId)) return [selectedNodeId];
   if (mode === "all") return [...allNodeIds];
+  const entry = plan.entryNodeIds.filter((id) => allNodeIds.includes(id));
+  if (entry.length > 0) return entry;
   const core = plan.coreNodeIds.filter((id) => allNodeIds.includes(id));
   return core.length > 0 ? core : [...allNodeIds];
 }
@@ -169,7 +172,12 @@ function layoutEstate(graph: TopologyGraph, viewport: GraphViewport): TopologyLa
   }
 
   if (coreNodeIds.length === 0) coreNodeIds.push(...secondaryNodeIds);
-  return { positions, coreNodeIds, secondaryNodeIds };
+  return {
+    positions,
+    coreNodeIds,
+    secondaryNodeIds,
+    entryNodeIds: [...coreNodeIds, ...secondaryNodeIds],
+  };
 }
 
 function childMap(graph: TopologyGraph) {
@@ -186,10 +194,11 @@ function positionExternalRail(
   positions: Map<string, Placement>,
   externalNodes: TopologyNode[],
 ) {
+  const anchors = withContainerAnchors(graph, positions);
   const desired = externalNodes.map((node) => {
     const neighbours = graph.links
       .filter((link) => link.sourceId === node.id || link.targetId === node.id)
-      .map((link) => positions.get(link.sourceId === node.id ? link.targetId : link.sourceId)?.y)
+      .map((link) => anchors.get(link.sourceId === node.id ? link.targetId : link.sourceId)?.y)
       .filter((value): value is number => value !== undefined);
     const y = neighbours.length > 0
       ? neighbours.reduce((total, value) => total + value, 0) / neighbours.length
@@ -205,12 +214,50 @@ function positionExternalRail(
   }
 }
 
+function withContainerAnchors(
+  graph: TopologyGraph,
+  positions: ReadonlyMap<string, Placement>,
+) {
+  const anchors = new Map(positions);
+  for (const kind of ["subnet", "vnet"] as const) {
+    for (const node of graph.nodes.filter((candidate) => candidate.kind === kind)) {
+      if (anchors.has(node.id)) continue;
+      const childPositions = graph.nodes
+        .filter((candidate) => candidate.parentId === node.id)
+        .map((candidate) => anchors.get(candidate.id))
+        .filter((position): position is Placement => position !== undefined);
+      if (childPositions.length === 0) continue;
+      anchors.set(node.id, {
+        x: childPositions.reduce((total, position) => total + position.x, 0) / childPositions.length,
+        y: childPositions.reduce((total, position) => total + position.y, 0) / childPositions.length,
+      });
+    }
+  }
+  return anchors;
+}
+
+function neighbourAverageY(
+  graph: TopologyGraph,
+  positions: ReadonlyMap<string, Placement>,
+  nodeId: string,
+) {
+  const neighbours = graph.links
+    .filter((link) => link.sourceId === nodeId || link.targetId === nodeId)
+    .map((link) => positions.get(link.sourceId === nodeId ? link.targetId : link.sourceId)?.y)
+    .filter((value): value is number => value !== undefined);
+  if (neighbours.length === 0) return Number.POSITIVE_INFINITY;
+  return neighbours.reduce((total, value) => total + value, 0) / neighbours.length;
+}
+
 function layoutGroup(graph: TopologyGraph, viewport: GraphViewport): TopologyLayoutPlan {
   const positions = new Map<string, Placement>();
   const children = childMap(graph);
   const coreNodeIds: string[] = [];
   const secondaryNodeIds: string[] = [];
   const coreWidth = Math.max(620, Math.min(1320, viewport.width - 144));
+  const hasFreeResources = graph.nodes.some(
+    (node) => node.kind === "resource" && !node.parentId && node.zone === "core",
+  );
 
   let vnetY = 0;
   let vnetColumnWidth = 0;
@@ -232,7 +279,15 @@ function layoutGroup(graph: TopologyGraph, viewport: GraphViewport): TopologyLay
         subnetY += 78;
         continue;
       }
-      const columns = columnCount(Math.min(coreWidth * 0.58, 720), GRAPH_SIZE.resourceWidth, 34, 3);
+      const columns = Math.min(
+        members.length,
+        columnCount(
+          Math.min(coreWidth * 0.58, 720),
+          GRAPH_SIZE.resourceWidth,
+          34,
+          hasFreeResources ? 2 : 3,
+        ),
+      );
       let rows = 1;
       for (const [index, member] of members.entries()) {
         const cell = gridPosition(members.length, columns, index, GRAPH_SIZE.resourceWidth, GRAPH_SIZE.resourceHeight, 34, 28);
@@ -255,14 +310,37 @@ function layoutGroup(graph: TopologyGraph, viewport: GraphViewport): TopologyLay
   if (vnets.length > 0 && vnetColumnWidth === 0) vnetColumnWidth = 440;
 
   const freeX = vnetColumnWidth > 0 ? vnetColumnWidth + 110 : 0;
+  const coreAnchors = withContainerAnchors(graph, positions);
   const free = graph.nodes
     .filter((node) => node.kind === "resource" && !node.parentId && node.zone === "core")
-    .sort((left, right) => stableCompare(left.name, right.name) || stableCompare(left.id, right.id));
+    .sort((left, right) => {
+      const vertical = neighbourAverageY(graph, coreAnchors, left.id)
+        - neighbourAverageY(graph, coreAnchors, right.id);
+      return Number.isNaN(vertical) || vertical === 0
+        ? stableCompare(left.name, right.name) || stableCompare(left.id, right.id)
+        : vertical;
+    });
   const freeWidth = Math.max(GRAPH_SIZE.resourceWidth, coreWidth - freeX);
-  const freeColumns = columnCount(freeWidth, GRAPH_SIZE.resourceWidth, 52, 4);
-  for (const [index, node] of free.entries()) {
-    const cell = gridPosition(free.length, freeColumns, index, GRAPH_SIZE.resourceWidth, GRAPH_SIZE.resourceHeight, 52, 52);
-    positions.set(node.id, { x: freeX + cell.x, y: cell.y });
+  const freeColumns = Math.min(free.length || 1, columnCount(freeWidth, GRAPH_SIZE.resourceWidth, 44, 3));
+  const columnBottoms = Array.from({ length: freeColumns }, () => Number.NEGATIVE_INFINITY);
+  for (const node of free) {
+    const desiredY = neighbourAverageY(graph, coreAnchors, node.id);
+    let column = 0;
+    let y = Number.POSITIVE_INFINITY;
+    for (let candidate = 0; candidate < freeColumns; candidate += 1) {
+      const nextY = Number.isFinite(desiredY)
+        ? Math.max(desiredY, columnBottoms[candidate] + 40)
+        : Math.max(0, columnBottoms[candidate] + 40);
+      if (nextY < y) {
+        column = candidate;
+        y = nextY;
+      }
+    }
+    positions.set(node.id, {
+      x: freeX + column * (GRAPH_SIZE.resourceWidth + 44),
+      y,
+    });
+    columnBottoms[column] = y + GRAPH_SIZE.resourceHeight;
     coreNodeIds.push(node.id);
   }
 
@@ -282,15 +360,18 @@ function layoutGroup(graph: TopologyGraph, viewport: GraphViewport): TopologyLay
   const shelf = graph.nodes
     .filter((node) => node.zone === "unconnected")
     .sort((left, right) => stableCompare(left.azureType ?? left.name, right.azureType ?? right.name) || stableCompare(left.id, right.id));
-  const shelfColumns = columnCount(coreWidth, GRAPH_SIZE.aggregateWidth, 34, 5);
+  const shelfColumns = Math.min(
+    shelf.length || 1,
+    columnCount(coreWidth, GRAPH_SIZE.aggregateWidth, 34, 5),
+  );
   for (const [index, node] of shelf.entries()) {
     const cell = gridPosition(shelf.length, shelfColumns, index, GRAPH_SIZE.aggregateWidth, GRAPH_SIZE.aggregateHeight, 34, 24);
-    positions.set(node.id, { x: cell.x, y: coreBottom + 116 + cell.y });
+    positions.set(node.id, { x: cell.x, y: coreBottom + 320 + cell.y });
     secondaryNodeIds.push(node.id);
   }
 
   if (coreNodeIds.length === 0) coreNodeIds.push(...secondaryNodeIds);
-  return { positions, coreNodeIds, secondaryNodeIds };
+  return { positions, coreNodeIds, secondaryNodeIds, entryNodeIds: [...coreNodeIds] };
 }
 
 function directSide(graph: TopologyGraph, subjectId: string, nodeId: string) {
@@ -325,7 +406,7 @@ function layoutNeighbourhood(graph: TopologyGraph, viewport: GraphViewport): Top
   const coreNodeIds: string[] = [];
   const secondaryNodeIds: string[] = [];
   const subject = graph.nodes.find((node) => node.hop === 0);
-  if (!subject) return { positions, coreNodeIds, secondaryNodeIds };
+  if (!subject) return { positions, coreNodeIds, secondaryNodeIds, entryNodeIds: [] };
   positions.set(subject.id, { x: 0, y: 0 });
   coreNodeIds.push(subject.id);
   const sides = neighbourhoodSides(graph, subject.id);
@@ -346,7 +427,7 @@ function layoutNeighbourhood(graph: TopologyGraph, viewport: GraphViewport): Top
       }
     }
   }
-  return { positions, coreNodeIds, secondaryNodeIds };
+  return { positions, coreNodeIds, secondaryNodeIds, entryNodeIds: [...coreNodeIds] };
 }
 
 export type SpatialDirection = "ArrowLeft" | "ArrowRight" | "ArrowUp" | "ArrowDown";

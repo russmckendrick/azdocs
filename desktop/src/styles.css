@@ -2889,20 +2889,45 @@ button.stat-cell.active {
   position: absolute;
   inset: 0;
   cursor: grab;
+  background: var(--surface);
 }
 .graph-aurora {
-  display: none;
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 44%, color-mix(in srgb, var(--evidence) 82%, transparent) 0, transparent 64%),
+    linear-gradient(color-mix(in srgb, var(--line) 48%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--line) 48%, transparent) 1px, transparent 1px);
+  background-size: auto, 48px 48px, 48px 48px;
+  mask-image: radial-gradient(ellipse 88% 82% at 50% 48%, #000 18%, transparent 82%);
 }
 .cytoscape-surface {
   position: absolute;
+  z-index: 1;
   inset: 0;
 }
+.graph-region-label-layer,
+.graph-relationship-label-layer,
 .graph-label-layer {
   position: absolute;
   inset: 0;
   pointer-events: none;
   overflow: hidden;
 }
+.graph-region-label-layer {
+  z-index: 2;
+}
+.graph-relationship-label-layer {
+  z-index: 3;
+}
+.graph-label-layer {
+  z-index: 4;
+}
+.graph-region-label-layer > *,
+.graph-relationship-label-layer > *,
 .graph-label-layer > * {
   position: absolute;
   top: 0;
@@ -2910,6 +2935,59 @@ button.stat-cell.active {
   transform-origin: top left;
   pointer-events: auto;
   will-change: transform;
+}
+.graph-region-label-layer > *,
+.graph-relationship-label-layer > * {
+  pointer-events: none;
+}
+.graph-region-label-layer > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 6px;
+  border-left: 2px solid var(--line-strong);
+  color: var(--faint);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.graph-region-label-layer small {
+  min-width: 17px;
+  padding: 2px 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0;
+  text-align: center;
+}
+.graph-relationship-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 190px;
+  padding: 4px 7px;
+  border: 1px solid var(--graph-label-border);
+  border-radius: 3px;
+  color: var(--graph-label-text);
+  background: var(--graph-label-bg);
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.graph-relationship-label i {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 2px;
+  border-radius: 2px;
 }
 
 .graph-container-label {
@@ -3070,6 +3148,27 @@ button.stat-cell.active {
 .graph-node-label.dimmed {
   opacity: 0.6;
 }
+.graph-node-label,
+.graph-resource-group-label,
+.graph-aggregate-cluster,
+.graph-lane-bar-label,
+.graph-vnet-label {
+  transition: opacity 140ms ease-out, background-color 140ms ease-out;
+}
+.graph-node-label.trace-muted,
+.graph-resource-group-label.trace-muted,
+.graph-aggregate-cluster.trace-muted,
+.graph-lane-bar-label.trace-muted,
+.graph-vnet-label.trace-muted {
+  opacity: 0.3;
+}
+.graph-node-label.trace-source,
+.graph-resource-group-label.trace-source,
+.graph-aggregate-cluster.trace-source,
+.graph-lane-bar-label.trace-source,
+.graph-vnet-label.trace-source {
+  background: color-mix(in srgb, var(--evidence) 68%, transparent);
+}
 
 .graph-lane-bar-label {
   display: flex;
@@ -3089,6 +3188,28 @@ button.stat-cell.active {
   font-weight: 600;
   color: var(--accent);
   margin-left: auto;
+}
+.graph-route-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1;
+}
+.graph-route-count svg {
+  stroke-width: 1.8;
+}
+.graph-kind-marks {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.graph-kind-marks i {
+  width: 11px;
+  height: 2px;
+  border-radius: 2px;
 }
 
 .graph-resource-group-label {
@@ -3135,9 +3256,24 @@ button.stat-cell.active {
 }
 .graph-group-types {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  min-height: 22px;
+}
+.graph-group-type-icons {
+  display: inline-flex;
+  align-items: center;
+}
+.graph-group-type-icons img {
+  width: 18px;
+  height: 18px;
+  margin-left: -3px;
+}
+.graph-group-type-icons img:first-child {
+  margin-left: 0;
 }
 .graph-group-open {
+  margin-left: auto;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -4039,6 +4175,17 @@ span.graph-container-label {
   padding: 0;
   overflow: hidden;
 }
+.graph-node-actions.selected {
+  width: 212px;
+  min-height: 84px;
+}
+.graph-node-actions.selected .graph-node-icon img {
+  width: 28px;
+  height: 28px;
+}
+.graph-node-actions.selected .graph-node-copy strong {
+  font-size: 13.5px;
+}
 .graph-node-primary {
   min-width: 0;
   flex: 1;
@@ -4103,6 +4250,8 @@ span.graph-container-label {
 .graph-zoom-overview .graph-aggregate-label {
   justify-content: center;
   width: 54px;
+  height: auto;
+  min-height: 0;
   gap: 4px;
   padding: 5px;
 }
@@ -4118,6 +4267,11 @@ span.graph-container-label {
   width: 64px;
   height: 60px;
   padding: 6px;
+}
+.graph-zoom-overview .graph-kind-marks,
+.graph-zoom-overview .graph-route-count,
+.graph-zoom-overview .graph-group-type-icons {
+  display: none;
 }
 .graph-zoom-overview .graph-group-copy strong {
   max-width: 1px;
@@ -4260,5 +4414,28 @@ span.graph-container-label {
   .graph-node-label.selected,
   .graph-aggregate-label.selected {
     outline: 2px solid CanvasText;
+  }
+  .graph-relationship-label,
+  .graph-region-label-layer > span {
+    border-color: CanvasText;
+    color: CanvasText;
+    background: Canvas;
+  }
+  .graph-node-label.trace-muted,
+  .graph-resource-group-label.trace-muted,
+  .graph-aggregate-cluster.trace-muted,
+  .graph-lane-bar-label.trace-muted,
+  .graph-vnet-label.trace-muted {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .graph-node-label,
+  .graph-resource-group-label,
+  .graph-aggregate-cluster,
+  .graph-lane-bar-label,
+  .graph-vnet-label {
+    transition: none;
   }
 }

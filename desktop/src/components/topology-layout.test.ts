@@ -67,6 +67,7 @@ describe.each([1440, 1060, 800])("topology layout at %ipx", (width) => {
     expect(entries(first)).toEqual(entries(second));
     expect(first.coreNodeIds).toContain("lane:sub-a");
     expect(first.secondaryNodeIds).toEqual(["sub-b"]);
+    expect(first.entryNodeIds).toEqual(expect.arrayContaining(["lane:sub-a", "sub-b"]));
     const cards = ["g-a", "g-b", "g-c", "g-d"].map((id) => first.positions.get(id));
     for (let left = 0; left < cards.length; left += 1) {
       for (let right = left + 1; right < cards.length; right += 1) {
@@ -102,10 +103,48 @@ describe.each([1440, 1060, 800])("topology layout at %ipx", (width) => {
     expect(external?.y).toBe(core?.y);
     expect(isolated?.y).toBeGreaterThan(
       Math.max(...["core-a", "core-b", "external"].map((id) => plan.positions.get(id)?.y ?? 0))
-        + GRAPH_SIZE.resourceHeight,
+        + GRAPH_SIZE.resourceHeight + 200,
     );
     expect(plan.coreNodeIds).toEqual(expect.arrayContaining(["core-a", "core-b", "external"]));
     expect(plan.secondaryNodeIds).toEqual(["isolated"]);
+    expect(plan.entryNodeIds).not.toContain("isolated");
+  });
+
+  it("keeps the network core compact when connected services need a side rail", () => {
+    const groupView = graph("group", [
+      node("vnet", "vnet"),
+      node("subnet", "subnet", { parentId: "vnet" }),
+      node("member-a", "resource", { parentId: "subnet", zone: "core" }),
+      node("member-b", "resource", { parentId: "subnet", zone: "core" }),
+      node("member-c", "resource", { parentId: "subnet", zone: "core" }),
+      node("service-a", "resource", { zone: "core" }),
+      node("service-b", "resource", { zone: "core" }),
+    ]);
+    const plan = layoutTopology(groupView, { width, height: 760 });
+
+    expect(plan.positions.get("member-c")?.x).toBe(plan.positions.get("member-a")?.x);
+    expect(plan.positions.get("member-c")?.y).toBeGreaterThan(plan.positions.get("member-a")?.y ?? 0);
+    expect(plan.positions.get("service-a")?.x).toBeGreaterThan(plan.positions.get("member-b")?.x ?? 0);
+  });
+
+  it("aligns service and external rails with their connected network neighbours", () => {
+    const groupView = graph("group", [
+      node("vnet", "vnet"),
+      node("subnet", "subnet", { parentId: "vnet" }),
+      node("member", "resource", { parentId: "subnet", zone: "core" }),
+      node("service", "resource", { zone: "core" }),
+      node("external", "external", { zone: "external" }),
+    ], {
+      links: [
+        { sourceId: "member", targetId: "service", label: "monitors", kindClass: "monitoring", count: 1 },
+        { sourceId: "external", targetId: "vnet", label: "peered with", kindClass: "network", count: 1 },
+      ],
+    });
+    const plan = layoutTopology(groupView, { width, height: 760 });
+    const memberY = plan.positions.get("member")?.y;
+
+    expect(plan.positions.get("service")?.y).toBe(memberY);
+    expect(plan.positions.get("external")?.y).toBe(memberY);
   });
 
   it("centres a neighbourhood subject with inbound left, outbound right, and second hops outside", () => {
@@ -129,6 +168,7 @@ describe.each([1440, 1060, 800])("topology layout at %ipx", (width) => {
     expect(plan.positions.get("second")?.x).toBeGreaterThan(plan.positions.get("outbound")?.x ?? 0);
     expect(plan.coreNodeIds).toEqual(expect.arrayContaining(["subject", "inbound", "outbound"]));
     expect(plan.secondaryNodeIds).toEqual(["second"]);
+    expect(plan.entryNodeIds).not.toContain("second");
   });
 });
 
@@ -157,6 +197,7 @@ describe("camera targets", () => {
     positions: new Map(),
     coreNodeIds: ["core-a", "core-b"],
     secondaryNodeIds: ["shelf"],
+    entryNodeIds: ["core-a", "core-b"],
   };
 
   it("distinguishes readable core, explicit selection, and Fit all", () => {
@@ -186,10 +227,10 @@ describe.each([1440, 1060, 800])("camera motion at %ipx", (width) => {
     expect(group.minZoom).toBeLessThanOrEqual(group.maxZoom);
   });
 
-  it("keeps Fit all an overview and uses opposite entry motion for parent and child scopes", () => {
+  it("keeps Fit all an overview and begins every scope outside its final frame", () => {
     const fitAll = cameraProfile("group", "all", 14, viewport);
     expect(fitAll.maxZoom).toBe(1);
-    expect(cameraEntryZoom("estate", 1)).toBeGreaterThan(1);
+    expect(cameraEntryZoom("estate", 1)).toBeLessThan(1);
     expect(cameraEntryZoom("group", 1)).toBeLessThan(1);
     expect(cameraEntryZoom("neighbourhood", 1)).toBeLessThan(1);
   });

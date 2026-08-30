@@ -139,7 +139,11 @@ title block and graph controls form a joined icon ribbon with visible tooltips
 and accessible names. Fit all leads the ribbon, followed by zoom, selected-path
 motion, lane reset, and interaction help. The
 initial camera shows a readable connected core rather than indiscriminately
-fitting every secondary region. Fit all is always available. Camera bounds
+fitting every secondary region. Estate entry also includes collapsed
+subscription orientation bars; group entry includes connected resources and
+external context but excludes the unconnected shelf; neighbourhood entry
+includes the subject and its one-hop peers. Each scope settles inward from a
+slightly wider opening frame. Fit all is always available. Camera bounds
 adapt to graph level, target density, and viewport size so sparse maps use the
 canvas instead of remaining artificially capped below 1:1. Group and resource
 drill actions use Cytoscape's native viewport animation for spatial continuity;
@@ -150,9 +154,22 @@ Group layouts prioritise contained and connected resources, place external
 neighbours on boundary rails, and keep resources without drawn relationships
 in a lower secondary region. Neighbourhood layouts centre the selected resource
 with inbound relationships left, outbound right, and second hops in stable
-outer columns. Semantic zoom removes secondary copy before primary labels and
-finally uses icon/count overview tiles; it never scales text below 11px. Edge
-labels belong only to the selected path.
+outer columns. The group field labels its external context, connected-service
+rail, and unconnected shelf, while connection-aware ordering keeps related
+services aligned with the network core. Semantic zoom removes secondary copy
+before primary labels and finally uses icon/count overview tiles; it never
+scales text below 11px.
+
+Pointer hover, keyboard focus, and the selected neighbourhood subject trace an
+incident route in that priority order. Active connectors use deterministic
+orthogonal channels and boundary anchor slots; unrelated graph content recedes
+without disappearing. Relationship text belongs to the active trace and is a
+DOM overlay above every connector rather than Cytoscape edge paint. Opaque
+token-backed plates sit beside the remote endpoint, use stable slots when
+several links share it, and resynchronise through pan, zoom, drag, resize, and
+camera animation. The independently announced route summary remains available
+to assistive technology. Hidden windows, the pause control, and reduced-motion
+preferences stop connector motion.
 
 One click and Enter share the same primary activation model: a group opens its
 group map and a resource opens its resource record. A separate, visible

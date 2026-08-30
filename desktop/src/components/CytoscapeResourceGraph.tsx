@@ -14,6 +14,16 @@ import {
   type SpatialDirection,
   type TopologyLayoutPlan,
 } from "./topology-layout";
+import {
+  activeRelationshipLabels,
+  buildLinkPresentations,
+  connectorGeometries,
+  placeRelationshipLabel,
+  resolveTraceNode,
+  type ActiveRelationshipLabel,
+  type LabelRect,
+  type LinkPresentation,
+} from "./topology-presentation";
 
 export type GraphMode = "neighbourhood" | "estate";
 
@@ -70,9 +80,6 @@ interface GraphPalette {
   frameBorder: string;
   focusFill: string;
   focusBorder: string;
-  labelText: string;
-  labelBg: string;
-  labelBorder: string;
 }
 
 function readGraphPalette(): GraphPalette {
@@ -82,9 +89,6 @@ function readGraphPalette(): GraphPalette {
     frameBorder: cssToken("--graph-frame-border", "#9aa2ac"),
     focusFill: cssToken("--graph-focus-fill", "#f3efe7"),
     focusBorder: cssToken("--graph-focus-border", "#0b5da8"),
-    labelText: cssToken("--graph-label-text", "#5a6470"),
-    labelBg: cssToken("--graph-label-bg", "#faf8f4"),
-    labelBorder: cssToken("--graph-label-border", "#d8d2c6"),
   };
 }
 
@@ -106,6 +110,7 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
         "underlay-opacity": 0,
         label: "",
         "z-index": 8,
+        "z-index-compare": "manual",
       },
     },
     {
@@ -123,6 +128,7 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
         "overlay-opacity": 0,
         label: "",
         "z-index": 8,
+        "z-index-compare": "manual",
       },
     },
     {
@@ -141,6 +147,7 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
         "overlay-opacity": 0,
         label: "",
         "z-index": 8,
+        "z-index-compare": "manual",
       },
     },
     {
@@ -159,6 +166,7 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
         "overlay-opacity": 0,
         label: "",
         "z-index": 6,
+        "z-index-compare": "manual",
       },
     },
     {
@@ -177,6 +185,7 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
         "overlay-opacity": 0,
         label: "",
         "z-index": 8,
+        "z-index-compare": "manual",
       },
     },
     {
@@ -193,6 +202,7 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
         "overlay-opacity": 0,
         label: "",
         "z-index": 1,
+        "z-index-compare": "manual",
         // Room for the DOM header label above the children.
         "padding-top": "52px",
         "padding-left": "22px",
@@ -223,11 +233,19 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
         "border-opacity": 0.6,
         label: "",
         "z-index": 4,
+        "z-index-compare": "manual",
       },
     },
     {
       selector: "node.hop-dim",
       style: { "background-opacity": 0.55, "border-opacity": 0.55 },
+    },
+    {
+      selector: "node.resource-node.selected",
+      style: {
+        width: 220,
+        height: 92,
+      },
     },
     {
       selector: "node.selected",
@@ -249,48 +267,64 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
       style: { "border-width": 2, "border-color": palette.focusBorder },
     },
     {
-      selector: "edge.relationship-edge",
+      selector: "node.trace-source, node.trace-peer",
       style: {
-        width: "mapData(weight, 1, 20, 1.35, 3.4)",
-        "curve-style": "round-taxi",
-        "taxi-direction": "horizontal",
-        "taxi-turn": "50%",
-        "taxi-turn-min-distance": "28px",
-        "taxi-radius": 9,
-        "edge-distances": "intersection",
-        "line-color": "data(color)",
-        "line-opacity": 0.75,
-        "line-cap": "round",
-        "target-arrow-shape": "triangle",
-        "target-arrow-color": "data(color)",
-        "arrow-scale": 0.72,
-        "source-distance-from-node": "5px",
-        "target-distance-from-node": "7px",
-        "overlay-opacity": 0,
-        events: "no",
-        "z-index": 2,
+        "background-opacity": 1,
+        "border-opacity": 1,
       },
     },
     {
-      selector: "edge.relationship-edge.related",
+      selector: "node.trace-muted",
       style: {
-        width: 2,
+        "background-opacity": 0.34,
+        "border-opacity": 0.34,
+      },
+    },
+    {
+      selector: "edge.relationship-edge",
+      style: {
+        width: "mapData(weight, 1, 20, 1.2, 3)",
+        "curve-style": "round-taxi",
+        "taxi-direction": "horizontal",
+        "taxi-turn": "data(taxiTurn)",
+        "taxi-turn-min-distance": "28px",
+        "taxi-radius": 9,
+        "source-endpoint": "outside-to-node",
+        "target-endpoint": "outside-to-node",
+        "edge-distances": "intersection",
+        "line-color": "data(color)",
+        "line-opacity": 0.48,
+        "line-cap": "round",
+        "target-arrow-shape": "triangle",
+        "target-arrow-color": "data(color)",
+        "arrow-scale": 0.66,
+        "source-distance-from-node": "5px",
+        "target-distance-from-node": "7px",
+        "overlay-opacity": 0,
+        "underlay-opacity": 0,
+        events: "no",
+        "z-index": 2,
+        "z-index-compare": "manual",
+      },
+    },
+    {
+      selector: "edge.relationship-edge.trace-muted",
+      style: {
+        "line-opacity": 0.13,
+        "target-arrow-shape": "none",
+      },
+    },
+    {
+      selector: "edge.relationship-edge.trace-active",
+      style: {
+        width: "mapData(weight, 1, 20, 2.1, 4.6)",
         "line-opacity": 1,
         "line-style": "dashed",
         "line-dash-pattern": [7, 5],
-        label: "data(label)",
-        color: palette.labelText,
-        "font-family": "Plex Mono, monospace",
-        "font-size": 12.5,
-        "font-weight": 600,
-        "text-transform": "uppercase",
-        "text-background-color": palette.labelBg,
-        "text-background-opacity": 0.95,
-        "text-background-padding": "4px",
-        "text-background-shape": "roundrectangle",
-        "text-border-color": palette.labelBorder,
-        "text-border-opacity": 0.8,
-        "text-border-width": 1,
+        "underlay-color": "data(color)",
+        "underlay-opacity": 0.14,
+        "underlay-padding": "5px",
+        "z-index": 7,
       },
     },
   ];
@@ -312,7 +346,11 @@ function nodeClasses(node: TopologyNode, selectedNodeId?: string) {
   return classes.join(" ");
 }
 
-function graphElements(graph: TopologyGraph, selectedNodeId?: string): ElementDefinition[] {
+function graphElements(
+  graph: TopologyGraph,
+  presentations: readonly LinkPresentation[],
+  selectedNodeId?: string,
+): ElementDefinition[] {
   const childCount = new Map<string, number>();
   for (const node of graph.nodes) {
     if (node.parentId) childCount.set(node.parentId, (childCount.get(node.parentId) ?? 0) + 1);
@@ -354,23 +392,18 @@ function graphElements(graph: TopologyGraph, selectedNodeId?: string): ElementDe
     });
   }
   graph.links.forEach((link, index) => {
-    const related = Boolean(selectedNodeId && (link.sourceId === selectedNodeId || link.targetId === selectedNodeId));
+    const presentation = presentations[index];
     elements.push({
       group: "edges",
       data: {
-        id: `relationship-${index}`,
+        id: presentation.edgeId,
         source: link.sourceId,
         target: link.targetId,
-        label: link.count > 1 && graph.level === "estate" ? `${link.count} links` : link.label,
         weight: link.count,
         color: kindClassColor(link.kindClass),
+        taxiTurn: presentation.taxiTurn,
       },
-      classes: [
-        "relationship-edge",
-        related ? "related" : "",
-      ]
-        .filter(Boolean)
-        .join(" "),
+      classes: "relationship-edge",
     });
   });
   return elements;
@@ -389,6 +422,8 @@ export function CytoscapeResourceGraph({
   const hostRef = useRef<HTMLDivElement>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
   const labelRefs = useRef(new Map<string, HTMLElement>());
+  const relationshipLabelRefs = useRef(new Map<string, HTMLElement>());
+  const regionLabelRefs = useRef(new Map<string, HTMLElement>());
   const cyRef = useRef<Core | undefined>(undefined);
   const activateRef = useRef(onActivate);
   const motionRef = useRef(motionEnabled);
@@ -397,11 +432,14 @@ export function CytoscapeResourceGraph({
   const layoutPlanRef = useRef<TopologyLayoutPlan | undefined>(undefined);
   const cameraApiRef = useRef<((mode: GraphCameraMode, animate: boolean) => void) | undefined>(undefined);
   const activationApiRef = useRef<((activation: GraphActivation, nodeId?: string) => void) | undefined>(undefined);
+  const traceApiRef = useRef<((nodeId?: string) => void) | undefined>(undefined);
   const labelSyncRef = useRef<(() => void) | undefined>(undefined);
   const motionSchedulerRef = useRef<(() => void) | undefined>(undefined);
   const [rendererError, setRendererError] = useState<string>();
   const [rendererRetryNonce, setRendererRetryNonce] = useState(0);
   const [keyboardNodeId, setKeyboardNodeId] = useState<string>();
+  const [pointerTraceNodeId, setPointerTraceNodeId] = useState<string>();
+  const [focusedTraceNodeId, setFocusedTraceNodeId] = useState<string>();
   const typeMap = useMemo(
     () => new Map(estate.resourceTypes.map((type) => [type.azureType, type])),
     [estate.resourceTypes],
@@ -410,30 +448,87 @@ export function CytoscapeResourceGraph({
     () => new Map(estate.resources.map((resource) => [resource.id, resource])),
     [estate.resources],
   );
+  const linkPresentations = useMemo(() => buildLinkPresentations(graph), [graph]);
+  const activeTraceNodeId = resolveTraceNode(focusedTraceNodeId, pointerTraceNodeId, selectedNodeId);
+  const activeTraceNodeRef = useRef(activeTraceNodeId);
+  const activeLabels = useMemo(
+    () => activeRelationshipLabels(linkPresentations, activeTraceNodeId),
+    [activeTraceNodeId, linkPresentations],
+  );
+  const activePeerIds = useMemo(
+    () => new Set(activeLabels.map((label) => label.endpointId)),
+    [activeLabels],
+  );
+  const connectionMeta = useMemo(() => {
+    const result = new Map<string, { connectors: number; relationships: number; kinds: Set<string> }>();
+    for (const link of graph.links) {
+      for (const id of new Set([link.sourceId, link.targetId])) {
+        const current = result.get(id) ?? { connectors: 0, relationships: 0, kinds: new Set<string>() };
+        current.connectors += 1;
+        current.relationships += link.count;
+        current.kinds.add(link.kindClass);
+        result.set(id, current);
+      }
+    }
+    return result;
+  }, [graph.links]);
+  const graphRegions = useMemo(() => {
+    if (graph.level !== "group") return [];
+    const candidates = [
+      {
+        id: "external",
+        label: "External context",
+        nodes: graph.nodes.filter((node) => node.zone === "external"),
+      },
+      {
+        id: "services",
+        label: "Connected services",
+        nodes: graph.nodes.filter(
+          (node) => node.kind === "resource" && !node.parentId && node.zone === "core",
+        ),
+      },
+      {
+        id: "unconnected",
+        label: "Unconnected shelf",
+        nodes: graph.nodes.filter((node) => node.zone === "unconnected"),
+      },
+    ];
+    return candidates
+      .filter((region) => region.nodes.length > 0)
+      .map((region) => ({
+        id: region.id,
+        label: region.label,
+        count: region.nodes.reduce((total, node) => total + node.count, 0),
+        nodeIds: region.nodes.map((node) => node.id),
+      }));
+  }, [graph]);
   const graphStructureKey = useMemo(
     () =>
       [
         graph.level,
-        graph.nodes.map((node) => `${node.id}~${node.parentId ?? ""}~${node.kind}`).join("|"),
-        graph.links.map((link) => `${link.sourceId}~${link.targetId}~${link.kindClass}~${link.count}`).join("|"),
+        graph.nodes.map((node) => `${node.id}~${node.parentId ?? ""}~${node.kind}~${node.zone ?? ""}~${node.hop ?? ""}`).join("|"),
+        graph.links.map((link) => `${link.sourceId}~${link.targetId}~${link.kindClass}~${link.label}~${link.count}`).join("|"),
         graph.lanes.map((lane) => `${lane.subscriptionId}~${lane.expanded}`).join("|"),
       ].join("\n"),
     [graph],
   );
+  const announcedTraceNodeId = focusedTraceNodeId ?? selectedNodeId;
   const selectedSummary = useMemo(() => {
-    if (!selectedNodeId) return "No graph item selected.";
-    const selected = graph.nodes.find((node) => node.id === selectedNodeId);
+    if (!announcedTraceNodeId) return "No graph item selected.";
+    const selected = graph.nodes.find((node) => node.id === announcedTraceNodeId);
     if (!selected) return "The selected item is outside the current graph scope.";
-    const links = graph.links.filter((link) => link.sourceId === selectedNodeId || link.targetId === selectedNodeId);
+    const links = graph.links.filter(
+      (link) => link.sourceId === announcedTraceNodeId || link.targetId === announcedTraceNodeId,
+    );
     if (links.length === 0) return `${selected.name}. No drawn connectors in this scope.`;
     const names = new Map(graph.nodes.map((node) => [node.id, node.name]));
     const descriptions = links.map((link) => {
-      const outbound = link.sourceId === selectedNodeId;
+      const outbound = link.sourceId === announcedTraceNodeId;
       const other = names.get(outbound ? link.targetId : link.sourceId) ?? "another represented item";
       return `${outbound ? "outbound" : "inbound"} ${link.label} ${outbound ? "to" : "from"} ${other}`;
     });
     return `${selected.name}. ${links.length} connector${links.length === 1 ? "" : "s"}: ${descriptions.join("; ")}.`;
-  }, [graph.links, graph.nodes, selectedNodeId]);
+  }, [announcedTraceNodeId, graph.links, graph.nodes]);
 
   useEffect(() => {
     activateRef.current = onActivate;
@@ -451,16 +546,22 @@ export function CytoscapeResourceGraph({
     cy.batch(() => {
       cy.nodes().removeClass("selected");
       if (selectedNodeId) cy.getElementById(selectedNodeId).addClass("selected");
-      cy.edges(".relationship-edge").forEach((edge) => {
-        const related = Boolean(
-          selectedNodeId && (edge.source().id() === selectedNodeId || edge.target().id() === selectedNodeId),
-        );
-        edge.toggleClass("related", related);
-      });
     });
     if (selectedNodeId) setKeyboardNodeId(selectedNodeId);
     labelSyncRef.current?.();
   }, [selectedNodeId]);
+
+  useEffect(() => {
+    activeTraceNodeRef.current = activeTraceNodeId;
+    traceApiRef.current?.(activeTraceNodeId);
+    labelSyncRef.current?.();
+  }, [activeLabels, activeTraceNodeId]);
+
+  useEffect(() => {
+    const ids = new Set(graph.nodes.map((node) => node.id));
+    setPointerTraceNodeId((current) => current && ids.has(current) ? current : undefined);
+    setFocusedTraceNodeId((current) => current && ids.has(current) ? current : undefined);
+  }, [graph.nodes]);
 
   useEffect(() => {
     if (camera.mode !== "zoom-in" && camera.mode !== "zoom-out") cameraRef.current = camera;
@@ -485,7 +586,7 @@ export function CytoscapeResourceGraph({
     try {
       cy = cytoscape({
         container: surface,
-        elements: graphElements(graph, selectedNodeRef.current),
+        elements: graphElements(graph, linkPresentations, selectedNodeRef.current),
         style: graphStyles(readGraphPalette()),
         layout: { name: "preset" },
         minZoom: 0.1,
@@ -530,8 +631,52 @@ export function CytoscapeResourceGraph({
           label.style.transform = `translate3d(${point.x}px, ${point.y}px, 0) scale(${labelScale}) translate(-50%, -50%)`;
         }
       }
-      const edgeFontSize = Math.max(12.5, 11 / Math.max(zoom, 0.1));
-      cy.edges(".relationship-edge.related").style("font-size", edgeFontSize);
+      const traceNodeId = activeTraceNodeRef.current;
+      const traceNode = traceNodeId ? cy.getElementById(traceNodeId) : cy.collection();
+      const nodeObstacles = cy.nodes()
+        .filter((node) => ["resource", "resource-group", "aggregate", "external", "subscription"]
+          .includes(node.data("kind")))
+        .map((node) => ({
+          id: node.id(),
+          rect: node.renderedBoundingBox({ includeLabels: false, includeOverlays: false }),
+        }));
+      const placedLabelRects: LabelRect[] = [];
+      for (const [, label] of relationshipLabelRefs.current) {
+        const endpointId = label.dataset.endpointId;
+        if (!endpointId || traceNode.empty()) continue;
+        const endpoint = cy.getElementById(endpointId);
+        if (endpoint.empty()) continue;
+        const tracePoint = traceNode.renderedPosition();
+        const box = endpoint.renderedBoundingBox({ includeLabels: false, includeOverlays: false });
+        const slot = Number(label.dataset.endpointSlot ?? "0");
+        const placement = placeRelationshipLabel(
+          tracePoint,
+          box,
+          { width: label.offsetWidth, height: label.offsetHeight },
+          { x1: 8, y1: 8, x2: activeHost.clientWidth - 8, y2: activeHost.clientHeight - 8 },
+          [
+            ...nodeObstacles.filter((obstacle) => obstacle.id !== endpointId).map((obstacle) => obstacle.rect),
+            ...placedLabelRects,
+          ],
+          slot,
+        );
+        label.dataset.side = placement.side;
+        label.style.transform = `translate3d(${placement.x}px, ${placement.y}px, 0)`;
+        placedLabelRects.push({
+          x1: placement.x,
+          y1: placement.y,
+          x2: placement.x + label.offsetWidth,
+          y2: placement.y + label.offsetHeight,
+        });
+      }
+      for (const region of graphRegions) {
+        const label = regionLabelRefs.current.get(region.id);
+        if (!label) continue;
+        const nodes = collectionFor(region.nodeIds);
+        if (nodes.empty()) continue;
+        const box = nodes.renderedBoundingBox({ includeLabels: false, includeOverlays: false });
+        label.style.transform = `translate3d(${box.x1}px, ${Math.max(12, box.y1 - 28)}px, 0)`;
+      }
     }
 
     function queueLabelSync() {
@@ -540,7 +685,10 @@ export function CytoscapeResourceGraph({
     }
 
     function shouldAnimate() {
-      return visible && !reduceMotion.matches && motionRef.current;
+      return visible
+        && !reduceMotion.matches
+        && motionRef.current
+        && cy.edges(".relationship-edge.trace-active").nonempty();
     }
 
     function scheduleFlow() {
@@ -557,7 +705,7 @@ export function CytoscapeResourceGraph({
       }
       lastMotionPaint = time;
       dashOffset = (dashOffset - 0.7) % 12;
-      cy.edges(".relationship-edge.related").style("line-dash-offset", dashOffset);
+      cy.edges(".relationship-edge.trace-active").style("line-dash-offset", dashOffset);
       scheduleFlow();
     }
 
@@ -600,14 +748,37 @@ export function CytoscapeResourceGraph({
     }
 
     function handleNodeOver(event: cytoscape.EventObject) {
-      if (frameIds.has(event.target.id())) return;
+      if (["lane", "subnet"].includes(event.target.data("kind"))) return;
       event.target.addClass("hovered");
+      setPointerTraceNodeId(event.target.id());
       activeHost.style.cursor = "pointer";
     }
 
     function handleNodeOut(event: cytoscape.EventObject) {
       event.target.removeClass("hovered");
+      setPointerTraceNodeId((current) => current === event.target.id() ? undefined : current);
       activeHost.style.cursor = "grab";
+    }
+
+    function applyTrace(nodeId?: string) {
+      const node = nodeId ? cy.getElementById(nodeId) : cy.collection();
+      cy.batch(() => {
+        cy.nodes().removeClass("trace-source trace-peer trace-muted");
+        cy.edges(".relationship-edge").removeClass("trace-active trace-muted");
+        if (node.empty()) return;
+        const activeEdges = node.connectedEdges(".relationship-edge");
+        const peers = activeEdges.connectedNodes().difference(node);
+        node.addClass("trace-source");
+        peers.addClass("trace-peer");
+        cy.nodes()
+          .filter(".resource-node, .resource-group-node, .aggregate-node, .external-node, .lane-bar-node, .vnet-frame")
+          .difference(node.union(peers))
+          .addClass("trace-muted");
+        activeEdges.addClass("trace-active");
+        cy.edges(".relationship-edge").difference(activeEdges).addClass("trace-muted");
+      });
+      queueLabelSync();
+      scheduleFlow();
     }
 
     cy.on("tap", "node", handleTap);
@@ -659,7 +830,11 @@ export function CytoscapeResourceGraph({
       const selectedId = selectedNodeRef.current;
       const targetIds = cameraTargetIds(plan, cy.nodes().map((node) => node.id()), mode, selectedId);
       const requested = collectionFor(targetIds);
-      const target = requested.nonempty() ? requested : cy.elements();
+      const targetIdSet = new Set(targetIds);
+      const connectingEdges = cy.edges(".relationship-edge").filter((edge) => (
+        targetIdSet.has(edge.source().id()) && targetIdSet.has(edge.target().id())
+      ));
+      const target = requested.nonempty() ? requested.union(connectingEdges) : cy.elements();
       const profile = cameraProfile(
         graph.level,
         mode,
@@ -754,6 +929,19 @@ export function CytoscapeResourceGraph({
           if (!node.empty() && !node.isParent()) node.position({ x: placement.x, y: placement.y });
         }
       });
+      const connectorPositions = new Map(plan.positions);
+      for (const node of cy.nodes()) {
+        if (!connectorPositions.has(node.id())) connectorPositions.set(node.id(), node.position());
+      }
+      cy.batch(() => {
+        for (const geometry of connectorGeometries(linkPresentations, connectorPositions)) {
+          cy.getElementById(geometry.edgeId)
+            .data("taxiTurn", geometry.taxiTurn)
+            .style({
+              "taxi-direction": geometry.taxiDirection,
+            });
+        }
+      });
     }
 
     try {
@@ -804,8 +992,10 @@ export function CytoscapeResourceGraph({
     resizeObserver.observe(activeHost);
     cameraApiRef.current = applyCamera;
     activationApiRef.current = activateWithCamera;
+    traceApiRef.current = applyTrace;
     labelSyncRef.current = queueLabelSync;
     motionSchedulerRef.current = scheduleFlow;
+    applyTrace(activeTraceNodeRef.current);
     scheduleFlow();
     queueLabelSync();
 
@@ -820,6 +1010,7 @@ export function CytoscapeResourceGraph({
       reduceMotion.removeEventListener("change", handleMotionPreference);
       cameraApiRef.current = undefined;
       activationApiRef.current = undefined;
+      traceApiRef.current = undefined;
       labelSyncRef.current = undefined;
       motionSchedulerRef.current = undefined;
       layoutPlanRef.current = undefined;
@@ -898,16 +1089,27 @@ export function CytoscapeResourceGraph({
     });
   }
 
-  function graphButtonProps(id: string) {
+  function graphButtonProps(id: string, traceable = true) {
     return {
       tabIndex: keyboardNodeId === id ? 0 : -1,
       onFocus: () => {
         setKeyboardNodeId(id);
+        if (traceable) setFocusedTraceNodeId(id);
         cyRef.current?.getElementById(id).addClass("keyboard-focus");
       },
-      onBlur: () => cyRef.current?.getElementById(id).removeClass("keyboard-focus"),
+      onBlur: () => {
+        if (traceable) setFocusedTraceNodeId((current) => current === id ? undefined : current);
+        cyRef.current?.getElementById(id).removeClass("keyboard-focus");
+      },
+      onPointerEnter: () => {
+        if (traceable) setPointerTraceNodeId(id);
+      },
+      onPointerLeave: () => {
+        if (traceable) setPointerTraceNodeId((current) => current === id ? undefined : current);
+      },
       onKeyDown: (event: ReactKeyboardEvent<HTMLButtonElement>) => handleGraphButtonKeyDown(id, event),
       "data-graph-roving": true,
+      "data-graph-node-id": id,
     };
   }
 
@@ -937,10 +1139,77 @@ export function CytoscapeResourceGraph({
     else activateRef.current(activation);
   }
 
+  const registerRelationshipLabel = (id: string) => (element: HTMLElement | null) => {
+    if (element) relationshipLabelRefs.current.set(id, element);
+    else relationshipLabelRefs.current.delete(id);
+  };
+
+  const registerRegionLabel = (id: string) => (element: HTMLElement | null) => {
+    if (element) regionLabelRefs.current.set(id, element);
+    else regionLabelRefs.current.delete(id);
+  };
+
+  function traceClass(id: string) {
+    if (!activeTraceNodeId) return "";
+    if (id === activeTraceNodeId) return "trace-source";
+    return activePeerIds.has(id) ? "trace-peer" : "trace-muted";
+  }
+
+  function tracedClassName(base: string, id: string, ...conditional: Array<string | false | undefined>) {
+    return [base, traceClass(id), ...conditional].filter(Boolean).join(" ");
+  }
+
+  function kindMarks(id: string) {
+    const meta = connectionMeta.get(id);
+    if (!meta || meta.kinds.size === 0) return null;
+    return (
+      <span className="graph-kind-marks" aria-hidden="true">
+        {[...meta.kinds].sort().map((kindClass) => (
+          <i key={kindClass} style={{ background: kindClassColor(kindClass) }} />
+        ))}
+      </span>
+    );
+  }
+
+  function representativeTypes(node: TopologyNode) {
+    const counts = new Map<string, number>();
+    for (const id of node.memberIds) {
+      const azureType = resourceMap.get(id)?.azureType;
+      if (azureType) counts.set(azureType, (counts.get(azureType) ?? 0) + 1);
+    }
+    return [...counts.entries()]
+      .sort((left, right) => right[1] - left[1] || (left[0] < right[0] ? -1 : left[0] > right[0] ? 1 : 0))
+      .slice(0, 3)
+      .map(([azureType]) => ({ azureType, icon: typeIcon(azureType) }))
+      .filter((entry): entry is { azureType: string; icon: string } => Boolean(entry.icon));
+  }
+
   return (
     <div className="cytoscape-graph" ref={hostRef}>
       <div className="graph-aurora" aria-hidden="true" />
       <div className="cytoscape-surface" ref={surfaceRef} aria-hidden="true" />
+      <div className="graph-region-label-layer" aria-hidden="true">
+        {graphRegions.map((region) => (
+          <span key={region.id} ref={registerRegionLabel(region.id)}>
+            <strong>{region.label}</strong>
+            <small>{region.count}</small>
+          </span>
+        ))}
+      </div>
+      <div className="graph-relationship-label-layer" aria-hidden="true">
+        {activeLabels.map((label: ActiveRelationshipLabel) => (
+          <span
+            key={label.edgeId}
+            ref={registerRelationshipLabel(label.edgeId)}
+            className="graph-relationship-label"
+            data-endpoint-id={label.endpointId}
+            data-endpoint-slot={label.endpointSlot}
+          >
+            <i style={{ background: kindClassColor(label.kindClass) }} />
+            {label.label}
+          </span>
+        ))}
+      </div>
       <div className="graph-label-layer">
         {graph.lanes
           .filter((lane) => lane.expanded && graph.nodes.some((node) => node.kind === "resource-group" && node.lane === lane.subscriptionId))
@@ -951,7 +1220,7 @@ export function CytoscapeResourceGraph({
               className="graph-container-label graph-lane-label"
               onClick={() => onActivate({ kind: "subscription", subscriptionId: lane.subscriptionId })}
               aria-label={`${lane.name}, expanded subscription, ${lane.groupCount} groups. Collapse subscription.`}
-              {...graphButtonProps(`lane:${lane.subscriptionId}`)}
+              {...graphButtonProps(`lane:${lane.subscriptionId}`, false)}
             >
               <img src={SUBSCRIPTION_ICON} alt="" />
               <strong>{lane.name}</strong>
@@ -972,7 +1241,7 @@ export function CytoscapeResourceGraph({
               <button
                 key={node.id}
                 ref={registerLabel(node.id)}
-                className="graph-container-label graph-vnet-label"
+                className={tracedClassName("graph-container-label graph-vnet-label", node.id)}
                 onClick={() => requestActivation(
                   { kind: "resource", resourceId: node.resourceId ?? node.id },
                   node.id,
@@ -998,7 +1267,7 @@ export function CytoscapeResourceGraph({
               <button
                 key={node.id}
                 ref={registerLabel(node.id)}
-                className="graph-lane-bar-label"
+                className={tracedClassName("graph-lane-bar-label", node.id)}
                 onClick={() => onActivate({ kind: "subscription", subscriptionId: node.lane ?? "" })}
                 aria-label={`${node.name}, collapsed subscription, ${node.count} groups${findingText(node)}. Expand subscription.`}
                 {...graphButtonProps(node.id)}
@@ -1009,6 +1278,8 @@ export function CytoscapeResourceGraph({
                   <small>{node.subtitle}</small>
                 </span>
                 {node.findingCount > 0 ? <em aria-label={`${node.findingCount} findings`}>{node.findingCount}</em> : null}
+                {kindMarks(node.id)}
+                <span className="graph-route-count"><GitBranch size={12} />{connectionMeta.get(node.id)?.connectors ?? 0}</span>
                 <i className="graph-lane-expand">Expand ›</i>
               </button>
             );
@@ -1022,7 +1293,11 @@ export function CytoscapeResourceGraph({
               <div
                 key={node.id}
                 ref={registerLabel(node.id)}
-                className={expanded ? "graph-aggregate-cluster expanded" : "graph-aggregate-cluster"}
+                className={tracedClassName(
+                  "graph-aggregate-cluster",
+                  node.id,
+                  expanded && "expanded",
+                )}
                 onKeyDown={(event) => {
                   if (event.key !== "Escape" || !expanded) return;
                   event.preventDefault();
@@ -1066,7 +1341,11 @@ export function CytoscapeResourceGraph({
               <button
                 key={node.id}
                 ref={registerLabel(node.id)}
-                className={node.id === selectedNodeId ? "graph-node-label ghost selected" : "graph-node-label ghost"}
+                className={tracedClassName(
+                  "graph-node-label ghost",
+                  node.id,
+                  node.id === selectedNodeId && "selected",
+                )}
                 onClick={() => node.resourceId
                   ? requestActivation({ kind: "resource", resourceId: node.resourceId }, node.id)
                   : onActivate({ kind: "aggregate", nodeId: node.id })}
@@ -1086,11 +1365,17 @@ export function CytoscapeResourceGraph({
           }
           if (node.kind === "resource-group") {
             const selected = node.id === selectedNodeId;
+            const meta = connectionMeta.get(node.id);
+            const icons = representativeTypes(node);
             return (
               <button
                 key={node.id}
                 ref={registerLabel(node.id)}
-                className={selected ? "graph-resource-group-label selected" : "graph-resource-group-label"}
+                className={tracedClassName(
+                  "graph-resource-group-label",
+                  node.id,
+                  selected && "selected",
+                )}
                 onClick={() => requestActivation(
                   { kind: "resource-group", groupId: node.groupId ?? "" },
                   node.id,
@@ -1110,6 +1395,11 @@ export function CytoscapeResourceGraph({
                   {node.findingCount > 0 ? <em aria-label={`${node.findingCount} findings`}>{node.findingCount}</em> : null}
                 </span>
                 <span className="graph-group-types" aria-hidden="true">
+                  <span className="graph-group-type-icons">
+                    {icons.map((entry) => <img key={entry.azureType} src={entry.icon} alt="" />)}
+                  </span>
+                  {kindMarks(node.id)}
+                  <span className="graph-route-count"><GitBranch size={12} />{meta?.connectors ?? 0}</span>
                   <span className="graph-group-open">Open group ›</span>
                 </span>
               </button>
@@ -1124,15 +1414,15 @@ export function CytoscapeResourceGraph({
               <div
                 key={node.id}
                 ref={registerLabel(node.id)}
-                className={[
-                  "graph-node-label",
-                  "graph-node-actions",
-                  selected ? "selected" : "",
-                  dim ? "dimmed" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
+                className={tracedClassName(
+                  "graph-node-label graph-node-actions",
+                  node.id,
+                  selected && "selected",
+                  dim && "dimmed",
+                )}
                 title={node.name}
+                onPointerEnter={() => setPointerTraceNodeId(node.id)}
+                onPointerLeave={() => setPointerTraceNodeId((current) => current === node.id ? undefined : current)}
               >
                 <button
                   className="graph-node-primary"
