@@ -1,6 +1,7 @@
 import type {
   AppBootstrap,
   Edge,
+  ExportRequest,
   EstateSnapshot,
   Finding,
   QueryDefMeta,
@@ -342,3 +343,37 @@ export const mockEstate: EstateSnapshot = {
     changed: [ids.web, ids.storage, ids.nsg],
   },
 };
+
+/**
+ * Illustrative output paths for the browser preview's Exports workspace.
+ *
+ * These mirror the real naming in src/commands/report.rs and the desktop's own
+ * `diagram_output_target`, and are the third hand-maintained copy of that
+ * convention — see the cleanup plan. They exist only so the preview can show a
+ * plausible result list; the packaged app returns the paths the Rust exporters
+ * actually wrote.
+ */
+export function mockExportOutputs(request: ExportRequest) {
+  const root = request.destination.replace(/[\\/]+$/, "");
+  if (request.exportKind === "reports") {
+    return request.formats.flatMap((format) => {
+      if (format === "md") return [`${root}/docs/index.md`];
+      if (format === "html") return [`${root}/report.html`, `${root}/docs-html/index.html`];
+      if (format === "csv") return [`${root}/inventory.csv`, `${root}/findings.csv`];
+      if (format === "xlsx") return [`${root}/azdocs.xlsx`];
+      return [`${root}/report.${format}`];
+    });
+  }
+
+  const diagramType = request.diagramType ?? "network";
+  return request.formats.map((format) => {
+    const extension = format === "mermaid" ? "mmd" : format;
+    if (diagramType === "workbook" && format === "drawio") {
+      return `${root}/azdocs-workbook.drawio`;
+    }
+    if (diagramType === "workbook" || diagramType === "vnets" || diagramType === "resource-groups") {
+      return `${root}/diagrams/${diagramType}/example.${extension}`;
+    }
+    return `${root}/azdocs-${diagramType}.${extension}`;
+  });
+}

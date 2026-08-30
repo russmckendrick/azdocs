@@ -8,6 +8,15 @@
  *   - no chapter/figure numbering anywhere in chrome;
  *   - colour is reserved for data (category set) and signals (severity set);
  *   - serif carries identity, sans does the work, mono marks machine values.
+ *
+ * The faces load from two places on purpose. Sans and Mono are served from
+ * `/fonts/` — vite.config.ts sets `publicDir: "../data"`, so these are the same
+ * files `src/report/pdf.rs` embeds via `include_dir!("data/fonts")`, and the UI
+ * and the PDF stay on one typeface by construction. Serif is imported from
+ * `./assets/fonts/` instead: adding it to `data/fonts` would embed 436KB into
+ * the CLI binary and shift Typst's FontBook insertion order, which pdf.rs
+ * documents as load-bearing for glyph fallback. Do not "tidy" these into one
+ * directory without reading that loader first.
  */
 
 @font-face {

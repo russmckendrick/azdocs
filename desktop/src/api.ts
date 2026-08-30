@@ -1,7 +1,5 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { mockBootstrap, mockEstate, mockQueryPack, mockQueryRows } from "./mock-data";
-import { buildFallbackTopology } from "./components/topology-fallback";
 import type {
   AppBootstrap,
   CollectionEvent,
@@ -19,29 +17,46 @@ import type {
 
 export const isTauri = "__TAURI_INTERNALS__" in window;
 
+/**
+ * False in a Tauri build (vite.config.ts sets it from TAURI_ENV_PLATFORM).
+ *
+ * Every `if (!PREVIEW || isTauri) return invoke(...)` below then folds to an
+ * unconditional return, so the dynamic `import("./mock-data")` after it becomes
+ * unreachable and Rollup drops the mock estate and the fallback topology
+ * builder — ~800 lines that can never execute inside the app — from the shipped
+ * bundle. A plain `vite build` keeps them, so the browser demo still works.
+ */
+declare const __BROWSER_PREVIEW__: boolean;
+const PREVIEW = __BROWSER_PREVIEW__;
+
 const pause = (milliseconds = 240) =>
   new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 
 export async function getBootstrap(): Promise<AppBootstrap> {
-  if (isTauri) return invoke<AppBootstrap>("bootstrap");
+  if (!PREVIEW || isTauri) return invoke<AppBootstrap>("bootstrap");
   await pause();
-  return mockBootstrap;
+  return (await import("./mock-data")).mockBootstrap;
 }
 
 export async function getSnapshot(snapshotId?: string): Promise<EstateSnapshot> {
-  if (isTauri) return invoke<EstateSnapshot>("load_snapshot", { snapshotId });
+  if (!PREVIEW || isTauri) return invoke<EstateSnapshot>("load_snapshot", { snapshotId });
   await pause(340);
+  const { mockEstate } = await import("./mock-data");
   return { ...mockEstate, id: snapshotId ?? mockEstate.id };
 }
 
 export async function getTopology(request: TopologyRequest): Promise<TopologyGraph> {
-  if (isTauri) return invoke<TopologyGraph>("topology_graph", { request });
+  if (!PREVIEW || isTauri) return invoke<TopologyGraph>("topology_graph", { request });
   await pause(120);
+  const [{ mockEstate }, { buildFallbackTopology }] = await Promise.all([
+    import("./mock-data"),
+    import("./components/topology-fallback"),
+  ]);
   return buildFallbackTopology(mockEstate, request);
 }
 
 export async function chooseDatabase(): Promise<AppBootstrap | undefined> {
-  if (!isTauri) return mockBootstrap;
+  if (PREVIEW && !isTauri) return (await import("./mock-data")).mockBootstrap;
   const path = await open({
     title: "Open an azdocs SQLite database",
     multiple: false,
@@ -53,7 +68,7 @@ export async function chooseDatabase(): Promise<AppBootstrap | undefined> {
 }
 
 export async function chooseExportDirectory(): Promise<string | undefined> {
-  if (!isTauri) return "/Users/demo/Documents/azdocs-exports";
+  if (PREVIEW && !isTauri) return "/Users/demo/Documents/azdocs-exports";
   const path = await open({
     title: "Choose an export directory",
     multiple: false,
@@ -63,37 +78,38 @@ export async function chooseExportDirectory(): Promise<string | undefined> {
 }
 
 export async function getQueryPackMetadata(): Promise<QueryDefMeta[]> {
-  if (isTauri) return invoke<QueryDefMeta[]>("query_pack_metadata");
+  if (!PREVIEW || isTauri) return invoke<QueryDefMeta[]>("query_pack_metadata");
   await pause();
-  return mockQueryPack;
+  return (await import("./mock-data")).mockQueryPack;
 }
 
 export async function getQueryRows(queryName: string, snapshotId?: string): Promise<QueryRows> {
-  if (isTauri) return invoke<QueryRows>("query_rows", { snapshotId, queryName });
+  if (!PREVIEW || isTauri) return invoke<QueryRows>("query_rows", { snapshotId, queryName });
   await pause(180);
-  return mockQueryRows(queryName);
+  return (await import("./mock-data")).mockQueryRows(queryName);
 }
 
 export async function compareSnapshots(
   baseSnapshotId: string,
   targetSnapshotId: string,
 ): Promise<SnapshotComparison> {
-  if (isTauri) {
+  if (!PREVIEW || isTauri) {
     return invoke<SnapshotComparison>("compare_snapshots", {
       baseSnapshotId,
       targetSnapshotId,
     });
   }
   await pause();
-  return mockEstate.previousDiff!;
+  return (await import("./mock-data")).mockEstate.previousDiff!;
 }
 
 export async function collectEstate(
   onUpdate: (event: CollectionEvent) => void,
 ): Promise<CollectResult> {
-  if (!isTauri) {
+  if (PREVIEW && !isTauri) {
     onUpdate({ event: "phase", data: { message: "Running read-only Azure queries" } });
     await pause(1000);
+    const { mockEstate } = await import("./mock-data");
     const result = {
       snapshotId: mockEstate.id,
       status: "complete",
@@ -112,39 +128,14 @@ export async function collectEstate(
   });
 }
 
-function mockExportOutputs(request: ExportRequest) {
-  const root = request.destination.replace(/[\\/]+$/, "");
-  if (request.exportKind === "reports") {
-    return request.formats.flatMap((format) => {
-      if (format === "md") return [`${root}/docs/index.md`];
-      if (format === "html") return [`${root}/report.html`, `${root}/docs-html/index.html`];
-      if (format === "csv") return [`${root}/inventory.csv`, `${root}/findings.csv`];
-      if (format === "xlsx") return [`${root}/azdocs.xlsx`];
-      return [`${root}/report.${format}`];
-    });
-  }
-
-  const diagramType = request.diagramType ?? "network";
-  return request.formats.map((format) => {
-    const extension = format === "mermaid" ? "mmd" : format;
-    if (diagramType === "workbook" && format === "drawio") {
-      return `${root}/azdocs-workbook.drawio`;
-    }
-    if (diagramType === "workbook" || diagramType === "vnets" || diagramType === "resource-groups") {
-      return `${root}/diagrams/${diagramType}/example.${extension}`;
-    }
-    return `${root}/azdocs-${diagramType}.${extension}`;
-  });
-}
-
 export async function exportSnapshot(
   request: ExportRequest,
   onUpdate: (event: ExportEvent) => void,
 ): Promise<ExportResult> {
-  if (!isTauri) {
+  if (PREVIEW && !isTauri) {
     onUpdate({ event: "phase", data: { message: "Composing offline export preview" } });
     await pause(720);
-    const outputs = mockExportOutputs(request);
+    const outputs = (await import("./mock-data")).mockExportOutputs(request);
     onUpdate({ event: "complete", data: { outputCount: outputs.length } });
     return { destination: request.destination, outputs };
   }
