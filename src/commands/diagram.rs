@@ -199,9 +199,13 @@ fn workbook(
     args: &DiagramArgs,
 ) -> anyhow::Result<Vec<PathBuf>> {
     let formats = match args.format {
+        // Naming Mermaid (alone or via `both`) is an error; `all` below means
+        // "everything applicable", so it skips instead.
         DiagramFormat::Mermaid | DiagramFormat::Both => anyhow::bail!(
-            "the workbook is a multi-sheet draw.io file and Mermaid has no sheet concept — \
-             use --format drawio, or svg/png for per-sheet rasters"
+            "{}",
+            DiagramType::Workbook
+                .unsupported_reason(DiagramFormat::Mermaid)
+                .unwrap_or_default()
         ),
         DiagramFormat::All => {
             println!("note: skipping Mermaid — the workbook is draw.io-only");

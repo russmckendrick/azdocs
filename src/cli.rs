@@ -247,6 +247,22 @@ impl DiagramType {
     }
 }
 
+impl DiagramType {
+    /// Why this type cannot be rendered in `format`, if it cannot.
+    ///
+    /// Only the workbook restricts anything. Callers decide the policy — the
+    /// CLI skips Mermaid with a note when you asked for `all` but errors when
+    /// you named it, the desktop always errors because its formats are ticked
+    /// explicitly — but the rule and its explanation live here so the two
+    /// cannot tell the user different things.
+    pub fn unsupported_reason(self, format: DiagramFormat) -> Option<&'static str> {
+        (self == Self::Workbook && format == DiagramFormat::Mermaid).then_some(
+            "the workbook is a multi-sheet draw.io file and Mermaid has no sheet \
+             concept — use drawio, or svg/png for per-sheet rasters",
+        )
+    }
+}
+
 impl DiagramFormat {
     /// File extension for a single-format render.
     ///

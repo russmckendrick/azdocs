@@ -388,11 +388,11 @@ fn export_diagrams(
             "select at least one diagram format".to_owned(),
         ));
     }
-    if kind == DiagramType::Workbook && formats.contains(&DiagramFormat::Mermaid) {
-        return Err(AppError::Export(
-            "the workbook cannot be exported as Mermaid because Mermaid has no sheet concept"
-                .to_owned(),
-        ));
+    if let Some(reason) = formats
+        .iter()
+        .find_map(|format| kind.unsupported_reason(*format))
+    {
+        return Err(AppError::Export(reason.to_owned()));
     }
 
     let mut outputs = Vec::new();
@@ -508,6 +508,26 @@ mod export_tests {
         assert!(report_format("pptx").is_err());
         assert!(diagram_type("galaxy").is_err());
         assert!(diagram_format("bmp").is_err());
+    }
+
+    #[test]
+    fn unit_gives_the_same_reason_the_cli_does_for_a_mermaid_workbook() {
+        // Shared with `azdocs diagram --type workbook --format mermaid`, so the
+        // two surfaces cannot explain the same restriction differently.
+        let reason = DiagramType::Workbook
+            .unsupported_reason(DiagramFormat::Mermaid)
+            .expect("a Mermaid workbook is rejected");
+        assert!(reason.contains("no sheet"));
+        assert!(
+            DiagramType::Workbook
+                .unsupported_reason(DiagramFormat::Drawio)
+                .is_none()
+        );
+        assert!(
+            DiagramType::Network
+                .unsupported_reason(DiagramFormat::Mermaid)
+                .is_none()
+        );
     }
 
     #[test]
