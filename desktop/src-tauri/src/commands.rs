@@ -53,11 +53,8 @@ fn bootstrap_for(path: &Path) -> Result<AppBootstrap, AppError> {
         Ok(pack) => pack,
         Err(_) => ThemePack::builtin().map_err(|error| AppError::Config(error.to_string()))?,
     };
-    let mut report_themes: Vec<String> = theme_pack
-        .names()
-        .into_iter()
-        .map(str::to_owned)
-        .collect();
+    let mut report_themes: Vec<String> =
+        theme_pack.names().into_iter().map(str::to_owned).collect();
     if !report_themes.contains(&config.branding.theme) {
         report_themes.push(config.branding.theme.clone());
         report_themes.sort();
@@ -408,8 +405,8 @@ fn export_reports(
     let _ = on_event.send(ExportEvent::Phase {
         message: format!("Composing {} report format(s)", formats.len()),
     });
-    let (config, source) = Config::load_with_source(None)
-        .map_err(|error| AppError::Config(error.to_string()))?;
+    let (config, source) =
+        Config::load_with_source(None).map_err(|error| AppError::Config(error.to_string()))?;
     let config_dir = source.as_deref().and_then(Path::parent);
     let args = ReportArgs {
         snapshot: request.snapshot_id,
@@ -417,14 +414,8 @@ fn export_reports(
         theme: request.theme,
         out: Some(destination.to_path_buf()),
     };
-    azdocs::commands::report::run_selected_with_outputs(
-        &config,
-        config_dir,
-        store,
-        &args,
-        &formats,
-    )
-    .map_err(|error| AppError::Export(error.to_string()))
+    azdocs::commands::report::run_selected_with_outputs(&config, config_dir, store, &args, &formats)
+        .map_err(|error| AppError::Export(error.to_string()))
 }
 
 fn export_diagrams(
