@@ -152,6 +152,30 @@ set), type never below 11px. The Cytoscape stage reads `--graph-*`/`--kind-*`
 tokens at build time and rebuilds on theme change — never hardcode a canvas
 colour.
 
+## The wire contract is generated
+
+`desktop/src/generated.ts` is emitted from the DTO structs by
+`cargo test -p azdocs-desktop` (`desktop/src-tauri/src/bindings.rs`, ts-rs).
+**Never edit it** — change the Rust struct and re-run the tests. CI fails if the
+checked-in file is stale.
+
+Three layers, and it matters which one a type belongs in:
+
+- `generated.ts` — the wire contract. Source of truth is `dto.rs`/`topology.rs`.
+- `api-types.ts` — closed string sets Rust models as an enum but serialises via
+  `as_str()`, so the field is a bare `String` and ts-rs cannot infer the union.
+  Hand-written, and pointed at from the struct with `#[ts(type = "...")]`.
+- `types.ts` — UI-only types with no Rust counterpart. Re-exports the other two;
+  everything imports from `./types`.
+
+Two traps this replaced, both of which had shipped:
+
+- `#[serde(rename_all)]` on an **enum** renames the variants, not the fields of
+  a struct variant. Struct-variant fields need `rename_all_fields`, or the
+  payload goes out snake_case while every other field is camelCase.
+- `Option<T>` serialises to `null`, not an absent key. The generated type is
+  `field?: T | null`; do not "simplify" it to `field?: T`.
+
 ## Desktop topology
 
 The Tauri explorer's relationship graphs are built in Rust
