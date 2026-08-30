@@ -20,4 +20,9 @@ tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 thiserror = { workspace = true }
 tokio = { workspace = true }
-ts-rs = { version = "12.0.1", features = ["serde-json-impl"] }
+# no-serde-warnings: ts-rs warns on every build about serde attributes it does
+# not understand, and `deny_unknown_fields` is one of them. That attribute is
+# deliberate on the IPC input types — it makes a typo in a request fail loudly
+# rather than being silently ignored — so the warning is noise on every
+# `tauri dev` rebuild, not a signal.
+ts-rs = { version = "12.0.1", features = ["serde-json-impl", "no-serde-warnings"] }

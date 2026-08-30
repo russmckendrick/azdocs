@@ -1,0 +1,31 @@
+# Paths `tauri dev` must not rebuild the application for.
+#
+# The desktop crate depends on `azdocs` by path, so the watcher covers both
+# desktop/src-tauri and the workspace root — which meant editing a Markdown
+# file recompiled the app. Nothing listed here can change what the binary does.
+#
+# Patterns are gitignore-style and deliberately unanchored, so they match under
+# either watch root.
+
+# Prose and generated documentation
+*.md
+*.html
+docs/
+
+# Golden files. The app never reads them, and `cargo insta` rewrites them in bulk.
+snapshots/
+
+# The frontend: Vite serves and hot-reloads it itself, so a change here must not
+# also trigger a Rust rebuild.
+desktop/src/
+desktop/dist/
+desktop/node_modules/
+
+# Tool output, all regenerable
+output/
+graphify-out/
+.impeccable/
+
+# Editor droppings
+.DS_Store
+*.swp
