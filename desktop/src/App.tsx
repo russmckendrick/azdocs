@@ -44,6 +44,7 @@ import type {
   ViewId,
 } from "./types";
 import { dayMonthTime, errorMessage } from "./format";
+import { useResourceTypeMap } from "./estate-lookups";
 
 const TopologyView = lazy(() =>
   import("./components/TopologyView").then((module) => ({ default: module.TopologyView })),
@@ -204,10 +205,7 @@ export default function App() {
       ? estate?.resources.find((resource) => resource.id === location.resourceId)
       : undefined;
   }, [estate, navigation.relationships.location]);
-  const resourceTypeMap = useMemo(
-    () => new Map(estate?.resourceTypes.map((type) => [type.azureType, type]) ?? []),
-    [estate],
-  );
+  const resourceTypeMap = useResourceTypeMap(estate);
   const searchMatches = useMemo(() => {
     const value = search.trim().toLowerCase();
     if (!estate || !value) return [];

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -13,6 +13,7 @@ import type { EstateSnapshot, Resource, ResourceType } from "../types";
 import { AdaptiveDataView, describeStoredValue, hasStoredValue } from "./AdaptiveDataView";
 import { resourceName } from "../format";
 import { EmptyState } from "./view-chrome";
+import { useEscapeKey, useResourceTypeMap } from "../estate-lookups";
 
 function prettyRelation(kind: string) {
   return kind.replaceAll("_", " ");
@@ -38,10 +39,7 @@ export function ResourceDetailView({
   onOpenFindings: () => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const resourceTypeMap = useMemo(
-    () => new Map(estate.resourceTypes.map((item) => [item.azureType, item])),
-    [estate.resourceTypes],
-  );
+  const resourceTypeMap = useResourceTypeMap(estate);
   const subscription = estate.subscriptions.find((item) => item.id === resource.subscriptionId);
   const resourceGroup = estate.resourceGroups.find(
     (item) => item.subscriptionId === resource.subscriptionId && item.name.toLowerCase() === resource.resourceGroup,
@@ -80,13 +78,8 @@ export function ResourceDetailView({
     scrollRef.current?.scrollTo({ top: 0 });
   }, [resource.id]);
 
-  useEffect(() => {
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") onBack();
-    }
-    window.addEventListener("keydown", handleEscape);
-    return () => window.removeEventListener("keydown", handleEscape);
-  }, [onBack]);
+  // The record is always open while mounted.
+  useEscapeKey(true, onBack);
 
   return (
     <article className="resource-record" aria-labelledby="resource-record-title">

@@ -5,6 +5,7 @@ import { resourceName } from "../format";
 import { ShowMore, useProgressiveList } from "./progressive-list";
 import { SEVERITIES } from "../ordering";
 import { EmptyState, ViewHeading } from "./view-chrome";
+import { useEscapeKey } from "../estate-lookups";
 
 const severities: Array<Severity | "all"> = ["all", ...SEVERITIES];
 
@@ -36,14 +37,7 @@ export function FindingsView({
     setSelectedIndex(undefined);
   }, [search, severity]);
 
-  useEffect(() => {
-    if (!selected) return;
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setSelectedIndex(undefined);
-    }
-    window.addEventListener("keydown", handleEscape);
-    return () => window.removeEventListener("keydown", handleEscape);
-  }, [selected]);
+  useEscapeKey(Boolean(selected), () => setSelectedIndex(undefined));
 
   return (
     <div className="findings-workspace">

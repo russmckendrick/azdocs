@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { EstateSnapshot } from "../types";
 import { ViewHeading } from "./view-chrome";
+import { useSubscriptionNames } from "../estate-lookups";
 
 interface GroupCompliance {
   name: string;
@@ -19,10 +20,7 @@ export function GovernanceView({
   requiredTags: string[];
   onOpenFindings: () => void;
 }) {
-  const subscriptionNames = useMemo(
-    () => new Map(estate.subscriptions.map((subscription) => [subscription.id, subscription.displayName])),
-    [estate.subscriptions],
-  );
+  const subscriptionNames = useSubscriptionNames(estate);
 
   const analysis = useMemo(() => {
     const keyCounts = new Map<string, number>();

@@ -26,6 +26,7 @@ import {
   type LinkPresentation,
 } from "./topology-presentation";
 import { EmptyState } from "./view-chrome";
+import { useResourceTypeMap } from "../estate-lookups";
 
 export type GraphMode = "neighbourhood" | "estate";
 
@@ -482,10 +483,7 @@ export function CytoscapeResourceGraph({
   const [keyboardNodeId, setKeyboardNodeId] = useState<string>();
   const [pointerTraceNodeId, setPointerTraceNodeId] = useState<string>();
   const [focusedTraceNodeId, setFocusedTraceNodeId] = useState<string>();
-  const typeMap = useMemo(
-    () => new Map(estate.resourceTypes.map((type) => [type.azureType, type])),
-    [estate.resourceTypes],
-  );
+  const typeMap = useResourceTypeMap(estate);
   const resourceMap = useMemo(
     () => new Map(estate.resources.map((resource) => [resource.id, resource])),
     [estate.resources],

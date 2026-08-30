@@ -15,6 +15,7 @@ import { displayLocation } from "../azure-values";
 import type { AzureMetadata, EstateSnapshot, Resource, ResourceType, ScopeSelection } from "../types";
 import { ShowMore, useProgressiveList } from "./progressive-list";
 import { EmptyState } from "./view-chrome";
+import { useResourceTypeMap, useSubscriptionNames } from "../estate-lookups";
 
 type SortKey = "name" | "type" | "location" | "findings";
 
@@ -56,14 +57,8 @@ export function EstateExplorer({
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => new Set());
   const resourceListRef = useRef<HTMLDivElement>(null);
 
-  const resourceTypeMap = useMemo(
-    () => new Map(estate.resourceTypes.map((item) => [item.azureType, item])),
-    [estate.resourceTypes],
-  );
-  const subscriptionMap = useMemo(
-    () => new Map(estate.subscriptions.map((item) => [item.id, item.displayName])),
-    [estate.subscriptions],
-  );
+  const resourceTypeMap = useResourceTypeMap(estate);
+  const subscriptionMap = useSubscriptionNames(estate);
 
   const filtered = useMemo(() => {
     const matches = estate.resources.filter((resource) => {
