@@ -39,7 +39,7 @@ Cytoscape edge labels.
 
 Add or update pure-function tests for every geometry change, including peer
 ordering at shared endpoints and behaviour after a node crosses its peer.
-Run `npm test` and `npm run build` in `desktop/`, then review estate, group,
+Run `pnpm test` and `pnpm run build` in `desktop/`, then review estate, group,
 and neighbourhood scopes at all documented viewport widths in both themes.
 
 ### Polish a resource type

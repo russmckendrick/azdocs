@@ -7,8 +7,8 @@ cargo fmt --check
 cargo insta review                                # accept intended golden-output changes
 
 cd desktop
-npm ci
-npm run build
+pnpm install --frozen-lockfile
+pnpm run build
 cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --locked -- -D warnings
 ```
 

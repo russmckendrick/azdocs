@@ -240,8 +240,8 @@ Pure-function tests are the first line of defence:
 Run the relationship UI tests and build from `desktop/`:
 
 ```sh
-npm test
-npm run build
+pnpm test
+pnpm run build
 ```
 
 Then visually check estate, group, and one-/two-hop neighbourhood scopes at

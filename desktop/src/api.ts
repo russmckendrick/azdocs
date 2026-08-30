@@ -1,8 +1,7 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { mockBootstrap, mockEstate } from "./mock-data";
+import { mockBootstrap, mockEstate, mockQueryPack, mockQueryRows } from "./mock-data";
 import { buildFallbackTopology } from "./components/topology-fallback";
-import { mockQueryPack, mockQueryRows } from "./mock-data";
 import type {
   AppBootstrap,
   CollectionEvent,

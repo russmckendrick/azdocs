@@ -228,7 +228,6 @@ export function TopologyView({
     if (!active) return;
     requestCamera("core");
     // Reopening the relationship surface must refit after the record overlay is removed.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
   const counts = topology?.counts;

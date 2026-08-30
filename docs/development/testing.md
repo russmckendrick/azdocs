@@ -5,7 +5,7 @@ cargo test                          # everything — no network required
 cargo test --test collect_test     # one integration suite
 cargo insta review                  # accept intended golden changes
 INSTA_UPDATE=always cargo test      # regenerate all goldens (eyeball the diff!)
-cd desktop && npm test              # viewport layout, camera and view-state helpers
+cd desktop && pnpm test              # viewport layout, camera and view-state helpers
 ```
 
 ## Layers
