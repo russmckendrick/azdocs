@@ -11,7 +11,7 @@ flowchart LR
     out --> report[azdocs report --format all]
     out --> diagram[azdocs diagram --type network]
     out --> browse[azdocs browse]
-    out --> desktop[azdocs desktop]
+    out --> desktop["Desktop explorer (Tauri app)"]
 ```
 
 1. [Install](installation.md) the binary

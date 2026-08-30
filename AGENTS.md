@@ -7,16 +7,30 @@ offline. Full docs: [docs/](docs/README.md) — usage/, development/, reference/
 
 ## Commands
 
+This is a Cargo workspace: the CLI (`azdocs`, at the root) and the Tauri backend
+(`azdocs-desktop`, in `desktop/src-tauri`) share one lockfile and one `target/`.
+Bare `cargo test` runs the root package only — use `--workspace` for both.
+
 ```sh
-cargo test                                        # full suite, no Azure/network needed
+cargo test                                        # CLI crate, no Azure/network needed
+cargo test --workspace                            # CLI + desktop backend
 cargo clippy --all-targets --locked -- -D warnings
-cargo fmt --check
+cargo fmt --all --check
 cargo insta review                                # accept intended golden-output changes
 INSTA_UPDATE=always cargo test                    # regenerate all goldens (then eyeball the diff)
 cargo run -- <subcommand>                         # check/collect need real credentials
 ```
 
-CI gates on fmt + clippy `-D warnings` + tests across Linux/macOS/Windows.
+The frontend uses **pnpm**, not npm (`tauri.conf.json` shells out to it):
+
+```sh
+cd desktop && pnpm install
+pnpm run lint && pnpm run typecheck && pnpm test  # gated in CI
+pnpm run tauri dev                                # run the desktop app
+```
+
+CI gates on fmt + clippy `-D warnings` + tests across Linux/macOS/Windows, and
+on ESLint + tsc + vitest + `cargo test -p azdocs-desktop` for the desktop.
 Always run fmt and clippy before committing.
 
 A graphify knowledge graph of this repo lives in `graphify-out/` (gitignored).

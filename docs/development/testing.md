@@ -1,11 +1,13 @@
 # Testing
 
 ```sh
-cargo test                          # everything — no network required
-cargo test --test collect_test     # one integration suite
+cargo test                          # the CLI crate — no network required
+cargo test --workspace              # CLI + desktop backend (what CI runs)
+cargo test -p azdocs-desktop        # desktop topology, DTO and command helpers
+cargo test --test collect_test      # one integration suite
 cargo insta review                  # accept intended golden changes
 INSTA_UPDATE=always cargo test      # regenerate all goldens (eyeball the diff!)
-cd desktop && pnpm test              # viewport layout, camera and view-state helpers
+cd desktop && pnpm test             # relationship UI helpers and Rust↔TS mirrors
 ```
 
 ## Layers
@@ -38,6 +40,8 @@ flowchart TD
 | TUI | `TestBackend` buffer snapshots + key-event sequences | `tests/tui_test.rs` |
 | Desktop topology | Pure-function tests over a synthetic 1,000-resource estate: drawn + folded + aggregated always equals total, deterministic output, fan-out folding, scope filters counted | `desktop/src-tauri/src/topology.rs` |
 | Desktop relationship UI | Vitest at 1440/1060/800px: deterministic zones, rail alignment, directional neighbourhoods, camera targets, spatial navigation, per-edge boundary ports, taxi channels, label placement, trace priority, and retained-error state | `desktop/src/components/topology-layout.test.ts`, `desktop/src/components/topology-presentation.test.ts`, `desktop/src/components/topology-view-state.test.ts` |
+| Rust↔TypeScript mirrors | Reads `src/model/mod.rs` and `topology.rs` and asserts the browser preview classifies every `EdgeKind` into the same family the Rust `match` does | `desktop/src/components/topology-fallback.test.ts` |
+| Desktop navigation | History-aware drill-down and the relationship workspace reducer | `desktop/src/navigation-state.test.ts` |
 
 The full relationship rendering and screenshot review contract is in
 [Desktop relationship maps](desktop-relationships.md#tests-and-review).

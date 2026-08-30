@@ -234,8 +234,15 @@ Pure-function tests are the first line of defence:
   trace priority, label endpoint/side/slot selection, and obstacle avoidance.
 - `topology-view-state.test.ts` covers graph state retained across loading,
   failure, retry, and scope changes.
+- `topology-fallback.test.ts` reads the Rust sources and asserts the browser
+  preview's `edgeKindClass` covers every `EdgeKind` with the same family. The
+  mirror is not compiler-checked across the language boundary, and it had
+  already drifted: `monitors` was classified as "structure".
+- `navigation-state.test.ts` covers history-aware drill-down and the
+  relationship workspace reducer.
 - Rust topology tests continue to cover the representation equation, folding,
-  aggregation, external stubs, filters, and large estates.
+  aggregation, external stubs, filters, and large estates. These run in CI as
+  `cargo test -p azdocs-desktop`.
 
 Run the relationship UI tests and build from `desktop/`:
 
