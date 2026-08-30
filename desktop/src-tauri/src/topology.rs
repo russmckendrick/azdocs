@@ -13,6 +13,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use azdocs::model::{Edge, EdgeKind, Resource, ResourceGroup, Subscription, azure_types};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use ts_rs::TS;
 
 /// How many resource-group cards the estate view draws before whole
 /// subscriptions collapse into expandable lane bars.
@@ -20,8 +21,9 @@ const ESTATE_CARD_BUDGET: usize = 24;
 /// Same-type neighbours beyond this fold into one ×N node in a neighbourhood.
 const NEIGHBOUR_FANOUT_LIMIT: usize = 6;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(optional_fields = nullable)]
 pub struct TopologyRequest {
     pub snapshot_id: Option<String>,
     pub mode: TopologyMode,
@@ -29,8 +31,9 @@ pub struct TopologyRequest {
     pub scope: TopologyScope,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
+#[ts(optional_fields = nullable)]
 pub enum TopologyMode {
     #[serde(rename_all = "camelCase")]
     Estate {
@@ -55,8 +58,9 @@ fn default_depth() -> u32 {
     1
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, TS)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(optional_fields = nullable)]
 pub struct TopologyScope {
     /// Subscription ids to include; empty means all.
     #[serde(default)]
@@ -82,9 +86,11 @@ fn default_true() -> bool {
     true
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "TopologyGraph", optional_fields = nullable)]
 pub struct TopologyGraphDto {
+    #[ts(type = "TopologyLevel")]
     pub level: String,
     pub lanes: Vec<LaneDto>,
     pub nodes: Vec<TopologyNodeDto>,
@@ -93,8 +99,9 @@ pub struct TopologyGraphDto {
     pub counts: TopologyCountsDto,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "TopologyLane", optional_fields = nullable)]
 pub struct LaneDto {
     pub subscription_id: String,
     pub name: String,
@@ -104,11 +111,13 @@ pub struct LaneDto {
     pub finding_count: usize,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "TopologyNode", optional_fields = nullable)]
 pub struct TopologyNodeDto {
     pub id: String,
     /// resource | resource-group | subscription | vnet | subnet | aggregate
+    #[ts(type = "TopologyNodeKind")]
     pub kind: String,
     pub name: String,
     pub subtitle: String,
@@ -118,6 +127,7 @@ pub struct TopologyNodeDto {
     /// Containment: a subnet's vnet, a placed resource's subnet.
     pub parent_id: Option<String>,
     /// core | unconnected — which shelf the group view lays the node in.
+    #[ts(optional = nullable, type = "TopologyZone")]
     pub zone: Option<String>,
     /// BFS distance from the subject in neighbourhood mode.
     pub hop: Option<u32>,
@@ -129,25 +139,29 @@ pub struct TopologyNodeDto {
     pub group_id: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "TopologyLink", optional_fields = nullable)]
 pub struct TopologyLinkDto {
     pub source_id: String,
     pub target_id: String,
     pub label: String,
+    #[ts(type = "KindClass")]
     pub kind_class: String,
     pub count: usize,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "KindClassCount", optional_fields = nullable)]
 pub struct KindClassCountDto {
     pub class: String,
     pub count: usize,
 }
 
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Default, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "TopologyCounts", optional_fields = nullable)]
 pub struct TopologyCountsDto {
     /// Resources (or groups, at estate level) in scope.
     pub total: usize,

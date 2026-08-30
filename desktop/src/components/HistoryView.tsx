@@ -19,7 +19,7 @@ export function HistoryView({ bootstrap, estate, onLoadSnapshot }: { bootstrap: 
     [bootstrap.snapshots, estate.id],
   );
   const [baseId, setBaseId] = useState<string>();
-  const [comparison, setComparison] = useState<SnapshotComparison | undefined>(estate.previousDiff);
+  const [comparison, setComparison] = useState<SnapshotComparison | undefined>(estate.previousDiff ?? undefined);
   const [comparing, setComparing] = useState(false);
   const [visibleChangeCount, setVisibleChangeCount] = useState(CHANGE_BATCH);
   const resourceById = useMemo(
@@ -31,7 +31,7 @@ export function HistoryView({ bootstrap, estate, onLoadSnapshot }: { bootstrap: 
 
   useEffect(() => {
     setBaseId(undefined);
-    setComparison(estate.previousDiff);
+    setComparison(estate.previousDiff ?? undefined);
   }, [estate.id, estate.previousDiff]);
 
   useEffect(() => {

@@ -1118,12 +1118,12 @@ export function CytoscapeResourceGraph({
     else labelRefs.current.delete(id);
   };
 
-  function typeIcon(azureType?: string) {
+  function typeIcon(azureType?: string | null) {
     const type = azureType ? typeMap.get(azureType) : undefined;
     return type?.icon;
   }
 
-  function typeName(azureType?: string) {
+  function typeName(azureType?: string | null) {
     const type = azureType ? typeMap.get(azureType) : undefined;
     return type?.displayName ?? azureType ?? "Resource";
   }

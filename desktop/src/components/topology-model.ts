@@ -135,7 +135,7 @@ export function buildResourceGroupTopology(estate: EstateSnapshot): ResourceGrou
       name: group.name,
       subscriptionId: group.subscriptionId,
       subscriptionName: subscriptionNames.get(group.subscriptionId) ?? group.subscriptionId,
-      location: group.location,
+      location: group.location ?? undefined,
       resourceIds: resources.map((resource) => resource.id),
       resourceCount: resources.length,
       findingCount: resources.reduce((total, resource) => total + resource.findingCount, 0),

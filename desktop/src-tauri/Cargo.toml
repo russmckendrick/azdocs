@@ -20,3 +20,4 @@ tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 thiserror = { workspace = true }
 tokio = { workspace = true }
+ts-rs = { version = "12.0.1", features = ["serde-json-impl"] }

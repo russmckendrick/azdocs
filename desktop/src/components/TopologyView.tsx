@@ -155,7 +155,9 @@ export function TopologyView({
           : activeResourceGroupId
             ? { kind: "group", groupId: activeResourceGroupId }
             : { kind: "estate", expandedSubscriptions: expandedSubscriptions ?? [] },
-      scope: { showUnconnected },
+      // TopologyScope is a wire type: Rust defaults every field, but the
+      // request carries them explicitly so the shape matches the DTO.
+      scope: { subscriptions: [], azureTypes: [], showUnconnected },
     };
     const token = requestTokenRef.current + 1;
     requestTokenRef.current = token;

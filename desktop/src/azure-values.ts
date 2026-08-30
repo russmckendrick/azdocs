@@ -1,8 +1,11 @@
 import type { AzureMetadata } from "./types";
 
+// `null` is in these signatures because it is what the wire actually carries:
+// a Rust `Option<String>` serialises to `null`, not an absent key. The
+// hand-written types used to claim `?: string`, which typed it as `undefined`.
 export function displayLocation(
   metadata: AzureMetadata,
-  location: string | undefined,
+  location: string | null | undefined,
   missing = "Global",
 ) {
   if (!location) return missing;
@@ -12,7 +15,7 @@ export function displayLocation(
 export function displayKind(
   metadata: AzureMetadata,
   azureType: string,
-  kind: string | undefined,
+  kind: string | null | undefined,
   missing = "Default",
 ) {
   if (!kind) return missing;
