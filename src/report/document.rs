@@ -241,7 +241,7 @@ fn build_summary<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) {
                 .location_counts
                 .iter()
                 .take(6)
-                .map(|item| fact(item.name.as_str(), resource_count(item.count), false))
+                .map(|item| fact(item.display.as_str(), resource_count(item.count), false))
                 .collect(),
         });
     }

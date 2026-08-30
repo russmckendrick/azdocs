@@ -5,7 +5,7 @@
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::model::{Edge, Finding, Resource, azure_types};
+use crate::model::{Edge, Finding, Resource, azure_types, azure_values};
 
 /// One `docs/resources/<sub>/<rg>` page.
 #[derive(Debug, Serialize)]
@@ -73,7 +73,10 @@ pub fn resource_detail(
         arm_id: resource.display_id.clone(),
         subscription_name: subscription_name.to_owned(),
         resource_group: resource.resource_group.clone(),
-        location: resource.location.clone(),
+        location: resource
+            .location
+            .as_deref()
+            .map(|value| azure_values::display_location(value).into_owned()),
         settings: settings_rows(resource),
         findings: findings
             .iter()
@@ -103,10 +106,18 @@ fn settings_rows(resource: &Resource) -> Vec<Setting> {
     }
 
     if let Some(location) = &resource.location {
-        push(&mut rows, "location", location.clone());
+        push(
+            &mut rows,
+            "location",
+            azure_values::display_location(location).into_owned(),
+        );
     }
     if let Some(kind) = &resource.kind {
-        push(&mut rows, "kind", kind.clone());
+        push(
+            &mut rows,
+            "kind",
+            azure_values::display_kind(&resource.azure_type, kind).into_owned(),
+        );
     }
     if let Some(sku) = resource
         .sku

@@ -20,7 +20,7 @@ use serde_json::Value;
 use crate::error::StoreError;
 // Re-exported so the emitters can keep importing it from their parent module.
 pub(crate) use crate::model::rows::cell_to_string;
-use crate::model::{azure_types, rows};
+use crate::model::{azure_types, azure_values, rows};
 use crate::querypack::{QueryKind, QueryPack};
 use crate::store::Store;
 
@@ -62,8 +62,19 @@ pub struct TypeCount {
 
 #[derive(Debug, Serialize)]
 pub struct NameCount {
+    /// The stored Azure value, e.g. `uksouth`. Kept so anything joining or
+    /// filtering on it still matches what SQLite holds.
     pub name: String,
+    /// Friendly name for display, e.g. `UK South`. Unknown values pass through
+    /// unchanged, so this is always safe to render.
+    pub display: String,
     pub count: usize,
+}
+
+/// Friendly location for an optional stored value. Presentation only — the
+/// stored code is what every join and filter still uses.
+fn display_location_opt(location: Option<&str>) -> Option<String> {
+    location.map(|value| azure_values::display_location(value).into_owned())
 }
 
 #[derive(Debug, Default, Serialize)]
@@ -179,11 +190,19 @@ impl ReportContext {
         let mut location_counts: Vec<NameCount> = location_counts
             .into_iter()
             .map(|(name, count)| NameCount {
+                display: azure_values::display_location(name).into_owned(),
                 name: name.to_owned(),
                 count,
             })
             .collect();
-        location_counts.sort_by(|a, b| b.count.cmp(&a.count).then(a.name.cmp(&b.name)));
+        // Busiest first, then by what the reader sees, with the stored code as
+        // the deterministic tie-breaker.
+        location_counts.sort_by(|a, b| {
+            b.count
+                .cmp(&a.count)
+                .then(a.display.cmp(&b.display))
+                .then(a.name.cmp(&b.name))
+        });
 
         let mut severity_counts = SeverityCounts::default();
         for finding in &findings {
@@ -268,7 +287,7 @@ impl ReportContext {
                                 name: r.name.clone(),
                                 display_type: azure_types::display_name(&r.azure_type).to_owned(),
                                 azure_type: r.azure_type.clone(),
-                                location: r.location.clone(),
+                                location: display_location_opt(r.location.as_deref()),
                                 tags: r.tags.as_ref().map(std::string::ToString::to_string),
                             })
                             .collect();
@@ -277,7 +296,7 @@ impl ReportContext {
                         });
                         ResourceGroupSection {
                             name: rg.name.clone(),
-                            location: rg.location.clone(),
+                            location: display_location_opt(rg.location.as_deref()),
                             detail_path: format!(
                                 "resources/{}/{}",
                                 markdown::slug(&sub.display_name),
@@ -329,7 +348,7 @@ impl ReportContext {
                     subscription_name: sub.display_name.clone(),
                     subscription_slug: markdown::slug(&sub.display_name),
                     resource_group: rg.name.clone(),
-                    location: rg.location.clone(),
+                    location: display_location_opt(rg.location.as_deref()),
                     group_key: details::group_key(&sub.subscription_id, &rg.name),
                     resources: members,
                 });

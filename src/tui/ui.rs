@@ -5,7 +5,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap};
 
 use super::{App, Pane, Screen};
-use crate::model::azure_types;
+use crate::model::{azure_types, azure_values};
 
 pub fn render(frame: &mut Frame<'_>, app: &App) {
     match app.screen {
@@ -161,10 +161,16 @@ fn render_detail(frame: &mut Frame<'_>, app: &App, area: Rect) {
         lines.push(field("name", resource.name.clone()));
         lines.push(field("type", resource.azure_type.clone()));
         if let Some(kind) = &resource.kind {
-            lines.push(field("kind", kind.clone()));
+            lines.push(field(
+                "kind",
+                azure_values::display_kind(&resource.azure_type, kind).into_owned(),
+            ));
         }
         if let Some(location) = &resource.location {
-            lines.push(field("location", location.clone()));
+            lines.push(field(
+                "location",
+                azure_values::display_location(location).into_owned(),
+            ));
         }
         lines.push(field("sub", resource.subscription_id.clone()));
         lines.push(field("id", resource.display_id.clone()));

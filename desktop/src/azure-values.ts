@@ -24,11 +24,13 @@ export function displayKind(
   return metadata.kinds[exact] ?? metadata.kinds[`*:${normalizedKind}`] ?? humanizeIdentifier(kind);
 }
 
-function humanizeIdentifier(value: string) {
+export function humanizeIdentifier(value: string) {
   return value
     .replaceAll(/[_-]+/g, " ")
     .replaceAll(/([a-z0-9])([A-Z])/g, "$1 $2")
     .replaceAll(/([A-Z])([A-Z][a-z])/g, "$1 $2")
-    .replaceAll(/,\s*/g, ", ")
+    // `\s*` on both sides: a space before the comma must go too, or
+    // "app , linux" keeps it. The Rust humaniser collapses it the same way.
+    .replaceAll(/\s*,\s*/g, ", ")
     .trim();
 }
