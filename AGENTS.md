@@ -110,7 +110,7 @@ those values. **A new theme is a new TOML file; there must be no branch
 anywhere on a theme's name.** User overrides live in
 `<config dir>/azdocs/themes/`, merged by file stem.
 
-- `report/theme.rs` parses and resolves; `theme/color.rs` holds the colour
+- `report/theme/mod.rs` parses and resolves; `theme/color.rs` holds the colour
   maths and the `lighten/darken/mix/readable_on` expression language.
 - Anything drawn on top of a brand colour must go through `readable_on`, or a
   pale `primary_color` produces white-on-white.
@@ -142,10 +142,18 @@ Chrome decays with nesting depth; fonts and leaf sizes never do.
 
 ## Desktop design
 
-The desktop app wears the "Field Report" language: one token layer in
-`desktop/src/styles.css` (light canonical, dark = 1:1 token remap; tri-state
-theme — System/Light/Dark — persisted from Settings). Full sheet:
-[docs/reference/design.md](docs/reference/design.md); summarised in DESIGN.md.
+The desktop app wears the "Field Report" language. `desktop/src/styles.css` is
+the **only** place a colour value is written down (light canonical, dark = a 1:1
+token remap; tri-state theme — System/Light/Dark — persisted from Settings).
+
+- [docs/reference/design.md](docs/reference/design.md) — the authoritative sheet.
+- [docs/reference/design.html](docs/reference/design.html) — swatches, type
+  scale and marks, **generated** from `styles.css` and `docs/marks/manifest.json`
+  by `docs/reference/tools/build_design_sheet.py`. Never edit it; re-run the
+  script, which also fails if the two dark blocks in `styles.css` disagree.
+- [DESIGN.md](DESIGN.md) — a pointer to the above, plus the rules most often
+  broken. It used to restate the whole palette; three copies is how they drift.
+
 Hard rules: no numbering chrome, selection is a quiet `--evidence` fill (never
 a coloured bar), colour only for data (category set) and signals (severity
 set), type never below 11px. The Cytoscape stage reads `--graph-*`/`--kind-*`

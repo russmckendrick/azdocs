@@ -1,8 +1,8 @@
 # Mark prompts and design record
 
-The raster boards in [`concepts/`](concepts/) and the high-resolution refinement
-in [`png/azdocs-mark-master-source.png`](png/azdocs-mark-master-source.png) record
-the earlier folded-A exploration. The final simplified reference supplied by
+The raster boards in [`concepts/`](concepts/) record the earlier folded-A
+exploration. The current rounded triangular mark replaces its facets, fold and
+foreground graph with one silhouette and a white topology counter. The final simplified reference supplied by
 the project owner was rebuilt as deterministic paths and shapes. Automatic
 tracing was rejected because it would preserve raster blur and asymmetric edge
 wobble instead of the intended clean geometry.
