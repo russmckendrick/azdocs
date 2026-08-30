@@ -10,11 +10,26 @@ checked-in metadata only at presentation boundaries.
 | `data/azure_locations.toml` | Lowercase programmatic location | `uksouth` → `UK South` |
 | `data/azure_kinds.toml` | Lowercase `<ARM type>:<kind>` | `microsoft.documentdb/databaseaccounts:globaldocumentdb` → `Global Document DB` |
 
-All three files are embedded in the Rust binary. The desktop backend includes
-the effective location and kind maps in its offline snapshot DTO; the frontend
-uses the friendly values for display while filters continue to use the stored
-codes. Unknown locations remain unchanged. Unknown kinds receive conservative
+All three files are embedded in the Rust binary and used at both output
+surfaces, so one snapshot reads the same way whichever you render:
+
+- **Reports and the TUI** resolve through `model::azure_values` as they render —
+  the geographic footprint table, resource and group rows, the detail pages'
+  location/kind properties, and the TUI record.
+- **The desktop** receives the effective maps in its snapshot DTO and resolves
+  in the frontend, so filters keep working against the stored codes.
+
+Stored values are never rewritten. `ReportContext::NameCount` carries the code
+in `name` and the friendly value in `display`, the same split `TypeCount`
+already used, so anything joining on a location still matches SQLite.
+
+Unknown locations remain unchanged. Unknown kinds receive conservative
 CamelCase and separator splitting.
+
+> Because the desktop resolves in TypeScript, `humanize_identifier` exists twice
+> — `src/model/azure_values.rs` and `desktop/src/azure-values.ts`. Both are live.
+> `desktop/src/azure-values.test.ts` asserts they agree on a shared case list and
+> that the Rust tests still cover it; change one and that test fails.
 
 ## Refreshing locations
 

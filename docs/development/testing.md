@@ -43,6 +43,7 @@ flowchart TD
 | Rust↔TypeScript mirrors | Reads `src/model/mod.rs` and `topology.rs` and asserts the browser preview classifies every `EdgeKind` into the same family the Rust `match` does | `desktop/src/components/topology-fallback.test.ts` |
 | Desktop navigation | History-aware drill-down and the relationship workspace reducer | `desktop/src/navigation-state.test.ts` |
 | Wire contract | Regenerates `desktop/src/generated.ts` from the DTOs; CI then fails on `git diff` if it is stale. Also pins the serialised bytes of the event enums | `desktop/src-tauri/src/bindings.rs`, `dto.rs` |
+| Display metadata | Asserts the Rust and TypeScript `humanize_identifier` agree on a shared case list — both are live, one renders the reports and one the desktop | `desktop/src/azure-values.test.ts`, `src/model/azure_values.rs` |
 
 The full relationship rendering and screenshot review contract is in
 [Desktop relationship maps](desktop-relationships.md#tests-and-review).
