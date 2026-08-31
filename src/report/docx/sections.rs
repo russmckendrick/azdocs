@@ -11,9 +11,9 @@ use docx_rs::{
 
 use super::style::{self, Ctx, half_points, hex, pt_to_emu, twips_to_emu};
 use crate::diagram::assets::DiagramAsset;
+use crate::mark;
 use crate::report::branding::BrandingContext;
 use crate::report::document::{Block, Cover, ParagraphStyle, TableKind, TextRun, TextStyle};
-use crate::report::mark;
 use crate::report::theme::CoverStyle;
 
 pub fn header(branding: &BrandingContext, ctx: &Ctx) -> Header {

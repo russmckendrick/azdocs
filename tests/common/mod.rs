@@ -225,7 +225,21 @@ fn estate_resources() -> Vec<Value> {
             "resourceGroup": "rg-app", "subscriptionId": "sub-prod",
             "properties": {
                 "subnet": {"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/virtualNetworks/vnet-app/subnets/app"},
+                "networkInterfaces": [{"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/networkInterfaces/pe-sql.nic.4f2a"}],
                 "privateLinkServiceConnections": [{"properties": {"privateLinkServiceId": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Sql/servers/sql-prod"}}]
+            }
+        }),
+        // Azure's own plumbing for `pe-sql`: its own ARG row, named after the
+        // endpoint, with no `virtualMachine` of its own. It folds into the
+        // endpoint, and the goldens are here to show that it does.
+        json!({
+            "id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/networkInterfaces/pe-sql.nic.4f2a",
+            "name": "pe-sql.nic.4f2a", "type": "microsoft.network/networkinterfaces", "location": "uksouth",
+            "resourceGroup": "rg-app", "subscriptionId": "sub-prod",
+            "properties": {
+                "ipConfigurations": [{"properties": {
+                    "subnet": {"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/virtualNetworks/vnet-app/subnets/app"}
+                }}]
             }
         }),
         json!({

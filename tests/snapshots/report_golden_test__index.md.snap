@@ -16,12 +16,12 @@ expression: content
 |---|---:|
 | Subscriptions | 2 |
 | Resource groups | 3 |
-| Resources | 17 |
-| Findings | 12 |
+| Resources | 18 |
+| Findings | 13 |
 
-**Findings by severity**: 2 high · 1 medium · 8 low · 1 info — see [findings.md](findings.md)
+**Findings by severity**: 2 high · 1 medium · 9 low · 1 info — see [findings.md](findings.md)
 
-**Tag coverage**: 52% (9 tagged, 8 untagged)
+**Tag coverage**: 50% (9 tagged, 9 untagged)
 
 ## Governance
 
@@ -36,26 +36,26 @@ expression: content
 | Subscription | Coverage | Status |
 |---|---:|---|
 | Development | 0% | below threshold |
-| Production | 64% | healthy |
+| Production | 60% | healthy |
 
-**Least compliant resource groups** — 8 resources are missing at least one required tag, recorded by the `missing_required_tags` audit.
+**Least compliant resource groups** — 9 resources are missing at least one required tag, recorded by the `missing_required_tags` audit.
 
 | Resource group | Subscription | Resources | Non-compliant | Missed tags | Status |
 |---|---|---:|---:|---|---|
-| rg-app | Production | 11 | 5 | env | — |
+| rg-app | Production | 12 | 6 | env | — |
 | rg-dev | Development | 3 | 3 | env | called out |
 
 ## Resources by type
 
 | Type | Azure type | Count |
 |---|---|---:|
+| Network Interface | `microsoft.network/networkinterfaces` | 2 |
 | Network Security Group | `microsoft.network/networksecuritygroups` | 2 |
 | Virtual Network | `microsoft.network/virtualnetworks` | 2 |
 | Managed Disk | `microsoft.compute/disks` | 1 |
 | Virtual Machine | `microsoft.compute/virtualmachines` | 1 |
 | AVD Host Pool | `microsoft.desktopvirtualization/hostpools` | 1 |
 | Managed Identity | `microsoft.managedidentity/userassignedidentities` | 1 |
-| Network Interface | `microsoft.network/networkinterfaces` | 1 |
 | Private Endpoint | `microsoft.network/privateendpoints` | 1 |
 | Public IP Address | `microsoft.network/publicipaddresses` | 1 |
 | Log Analytics Workspace | `microsoft.operationalinsights/workspaces` | 1 |
@@ -69,7 +69,7 @@ expression: content
 
 | Location | Count |
 |---|---:|
-| UK South | 14 |
+| UK South | 15 |
 | UK West | 3 |
 
 ## Sections

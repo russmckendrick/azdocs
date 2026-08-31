@@ -16,6 +16,8 @@ use std::sync::OnceLock;
 use base64::Engine as _;
 use include_dir::{Dir, include_dir};
 
+use crate::diagram::graph::NodeKind;
+use crate::diagram::page::Rung;
 use crate::model::azure_types;
 
 static ICON_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/data/icons");
@@ -90,7 +92,9 @@ const ICONS: &[(&str, &str, &str)] = &[
         "App_Service_Plans",
     ),
     ("microsoft.web/sites", "app_services", "App_Services"),
-    ("microsoft.web/staticsites", "app_services", "Static_Apps"),
+    // Static Web Apps ships under `preview`, not `app_services`; pointed at
+    // the latter it rendered as draw.io's broken-image placeholder.
+    ("microsoft.web/staticsites", "preview", "Static_Apps"),
     (
         "microsoft.network/virtualnetworks",
         "networking",
@@ -256,16 +260,22 @@ const ICONS: &[(&str, &str, &str)] = &[
 const GENERIC: (&str, &str) = ("general", "All_Resources");
 
 /// Full draw.io style string for a resource icon node.
-pub fn style_for(azure_type: &str) -> String {
+pub fn style_for(azure_type: &str, rung: &Rung) -> String {
     let (category, name) = ICONS
         .iter()
         .find(|(key, _, _)| *key == azure_type)
         .map(|(_, category, name)| (*category, *name))
         .unwrap_or(GENERIC);
+    // `labelWidth` is the slot, not the glyph. The label hangs below the cell,
+    // so without it draw.io wraps a resource name to the icon's own width and
+    // the result is a one-word-per-line column taller than the row it sits in.
+    let font = rung.label_px;
+    let label_width = rung.leaf_width;
     format!(
-        "image;aspect=fixed;html=1;points=[];align=center;fontSize=10;\
+        "image;aspect=fixed;html=1;points=[];align=center;fontSize={font};\
          labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;\
-         whiteSpace=wrap;image=img/lib/azure2/{category}/{name}.svg;"
+         whiteSpace=wrap;labelWidth={label_width};\
+         image=img/lib/azure2/{category}/{name}.svg;"
     )
 }
 
@@ -419,6 +429,41 @@ fn monogram(display_name: &str) -> String {
     }
 }
 
+/// Stencil for a container's title band, so a resource group, VNet or subnet
+/// is recognisable by shape before its name is read — the convention every
+/// Azure reference architecture follows.
+///
+/// The paths are draw.io's own bundled `azure2` library, verified against it;
+/// a name that is not in the library renders as a broken image, so these are
+/// not guesses.
+pub fn header_style(kind: &NodeKind) -> Option<(String, f64)> {
+    // Width-over-height of each stencil as the library actually ships it, read
+    // out of draw.io's own `azure2` folder. These are not square: a virtual
+    // network is 18.0 x 10.8. Drawn in a square cell it came out visibly
+    // squashed, on every container in the workbook.
+    let (stencil, aspect) = match kind {
+        NodeKind::Tenant => ("general/Management_Groups", 1.0),
+        NodeKind::Subscription => ("general/Subscriptions", 1.0),
+        NodeKind::ResourceGroup => ("general/Resource_Groups", 17.000013 / 16.044224),
+        NodeKind::Vnet => ("networking/Virtual_Networks", 18.006025 / 10.784314),
+        NodeKind::Subnet => ("networking/Subnet", 16.998 / 10.175),
+        NodeKind::Unnetworked => ("general/All_Resources", 1.0),
+        // A resource is drawn as its own glyph; it has no band to sit in.
+        NodeKind::Resource { .. } => return None,
+    };
+    // No `imageAspect=0` here: that is the flag that says "ignore the image's
+    // own proportions and fill the box". The cell is cut to the stencil's
+    // aspect instead, so it fills without being stretched.
+    Some((
+        format!(
+            "image;aspect=fixed;html=1;points=[];\
+             movable=0;resizable=0;deletable=0;connectable=0;editable=0;\
+             image=img/lib/azure2/{stencil}.svg;"
+        ),
+        aspect,
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -426,14 +471,23 @@ mod tests {
     #[test]
     fn style_for_maps_known_types() {
         assert!(
-            style_for("microsoft.network/virtualnetworks")
-                .contains("img/lib/azure2/networking/Virtual_Networks.svg")
+            style_for(
+                "microsoft.network/virtualnetworks",
+                &crate::diagram::page::COMFORTABLE
+            )
+            .contains("img/lib/azure2/networking/Virtual_Networks.svg")
         );
     }
 
     #[test]
     fn style_for_falls_back_to_generic_icon() {
-        assert!(style_for("microsoft.custom/widgets").contains("general/All_Resources.svg"));
+        assert!(
+            style_for(
+                "microsoft.custom/widgets",
+                &crate::diagram::page::COMFORTABLE
+            )
+            .contains("general/All_Resources.svg")
+        );
     }
 
     #[test]

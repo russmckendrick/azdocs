@@ -26,40 +26,43 @@ flowchart LR
             class n8 resource
             n9["hp-prod<br/><i>AVD Host Pool</i>"]
             class n9 resource
-            n10["vm-app-01-nic<br/><i>Network Interface</i>"]
+            n10["pe-sql.nic.4f2a<br/><i>Network Interface</i>"]
             class n10 resource
-            n11["pe-sql<br/><i>Private Endpoint</i>"]
+            n11["vm-app-01-nic<br/><i>Network Interface</i>"]
             class n11 resource
-            n12["vm-app-01-pip<br/><i>Public IP Address</i>"]
+            n12["pe-sql<br/><i>Private Endpoint</i>"]
             class n12 resource
-            n13["vnet-app<br/><i>Virtual Network</i>"]
+            n13["vm-app-01-pip<br/><i>Public IP Address</i>"]
             class n13 resource
-            n14["law-prod<br/><i>Log Analytics Workspace</i>"]
+            n14["vnet-app<br/><i>Virtual Network</i>"]
             class n14 resource
-            n15["sql-prod<br/><i>SQL Server</i>"]
+            n15["law-prod<br/><i>Log Analytics Workspace</i>"]
             class n15 resource
-            n16["app-db<br/><i>SQL Database</i>"]
+            n16["sql-prod<br/><i>SQL Server</i>"]
             class n16 resource
-            n17["stprodapp01<br/><i>Storage Account</i>"]
+            n17["app-db<br/><i>SQL Database</i>"]
             class n17 resource
+            n18["stprodapp01<br/><i>Storage Account</i>"]
+            class n18 resource
         end
         class n6 rg
-        subgraph n18["rg-network"]
-            n19["nsg-app<br/><i>Network Security Group</i>"]
-            class n19 resource
-            n20["nsg-unused<br/><i>Network Security Group</i>"]
+        subgraph n19["rg-network"]
+            n20["nsg-app<br/><i>Network Security Group</i>"]
             class n20 resource
-            n21["vnet-hub<br/><i>Virtual Network</i>"]
+            n21["nsg-unused<br/><i>Network Security Group</i>"]
             class n21 resource
+            n22["vnet-hub<br/><i>Virtual Network</i>"]
+            class n22 resource
         end
-        class n18 rg
+        class n19 rg
     end
     class n5 subscription
     n7---n8
-    n10---n8
-    n11-.-|private link|n15
-    n12---n10
-    n16---n15
+    n10---n12
+    n11---n8
+    n12-.-|private link|n16
+    n13---n11
+    n17---n16
     classDef subscription fill:#e8f1fa,stroke:#0078d4
     classDef rg fill:#f3f2f1,stroke:#8a8886
     classDef vnet fill:#e6f5e6,stroke:#107c10

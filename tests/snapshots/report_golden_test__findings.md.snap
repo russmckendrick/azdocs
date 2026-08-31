@@ -6,7 +6,7 @@ expression: content
 
 [← index](index.md)
 
-**2 high · 1 medium · 8 low · 1 info**
+**2 high · 1 medium · 9 low · 1 info**
 
 
 ## High
@@ -29,6 +29,7 @@ expression: content
 | asp-dev is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.web/serverfarms/asp-dev` |
 | id-web-dev is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.managedidentity/userassignedidentities/id-web-dev` |
 | pe-sql is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/privateendpoints/pe-sql` |
+| pe-sql.nic.4f2a is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/networkinterfaces/pe-sql.nic.4f2a` |
 | stprodapp01 is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01` |
 | vm-app-01-nic is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/networkinterfaces/vm-app-01-nic` |
 | vm-app-01-os is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.compute/disks/vm-app-01-os` |

@@ -20,8 +20,8 @@ use typst_pdf::{PdfOptions, PdfStandards, Timestamp};
 use super::ReportContext;
 use super::branding::BrandingContext;
 use super::document::PrintDocument;
-use super::mark;
 use crate::diagram::assets::DiagramAsset;
+use crate::mark;
 
 static TYPST_TEMPLATES: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/templates/typst");
 
