@@ -4,7 +4,7 @@
 //! The grid shape comes from [`super::page`], which knows the target sheet, so
 //! layout, the SVG emitter and the report formats all agree on how much fits.
 
-use super::graph::{EstateGraph, LayoutMode, NodeKind};
+use super::graph::{EstateGraph, LayoutMode, Node, NodeKind};
 use super::page::{A4_PORTRAIT, DiagramDetail, Rung, rung_for};
 
 /// Placement for one node, `(x, y)` relative to its parent.
@@ -301,6 +301,36 @@ fn shelf(
         band + 2.0 * pad + rows as f64 * height + (rows.saturating_sub(1)) as f64 * rung.gutter;
 }
 
+/// Height the title band needs to hold this container's label at `width`.
+///
+/// `Rung::title_band` is a constant sized for one line. A VNet header is its
+/// name *and* its CIDR, and in a narrow subnet column that pair wraps — so the
+/// second line printed below the band, across the content beneath it.
+///
+/// Every consumer reads this, not the constant: the layout reserves the space,
+/// draw.io declares the same figure as its `startSize`, and the SVG draws
+/// inside it. draw.io positions a swimlane's children by their own geometry
+/// regardless of `startSize`, so an emitter that grew the band on its own
+/// would simply rule the divider through the first row.
+pub(crate) fn title_band_for(node: &Node, width: f64, rung: &Rung) -> f64 {
+    if !node.kind.is_container() {
+        return rung.title_band;
+    }
+    let font = rung.container_label_px;
+    let characters = node.label.chars().count()
+        + node
+            .sublabel
+            .as_deref()
+            .map_or(0, |s| s.chars().count() + 2);
+    // The inset matches the 12px the emitters leave either side, plus the
+    // stencil that shares the band. 0.58em is the average advance of the bold
+    // sans a header is set in; erring wide keeps the estimate conservative.
+    let usable = (width - 24.0 - (font + 6.0)).max(font * 4.0);
+    let per_line = (usable / (font * 0.58)).floor().max(4.0);
+    let lines = (characters as f64 / per_line).ceil().max(1.0);
+    (lines * (font + 4.0) + 10.0).max(rung.title_band)
+}
+
 /// Convert parent-relative placements (draw.io child geometry) into absolute
 /// page coordinates (what SVG needs) by walking each node's parent chain.
 pub fn absolutize(graph: &EstateGraph, placements: &[Placement]) -> Vec<Placement> {
@@ -351,7 +381,7 @@ fn measure(
     );
     let (width, height) = extent_at(&children[index], columns, &metrics, placements);
     placements[index].width = width;
-    placements[index].height = height + metrics.title_band;
+    placements[index].height = height + title_band_for(&graph.nodes[index], width, &metrics);
 }
 
 /// Pass two, pre-order: lay `nodes` out across exactly `available` width and
@@ -397,7 +427,7 @@ fn justify(
                 rung,
                 depth + 1,
                 slot,
-                inner.title_band,
+                title_band_for(&graph.nodes[node], slot, &inner),
                 placements,
             )
         };
@@ -589,7 +619,7 @@ fn child_height(
         rung,
         depth + 1,
         slot,
-        inner.title_band,
+        title_band_for(&graph.nodes[node], slot, &inner),
     )
 }
 

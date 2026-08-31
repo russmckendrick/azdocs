@@ -210,15 +210,21 @@ fn node_cell(
     // depends on the builder: a subnet member is name-then-type, an
     // out-of-network tile is type-then-name. Capping one of them left the
     // other to wrap to five lines and run into the row below.
-    let label = match &node.sublabel {
-        Some(sub) => format!(
+    // A container reads on one line — "name  CIDR", the SVG's order — and its
+    // label is deliberately never truncated: it is often the only place a
+    // count appears. A leaf stacks its name over its type, and *is* budgeted,
+    // because a slot is narrow and the row beneath it is close.
+    let label = match (&node.sublabel, node.kind.is_container()) {
+        (Some(sub), true) => format!("{}  {sub}", node_label(node)),
+        (Some(sub), false) => format!(
             "{}<br>{}",
             fit_label(&node_label(node), rung),
             fit_label(sub, rung)
         ),
-        None => fit_label(&node_label(node), rung),
+        (None, true) => node_label(node),
+        (None, false) => fit_label(&node_label(node), rung),
     };
-    let style = style_for_node(graph, index, node, rung);
+    let style = style_for_node(graph, index, node, placement, rung);
 
     // The glyph is centred in its layout slot and the slot's remaining height
     // is the label's. The size has to come from the rung: a fixed 64px icon
@@ -279,15 +285,19 @@ fn style_for_node(
     graph: &EstateGraph,
     index: usize,
     node: &super::graph::Node,
+    placement: &Placement,
     rung: &Rung,
 ) -> String {
     let has_children = has_children(graph, index);
     let font = trim_float(rung.container_label_px);
+    // The same figure layout reserved. Declaring the rung constant instead
+    // ruled the divider through the first row whenever a header wrapped.
+    let band_px = layout::title_band_for(node, placement.width, rung);
     match &node.kind {
         NodeKind::Resource { azure_type } => icons::style_for(azure_type, rung),
         kind if has_children => {
             let (fill, stroke) = container_palette(kind);
-            let band = trim_float(rung.title_band);
+            let band = trim_float(band_px);
             // `whiteSpace=wrap` is what stops a long subnet name — and its
             // address prefix — running clean over the neighbouring lane's
             // title. Without it draw.io lays the title out on one line at any
@@ -721,23 +731,58 @@ mod tests {
         assert!(xml.contains("id=\"n0\""), "node id was renumbered: {xml}");
     }
 
-    /// Layout reserves the *decayed* band, so declaring the undecayed one put
-    /// a nested container's children inside its own title.
+    /// The band draw.io declares has to be the one layout reserved. Too small
+    /// and a wrapped header prints across the content; too large and the
+    /// divider is ruled through the first row of children — draw.io places a
+    /// swimlane's children by their own geometry, whatever `startSize` says.
     #[test]
-    fn unit_a_nested_band_matches_the_one_layout_reserved() {
-        let graph = graph(2);
-        let rung = layout::rung(&graph);
+    fn unit_no_swimlane_rules_its_divider_through_a_child() {
+        // A long name and a CIDR, which is the pair that wraps in a narrow
+        // column and was printing below the band.
+        let mut graph = graph(6);
+        graph.nodes[1].label = "snet-n4-corp-dwh-shared-dev-uks".into();
+        graph.nodes[1].sublabel = Some("10.221.41.64/26".into());
         let xml = render_for(&graph, DiagramDetail::Full);
 
-        let bands: Vec<f64> = xml
-            .split("startSize=")
-            .skip(1)
-            .filter_map(|s| s.split_once(';'))
-            .map(|(v, _)| v.parse().expect("a numeric band"))
-            .collect();
+        let mut bands: Vec<(String, f64)> = Vec::new();
+        let mut children: Vec<(String, f64)> = Vec::new();
+        for cell in xml.split("<mxCell ").skip(1) {
+            let id = field(cell, "id=\"").expect("an id");
+            if let Some(style) = cell.split_once("style=\"").map(|(_, rest)| rest)
+                && style.starts_with("swimlane")
+                && let Some(size) = field(cell, "startSize=")
+            {
+                bands.push((
+                    id.clone(),
+                    size.trim_end_matches(';').parse().expect("a band"),
+                ));
+            }
+            // `h{i}` is the stencil that sits *in* the band by design.
+            if !id.starts_with('h')
+                && let (Some(parent), Some(y)) = (field(cell, "parent=\""), field(cell, "y=\""))
+            {
+                children.push((parent, y.parse().expect("a y")));
+            }
+        }
 
-        assert!(bands.contains(&rung.at_depth(0).title_band), "{bands:?}");
-        assert!(bands.contains(&rung.at_depth(1).title_band), "{bands:?}");
+        assert!(!bands.is_empty(), "no swimlane rendered: {xml}");
+        for (id, band) in &bands {
+            for (parent, y) in &children {
+                if parent == id {
+                    assert!(
+                        *y >= *band,
+                        "child at y={y} sits inside {id}'s {band}px band"
+                    );
+                }
+            }
+        }
+    }
+
+    /// Read `key`'s value up to the next `"` or `;`, whichever ends it.
+    fn field(cell: &str, key: &str) -> Option<String> {
+        let rest = cell.split_once(key)?.1;
+        let end = rest.find(['"', ';']).unwrap_or(rest.len());
+        Some(rest[..end].to_owned())
     }
 
     #[test]
