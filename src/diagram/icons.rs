@@ -412,7 +412,12 @@ pub fn svg_data_uri(azure_type: &str) -> String {
 /// [`svg_data_uri`]. Emitters that embed a file rather than a URI (the PDF
 /// registers icons as virtual files; the DOCX rasterises them) use this.
 pub fn svg_bytes(azure_type: &str) -> Vec<u8> {
-    pack_icon(azure_type).unwrap_or_else(|| monogram_svg(azure_type).into_bytes())
+    let bytes = pack_icon(azure_type).unwrap_or_else(|| monogram_svg(azure_type).into_bytes());
+    // The pack ships single-line SVGs, so nothing here has a line ending to
+    // translate today — but these bytes are base64'd into golden output, and a
+    // pretty-printed icon arriving later would silently make that output
+    // platform-dependent. That is exactly how the product mark broke.
+    bytes.into_iter().filter(|&b| b != b'\r').collect()
 }
 
 /// Icon bytes from the embedded pack, or None when neither the type, its

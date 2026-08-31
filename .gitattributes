@@ -1,0 +1,14 @@
+# Assets embedded with `include_bytes!`/`include_dir!` and base64'd into
+# diagram and report output. git rewrites text files to CRLF on a Windows
+# checkout, which changes the bytes, which changes the base64, which fails the
+# golden files on Windows and only on Windows. Keep them byte-for-byte.
+#
+# The emitters normalise line endings anyway (`src/mark.rs`), because this only
+# governs checkout — but there is no reason for the bytes to differ at all.
+*.svg -text
+*.png -text
+*.ttf -text
+*.otf -text
+
+# Golden files are compared byte-for-byte across Linux, macOS and Windows.
+*.snap -text

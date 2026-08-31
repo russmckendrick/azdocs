@@ -158,8 +158,8 @@ impl ReportWorld {
         }
         if document.cover.product_mark {
             for (path, bytes) in [
-                (mark::PRIMARY_VIRTUAL_PATH, mark::PRIMARY_SVG),
-                (mark::ON_DARK_VIRTUAL_PATH, mark::ON_DARK_SVG),
+                (mark::PRIMARY_VIRTUAL_PATH, mark::primary_svg()),
+                (mark::ON_DARK_VIRTUAL_PATH, mark::on_dark_svg()),
             ] {
                 let id = FileId::new(None, VirtualPath::new(path));
                 files.insert(id, Bytes::new(bytes.to_vec()));

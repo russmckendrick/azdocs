@@ -417,7 +417,7 @@ fn stamp_cell(writer: &mut Writer<Vec<u8>>, top: f64, prefix: &str) {
     // its wordmark as vector outlines, and 4.7KB of them on every sheet more
     // than doubled a 54-sheet workbook. Rendered as text it is a few bytes.
     use base64::Engine as _;
-    let encoded = base64::engine::general_purpose::STANDARD.encode(crate::mark::PRIMARY_SVG);
+    let encoded = base64::engine::general_purpose::STANDARD.encode(crate::mark::primary_svg());
     let style = format!(
         "image;aspect=fixed;html=1;points=[];\
          movable=0;resizable=0;deletable=0;connectable=0;editable=0;\

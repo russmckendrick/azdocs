@@ -541,9 +541,9 @@ fn product_mark_picture(ctx: &Ctx, cover: &Cover<'_>, on_dark: bool) -> Option<R
         return None;
     }
     let svg = if on_dark {
-        mark::ON_DARK_SVG
+        mark::on_dark_svg()
     } else {
-        mark::PRIMARY_SVG
+        mark::primary_svg()
     };
     let svg = std::str::from_utf8(svg).ok()?;
     // LibreOffice loses subsequent cover text after a transparent image inside
