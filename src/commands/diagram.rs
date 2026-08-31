@@ -113,7 +113,7 @@ fn render_one(
         .extension()
         .ok_or_else(|| anyhow!("{format:?} names a set of formats; expand it first"))?;
     let bytes = match format {
-        DiagramFormat::Drawio => drawio::render(graph).into_bytes(),
+        DiagramFormat::Drawio => drawio::render_for(graph, DiagramDetail::Full).into_bytes(),
         DiagramFormat::Mermaid => mermaid::render(graph).into_bytes(),
         DiagramFormat::Svg => svg::render_for(graph, DiagramDetail::Full).into_bytes(),
         DiagramFormat::Png => png::from_svg(
@@ -268,7 +268,10 @@ fn workbook(
                     .iter()
                     .map(|(name, _, graph)| (*name, *graph))
                     .collect();
-                write_out(&out, drawio::render_workbook(&named_sheets).as_bytes())?;
+                write_out(
+                    &out,
+                    drawio::render_workbook_for(&named_sheets, DiagramDetail::Full).as_bytes(),
+                )?;
                 println!("workbook ({} sheets) -> {}", sheets.len(), out.display());
                 outputs.push(out);
             }

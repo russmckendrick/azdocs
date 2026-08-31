@@ -8,9 +8,9 @@ title: Azure network topology
 flowchart LR
     subgraph n0["vnet-app<br/><i>10.1.0.0/16</i>"]
         subgraph n1["app<br/><i>10.1.0.0/24</i>"]
-            n5["vm-app-01<br/><i>Virtual Machine</i>"]
+            n5["pe-sql<br/><i>Private Endpoint</i>"]
             class n5 resource
-            n6["pe-sql<br/><i>Private Endpoint</i>"]
+            n6["vm-app-01<br/><i>Virtual Machine</i>"]
             class n6 resource
         end
         class n1 subnet
@@ -30,7 +30,7 @@ flowchart LR
         class n8 resource
     end
     class n9 rg
-    n6-.-|private link|n7
+    n5-.-|private link|n7
     n0-.-|Connected|n2
     n8-.-n4
     classDef subscription fill:#e8f1fa,stroke:#0078d4

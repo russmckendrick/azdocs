@@ -4,7 +4,6 @@ pub mod details;
 pub mod docx;
 pub mod governance;
 pub mod html;
-mod mark;
 pub mod markdown;
 pub mod pdf;
 pub mod site;

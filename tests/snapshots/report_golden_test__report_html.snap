@@ -62,16 +62,16 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 <div class="stats">
   <div class="stat"><b>2</b><span>subscriptions</span></div>
   <div class="stat"><b>3</b><span>resource groups</span></div>
-  <div class="stat"><b>17</b><span>resources</span></div>
-  <div class="stat"><b>12</b><span>findings</span></div>
-  <div class="stat"><b>52%</b><span>tag coverage</span></div>
+  <div class="stat"><b>18</b><span>resources</span></div>
+  <div class="stat"><b>13</b><span>findings</span></div>
+  <div class="stat"><b>50%</b><span>tag coverage</span></div>
 </div>
 
 <h2>Findings</h2>
 <p>
 <span class="badge high">2 high</span>
 <span class="badge medium">1 medium</span>
-<span class="badge low">8 low</span>
+<span class="badge low">9 low</span>
 <span class="badge info">1 info</span>
 </p>
 
@@ -98,6 +98,9 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 <td>pe-sql is missing tags: env</td><td>governance</td><td><code>missing_required_tags</code></td>
 <td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/privateendpoints/pe-sql</code></td></tr>
 <tr><td><span class="badge low">low</span></td>
+<td>pe-sql.nic.4f2a is missing tags: env</td><td>governance</td><td><code>missing_required_tags</code></td>
+<td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/networkinterfaces/pe-sql.nic.4f2a</code></td></tr>
+<tr><td><span class="badge low">low</span></td>
 <td>stprodapp01 is missing tags: env</td><td>governance</td><td><code>missing_required_tags</code></td>
 <td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01</code></td></tr>
 <tr><td><span class="badge low">low</span></td>
@@ -121,9 +124,9 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 
 <h2>Governance</h2>
 <div class="stats">
-  <div class="stat"><b>52%</b><span>tag coverage</span></div>
+  <div class="stat"><b>50%</b><span>tag coverage</span></div>
   <div class="stat"><b>1</b><span>distinct keys</span></div>
-  <div class="stat"><b>8</b><span>non-compliant</span></div>
+  <div class="stat"><b>9</b><span>non-compliant</span></div>
 </div>
 
 <table>
@@ -138,17 +141,17 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 <tbody>
 <tr><td>Development</td><td>0%</td>
 <td><span class="badge medium">below threshold</span></td></tr>
-<tr><td>Production</td><td>64%</td>
+<tr><td>Production</td><td>60%</td>
 <td><span class="badge info">healthy</span></td></tr>
 </tbody>
 </table>
 
-<p>8 resources are missing at least one required tag, recorded by the <code>missing_required_tags</code> audit.</p>
+<p>9 resources are missing at least one required tag, recorded by the <code>missing_required_tags</code> audit.</p>
 <table>
 <thead><tr><th>Resource group</th><th>Subscription</th><th>Resources</th><th>Non-compliant</th><th>Missed tags</th></tr></thead>
 <tbody>
-<tr><td>rg-app</td><td>Production</td><td>11</td>
-<td>5</td>
+<tr><td>rg-app</td><td>Production</td><td>12</td>
+<td>6</td>
 <td><code>env</code></td></tr>
 <tr><td>rg-dev</td><td>Development</td><td>3</td>
 <td><span class="badge high">3</span></td>
@@ -160,13 +163,13 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 <table>
 <thead><tr><th>Type</th><th>Azure type</th><th>Count</th></tr></thead>
 <tbody>
+<tr><td>Network Interface</td><td><code>microsoft.network/networkinterfaces</code></td><td>2</td></tr>
 <tr><td>Network Security Group</td><td><code>microsoft.network/networksecuritygroups</code></td><td>2</td></tr>
 <tr><td>Virtual Network</td><td><code>microsoft.network/virtualnetworks</code></td><td>2</td></tr>
 <tr><td>Managed Disk</td><td><code>microsoft.compute/disks</code></td><td>1</td></tr>
 <tr><td>Virtual Machine</td><td><code>microsoft.compute/virtualmachines</code></td><td>1</td></tr>
 <tr><td>AVD Host Pool</td><td><code>microsoft.desktopvirtualization/hostpools</code></td><td>1</td></tr>
 <tr><td>Managed Identity</td><td><code>microsoft.managedidentity/userassignedidentities</code></td><td>1</td></tr>
-<tr><td>Network Interface</td><td><code>microsoft.network/networkinterfaces</code></td><td>1</td></tr>
 <tr><td>Private Endpoint</td><td><code>microsoft.network/privateendpoints</code></td><td>1</td></tr>
 <tr><td>Public IP Address</td><td><code>microsoft.network/publicipaddresses</code></td><td>1</td></tr>
 <tr><td>Log Analytics Workspace</td><td><code>microsoft.operationalinsights/workspaces</code></td><td>1</td></tr>
@@ -255,16 +258,17 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 </details>
 
 
-<h3>Production <span class="meta">(sub-prod · 14 resources)</span></h3>
+<h3>Production <span class="meta">(sub-prod · 15 resources)</span></h3>
 
 <details>
-<summary>rg-app — UK South (11)</summary>
+<summary>rg-app — UK South (12)</summary>
 <table>
 <thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Tags</th></tr></thead>
 <tbody>
 <tr><td>vm-app-01-os</td><td>Managed Disk</td><td>UK South</td><td></td></tr>
 <tr><td>vm-app-01</td><td>Virtual Machine</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
 <tr><td>hp-prod</td><td>AVD Host Pool</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>pe-sql.nic.4f2a</td><td>Network Interface</td><td>UK South</td><td></td></tr>
 <tr><td>vm-app-01-nic</td><td>Network Interface</td><td>UK South</td><td></td></tr>
 <tr><td>pe-sql</td><td>Private Endpoint</td><td>UK South</td><td></td></tr>
 <tr><td>vm-app-01-pip</td><td>Public IP Address</td><td>UK South</td><td></td></tr>

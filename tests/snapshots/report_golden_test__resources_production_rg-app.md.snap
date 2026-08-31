@@ -8,7 +8,7 @@ expression: content
 
 - **Subscription**: Production
 - **Location**: UK South
-- **Resources**: 11
+- **Resources**: 12
 
 
 ## vm-app-01-os
@@ -57,6 +57,20 @@ expression: content
 
 `/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.DesktopVirtualization/hostPools/hp-prod`
 
+## pe-sql.nic.4f2a
+
+**Network Interface** (`microsoft.network/networkinterfaces`)
+
+> ⚠️ **LOW** — pe-sql.nic.4f2a is missing tags: env
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+
+**Related**: app (nic_in_subnet) · pe-sql (attached_to)
+
+`/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/networkInterfaces/pe-sql.nic.4f2a`
+
 ## vm-app-01-nic
 
 **Network Interface** (`microsoft.network/networkinterfaces`)
@@ -81,7 +95,7 @@ expression: content
 |---|---|
 | Location | UK South |
 
-**Related**: app (nic_in_subnet) · sql-prod (private_endpoint_for)
+**Related**: app (nic_in_subnet) · pe-sql.nic.4f2a (attached_to) · sql-prod (private_endpoint_for)
 
 `/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/privateEndpoints/pe-sql`
 

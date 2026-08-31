@@ -8,7 +8,7 @@ expression: content
 
 - **Id**: `sub-prod`
 - **State**: Enabled
-- **Resources**: 14
+- **Resources**: 15
 
 
 ## rg-app (UK South)
@@ -20,6 +20,7 @@ expression: content
 | vm-app-01-os | Managed Disk | UK South |
 | vm-app-01 | Virtual Machine | UK South |
 | hp-prod | AVD Host Pool | UK South |
+| pe-sql.nic.4f2a | Network Interface | UK South |
 | vm-app-01-nic | Network Interface | UK South |
 | pe-sql | Private Endpoint | UK South |
 | vm-app-01-pip | Public IP Address | UK South |

@@ -44,21 +44,37 @@ fn names() -> &'static BTreeMap<String, String> {
     })
 }
 
-/// Types drawn as part of their virtual machine rather than beside it.
+/// Types drawn as part of the resource they attach to rather than beside it.
 ///
-/// A NIC and an OS disk are attachments: on a diagram they say nothing the VM
-/// does not already say, and at one to three per VM they crowd out the
+/// A NIC and an OS disk are attachments: on a diagram they say nothing the host
+/// does not already say, and at one to three per host they crowd out the
 /// resources a reader is actually looking for. Both the print diagrams and the
 /// desktop topology fold them; this is the one list, because the two disagreed
 /// about disks for as long as they each had their own.
-pub const FOLDS_INTO_VM: [&str; 2] = [
+pub const FOLDS_INTO_HOST: [&str; 2] = [
     "microsoft.network/networkinterfaces",
     "microsoft.compute/disks",
 ];
 
-/// Does this type get folded into an attached virtual machine?
-pub fn folds_into_vm(azure_type: &str) -> bool {
-    FOLDS_INTO_VM.contains(&azure_type)
+/// Does this type get folded into whatever it is attached to?
+pub fn folds_into_host(azure_type: &str) -> bool {
+    FOLDS_INTO_HOST.contains(&azure_type)
+}
+
+/// Types an attachment may fold *into*.
+///
+/// A private endpoint is here alongside the virtual machine because Azure
+/// creates one NIC per endpoint, names it after the endpoint and gives it
+/// nothing else to say. Drawn separately it doubled the tile count of every
+/// subnet full of private endpoints, which is most of them.
+pub const ATTACHMENT_HOSTS: [&str; 2] = [
+    "microsoft.compute/virtualmachines",
+    "microsoft.network/privateendpoints",
+];
+
+/// Can an attachment fold into this type?
+pub fn is_attachment_host(azure_type: &str) -> bool {
+    ATTACHMENT_HOSTS.contains(&azure_type)
 }
 
 /// Is this a *child* resource type — `provider/parent/child`, like a VM

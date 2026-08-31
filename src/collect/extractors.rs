@@ -172,6 +172,21 @@ fn private_endpoint_edges(pe: &Resource) -> Vec<Edge> {
     if let Some(subnet_id) = id_at(props, &["subnet", "id"]) {
         edges.push(edge(&pe.display_id, subnet_id, EdgeKind::NicInSubnet, None));
     }
+    // Azure creates a NIC per endpoint and returns it as its own ARG row, but
+    // nothing linked the two: the NIC's own extractor only looks for a
+    // `virtualMachine`. Without this edge the pair drew as two unrelated tiles
+    // that happened to share a subnet, which is most of what made a
+    // private-endpoint subnet unreadable.
+    for nic in props
+        .get("networkInterfaces")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        if let Some(nic_id) = id_at(nic, &["id"]) {
+            edges.push(edge(nic_id, &pe.display_id, EdgeKind::AttachedTo, None));
+        }
+    }
     for connection in props
         .get("privateLinkServiceConnections")
         .and_then(Value::as_array)

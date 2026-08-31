@@ -6,6 +6,7 @@ pub mod commands;
 pub mod config;
 pub mod diagram;
 pub mod error;
+pub(crate) mod mark;
 pub mod model;
 pub mod querypack;
 pub mod report;

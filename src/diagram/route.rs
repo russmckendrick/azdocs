@@ -53,6 +53,19 @@ impl Side {
     fn is_horizontal(self) -> bool {
         matches!(self, Self::Left | Self::Right)
     }
+
+    /// The anchor as a pair of 0..1 fractions of the box, `fraction` being the
+    /// distance along the side. This is draw.io's `exitX`/`exitY` convention,
+    /// which is why it is expressed this way rather than as a point: draw.io
+    /// re-derives the point whenever the user moves the node.
+    pub fn fractions(self, along: f64) -> (f64, f64) {
+        match self {
+            Self::Left => (0.0, along),
+            Self::Right => (1.0, along),
+            Self::Top => (along, 0.0),
+            Self::Bottom => (along, 1.0),
+        }
+    }
 }
 
 /// One routed edge. `points` always has at least two entries and is in draw
@@ -65,6 +78,12 @@ pub struct EdgeRoute {
     pub label_at: Option<(f64, f64)>,
     /// Index into `graph.edges`; edges skipped by containment are absent.
     pub edge: usize,
+    /// Boundary anchor the edge leaves the source through: the side, and how
+    /// far along it. Baked into `points` already for the SVG emitter; draw.io
+    /// wants them separately so it can re-route around a moved node.
+    pub source_anchor: (Side, f64),
+    /// Boundary anchor the edge arrives at the target through.
+    pub target_anchor: (Side, f64),
 }
 
 /// The one anchor rectangle an edge attaches to.
@@ -373,12 +392,13 @@ pub fn route(graph: &EstateGraph, absolute: &[Placement], rung: &Rung) -> Vec<Ed
         .enumerate()
         .map(|(position, &(index, source_side, target_side))| {
             let edge = &graph.edges[index];
+            let along = |node: usize| fractions.get(&(position, node)).copied().unwrap_or(0.5);
             let leg = |node: usize, side: Side| {
                 let is_leaf = !graph.nodes[node].kind.is_container();
                 anchor_point(
                     &anchor_rect(&absolute[node], is_leaf, rung, side),
                     side,
-                    fractions.get(&(position, node)).copied().unwrap_or(0.5),
+                    along(node),
                 )
             };
             let obstacles = blockers(graph, absolute, (edge.source, edge.target));
@@ -391,6 +411,8 @@ pub fn route(graph: &EstateGraph, absolute: &[Placement], rung: &Rung) -> Vec<Ed
                 ),
                 label_at: None,
                 edge: index,
+                source_anchor: (source_side, along(edge.source)),
+                target_anchor: (target_side, along(edge.target)),
             }
         })
         .collect();
@@ -631,6 +653,7 @@ pub fn svg_path(points: &[(f64, f64)], radius: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::diagram::graph::LayoutMode;
     use crate::diagram::graph::{DiagEdge, EdgeStyle, Node, NodeKind};
     use crate::diagram::page::COMFORTABLE;
 
@@ -691,6 +714,7 @@ mod tests {
             title: String::new(),
             nodes: vec![container(None), container(None)],
             edges: vec![edge(0, 1)],
+            layout: LayoutMode::default(),
         };
         let absolute = vec![
             box_at(0.0, 0.0, 100.0, 100.0),
@@ -709,6 +733,7 @@ mod tests {
             title: String::new(),
             nodes: vec![container(None), container(None)],
             edges: vec![edge(0, 1)],
+            layout: LayoutMode::default(),
         };
         let absolute = vec![
             box_at(0.0, 0.0, 600.0, 200.0),
@@ -731,6 +756,7 @@ mod tests {
             title: String::new(),
             nodes: vec![container(None), leaf(Some(0))],
             edges: vec![edge(0, 1)],
+            layout: LayoutMode::default(),
         };
         let absolute = vec![
             box_at(0.0, 0.0, 400.0, 400.0),
@@ -746,6 +772,7 @@ mod tests {
             title: String::new(),
             nodes: vec![container(None), container(None), container(None)],
             edges: vec![edge(0, 1), edge(0, 2)],
+            layout: LayoutMode::default(),
         };
         let absolute = vec![
             box_at(0.0, 0.0, 100.0, 300.0),
@@ -767,6 +794,7 @@ mod tests {
             title: String::new(),
             nodes: vec![container(None), container(None), container(None)],
             edges: vec![edge(0, 1), edge(0, 2), edge(1, 2)],
+            layout: LayoutMode::default(),
         };
         let absolute = vec![
             box_at(0.0, 0.0, 120.0, 200.0),
@@ -816,6 +844,7 @@ mod tests {
             title: String::new(),
             nodes: vec![leaf(None), leaf(None), leaf(None)],
             edges: vec![edge(0, 2)],
+            layout: LayoutMode::default(),
         };
         let absolute = vec![
             box_at(0.0, 200.0, 152.0, 112.0),
@@ -855,6 +884,7 @@ mod tests {
             title: String::new(),
             nodes: vec![container(None), container(None)],
             edges: vec![edge(0, 1), edge(0, 1)],
+            layout: LayoutMode::default(),
         };
         for edge in &mut graph.edges {
             edge.label = Some("peered".to_owned());

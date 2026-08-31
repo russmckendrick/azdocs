@@ -96,7 +96,7 @@ fn class_for(kind: &NodeKind) -> Option<&'static str> {
         NodeKind::ResourceGroup => Some("rg"),
         NodeKind::Vnet => Some("vnet"),
         NodeKind::Subnet => Some("subnet"),
-        NodeKind::Unnetworked => Some("unnetworked"),
+        NodeKind::Zone => Some("zone"),
         NodeKind::Resource { .. } => Some("resource"),
         NodeKind::Tenant => None,
     }
@@ -109,6 +109,7 @@ fn escape(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::diagram::graph::LayoutMode;
     use crate::diagram::graph::Node;
 
     #[test]
@@ -132,6 +133,7 @@ mod tests {
                 },
             ],
             edges: vec![],
+            layout: LayoutMode::default(),
         };
 
         let output = render(&graph);

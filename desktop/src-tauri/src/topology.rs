@@ -562,12 +562,12 @@ fn group_graph(
         ) else {
             continue;
         };
-        // `azure_types::FOLDS_INTO_VM` is shared with the print diagrams, which
-        // fold the same attachments (`is_represented_by_vm` in
-        // src/diagram/graph.rs). They disagreed about disks until it was one
-        // list.
-        let folds = azure_types::folds_into_vm(&source.azure_type)
-            && target.azure_type == "microsoft.compute/virtualmachines"
+        // `azure_types::FOLDS_INTO_HOST` and `ATTACHMENT_HOSTS` are shared
+        // with the print diagrams, which fold the same attachments
+        // (`is_represented_by_host` in src/diagram/graph.rs). They disagreed
+        // about disks until it was one list.
+        let folds = azure_types::folds_into_host(&source.azure_type)
+            && azure_types::is_attachment_host(&target.azure_type)
             || is_child_of(source, target);
         if folds {
             folded_into.insert(source.id.as_str(), target.id.as_str());

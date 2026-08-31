@@ -11,9 +11,9 @@ use docx_rs::{
 
 use super::style::{self, Ctx, half_points, hex, pt_to_emu, twips_to_emu};
 use crate::diagram::assets::DiagramAsset;
+use crate::mark;
 use crate::report::branding::BrandingContext;
 use crate::report::document::{Block, Cover, ParagraphStyle, TableKind, TextRun, TextStyle};
-use crate::report::mark;
 use crate::report::theme::CoverStyle;
 
 pub fn header(branding: &BrandingContext, ctx: &Ctx) -> Header {
@@ -541,9 +541,9 @@ fn product_mark_picture(ctx: &Ctx, cover: &Cover<'_>, on_dark: bool) -> Option<R
         return None;
     }
     let svg = if on_dark {
-        mark::ON_DARK_SVG
+        mark::on_dark_svg()
     } else {
-        mark::PRIMARY_SVG
+        mark::primary_svg()
     };
     let svg = std::str::from_utf8(svg).ok()?;
     // LibreOffice loses subsequent cover text after a transparent image inside

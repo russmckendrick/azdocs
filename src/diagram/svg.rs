@@ -39,7 +39,8 @@ pub fn render_for(graph: &EstateGraph, detail: DiagramDetail) -> String {
     let routes = route::route(graph, &placements, &rung);
     // Routes escape past a node edge, so the canvas has to include them or the
     // viewBox stops matching what the rasteriser draws.
-    let (content_width, content_height) = bounds(&placements, &routes);
+    let content = bounds(&placements, &routes);
+    let (content_width, content_height) = (content.width, content.height);
 
     // A report diagram is the width of the text column, full stop: the layout
     // has already justified its rows to the page width, so the width decides
@@ -73,7 +74,10 @@ pub fn render_for(graph: &EstateGraph, detail: DiagramDetail) -> String {
     let height = (top_band + content_height * scale + legend_band + MARGIN).round();
     // Centre horizontally; the content hangs from the top so the title band
     // and the legend keep their fixed positions on the canvas.
-    let offset_x = MARGIN + (inner_width - content_width * scale) / 2.0;
+    // `content.x`/`content.y` are zero or negative: subtracting them brings an
+    // upward- or leftward-escaping connector back inside the canvas.
+    let offset_x = MARGIN + (inner_width - content_width * scale) / 2.0 - content.x * scale;
+    let offset_y = top_band - content.y * scale;
 
     let mut out = String::new();
     let _ = writeln!(
@@ -113,7 +117,7 @@ pub fn render_for(graph: &EstateGraph, detail: DiagramDetail) -> String {
         out,
         r#"  <g transform="translate({},{}) scale({:.4})">"#,
         fmt(offset_x),
-        fmt(top_band),
+        fmt(offset_y),
         scale,
     );
 
@@ -148,7 +152,7 @@ fn legend_entries(graph: &EstateGraph) -> Vec<(&'static str, &'static str, &'sta
     [
         (NodeKind::Vnet, "Virtual network", "7,4"),
         (NodeKind::Subnet, "Subnet", "4,3"),
-        (NodeKind::Unnetworked, "Not in a VNet", "7,4"),
+        (NodeKind::Zone, "Outside the topology", "7,4"),
     ]
     .iter()
     .filter(|(kind, _, _)| graph.nodes.iter().any(|node| &node.kind == kind))
@@ -207,22 +211,40 @@ fn legend(
     );
 }
 
-fn bounds(placements: &[Placement], routes: &[route::EdgeRoute]) -> (f64, f64) {
-    let mut width = placements
-        .iter()
-        .map(|p| p.x + p.width)
-        .fold(0.0_f64, f64::max);
-    let mut height = placements
-        .iter()
-        .map(|p| p.y + p.height)
-        .fold(0.0_f64, f64::max);
+/// Extent of everything drawn, as a rectangle rather than a size.
+///
+/// A connector that escapes up or left of the content — often the only clear
+/// channel between two boxes sharing a row — runs at a negative coordinate.
+/// Measuring the maximum alone left it outside the viewBox; the title band
+/// happened to absorb the overhang at the top, so only a leftward escape
+/// actually clipped, and then silently, in the PDF, DOCX and HTML that take
+/// their diagrams from this SVG. Measuring both corners makes it a guarantee
+/// rather than a coincidence.
+fn bounds(placements: &[Placement], routes: &[route::EdgeRoute]) -> Placement {
+    let mut left = 0.0_f64;
+    let mut top = 0.0_f64;
+    let mut right = 0.0_f64;
+    let mut bottom = 0.0_f64;
+    for p in placements {
+        left = left.min(p.x);
+        top = top.min(p.y);
+        right = right.max(p.x + p.width);
+        bottom = bottom.max(p.y + p.height);
+    }
     for routed in routes {
         for (x, y) in &routed.points {
-            width = width.max(*x);
-            height = height.max(*y);
+            left = left.min(*x);
+            top = top.min(*y);
+            right = right.max(*x);
+            bottom = bottom.max(*y);
         }
     }
-    (width.max(360.0).ceil(), height.max(120.0).ceil())
+    Placement {
+        x: left,
+        y: top,
+        width: (right - left).max(360.0).ceil(),
+        height: (bottom - top).max(120.0).ceil(),
+    }
 }
 
 fn container(
@@ -239,7 +261,7 @@ fn container(
     // unnetworked zone by the border alone.
     let dash = match node.kind {
         NodeKind::Subnet => r#" stroke-dasharray="4,3""#,
-        NodeKind::Vnet | NodeKind::Unnetworked => r#" stroke-dasharray="7,4""#,
+        NodeKind::Vnet | NodeKind::Zone => r#" stroke-dasharray="7,4""#,
         NodeKind::ResourceGroup => r#" stroke-dasharray="6,5""#,
         _ => "",
     };
@@ -426,7 +448,7 @@ fn header_prefix(kind: &NodeKind) -> Option<&'static str> {
 fn container_label_colour(kind: &NodeKind) -> &'static str {
     match kind {
         NodeKind::Vnet => "#0078D4",
-        NodeKind::Unnetworked => "#B45309",
+        NodeKind::Zone => "#B45309",
         _ => TEXT_PRIMARY,
     }
 }
@@ -686,6 +708,7 @@ fn fmt(value: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::diagram::graph::LayoutMode;
     use crate::diagram::graph::Node;
 
     #[test]
@@ -767,6 +790,7 @@ mod tests {
                 },
             ],
             edges: vec![],
+            layout: LayoutMode::default(),
         };
 
         let svg = render(&graph);
@@ -805,6 +829,7 @@ mod tests {
                 title: "t".into(),
                 nodes,
                 edges: vec![],
+                layout: LayoutMode::default(),
             };
 
             let svg = render(&graph);
@@ -844,6 +869,7 @@ mod tests {
             title: "t".into(),
             nodes,
             edges: vec![],
+            layout: LayoutMode::default(),
         };
 
         let svg = render(&graph);
@@ -865,6 +891,7 @@ mod tests {
                 parent: None,
             }],
             edges: vec![],
+            layout: LayoutMode::default(),
         };
 
         assert!(!render_for(&graph, DiagramDetail::Summary).contains(">estate<"));
@@ -904,6 +931,7 @@ mod tests {
                 },
             ],
             edges: vec![],
+            layout: LayoutMode::default(),
         };
 
         let svg = render_for(&graph, DiagramDetail::Full);
@@ -914,5 +942,30 @@ mod tests {
             "icon embedded: {svg}"
         );
         assert!(svg.contains("vm &quot;one&quot;"), "label escaped: {svg}");
+    }
+
+    /// A connector routed left of the content used to be cut off by the
+    /// viewBox: the canvas was measured from the origin, not from the
+    /// drawing's own top-left corner.
+    #[test]
+    fn unit_a_connector_left_of_the_content_stays_on_the_canvas() {
+        let routes = [route::EdgeRoute {
+            points: vec![(-40.0, 10.0), (-40.0, 90.0)],
+            label_at: None,
+            edge: 0,
+            source_anchor: (route::Side::Left, 0.5),
+            target_anchor: (route::Side::Left, 0.5),
+        }];
+        let placements = [Placement {
+            x: 0.0,
+            y: 0.0,
+            width: 400.0,
+            height: 200.0,
+        }];
+
+        let content = bounds(&placements, &routes);
+
+        assert_eq!(content.x, -40.0);
+        assert_eq!(content.width, 440.0);
     }
 }

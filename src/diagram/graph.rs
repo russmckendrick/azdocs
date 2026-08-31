@@ -14,6 +14,23 @@ pub struct EstateGraph {
     pub title: String,
     pub nodes: Vec<Node>,
     pub edges: Vec<DiagEdge>,
+    /// How the boxes are arranged. Almost every graph here is a containment
+    /// tree; the peering graph is the exception and says so.
+    pub layout: LayoutMode,
+}
+
+/// The shape of a graph, which decides how it is laid out.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum LayoutMode {
+    /// Boxes nest — subnets inside a VNet, resources inside a subnet — and are
+    /// gridded into rows within their parent.
+    #[default]
+    Containment,
+    /// A network, not a tree: no box contains another and the *edges* are the
+    /// content. Laid out around the best-connected node, because a peering
+    /// graph in a single row makes every connector cross the boxes between its
+    /// endpoints, which no amount of routing can fix.
+    Relational,
 }
 
 #[derive(Debug)]
@@ -31,9 +48,11 @@ pub enum NodeKind {
     ResourceGroup,
     Vnet,
     Subnet,
-    /// Resources in the group that sit outside any virtual network. Drawn as
-    /// its own zone so the networked and unnetworked halves read apart.
-    Unnetworked,
+    /// A labelled aside for things outside the drawing's main structure —
+    /// resources in no virtual network, VNets in no peering. Drawn apart so
+    /// the reader can see at a glance that they are not part of the topology,
+    /// and always labelled with what it is holding and how much.
+    Zone,
     Resource {
         azure_type: String,
     },
@@ -125,7 +144,12 @@ const MAX_TILES: usize = 11;
 /// resource type collapsed to a count.
 pub(crate) struct Tile {
     pub azure_type: String,
+    /// What the tile *is*: the resource's name, or the type when the tile
+    /// stands for many of them. Always the first line, everywhere — the two
+    /// builders used to disagree, so a subnet member read name-then-type
+    /// while an out-of-network tile of the same resource read type-then-name.
     pub label: String,
+    /// The qualifier under it: the type, or `×N` for an aggregate.
     pub sublabel: String,
     /// `Some` only when the tile stands for exactly one resource.
     pub resource_id: Option<String>,
@@ -141,8 +165,8 @@ pub(crate) fn tiles_for(resources: &[&Resource], detail: DiagramDetail) -> Vec<T
         .iter()
         .map(|resource| Tile {
             azure_type: resource.azure_type.clone(),
-            label: azure_types::display_name(&resource.azure_type).to_owned(),
-            sublabel: resource.name.clone(),
+            label: resource.name.clone(),
+            sublabel: azure_types::display_name(&resource.azure_type).to_owned(),
             resource_id: Some(resource.id.clone()),
         })
         .collect()
@@ -184,8 +208,8 @@ pub(crate) fn aggregate_by_type(resources: &[&Resource]) -> Vec<Tile> {
             match members.as_slice() {
                 [only] => Tile {
                     azure_type: (*azure_type).to_owned(),
-                    label: display,
-                    sublabel: only.name.clone(),
+                    label: only.name.clone(),
+                    sublabel: display,
                     resource_id: Some(only.id.clone()),
                 },
                 many => Tile {
@@ -518,7 +542,7 @@ impl EstateGraph {
             let Some(resource) = by_id.get(edge.source_id.as_str()) else {
                 continue;
             };
-            let representative = vm_representative(resource, edges, by_id);
+            let representative = host_representative(resource, edges, by_id);
             if node_ids.contains_key(&representative.id) {
                 continue;
             }
@@ -679,7 +703,7 @@ impl EstateGraph {
                 .filter(|r| {
                     r.azure_type != VNET_TYPE
                         && !node_ids.contains_key(&r.id)
-                        && !is_represented_by_vm(r, &edges, &by_id)
+                        && !is_represented_by_host(r, &edges, &by_id)
                         && !azure_types::is_child_type(&r.azure_type)
                 })
                 .collect();
@@ -702,7 +726,7 @@ impl EstateGraph {
                 if nested > 0 {
                     label.push_str(&format!("  ·  {nested} nested"));
                 }
-                let container = graph.add_node(label, None, NodeKind::Unnetworked, Some(rg_node));
+                let container = graph.add_node(label, None, NodeKind::Zone, Some(rg_node));
                 for tile in tiles_for(&standalone, detail) {
                     let node = graph.add_node(
                         tile.label,
@@ -753,6 +777,7 @@ impl EstateGraph {
 
         let mut graph = Self {
             title: "VNet peerings".to_owned(),
+            layout: LayoutMode::Relational,
             ..Self::default()
         };
         let mut node_ids: HashMap<String, usize> = HashMap::new();
@@ -790,6 +815,27 @@ impl EstateGraph {
                 label: Some(peering_state(edge)),
                 style: EdgeStyle::Dashed,
             });
+        }
+
+        // A VNet with no peering plays no part in the topology, so it is set
+        // apart — and then has to say why. Four boxes sitting under a diagram
+        // with nothing naming them read as part of it that failed to connect.
+        let unpeered: Vec<usize> = (0..graph.nodes.len())
+            .filter(|&i| {
+                graph.nodes[i].kind == NodeKind::Vnet
+                    && !graph.edges.iter().any(|e| e.source == i || e.target == i)
+            })
+            .collect();
+        if !unpeered.is_empty() {
+            let zone = graph.add_node(
+                format!("Not peered  ·  {} virtual networks", unpeered.len()),
+                None,
+                NodeKind::Zone,
+                None,
+            );
+            for node in unpeered {
+                graph.nodes[node].parent = Some(zone);
+            }
         }
         Ok(graph)
     }
@@ -899,33 +945,38 @@ impl EstateGraph {
     }
 }
 
-/// A NIC is represented by its VM when one is attached.
-fn vm_representative<'a>(
+/// The host an attachment is drawn as part of — a NIC's VM, or a private
+/// endpoint's NIC — or the resource itself when nothing hosts it.
+fn host_representative<'a>(
     resource: &'a Resource,
     edges: &[Edge],
     by_id: &HashMap<&str, &'a Resource>,
 ) -> &'a Resource {
+    // The first attachment that *is* a host, not the first attachment filtered
+    // by whether it happens to be one: an AKS VMSS NIC attaches to two load
+    // balancers as well as its instance, and taking the first edge blind meant
+    // the load balancer won and the NIC never folded.
     edges
         .iter()
-        .find(|e| e.kind == EdgeKind::AttachedTo && e.source_id == resource.id)
-        .and_then(|e| by_id.get(e.target_id.as_str()).copied())
-        .filter(|owner| owner.azure_type == "microsoft.compute/virtualmachines")
+        .filter(|e| e.kind == EdgeKind::AttachedTo && e.source_id == resource.id)
+        .filter_map(|e| by_id.get(e.target_id.as_str()).copied())
+        .find(|owner| azure_types::is_attachment_host(&owner.azure_type))
         .unwrap_or(resource)
 }
 
-/// Is this resource already represented by a VM it is attached to?
+/// Is this resource already represented by a host it is attached to?
 ///
-/// NICs and disks both fold (`azure_types::FOLDS_INTO_VM`), matching the
-/// desktop topology builder. They only fold when the attachment actually
-/// resolves to a drawn VM — an orphaned disk is still a resource, and stays a
-/// tile of its own.
-fn is_represented_by_vm(
+/// NICs and disks fold (`azure_types::FOLDS_INTO_HOST`) into VMs and private
+/// endpoints (`azure_types::ATTACHMENT_HOSTS`), matching the desktop topology
+/// builder. They only fold when the attachment actually resolves to a drawn
+/// host — an orphaned disk is still a resource, and stays a tile of its own.
+fn is_represented_by_host(
     resource: &Resource,
     edges: &[Edge],
     by_id: &HashMap<&str, &Resource>,
 ) -> bool {
-    azure_types::folds_into_vm(&resource.azure_type)
-        && !std::ptr::eq(vm_representative(resource, edges, by_id), resource)
+    azure_types::folds_into_host(&resource.azure_type)
+        && !std::ptr::eq(host_representative(resource, edges, by_id), resource)
 }
 
 fn remote_vnet_label(arm_id: &str) -> String {
@@ -991,7 +1042,7 @@ mod label_tests {
         // label exists to say.
         let long = "Not in a virtual network  ·  5 resources  ·  1 nested";
         assert_eq!(
-            node_label(&node(NodeKind::Unnetworked, long)),
+            node_label(&node(NodeKind::Zone, long)),
             long,
             "a container label must survive whole"
         );
@@ -1008,5 +1059,76 @@ mod label_tests {
         ));
         assert_eq!(capped, truncate_label(long));
         assert!(capped.ends_with('…'));
+    }
+}
+
+#[cfg(test)]
+mod fold_tests {
+    use super::*;
+
+    fn resource(id: &str, azure_type: &str) -> Resource {
+        Resource {
+            id: id.to_owned(),
+            display_id: id.to_owned(),
+            name: id.rsplit('/').next().unwrap_or(id).to_owned(),
+            azure_type: azure_type.to_owned(),
+            kind: None,
+            location: None,
+            resource_group: Some("rg".to_owned()),
+            subscription_id: "sub".to_owned(),
+            tags: None,
+            sku: None,
+            identity: None,
+            properties: None,
+        }
+    }
+
+    fn attached(source: &str, target: &str) -> Edge {
+        Edge {
+            source_id: source.to_owned(),
+            target_id: target.to_owned(),
+            kind: EdgeKind::AttachedTo,
+            properties: None,
+        }
+    }
+
+    /// An AKS VMSS NIC attaches to two load balancers as well as its instance.
+    /// Taking the first attachment and *then* asking whether it is a host let
+    /// the load balancer win, and the NIC never folded.
+    #[test]
+    fn unit_a_nic_folds_into_its_vm_when_another_attachment_comes_first() {
+        let nic = resource("/nic", "microsoft.network/networkinterfaces");
+        let lb = resource("/lb", "microsoft.network/loadbalancers");
+        let vm = resource("/vm", "microsoft.compute/virtualmachines");
+        let by_id = HashMap::from([("/nic", &nic), ("/lb", &lb), ("/vm", &vm)]);
+        let edges = vec![attached("/nic", "/lb"), attached("/nic", "/vm")];
+
+        assert_eq!(host_representative(&nic, &edges, &by_id).id, "/vm");
+        assert!(is_represented_by_host(&nic, &edges, &by_id));
+    }
+
+    /// A private endpoint's NIC is Azure's own plumbing and folds into the
+    /// endpoint, which is what stopped every private-endpoint subnet drawing
+    /// each of its endpoints twice.
+    #[test]
+    fn unit_a_private_endpoint_nic_folds_into_its_endpoint() {
+        let nic = resource("/pe.nic", "microsoft.network/networkinterfaces");
+        let pe = resource("/pe", "microsoft.network/privateendpoints");
+        let by_id = HashMap::from([("/pe.nic", &nic), ("/pe", &pe)]);
+        let edges = vec![attached("/pe.nic", "/pe")];
+
+        assert_eq!(host_representative(&nic, &edges, &by_id).id, "/pe");
+    }
+
+    /// A NIC whose only attachment is a load balancer has nothing to be drawn
+    /// as part of, so it stays a tile of its own.
+    #[test]
+    fn unit_a_nic_with_no_host_stays_its_own_tile() {
+        let nic = resource("/nic", "microsoft.network/networkinterfaces");
+        let lb = resource("/lb", "microsoft.network/loadbalancers");
+        let by_id = HashMap::from([("/nic", &nic), ("/lb", &lb)]);
+        let edges = vec![attached("/nic", "/lb")];
+
+        assert!(!is_represented_by_host(&nic, &edges, &by_id));
     }
 }

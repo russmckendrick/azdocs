@@ -51,6 +51,20 @@ and neighbourhood scopes at all documented viewport widths in both themes.
   `data/icons/`. Unmapped types fall back to the pack's generic icon and then
   to a generated monogram tile; this is cosmetic only. The icon appears in
   diagrams *and* on the level-2 resource-type index headings in the PDF/DOCX.
+- draw.io icon: the `ICONS` table in `src/diagram/icons.rs`, naming a stencil
+  in draw.io's own bundled `azure2` library. That is a *different* set from the
+  vendored pack above, and draw.io renders a path it cannot resolve as a
+  broken-image placeholder rather than failing — so every path is checked
+  against `data/azure2_stencils.toml`, which also carries each stencil's aspect
+  (they are not square). Regenerate it after upgrading draw.io:
+
+  ```sh
+  python3 data/tools/build_azure2_manifest.py          # rewrite the manifest
+  python3 data/tools/build_azure2_manifest.py --check  # is it stale?
+  ```
+
+  The script reads draw.io's `app.asar`, so it needs the app installed; the
+  tests only need the checked-in manifest.
 
 ### Add a report format
 
