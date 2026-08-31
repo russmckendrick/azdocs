@@ -152,7 +152,7 @@ fn legend_entries(graph: &EstateGraph) -> Vec<(&'static str, &'static str, &'sta
     [
         (NodeKind::Vnet, "Virtual network", "7,4"),
         (NodeKind::Subnet, "Subnet", "4,3"),
-        (NodeKind::Unnetworked, "Not in a VNet", "7,4"),
+        (NodeKind::Zone, "Outside the topology", "7,4"),
     ]
     .iter()
     .filter(|(kind, _, _)| graph.nodes.iter().any(|node| &node.kind == kind))
@@ -261,7 +261,7 @@ fn container(
     // unnetworked zone by the border alone.
     let dash = match node.kind {
         NodeKind::Subnet => r#" stroke-dasharray="4,3""#,
-        NodeKind::Vnet | NodeKind::Unnetworked => r#" stroke-dasharray="7,4""#,
+        NodeKind::Vnet | NodeKind::Zone => r#" stroke-dasharray="7,4""#,
         NodeKind::ResourceGroup => r#" stroke-dasharray="6,5""#,
         _ => "",
     };
@@ -448,7 +448,7 @@ fn header_prefix(kind: &NodeKind) -> Option<&'static str> {
 fn container_label_colour(kind: &NodeKind) -> &'static str {
     match kind {
         NodeKind::Vnet => "#0078D4",
-        NodeKind::Unnetworked => "#B45309",
+        NodeKind::Zone => "#B45309",
         _ => TEXT_PRIMARY,
     }
 }

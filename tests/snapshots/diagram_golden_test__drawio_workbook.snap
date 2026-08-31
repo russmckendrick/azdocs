@@ -209,19 +209,19 @@ expression: "workbook_xml(&store, &id)"
         <mxCell id="s4-h5" value="" style="image;aspect=fixed;html=1;points=[];movable=0;resizable=0;deletable=0;connectable=0;editable=0;image=img/lib/azure2/general/All_Resources.svg;" parent="s4-n5" vertex="1">
           <mxGeometry x="8" y="3" width="20" height="20" as="geometry"/>
         </mxCell>
-        <mxCell id="s4-n6" value="AVD Host Pool&lt;br&gt;hp-prod" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;labelWidth=152;image=img/lib/azure2/general/All_Resources.svg;" parent="s4-n5" vertex="1">
+        <mxCell id="s4-n6" value="hp-prod&lt;br&gt;AVD Host Pool" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;labelWidth=152;image=img/lib/azure2/general/All_Resources.svg;" parent="s4-n5" vertex="1">
           <mxGeometry x="92" y="44" width="48" height="48" as="geometry"/>
         </mxCell>
-        <mxCell id="s4-n7" value="Log Analytics Workspace&lt;br&gt;law-prod" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;labelWidth=152;image=img/lib/azure2/analytics/Log_Analytics_Workspaces.svg;" parent="s4-n5" vertex="1">
+        <mxCell id="s4-n7" value="law-prod&lt;br&gt;Log Analytics Workspace" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;labelWidth=152;image=img/lib/azure2/analytics/Log_Analytics_Workspaces.svg;" parent="s4-n5" vertex="1">
           <mxGeometry x="311.7" y="44" width="48" height="48" as="geometry"/>
         </mxCell>
-        <mxCell id="s4-n8" value="SQL Server&lt;br&gt;sql-prod" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;labelWidth=152;image=img/lib/azure2/databases/SQL_Server.svg;" parent="s4-n5" vertex="1">
+        <mxCell id="s4-n8" value="sql-prod&lt;br&gt;SQL Server" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;labelWidth=152;image=img/lib/azure2/databases/SQL_Server.svg;" parent="s4-n5" vertex="1">
           <mxGeometry x="531.3" y="44" width="48" height="48" as="geometry"/>
         </mxCell>
-        <mxCell id="s4-n9" value="Storage Account&lt;br&gt;stprodapp01" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;labelWidth=152;image=img/lib/azure2/storage/Storage_Accounts.svg;" parent="s4-n5" vertex="1">
+        <mxCell id="s4-n9" value="stprodapp01&lt;br&gt;Storage Account" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;labelWidth=152;image=img/lib/azure2/storage/Storage_Accounts.svg;" parent="s4-n5" vertex="1">
           <mxGeometry x="92" y="176" width="48" height="48" as="geometry"/>
         </mxCell>
-        <mxCell id="s4-n10" value="Public IP Address&lt;br&gt;vm-app-01-pip" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;labelWidth=152;image=img/lib/azure2/networking/Public_IP_Addresses.svg;" parent="s4-n5" vertex="1">
+        <mxCell id="s4-n10" value="vm-app-01-pip&lt;br&gt;Public IP Address" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;labelWidth=152;image=img/lib/azure2/networking/Public_IP_Addresses.svg;" parent="s4-n5" vertex="1">
           <mxGeometry x="311.7" y="176" width="48" height="48" as="geometry"/>
         </mxCell>
         <mxCell id="s4-e0" value="private link" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;dashPattern=1 3;endArrow=open;strokeColor=#8A8886;fontSize=10;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="s4-1" source="s4-n3" target="s4-n8" edge="1">
@@ -250,13 +250,13 @@ expression: "workbook_xml(&store, &id)"
         <mxCell id="s5-h1" value="" style="image;aspect=fixed;html=1;points=[];movable=0;resizable=0;deletable=0;connectable=0;editable=0;image=img/lib/azure2/general/All_Resources.svg;" parent="s5-n1" vertex="1">
           <mxGeometry x="8" y="3" width="20" height="20" as="geometry"/>
         </mxCell>
-        <mxCell id="s5-n2" value="App Service Plan&lt;br&gt;asp-dev" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;labelWidth=152;image=img/lib/azure2/app_services/App_Service_Plans.svg;" parent="s5-n1" vertex="1">
+        <mxCell id="s5-n2" value="asp-dev&lt;br&gt;App Service Plan" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;labelWidth=152;image=img/lib/azure2/app_services/App_Service_Plans.svg;" parent="s5-n1" vertex="1">
           <mxGeometry x="207" y="44" width="48" height="48" as="geometry"/>
         </mxCell>
-        <mxCell id="s5-n3" value="Managed Identity&lt;br&gt;id-web-dev" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;labelWidth=152;image=img/lib/azure2/identity/Managed_Identities.svg;" parent="s5-n1" vertex="1">
+        <mxCell id="s5-n3" value="id-web-dev&lt;br&gt;Managed Identity" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;labelWidth=152;image=img/lib/azure2/identity/Managed_Identities.svg;" parent="s5-n1" vertex="1">
           <mxGeometry x="657.7" y="44" width="48" height="48" as="geometry"/>
         </mxCell>
-        <mxCell id="s5-n4" value="App Service / Function App&lt;br&gt;web-dev" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;labelWidth=152;image=img/lib/azure2/app_services/App_Services.svg;" parent="s5-n1" vertex="1">
+        <mxCell id="s5-n4" value="web-dev&lt;br&gt;App Service / Function App" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;labelWidth=152;image=img/lib/azure2/app_services/App_Services.svg;" parent="s5-n1" vertex="1">
           <mxGeometry x="1108.3" y="44" width="48" height="48" as="geometry"/>
         </mxCell>
         <mxCell id="s5-mark" value="azdocs" style="image;aspect=fixed;html=1;points=[];movable=0;resizable=0;deletable=0;connectable=0;editable=0;labelPosition=right;align=left;verticalLabelPosition=middle;verticalAlign=middle;spacingLeft=6;fontSize=12;fontStyle=1;fontColor=#0754BD;image=data:image/svg+xml,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHJvbGU9ImltZyIgdmlld0JveD0iMCAwIDUxMiA1MTIiIHdpZHRoPSIyMDQ4IiBoZWlnaHQ9IjIwNDgiPgogIDx0aXRsZT5hemRvY3MgbWFyayBwcmltYXJ5PC90aXRsZT4KICA8ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9Im1hcmstYmx1ZSIgeDE9IjAuMTgiIHkxPSIwIiB4Mj0iMC43MiIgeTI9IjEiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiMxNjhmZTUiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIwLjUyIiBzdG9wLWNvbG9yPSIjMGI4NGRjIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzAwNzhkNCIvPgogICAgPC9saW5lYXJHcmFkaWVudD48L2RlZnM+CjxnPgogICAgPHBhdGggZD0iTTIzMiA1OCBDMjQyIDM4IDI3MCAzOCAyODAgNTggTDQ4MCA0MTQKICAgICAgQzQ5NSA0NDEgNDc2IDQ3MiA0NDQgNDcyIEg2OCBDMzYgNDcyIDE3IDQ0MSAzMiA0MTQgWiIKICAgICAgZmlsbD0idXJsKCNtYXJrLWJsdWUpIi8+CiAgICA8ZyBmaWxsPSIjZmZmZmZmIiBzdHJva2U9IiNmZmZmZmYiPgogICAgICA8cGF0aCBkPSJNMjU2IDE5OCBWMzMwIEwxNTYgMzgyIE0yNTYgMzMwIEwzNTYgMzgyIgogICAgICAgIGZpbGw9Im5vbmUiIHN0cm9rZS13aWR0aD0iMjYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgogICAgICA8Y2lyY2xlIGN4PSIyNTYiIGN5PSIxOTgiIHI9IjQwIiBzdHJva2U9Im5vbmUiLz4KICAgICAgPGNpcmNsZSBjeD0iMTU2IiBjeT0iMzgyIiByPSI0MCIgc3Ryb2tlPSJub25lIi8+CiAgICAgIDxjaXJjbGUgY3g9IjM1NiIgY3k9IjM4MiIgcj0iNDAiIHN0cm9rZT0ibm9uZSIvPgogICAgPC9nPgogIDwvZz4KPC9zdmc+Cg==" parent="s5-1" vertex="1">
@@ -300,10 +300,10 @@ expression: "workbook_xml(&store, &id)"
         <mxCell id="s6-h4" value="" style="image;aspect=fixed;html=1;points=[];movable=0;resizable=0;deletable=0;connectable=0;editable=0;image=img/lib/azure2/general/All_Resources.svg;" parent="s6-n4" vertex="1">
           <mxGeometry x="8" y="3" width="20" height="20" as="geometry"/>
         </mxCell>
-        <mxCell id="s6-n5" value="Network Security Group&lt;br&gt;nsg-app" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;labelWidth=152;image=img/lib/azure2/networking/Network_Security_Groups.svg;" parent="s6-n4" vertex="1">
+        <mxCell id="s6-n5" value="nsg-app&lt;br&gt;Network Security Group" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;labelWidth=152;image=img/lib/azure2/networking/Network_Security_Groups.svg;" parent="s6-n4" vertex="1">
           <mxGeometry x="147" y="44" width="48" height="48" as="geometry"/>
         </mxCell>
-        <mxCell id="s6-n6" value="Network Security Group&lt;br&gt;nsg-unused" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;labelWidth=152;image=img/lib/azure2/networking/Network_Security_Groups.svg;" parent="s6-n4" vertex="1">
+        <mxCell id="s6-n6" value="nsg-unused&lt;br&gt;Network Security Group" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;labelWidth=152;image=img/lib/azure2/networking/Network_Security_Groups.svg;" parent="s6-n4" vertex="1">
           <mxGeometry x="476.5" y="44" width="48" height="48" as="geometry"/>
         </mxCell>
         <mxCell id="s6-e0" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;dashPattern=1 3;endArrow=open;strokeColor=#8A8886;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="s6-1" source="s6-n3" target="s6-n5" edge="1">

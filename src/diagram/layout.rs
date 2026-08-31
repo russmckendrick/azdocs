@@ -4,7 +4,7 @@
 //! The grid shape comes from [`super::page`], which knows the target sheet, so
 //! layout, the SVG emitter and the report formats all agree on how much fits.
 
-use super::graph::{EstateGraph, LayoutMode};
+use super::graph::{EstateGraph, LayoutMode, NodeKind};
 use super::page::{A4_PORTRAIT, DiagramDetail, Rung, rung_for};
 
 /// Placement for one node, `(x, y)` relative to its parent.
@@ -173,9 +173,7 @@ fn hub_and_spoke(graph: &EstateGraph, rung: &Rung, canvas_width: f64) -> Vec<Pla
     } else {
         0.0
     };
-    shelf(graph, &mut placements, below, rung, canvas_width, |i| {
-        degree[i] == 0
-    });
+    shelf(graph, &mut placements, below, rung, canvas_width);
     placements
 }
 
@@ -236,9 +234,7 @@ fn ring(graph: &EstateGraph, peered: &[usize], rung: &Rung, canvas_width: f64) -
         place(rx, ry, &mut placements);
     }
     let below = 2.0 * ry + height + rung.gutter * 2.0;
-    shelf(graph, &mut placements, below, rung, canvas_width, |i| {
-        graph.edges.iter().all(|e| e.source != i && e.target != i)
-    });
+    shelf(graph, &mut placements, below, rung, canvas_width);
     placements
 }
 
@@ -255,31 +251,54 @@ fn overlaps(members: &[usize], placements: &[Placement], clearance: f64) -> bool
     })
 }
 
-/// Place everything matching `loose` in a balanced grid at `top`.
+/// Place the "not peered" zone at `top` and grid its members inside it.
 ///
-/// Balanced, not as wide as the canvas allows: a shelf of eight boxes across
-/// the full measure is a strip of unreadable text, where two rows of four are
-/// the same information at twice the size.
+/// The grid is balanced, not as wide as the canvas allows: a shelf of eight
+/// boxes across the full measure is a strip of unreadable text, where two rows
+/// of four are the same information at twice the size.
+///
+/// Members are children of the zone, so their placements are relative to it —
+/// the same contract the containment layout uses, which is what lets draw.io
+/// parent them and the SVG absolutise them without either knowing which layout
+/// produced the graph.
 fn shelf(
     graph: &EstateGraph,
     placements: &mut [Placement],
     top: f64,
     rung: &Rung,
     canvas_width: f64,
-    loose: impl Fn(usize) -> bool,
 ) {
-    let members: Vec<usize> = (0..graph.nodes.len()).filter(|&i| loose(i)).collect();
+    let Some(zone) = (0..graph.nodes.len())
+        .find(|&i| graph.nodes[i].kind == NodeKind::Zone && graph.nodes[i].parent.is_none())
+    else {
+        return;
+    };
+    let members: Vec<usize> = (0..graph.nodes.len())
+        .filter(|&i| graph.nodes[i].parent == Some(zone))
+        .collect();
     if members.is_empty() {
         return;
     }
     let (width, height) = (rung.pill_width, rung.pill_height);
-    let fits = (((canvas_width + rung.gutter) / (width + rung.gutter)).floor() as usize).max(1);
-    let columns = (members.len() as f64).sqrt().ceil().max(1.0) as usize;
-    let columns = columns.min(fits);
+    let pad = rung.padding;
+    let band = rung.title_band;
+    let usable = (canvas_width - 2.0 * pad).max(width);
+    let fits = (((usable + rung.gutter) / (width + rung.gutter)).floor() as usize).max(1);
+    let columns = ((members.len() as f64).sqrt().ceil().max(1.0) as usize).min(fits);
+    let rows = members.len().div_ceil(columns);
+
     for (rank, &node) in members.iter().enumerate() {
-        placements[node].x = (rank % columns) as f64 * (width + rung.gutter);
-        placements[node].y = top + (rank / columns) as f64 * (height + rung.gutter);
+        placements[node].width = width;
+        placements[node].height = height;
+        placements[node].x = pad + (rank % columns) as f64 * (width + rung.gutter);
+        placements[node].y = band + pad + (rank / columns) as f64 * (height + rung.gutter);
     }
+    placements[zone].x = 0.0;
+    placements[zone].y = top;
+    placements[zone].width =
+        2.0 * pad + columns as f64 * width + (columns.saturating_sub(1)) as f64 * rung.gutter;
+    placements[zone].height =
+        band + 2.0 * pad + rows as f64 * height + (rows.saturating_sub(1)) as f64 * rung.gutter;
 }
 
 /// Convert parent-relative placements (draw.io child geometry) into absolute
@@ -801,13 +820,24 @@ mod relational_tests {
                 style: EdgeStyle::Dashed,
             });
         }
-        for i in 0..loose {
+        // Mirrors `EstateGraph::peerings`: unpeered VNets live in a labelled
+        // zone rather than floating under the drawing unexplained.
+        if loose > 0 {
             nodes.push(Node {
-                label: format!("loose-{i}"),
+                label: format!("Not peered  ·  {loose} virtual networks"),
                 sublabel: None,
-                kind: NodeKind::Vnet,
+                kind: NodeKind::Zone,
                 parent: None,
             });
+            let zone = nodes.len() - 1;
+            for i in 0..loose {
+                nodes.push(Node {
+                    label: format!("loose-{i}"),
+                    sublabel: None,
+                    kind: NodeKind::Vnet,
+                    parent: Some(zone),
+                });
+            }
         }
         EstateGraph {
             title: "peerings".into(),
@@ -852,19 +882,45 @@ mod relational_tests {
     }
 
     /// A VNet with no peering is not part of the topology, so it must not be
-    /// threaded into the shape as though it were.
+    /// threaded into the shape as though it were — and the zone holding those
+    /// has to say what it is, or it reads as part of the drawing that failed
+    /// to connect.
     #[test]
-    fn unit_an_unpeered_vnet_sits_below_the_topology() {
+    fn unit_an_unpeered_vnet_sits_below_the_topology_in_a_labelled_zone() {
         let graph = peering_graph(4, 3);
         let placed = layout_for(&graph, DiagramDetail::Full);
 
+        let zone = graph
+            .nodes
+            .iter()
+            .position(|n| n.kind == NodeKind::Zone)
+            .expect("a zone for the unpeered VNets");
         let lowest_peered = (0..5)
             .map(|i| placed[i].y + placed[i].height)
             .fold(0.0, f64::max);
+
         assert!(
-            (5..8).all(|i| placed[i].y >= lowest_peered),
-            "an unpeered VNet was drawn inside the topology"
+            placed[zone].y >= lowest_peered,
+            "the zone was drawn inside the topology"
         );
+        assert!(
+            graph.nodes[zone].label.contains("Not peered"),
+            "the zone does not say what it holds: {}",
+            graph.nodes[zone].label
+        );
+        // Members are children, so they are placed relative to the zone and
+        // must sit inside it.
+        for (i, node) in graph.nodes.iter().enumerate() {
+            if node.parent == Some(zone) {
+                assert!(
+                    placed[i].x >= 0.0
+                        && placed[i].y >= 0.0
+                        && placed[i].x + placed[i].width <= placed[zone].width
+                        && placed[i].y + placed[i].height <= placed[zone].height,
+                    "member {i} escapes the zone"
+                );
+            }
+        }
     }
 
     /// A full mesh has no hub at all — every VNet has the same degree. It still

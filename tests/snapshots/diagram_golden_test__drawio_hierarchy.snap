@@ -13,13 +13,13 @@ expression: "drawio::render_for(&graph, DiagramDetail::Full)"
           <mxGeometry x="0" y="0" width="1400" height="214" as="geometry"/>
         </mxCell>
         <mxCell id="h0" value="" style="image;aspect=fixed;html=1;points=[];movable=0;resizable=0;deletable=0;connectable=0;editable=0;image=img/lib/azure2/general/Management_Groups.svg;" parent="n0" vertex="1">
-          <mxGeometry x="8" y="3" width="22" height="22" as="geometry"/>
+          <mxGeometry x="8" y="3" width="22.8" height="22" as="geometry"/>
         </mxCell>
         <mxCell id="n1" value="Development&lt;br&gt;3 resources" style="swimlane;html=1;startSize=26;rounded=1;arcSize=6;fillColor=#E8F1FA;strokeColor=#0078D4;fontSize=13;fontStyle=1;verticalAlign=top;horizontal=1;collapsible=0;whiteSpace=wrap;" parent="n0" vertex="1">
           <mxGeometry x="18" y="44" width="671" height="152" as="geometry"/>
         </mxCell>
         <mxCell id="h1" value="" style="image;aspect=fixed;html=1;points=[];movable=0;resizable=0;deletable=0;connectable=0;editable=0;image=img/lib/azure2/general/Subscriptions.svg;" parent="n1" vertex="1">
-          <mxGeometry x="8" y="3" width="20" height="20" as="geometry"/>
+          <mxGeometry x="8" y="3" width="12.5" height="20" as="geometry"/>
         </mxCell>
         <mxCell id="n2" value="rg-dev&lt;br&gt;3 resources" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#F3F2F1;strokeColor=#8A8886;verticalAlign=middle;fontSize=13;align=left;spacingLeft=45.7;" parent="n1" vertex="1">
           <mxGeometry x="16" y="40" width="639" height="96" as="geometry"/>
@@ -31,7 +31,7 @@ expression: "drawio::render_for(&graph, DiagramDetail::Full)"
           <mxGeometry x="711" y="44" width="671" height="152" as="geometry"/>
         </mxCell>
         <mxCell id="h3" value="" style="image;aspect=fixed;html=1;points=[];movable=0;resizable=0;deletable=0;connectable=0;editable=0;image=img/lib/azure2/general/Subscriptions.svg;" parent="n3" vertex="1">
-          <mxGeometry x="8" y="3" width="20" height="20" as="geometry"/>
+          <mxGeometry x="8" y="3" width="12.5" height="20" as="geometry"/>
         </mxCell>
         <mxCell id="n4" value="rg-app&lt;br&gt;12 resources" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#F3F2F1;strokeColor=#8A8886;verticalAlign=middle;fontSize=13;align=left;spacingLeft=45.7;" parent="n3" vertex="1">
           <mxGeometry x="16" y="40" width="309.5" height="96" as="geometry"/>

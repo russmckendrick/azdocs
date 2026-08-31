@@ -48,9 +48,11 @@ pub enum NodeKind {
     ResourceGroup,
     Vnet,
     Subnet,
-    /// Resources in the group that sit outside any virtual network. Drawn as
-    /// its own zone so the networked and unnetworked halves read apart.
-    Unnetworked,
+    /// A labelled aside for things outside the drawing's main structure —
+    /// resources in no virtual network, VNets in no peering. Drawn apart so
+    /// the reader can see at a glance that they are not part of the topology,
+    /// and always labelled with what it is holding and how much.
+    Zone,
     Resource {
         azure_type: String,
     },
@@ -142,7 +144,12 @@ const MAX_TILES: usize = 11;
 /// resource type collapsed to a count.
 pub(crate) struct Tile {
     pub azure_type: String,
+    /// What the tile *is*: the resource's name, or the type when the tile
+    /// stands for many of them. Always the first line, everywhere — the two
+    /// builders used to disagree, so a subnet member read name-then-type
+    /// while an out-of-network tile of the same resource read type-then-name.
     pub label: String,
+    /// The qualifier under it: the type, or `×N` for an aggregate.
     pub sublabel: String,
     /// `Some` only when the tile stands for exactly one resource.
     pub resource_id: Option<String>,
@@ -158,8 +165,8 @@ pub(crate) fn tiles_for(resources: &[&Resource], detail: DiagramDetail) -> Vec<T
         .iter()
         .map(|resource| Tile {
             azure_type: resource.azure_type.clone(),
-            label: azure_types::display_name(&resource.azure_type).to_owned(),
-            sublabel: resource.name.clone(),
+            label: resource.name.clone(),
+            sublabel: azure_types::display_name(&resource.azure_type).to_owned(),
             resource_id: Some(resource.id.clone()),
         })
         .collect()
@@ -201,8 +208,8 @@ pub(crate) fn aggregate_by_type(resources: &[&Resource]) -> Vec<Tile> {
             match members.as_slice() {
                 [only] => Tile {
                     azure_type: (*azure_type).to_owned(),
-                    label: display,
-                    sublabel: only.name.clone(),
+                    label: only.name.clone(),
+                    sublabel: display,
                     resource_id: Some(only.id.clone()),
                 },
                 many => Tile {
@@ -719,7 +726,7 @@ impl EstateGraph {
                 if nested > 0 {
                     label.push_str(&format!("  ·  {nested} nested"));
                 }
-                let container = graph.add_node(label, None, NodeKind::Unnetworked, Some(rg_node));
+                let container = graph.add_node(label, None, NodeKind::Zone, Some(rg_node));
                 for tile in tiles_for(&standalone, detail) {
                     let node = graph.add_node(
                         tile.label,
@@ -808,6 +815,27 @@ impl EstateGraph {
                 label: Some(peering_state(edge)),
                 style: EdgeStyle::Dashed,
             });
+        }
+
+        // A VNet with no peering plays no part in the topology, so it is set
+        // apart — and then has to say why. Four boxes sitting under a diagram
+        // with nothing naming them read as part of it that failed to connect.
+        let unpeered: Vec<usize> = (0..graph.nodes.len())
+            .filter(|&i| {
+                graph.nodes[i].kind == NodeKind::Vnet
+                    && !graph.edges.iter().any(|e| e.source == i || e.target == i)
+            })
+            .collect();
+        if !unpeered.is_empty() {
+            let zone = graph.add_node(
+                format!("Not peered  ·  {} virtual networks", unpeered.len()),
+                None,
+                NodeKind::Zone,
+                None,
+            );
+            for node in unpeered {
+                graph.nodes[node].parent = Some(zone);
+            }
         }
         Ok(graph)
     }
@@ -1014,7 +1042,7 @@ mod label_tests {
         // label exists to say.
         let long = "Not in a virtual network  ·  5 resources  ·  1 nested";
         assert_eq!(
-            node_label(&node(NodeKind::Unnetworked, long)),
+            node_label(&node(NodeKind::Zone, long)),
             long,
             "a container label must survive whole"
         );

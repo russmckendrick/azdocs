@@ -476,7 +476,7 @@ pub(crate) fn container_palette(kind: &NodeKind) -> (&'static str, &'static str)
         NodeKind::ResourceGroup => ("#F3F2F1", "#8A8886"),
         NodeKind::Vnet => ("#EFF6FC", "#0078D4"),
         NodeKind::Subnet => ("#FFFFFF", "#8A8886"),
-        NodeKind::Unnetworked => ("#FDF6EC", "#D97706"),
+        NodeKind::Zone => ("#FDF6EC", "#D97706"),
         NodeKind::Resource { .. } => ("#FFFFFF", "#605E5C"),
     }
 }

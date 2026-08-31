@@ -32,28 +32,26 @@ expression: "svg::render(&groups[0].graph)"
     <text x="490.5" y="186" font-size="11" text-anchor="middle" fill="#323130">vm-app-01</text>
     <text x="490.5" y="199" font-size="9" text-anchor="middle" fill="#605E5C">Virtual Machine</text>
     <image x="105" y="328" width="48" height="48" href="data:image/svg+xml;base64,[icon]"/>
-    <text x="129.3" y="390" font-size="11" text-anchor="middle" fill="#323130">AVD Host Pool</text>
-    <text x="129.3" y="403" font-size="9" text-anchor="middle" fill="#605E5C">hp-prod</text>
+    <text x="129.3" y="390" font-size="11" text-anchor="middle" fill="#323130">hp-prod</text>
+    <text x="129.3" y="403" font-size="9" text-anchor="middle" fill="#605E5C">AVD Host Pool</text>
     <image x="315.7" y="328" width="48" height="48" href="data:image/svg+xml;base64,[icon]"/>
-    <text x="340" y="390" font-size="11" text-anchor="middle" fill="#323130">Log Analytics</text>
-    <text x="340" y="403" font-size="11" text-anchor="middle" fill="#323130">Workspace</text>
-    <text x="340" y="416" font-size="9" text-anchor="middle" fill="#605E5C">law-prod</text>
+    <text x="340" y="390" font-size="11" text-anchor="middle" fill="#323130">law-prod</text>
+    <text x="340" y="403" font-size="9" text-anchor="middle" fill="#605E5C">Log Analytics Workspace</text>
     <image x="526.3" y="328" width="48" height="48" href="data:image/svg+xml;base64,[icon]"/>
-    <text x="550.7" y="390" font-size="11" text-anchor="middle" fill="#323130">SQL Server</text>
-    <text x="550.7" y="403" font-size="9" text-anchor="middle" fill="#605E5C">sql-prod</text>
+    <text x="550.7" y="390" font-size="11" text-anchor="middle" fill="#323130">sql-prod</text>
+    <text x="550.7" y="403" font-size="9" text-anchor="middle" fill="#605E5C">SQL Server</text>
     <image x="105" y="460" width="48" height="48" href="data:image/svg+xml;base64,[icon]"/>
-    <text x="129.3" y="522" font-size="11" text-anchor="middle" fill="#323130">Storage Account</text>
-    <text x="129.3" y="535" font-size="9" text-anchor="middle" fill="#605E5C">stprodapp01</text>
+    <text x="129.3" y="522" font-size="11" text-anchor="middle" fill="#323130">stprodapp01</text>
+    <text x="129.3" y="535" font-size="9" text-anchor="middle" fill="#605E5C">Storage Account</text>
     <image x="315.7" y="460" width="48" height="48" href="data:image/svg+xml;base64,[icon]"/>
-    <text x="340" y="522" font-size="11" text-anchor="middle" fill="#323130">Public IP</text>
-    <text x="340" y="535" font-size="11" text-anchor="middle" fill="#323130">Address</text>
-    <text x="340" y="548" font-size="9" text-anchor="middle" fill="#605E5C">vm-app-01-pip</text>
+    <text x="340" y="522" font-size="11" text-anchor="middle" fill="#323130">vm-app-01-pip</text>
+    <text x="340" y="535" font-size="9" text-anchor="middle" fill="#605E5C">Public IP Address</text>
   </g>
     <rect x="20" y="613" width="22" height="12" rx="2" fill="none" stroke="#0078D4" stroke-width="1.5" stroke-dasharray="7,4"/>
     <text x="48" y="622" font-size="10" fill="#605E5C">Virtual network</text>
     <rect x="152.5" y="613" width="22" height="12" rx="2" fill="none" stroke="#8A8886" stroke-width="1.5" stroke-dasharray="4,3"/>
     <text x="180.5" y="622" font-size="10" fill="#605E5C">Subnet</text>
     <rect x="235.5" y="613" width="22" height="12" rx="2" fill="none" stroke="#D97706" stroke-width="1.5" stroke-dasharray="7,4"/>
-    <text x="263.5" y="622" font-size="10" fill="#605E5C">Not in a VNet</text>
+    <text x="263.5" y="622" font-size="10" fill="#605E5C">Outside the topology</text>
     <text x="664" y="622" font-size="10" text-anchor="end" fill="#0078D4">Microsoft Azure</text>
 </svg>
