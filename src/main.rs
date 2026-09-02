@@ -40,7 +40,8 @@ async fn main() -> Result<()> {
         Command::Diagram(args) => {
             let config = Config::load(cli.config.as_deref())?;
             let store = open_store(&config, cli.db.as_deref())?;
-            commands::diagram::run(&store, &args)
+            let labels = azdocs::labels::resolve(&config.branding)?;
+            commands::diagram::run(&store, &args, &labels)
         }
         Command::Report(args) => {
             let (config, source) = Config::load_with_source(cli.config.as_deref())?;

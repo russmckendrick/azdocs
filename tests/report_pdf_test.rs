@@ -1,5 +1,7 @@
 mod common;
 
+use azdocs::labels::Labels;
+
 use azdocs::config::BrandingConfig;
 use azdocs::diagram::DiagramScope;
 use azdocs::diagram::assets::{self, DiagramAsset};
@@ -41,8 +43,15 @@ fn seeded() -> (ReportContext, Vec<DiagramAsset>) {
     let store = Store::open_in_memory().unwrap();
     let id = common::seed_estate(&store);
     let report = ReportContext::build(&store, &id).unwrap();
-    let mut diagrams = assets::build_overviews(&store, &id, &DiagramScope::default()).unwrap();
-    diagrams.extend(assets::build_resource_diagrams(&store, &id).unwrap());
+    let mut diagrams = assets::build_overviews(
+        &store,
+        &id,
+        &DiagramScope::default(),
+        &Labels::default().diagram,
+    )
+    .unwrap();
+    diagrams
+        .extend(assets::build_resource_diagrams(&store, &id, &Labels::default().diagram).unwrap());
     (report, diagrams)
 }
 

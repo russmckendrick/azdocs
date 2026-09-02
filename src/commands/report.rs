@@ -76,6 +76,7 @@ pub fn run_selected_with_outputs(
             store,
             &snapshot_id,
             &crate::diagram::DiagramScope::default(),
+            &branding.labels.diagram,
         )?
     } else {
         Vec::new()
@@ -89,6 +90,7 @@ pub fn run_selected_with_outputs(
         diagrams.extend(crate::diagram::assets::build_resource_diagrams(
             store,
             &snapshot_id,
+            &branding.labels.diagram,
         )?);
     }
 

@@ -10,6 +10,7 @@ use super::icons;
 use super::layout::{self, Placement};
 use super::page::{A4_PORTRAIT, DiagramDetail, PageFraction, Rung};
 use super::route;
+use crate::labels::DiagramLabels;
 
 const MARGIN: f64 = 16.0;
 /// Vertical room above the content for the diagram title, on the exports that
@@ -27,13 +28,13 @@ const PEERING_CONNECTED: &str = "#107C10";
 const PEERING_DISCONNECTED: &str = "#D13438";
 
 /// Render the graph as a standalone SVG document.
-pub fn render(graph: &EstateGraph) -> String {
-    render_for(graph, DiagramDetail::default())
+pub fn render(graph: &EstateGraph, labels: &DiagramLabels) -> String {
+    render_for(graph, DiagramDetail::default(), labels)
 }
 
 /// Render at a given detail level. A summary is snapped to a share of an A4
 /// page; a full export keeps whatever canvas its content needs.
-pub fn render_for(graph: &EstateGraph, detail: DiagramDetail) -> String {
+pub fn render_for(graph: &EstateGraph, detail: DiagramDetail, labels: &DiagramLabels) -> String {
     let rung = layout::rung(graph);
     let placements = layout::absolutize(graph, &layout::layout_for(graph, detail));
     let routes = route::route(graph, &placements, &rung);
@@ -55,7 +56,7 @@ pub fn render_for(graph: &EstateGraph, detail: DiagramDetail) -> String {
     };
     // A graph with no boundaries to explain — a resource neighbourhood — gets
     // no key, so it must not pay for the band either.
-    let keys = legend_entries(graph);
+    let keys = legend_entries(graph, labels);
     let legend_band = if keys.is_empty() { 0.0 } else { LEGEND_BAND };
     let width = if detail.snaps_to_page() {
         A4_PORTRAIT.width
@@ -125,7 +126,7 @@ pub fn render_for(graph: &EstateGraph, detail: DiagramDetail) -> String {
     // edges, then icons — so edges run under icons but over containers.
     for (index, node) in graph.nodes.iter().enumerate() {
         if node.kind.is_container() {
-            container(&mut out, graph, index, &placements[index], &rung);
+            container(&mut out, graph, index, &placements[index], &rung, labels);
         }
     }
     for routed in &routes {
@@ -140,7 +141,7 @@ pub fn render_for(graph: &EstateGraph, detail: DiagramDetail) -> String {
     out.push_str("  </g>\n");
     // The legend is canvas furniture, so it is drawn outside the scaled group
     // and stays the same size whatever the content had to shrink to.
-    legend(&mut out, graph, &keys, width, height);
+    legend(&mut out, graph, &keys, width, height, labels);
 
     out.push_str("</svg>\n");
     out
@@ -148,11 +149,14 @@ pub fn render_for(graph: &EstateGraph, detail: DiagramDetail) -> String {
 
 /// Border conventions this graph actually uses: `(stroke, label, dash)`. A
 /// simple diagram is not captioned with boundaries it does not draw.
-fn legend_entries(graph: &EstateGraph) -> Vec<(&'static str, &'static str, &'static str)> {
+fn legend_entries<'a>(
+    graph: &EstateGraph,
+    labels: &'a DiagramLabels,
+) -> Vec<(&'static str, &'a str, &'static str)> {
     [
-        (NodeKind::Vnet, "Virtual network", "7,4"),
-        (NodeKind::Subnet, "Subnet", "4,3"),
-        (NodeKind::Zone, "Outside the topology", "7,4"),
+        (NodeKind::Vnet, labels.legend.vnet.as_str(), "7,4"),
+        (NodeKind::Subnet, labels.legend.subnet.as_str(), "4,3"),
+        (NodeKind::Zone, labels.legend.zone.as_str(), "7,4"),
     ]
     .iter()
     .filter(|(kind, _, _)| graph.nodes.iter().any(|node| &node.kind == kind))
@@ -167,6 +171,7 @@ fn legend(
     entries: &[(&str, &str, &str)],
     canvas_width: f64,
     canvas_height: f64,
+    labels: &DiagramLabels,
 ) {
     if entries.is_empty() {
         return;
@@ -198,16 +203,18 @@ fn legend(
     {
         let _ = writeln!(
             out,
-            r##"    <text x="{}" y="{}" font-size="10" fill="{TEXT_SECONDARY}"><tspan fill="#0078D4">×N</tspan>  aggregated resources of one type</text>"##,
+            r##"    <text x="{}" y="{}" font-size="10" fill="{TEXT_SECONDARY}"><tspan fill="#0078D4">×N</tspan>  {}</text>"##,
             fmt(x),
             fmt(y),
+            escape(&labels.legend.aggregate),
         );
     }
     let _ = writeln!(
         out,
-        r##"    <text x="{}" y="{}" font-size="10" text-anchor="end" fill="#0078D4">Microsoft Azure</text>"##,
+        r##"    <text x="{}" y="{}" font-size="10" text-anchor="end" fill="#0078D4">{}</text>"##,
         fmt(canvas_width - MARGIN),
         fmt(y),
+        escape(&labels.legend.watermark),
     );
 }
 
@@ -253,6 +260,7 @@ fn container(
     index: usize,
     placement: &Placement,
     rung: &Rung,
+    labels: &DiagramLabels,
 ) {
     let node = &graph.nodes[index];
     let (fill, stroke) = container_palette(&node.kind);
@@ -372,7 +380,7 @@ fn container(
         cursor += size + 7.0;
     }
     // The kind reads as a quiet prefix so the name is what the eye lands on.
-    if let Some(prefix) = header_prefix(&node.kind) {
+    if let Some(prefix) = header_prefix(&node.kind, labels) {
         let _ = writeln!(
             out,
             r#"    <text x="{}" y="{}" font-size="{}" fill="{TEXT_SECONDARY}">{} ·</text>"#,
@@ -438,9 +446,9 @@ fn header_icon(kind: &NodeKind) -> Option<&'static str> {
 
 /// Quiet kind prefix before the name. A resource group and a subnet carry
 /// their name alone — the icon and the border already say what they are.
-fn header_prefix(kind: &NodeKind) -> Option<&'static str> {
+fn header_prefix<'a>(kind: &NodeKind, labels: &'a DiagramLabels) -> Option<&'a str> {
     match kind {
-        NodeKind::Vnet => Some("Virtual network"),
+        NodeKind::Vnet => Some(labels.legend.vnet.as_str()),
         _ => None,
     }
 }
@@ -708,6 +716,10 @@ fn fmt(value: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn labels() -> DiagramLabels {
+        crate::labels::Labels::default().diagram
+    }
     use crate::diagram::graph::LayoutMode;
     use crate::diagram::graph::Node;
 
@@ -793,7 +805,7 @@ mod tests {
             layout: LayoutMode::default(),
         };
 
-        let svg = render(&graph);
+        let svg = render(&graph, &labels());
 
         assert!(svg.contains(">node4-datawarehouse<"), "name cut: {svg}");
         assert!(svg.contains(">137 resources<"), "count cut: {svg}");
@@ -832,7 +844,7 @@ mod tests {
                 layout: LayoutMode::default(),
             };
 
-            let svg = render(&graph);
+            let svg = render(&graph, &labels());
 
             let (width, height) = viewbox(&svg);
             assert_eq!(
@@ -872,7 +884,7 @@ mod tests {
             layout: LayoutMode::default(),
         };
 
-        let svg = render(&graph);
+        let svg = render(&graph, &labels());
 
         assert!(
             svg.contains(&format!(r#"transform="translate({MARGIN},"#)),
@@ -894,8 +906,8 @@ mod tests {
             layout: LayoutMode::default(),
         };
 
-        assert!(!render_for(&graph, DiagramDetail::Summary).contains(">estate<"));
-        assert!(render_for(&graph, DiagramDetail::Full).contains(">estate<"));
+        assert!(!render_for(&graph, DiagramDetail::Summary, &labels()).contains(">estate<"));
+        assert!(render_for(&graph, DiagramDetail::Full, &labels()).contains(">estate<"));
     }
 
     /// First and last numbers of the `viewBox`.
@@ -934,7 +946,7 @@ mod tests {
             layout: LayoutMode::default(),
         };
 
-        let svg = render_for(&graph, DiagramDetail::Full);
+        let svg = render_for(&graph, DiagramDetail::Full, &labels());
 
         assert!(svg.contains("t &amp; t"), "title escaped: {svg}");
         assert!(

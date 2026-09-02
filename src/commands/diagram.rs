@@ -9,18 +9,24 @@ use crate::cli::{DiagramArgs, DiagramFormat, DiagramType};
 use crate::diagram::graph::NamedGraph;
 use crate::diagram::page::DiagramDetail;
 use crate::diagram::{DiagramScope, EstateGraph, drawio, mermaid, png, svg};
+use crate::labels::{Labels, fill};
 use crate::store::Store;
 
-pub fn run(store: &Store, args: &DiagramArgs) -> anyhow::Result<()> {
-    run_with_outputs(store, args).map(|_| ())
+pub fn run(store: &Store, args: &DiagramArgs, labels: &Labels) -> anyhow::Result<()> {
+    run_with_outputs(store, args, labels).map(|_| ())
 }
 
 /// Generate diagrams and return every file written by the request.
 ///
 /// The CLI retains its existing progress output; the desktop app consumes the
 /// returned paths so fan-out exports can report their complete manifest.
-pub fn run_with_outputs(store: &Store, args: &DiagramArgs) -> anyhow::Result<Vec<PathBuf>> {
+pub fn run_with_outputs(
+    store: &Store,
+    args: &DiagramArgs,
+    labels: &Labels,
+) -> anyhow::Result<Vec<PathBuf>> {
     let snapshot_id = store.resolve_snapshot(&args.snapshot)?;
+    let words = &labels.diagram;
     let scope = DiagramScope {
         subscription: args.subscription.clone(),
         resource_group: args.resource_group.clone(),
@@ -28,30 +34,41 @@ pub fn run_with_outputs(store: &Store, args: &DiagramArgs) -> anyhow::Result<Vec
     match args.diagram_type {
         DiagramType::Hierarchy => single(
             args,
-            &EstateGraph::hierarchy(store, &snapshot_id)?,
+            &EstateGraph::hierarchy(store, &snapshot_id, words)?,
             "hierarchy",
+            labels,
         ),
         DiagramType::Resources => single(
             args,
-            &EstateGraph::resources(store, &snapshot_id, &scope)?,
+            &EstateGraph::resources(store, &snapshot_id, &scope, words)?,
             "resources",
+            labels,
         ),
         DiagramType::Network => single(
             args,
-            &EstateGraph::network(store, &snapshot_id, &scope)?,
+            &EstateGraph::network(store, &snapshot_id, &scope, words)?,
             "network",
+            labels,
         ),
         DiagramType::Vnets => fan_out(
             args,
-            &EstateGraph::per_vnet(store, &snapshot_id, &scope)?,
+            &EstateGraph::per_vnet(store, &snapshot_id, &scope, words)?,
             "vnets",
+            labels,
         ),
         DiagramType::ResourceGroups => fan_out(
             args,
-            &EstateGraph::per_resource_group(store, &snapshot_id, &scope, DiagramDetail::Full)?,
+            &EstateGraph::per_resource_group(
+                store,
+                &snapshot_id,
+                &scope,
+                DiagramDetail::Full,
+                words,
+            )?,
             "resource-groups",
+            labels,
         ),
-        DiagramType::Workbook => workbook(store, &snapshot_id, &scope, args),
+        DiagramType::Workbook => workbook(store, &snapshot_id, &scope, args, labels),
     }
 }
 
@@ -108,6 +125,7 @@ pub fn expand_formats(format: DiagramFormat) -> Vec<DiagramFormat> {
 fn render_one(
     graph: &EstateGraph,
     format: DiagramFormat,
+    labels: &Labels,
 ) -> anyhow::Result<(&'static str, Vec<u8>)> {
     let extension = format
         .extension()
@@ -115,9 +133,11 @@ fn render_one(
     let bytes = match format {
         DiagramFormat::Drawio => drawio::render_for(graph, DiagramDetail::Full).into_bytes(),
         DiagramFormat::Mermaid => mermaid::render(graph).into_bytes(),
-        DiagramFormat::Svg => svg::render_for(graph, DiagramDetail::Full).into_bytes(),
+        DiagramFormat::Svg => {
+            svg::render_for(graph, DiagramDetail::Full, &labels.diagram).into_bytes()
+        }
         DiagramFormat::Png => png::from_svg(
-            &svg::render_for(graph, DiagramDetail::Full),
+            &svg::render_for(graph, DiagramDetail::Full, &labels.diagram),
             png::DEFAULT_SCALE,
         )?,
         DiagramFormat::Both | DiagramFormat::All => unreachable!("rejected above"),
@@ -125,11 +145,14 @@ fn render_one(
     Ok((extension, bytes))
 }
 
-fn warn_if_large(name: &str, graph: &EstateGraph) {
+fn warn_if_large(name: &str, graph: &EstateGraph, labels: &Labels) {
     if graph.nodes.len() > mermaid::NODE_WARN_THRESHOLD {
         eprintln!(
-            "Warning: {name}: {} nodes — large diagrams get unreadable; consider --subscription or --resource-group scoping.",
-            graph.nodes.len()
+            "{}",
+            fill(
+                &labels.cli.diagram.large_warning,
+                &[("name", &name), ("count", &graph.nodes.len())]
+            )
         );
     }
 }
@@ -146,19 +169,26 @@ fn single(
     args: &DiagramArgs,
     graph: &EstateGraph,
     type_name: &str,
+    labels: &Labels,
 ) -> anyhow::Result<Vec<PathBuf>> {
-    warn_if_large(type_name, graph);
+    warn_if_large(type_name, graph, labels);
     let formats = expand_formats(args.format);
     let mut outputs = Vec::new();
     for format in &formats {
-        let (extension, content) = render_one(graph, *format)?;
+        let (extension, content) = render_one(graph, *format, labels)?;
         let out = match (&args.out, formats.len()) {
             (Some(path), 1) => path.clone(),
             (Some(path), _) => path.with_extension(extension),
             (None, _) => default_output_path(Path::new(DEFAULT_ROOT), args.diagram_type, *format),
         };
         write_out(&out, &content)?;
-        println!("{type_name} diagram -> {}", out.display());
+        println!(
+            "{}",
+            fill(
+                &labels.cli.diagram.written,
+                &[("name", &type_name), ("path", &out.display())]
+            )
+        );
         outputs.push(out);
     }
     Ok(outputs)
@@ -168,9 +198,13 @@ fn fan_out(
     args: &DiagramArgs,
     graphs: &[NamedGraph],
     kind_dir: &str,
+    labels: &Labels,
 ) -> anyhow::Result<Vec<PathBuf>> {
     if graphs.is_empty() {
-        println!("No {kind_dir} diagrams to write for this snapshot.");
+        println!(
+            "{}",
+            fill(&labels.cli.diagram.nothing_to_write, &[("kind", &kind_dir)])
+        );
         return Ok(Vec::new());
     }
     // Fan-out writes one file per graph, so --out names a directory here.
@@ -180,12 +214,18 @@ fn fan_out(
     let formats = expand_formats(args.format);
     let mut outputs = Vec::new();
     for named in graphs {
-        warn_if_large(&named.sheet_name, &named.graph);
+        warn_if_large(&named.sheet_name, &named.graph, labels);
         for format in &formats {
-            let (extension, content) = render_one(&named.graph, *format)?;
+            let (extension, content) = render_one(&named.graph, *format, labels)?;
             let out = dir.join(format!("{}.{extension}", named.slug));
             write_out(&out, &content)?;
-            println!("{} -> {}", named.sheet_name, out.display());
+            println!(
+                "{}",
+                fill(
+                    &labels.cli.diagram.sheet_written,
+                    &[("name", &named.sheet_name), ("path", &out.display())]
+                )
+            );
             outputs.push(out);
         }
     }
@@ -197,7 +237,9 @@ fn workbook(
     snapshot_id: &str,
     scope: &DiagramScope,
     args: &DiagramArgs,
+    labels: &Labels,
 ) -> anyhow::Result<Vec<PathBuf>> {
+    let words = &labels.diagram;
     let formats = match args.format {
         // Naming Mermaid (alone or via `both`) is an error; `all` below means
         // "everything applicable", so it skips instead.
@@ -208,7 +250,7 @@ fn workbook(
                 .unwrap_or_default()
         ),
         DiagramFormat::All => {
-            println!("note: skipping Mermaid — the workbook is draw.io-only");
+            println!("{}", labels.cli.diagram.skipping_mermaid);
             vec![
                 DiagramFormat::Drawio,
                 DiagramFormat::Svg,
@@ -218,17 +260,25 @@ fn workbook(
         single => vec![single],
     };
 
-    let network = EstateGraph::network(store, snapshot_id, scope)?;
-    let peerings = EstateGraph::peerings(store, snapshot_id, scope)?;
-    let vnets = EstateGraph::per_vnet(store, snapshot_id, scope)?;
-    let groups = EstateGraph::per_resource_group(store, snapshot_id, scope, DiagramDetail::Full)?;
+    let network = EstateGraph::network(store, snapshot_id, scope, words)?;
+    let peerings = EstateGraph::peerings(store, snapshot_id, scope, words)?;
+    let vnets = EstateGraph::per_vnet(store, snapshot_id, scope, words)?;
+    let groups =
+        EstateGraph::per_resource_group(store, snapshot_id, scope, DiagramDetail::Full, words)?;
     // (sheet name, file slug, graph): sheet names may repeat (same RG name in
     // several subscriptions) but the fan-out slugs are already deduplicated,
     // so rasters keep them — prefixed by kind — as their file stems.
-    let mut sheets: Vec<(&str, String, &EstateGraph)> =
-        vec![("Network Topology", "network-topology".to_owned(), &network)];
+    let mut sheets: Vec<(&str, String, &EstateGraph)> = vec![(
+        words.workbook.network_topology.as_str(),
+        "network-topology".to_owned(),
+        &network,
+    )];
     if !peerings.nodes.is_empty() {
-        sheets.push(("VNet Peerings", "vnet-peerings".to_owned(), &peerings));
+        sheets.push((
+            words.workbook.vnet_peerings.as_str(),
+            "vnet-peerings".to_owned(),
+            &peerings,
+        ));
     }
     for named in &vnets {
         sheets.push((
@@ -245,7 +295,7 @@ fn workbook(
         ));
     }
     for (name, _, graph) in &sheets {
-        warn_if_large(name, graph);
+        warn_if_large(name, graph, labels);
     }
 
     let mut outputs = Vec::new();
@@ -272,7 +322,13 @@ fn workbook(
                     &out,
                     drawio::render_workbook_for(&named_sheets, DiagramDetail::Full).as_bytes(),
                 )?;
-                println!("workbook ({} sheets) -> {}", sheets.len(), out.display());
+                println!(
+                    "{}",
+                    fill(
+                        &labels.cli.diagram.workbook_written,
+                        &[("count", &sheets.len()), ("path", &out.display())]
+                    )
+                );
                 outputs.push(out);
             }
             DiagramFormat::Svg | DiagramFormat::Png => {
@@ -286,10 +342,16 @@ fn workbook(
                         default_output_path(Path::new(DEFAULT_ROOT), DiagramType::Workbook, format)
                     });
                 for (name, slug, graph) in &sheets {
-                    let (extension, content) = render_one(graph, format)?;
+                    let (extension, content) = render_one(graph, format, labels)?;
                     let out = dir.join(format!("{slug}.{extension}"));
                     write_out(&out, &content)?;
-                    println!("{name} -> {}", out.display());
+                    println!(
+                        "{}",
+                        fill(
+                            &labels.cli.diagram.sheet_written,
+                            &[("name", name), ("path", &out.display())]
+                        )
+                    );
                     outputs.push(out);
                 }
             }

@@ -7,6 +7,7 @@
 //! rasterises on demand instead).
 
 use crate::error::DiagramError;
+use crate::labels::DiagramLabels;
 use crate::store::Store;
 
 use super::graph::{DiagramScope, EstateGraph};
@@ -55,6 +56,7 @@ pub fn build_overviews(
     store: &Store,
     snapshot_id: &str,
     scope: &DiagramScope,
+    labels: &DiagramLabels,
 ) -> Result<Vec<DiagramAsset>, DiagramError> {
     let mut assets = Vec::new();
     let mut push = |slug: &str, kind: DiagramAssetKind, graph: &EstateGraph| {
@@ -63,16 +65,16 @@ pub fn build_overviews(
                 slug: slug.to_owned(),
                 title: graph.title.clone(),
                 kind,
-                svg: svg::render(graph),
+                svg: svg::render(graph, labels),
                 resource_id: None,
                 group_key: None,
             });
         }
     };
 
-    let hierarchy = EstateGraph::hierarchy(store, snapshot_id)?;
+    let hierarchy = EstateGraph::hierarchy(store, snapshot_id, labels)?;
     push("hierarchy", DiagramAssetKind::Hierarchy, &hierarchy);
-    let network = EstateGraph::network(store, snapshot_id, scope)?;
+    let network = EstateGraph::network(store, snapshot_id, scope, labels)?;
     push("network", DiagramAssetKind::Network, &network);
 
     // One summarised diagram per resource group. The estate-wide view cannot
@@ -80,7 +82,7 @@ pub fn build_overviews(
     // can — with its resources aggregated by type, which is what keeps each
     // one inside a share of the sheet.
     let groups =
-        EstateGraph::per_resource_group(store, snapshot_id, scope, DiagramDetail::Summary)?;
+        EstateGraph::per_resource_group(store, snapshot_id, scope, DiagramDetail::Summary, labels)?;
     if groups.len() > MAX_GROUP_DIAGRAMS {
         tracing::warn!(
             total = groups.len(),
@@ -97,7 +99,7 @@ pub fn build_overviews(
             slug: format!("rg-{}", named.slug),
             title: named.sheet_name.clone(),
             kind: DiagramAssetKind::ResourceGroup,
-            svg: svg::render_for(&named.graph, DiagramDetail::Summary),
+            svg: svg::render_for(&named.graph, DiagramDetail::Summary, labels),
             resource_id: None,
             group_key: named.group_key.clone(),
         });
@@ -113,6 +115,7 @@ pub fn build_overviews(
 pub fn build_resource_diagrams(
     store: &Store,
     snapshot_id: &str,
+    labels: &DiagramLabels,
 ) -> Result<Vec<DiagramAsset>, DiagramError> {
     let resources = store.resources(snapshot_id)?;
     let edges = store.edges(snapshot_id)?;
@@ -140,7 +143,7 @@ pub fn build_resource_diagrams(
     // `resources` is already sorted deterministically by the store, so the
     // slugs — and any golden output — are stable.
     for (index, resource) in connected.iter().take(MAX_RESOURCE_DIAGRAMS).enumerate() {
-        let graph = EstateGraph::neighbourhood(resource, &by_id, &edges);
+        let graph = EstateGraph::neighbourhood(resource, &by_id, &edges, labels);
         // Counted on the resources, not the nodes: the graph also carries the
         // group frame they are drawn in.
         if graph
@@ -158,7 +161,7 @@ pub fn build_resource_diagrams(
             slug: format!("resource-{index}-{}", super::graph::slugify(&resource.name)),
             title: resource.name.clone(),
             kind: DiagramAssetKind::Resource,
-            svg: svg::render(&graph),
+            svg: svg::render(&graph, labels),
             resource_id: Some(resource.id.clone()),
             group_key: None,
         });
@@ -169,6 +172,10 @@ pub fn build_resource_diagrams(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn labels() -> DiagramLabels {
+        crate::labels::Labels::default().diagram
+    }
     use crate::model::{Edge, EdgeKind, Resource, normalize_arm_id};
     use std::collections::HashMap;
 
@@ -210,7 +217,7 @@ mod tests {
         // pip hangs off the nic, so it is two hops from the VM.
         let edges = vec![attached(&nic, &vm), attached(&pip, &nic)];
 
-        let graph = EstateGraph::neighbourhood(&vm, &by_id, &edges);
+        let graph = EstateGraph::neighbourhood(&vm, &by_id, &edges, &labels());
 
         let labels: Vec<&str> = graph
             .nodes
@@ -227,7 +234,7 @@ mod tests {
         let vm = resource("vm-01", "microsoft.compute/virtualmachines");
         let by_id: HashMap<&str, &Resource> = HashMap::from([(vm.id.as_str(), &vm)]);
 
-        let graph = EstateGraph::neighbourhood(&vm, &by_id, &[]);
+        let graph = EstateGraph::neighbourhood(&vm, &by_id, &[], &labels());
 
         assert!(graph.title.is_empty());
     }
@@ -239,7 +246,7 @@ mod tests {
         let lonely = resource("st1", "microsoft.storage/storageaccounts");
         let by_id: HashMap<&str, &Resource> = HashMap::from([(lonely.id.as_str(), &lonely)]);
 
-        let graph = EstateGraph::neighbourhood(&lonely, &by_id, &[]);
+        let graph = EstateGraph::neighbourhood(&lonely, &by_id, &[], &labels());
 
         assert_eq!(
             graph
@@ -258,7 +265,7 @@ mod tests {
         let vm = resource("vm-01", "microsoft.compute/virtualmachines");
         let by_id: HashMap<&str, &Resource> = HashMap::from([(vm.id.as_str(), &vm)]);
 
-        let graph = EstateGraph::neighbourhood(&vm, &by_id, &[]);
+        let graph = EstateGraph::neighbourhood(&vm, &by_id, &[], &labels());
 
         assert_eq!(
             graph.nodes[0].kind,

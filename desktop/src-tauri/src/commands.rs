@@ -404,8 +404,12 @@ fn export_diagrams(
             )),
         };
         outputs.extend(
-            azdocs::commands::diagram::run_with_outputs(store, &args)
-                .map_err(|error| AppError::Export(error.to_string()))?,
+            azdocs::commands::diagram::run_with_outputs(
+                store,
+                &args,
+                &azdocs::labels::Labels::default(),
+            )
+            .map_err(|error| AppError::Export(error.to_string()))?,
         );
     }
     Ok(outputs)

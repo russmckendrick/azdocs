@@ -377,6 +377,7 @@ pub struct DiagramLabels {
     pub not_peered: String,
     pub peered: String,
     pub remote_vnet: String,
+    pub private_link: String,
     pub legend: LegendLabels,
     pub workbook: WorkbookLabels,
 }

@@ -6,8 +6,13 @@ use azdocs::diagram::graph::NamedGraph;
 use azdocs::diagram::page::DiagramDetail;
 use azdocs::diagram::{DiagramScope, EstateGraph, drawio, mermaid, png, svg};
 use azdocs::error::StoreError;
+use azdocs::labels::{DiagramLabels, Labels};
 use azdocs::store::Store;
 use quick_xml::events::Event;
+
+fn labels() -> DiagramLabels {
+    Labels::default().diagram
+}
 
 fn seeded() -> (Store, String) {
     let store = Store::open_in_memory().unwrap();
@@ -29,12 +34,16 @@ fn svg_insta_settings() -> insta::Settings {
 /// Same sheet assembly as `azdocs diagram --type workbook`.
 fn workbook_xml(store: &Store, id: &str) -> String {
     let scope = DiagramScope::default();
-    let network = EstateGraph::network(store, id, &scope).unwrap();
-    let peerings = EstateGraph::peerings(store, id, &scope).unwrap();
-    let vnets = EstateGraph::per_vnet(store, id, &scope).unwrap();
-    let groups = EstateGraph::per_resource_group(store, id, &scope, DiagramDetail::Full).unwrap();
-    let mut sheets: Vec<(&str, &EstateGraph)> =
-        vec![("Network Topology", &network), ("VNet Peerings", &peerings)];
+    let network = EstateGraph::network(store, id, &scope, &labels()).unwrap();
+    let peerings = EstateGraph::peerings(store, id, &scope, &labels()).unwrap();
+    let vnets = EstateGraph::per_vnet(store, id, &scope, &labels()).unwrap();
+    let groups =
+        EstateGraph::per_resource_group(store, id, &scope, DiagramDetail::Full, &labels()).unwrap();
+    let words = labels();
+    let mut sheets: Vec<(&str, &EstateGraph)> = vec![
+        (words.workbook.network_topology.as_str(), &network),
+        (words.workbook.vnet_peerings.as_str(), &peerings),
+    ];
     for named in &vnets {
         sheets.push((named.sheet_name.as_str(), &named.graph));
     }
@@ -50,14 +59,17 @@ fn mermaid_outputs_match_golden_files() {
     let scope = DiagramScope::default();
 
     for (name, graph) in [
-        ("hierarchy", EstateGraph::hierarchy(&store, &id).unwrap()),
+        (
+            "hierarchy",
+            EstateGraph::hierarchy(&store, &id, &labels()).unwrap(),
+        ),
         (
             "resources",
-            EstateGraph::resources(&store, &id, &scope).unwrap(),
+            EstateGraph::resources(&store, &id, &scope, &labels()).unwrap(),
         ),
         (
             "network",
-            EstateGraph::network(&store, &id, &scope).unwrap(),
+            EstateGraph::network(&store, &id, &scope, &labels()).unwrap(),
         ),
     ] {
         insta::assert_snapshot!(format!("mermaid_{name}"), mermaid::render(&graph));
@@ -70,10 +82,13 @@ fn drawio_outputs_match_golden_files() {
     let scope = DiagramScope::default();
 
     for (name, graph) in [
-        ("hierarchy", EstateGraph::hierarchy(&store, &id).unwrap()),
+        (
+            "hierarchy",
+            EstateGraph::hierarchy(&store, &id, &labels()).unwrap(),
+        ),
         (
             "network",
-            EstateGraph::network(&store, &id, &scope).unwrap(),
+            EstateGraph::network(&store, &id, &scope, &labels()).unwrap(),
         ),
     ] {
         insta::assert_snapshot!(
@@ -115,7 +130,7 @@ fn drawio_xml_is_well_formed_with_unique_resolving_ids() {
     let (store, id) = seeded();
     let scope = DiagramScope::default();
     let xml = drawio::render_for(
-        &EstateGraph::network(&store, &id, &scope).unwrap(),
+        &EstateGraph::network(&store, &id, &scope, &labels()).unwrap(),
         DiagramDetail::Full,
     );
 
@@ -143,17 +158,20 @@ fn svg_outputs_match_golden_files() {
 
     svg_insta_settings().bind(|| {
         for (name, graph) in [
-            ("hierarchy", EstateGraph::hierarchy(&store, &id).unwrap()),
+            (
+                "hierarchy",
+                EstateGraph::hierarchy(&store, &id, &labels()).unwrap(),
+            ),
             (
                 "resources",
-                EstateGraph::resources(&store, &id, &scope).unwrap(),
+                EstateGraph::resources(&store, &id, &scope, &labels()).unwrap(),
             ),
             (
                 "network",
-                EstateGraph::network(&store, &id, &scope).unwrap(),
+                EstateGraph::network(&store, &id, &scope, &labels()).unwrap(),
             ),
         ] {
-            insta::assert_snapshot!(format!("svg_{name}"), svg::render(&graph));
+            insta::assert_snapshot!(format!("svg_{name}"), svg::render(&graph, &labels()));
         }
     });
 }
@@ -162,17 +180,19 @@ fn svg_outputs_match_golden_files() {
 fn svg_fan_out_graphs_match_golden_files() {
     let (store, id) = seeded();
     let scope = DiagramScope::default();
-    let vnets = EstateGraph::per_vnet(&store, &id, &scope).unwrap();
-    let groups = EstateGraph::per_resource_group(&store, &id, &scope, DiagramDetail::Full).unwrap();
+    let vnets = EstateGraph::per_vnet(&store, &id, &scope, &labels()).unwrap();
+    let groups =
+        EstateGraph::per_resource_group(&store, &id, &scope, DiagramDetail::Full, &labels())
+            .unwrap();
 
     svg_insta_settings().bind(|| {
         insta::assert_snapshot!(
             format!("svg_vnet_{}", vnets[0].slug),
-            svg::render(&vnets[0].graph)
+            svg::render(&vnets[0].graph, &labels())
         );
         insta::assert_snapshot!(
             format!("svg_rg_{}", groups[0].slug),
-            svg::render(&groups[0].graph)
+            svg::render(&groups[0].graph, &labels())
         );
     });
 }
@@ -182,12 +202,14 @@ fn fan_out_builders_are_deterministic_with_sorted_slugs() {
     let (store, id) = seeded();
     let scope = DiagramScope::default();
 
-    type FanOut = fn(&Store, &str, &DiagramScope) -> Result<Vec<NamedGraph>, StoreError>;
-    let per_group: FanOut =
-        |store, id, scope| EstateGraph::per_resource_group(store, id, scope, DiagramDetail::Full);
+    type FanOut =
+        fn(&Store, &str, &DiagramScope, &DiagramLabels) -> Result<Vec<NamedGraph>, StoreError>;
+    let per_group: FanOut = |store, id, scope, labels| {
+        EstateGraph::per_resource_group(store, id, scope, DiagramDetail::Full, labels)
+    };
     for build in [EstateGraph::per_vnet as FanOut, per_group] {
-        let first = build(&store, &id, &scope).unwrap();
-        let second = build(&store, &id, &scope).unwrap();
+        let first = build(&store, &id, &scope, &labels()).unwrap();
+        let second = build(&store, &id, &scope, &labels()).unwrap();
 
         assert!(!first.is_empty(), "fixture estate produces fan-out graphs");
         let slugs: Vec<&str> = first.iter().map(|n| n.slug.as_str()).collect();
@@ -207,7 +229,10 @@ fn fan_out_builders_are_deterministic_with_sorted_slugs() {
         for (a, b) in first.iter().zip(&second) {
             assert_eq!(a.slug, b.slug);
             assert_eq!(a.sheet_name, b.sheet_name);
-            assert_eq!(svg::render(&a.graph), svg::render(&b.graph));
+            assert_eq!(
+                svg::render(&a.graph, &labels()),
+                svg::render(&b.graph, &labels())
+            );
         }
     }
 }
@@ -238,26 +263,26 @@ fn png_renders_every_graph_at_twice_the_svg_size() {
     let scope = DiagramScope::default();
 
     let mut graphs = vec![
-        EstateGraph::hierarchy(&store, &id).unwrap(),
-        EstateGraph::resources(&store, &id, &scope).unwrap(),
-        EstateGraph::network(&store, &id, &scope).unwrap(),
-        EstateGraph::peerings(&store, &id, &scope).unwrap(),
+        EstateGraph::hierarchy(&store, &id, &labels()).unwrap(),
+        EstateGraph::resources(&store, &id, &scope, &labels()).unwrap(),
+        EstateGraph::network(&store, &id, &scope, &labels()).unwrap(),
+        EstateGraph::peerings(&store, &id, &scope, &labels()).unwrap(),
     ];
     graphs.extend(
-        EstateGraph::per_vnet(&store, &id, &scope)
+        EstateGraph::per_vnet(&store, &id, &scope, &labels())
             .unwrap()
             .into_iter()
             .map(|n| n.graph),
     );
     graphs.extend(
-        EstateGraph::per_resource_group(&store, &id, &scope, DiagramDetail::Full)
+        EstateGraph::per_resource_group(&store, &id, &scope, DiagramDetail::Full, &labels())
             .unwrap()
             .into_iter()
             .map(|n| n.graph),
     );
 
     for graph in &graphs {
-        let svg_text = svg::render(graph);
+        let svg_text = svg::render(graph, &labels());
         let (svg_width, svg_height) = viewbox_size(&svg_text);
         let png_bytes = png::from_svg(&svg_text, 2.0).unwrap();
 
@@ -271,7 +296,7 @@ fn png_renders_every_graph_at_twice_the_svg_size() {
 #[test]
 fn network_graph_places_vm_in_subnet_not_nic() {
     let (store, id) = seeded();
-    let graph = EstateGraph::network(&store, &id, &DiagramScope::default()).unwrap();
+    let graph = EstateGraph::network(&store, &id, &DiagramScope::default(), &labels()).unwrap();
 
     let labels: Vec<&str> = graph.nodes.iter().map(|n| n.label.as_str()).collect();
     assert!(
@@ -283,7 +308,7 @@ fn network_graph_places_vm_in_subnet_not_nic() {
 #[test]
 fn network_graph_deduplicates_bidirectional_peering() {
     let (store, id) = seeded();
-    let graph = EstateGraph::network(&store, &id, &DiagramScope::default()).unwrap();
+    let graph = EstateGraph::network(&store, &id, &DiagramScope::default(), &labels()).unwrap();
 
     let peerings = graph
         .edges
@@ -301,7 +326,7 @@ fn resources_graph_scopes_to_subscription() {
         resource_group: None,
     };
 
-    let graph = EstateGraph::resources(&store, &id, &scope).unwrap();
+    let graph = EstateGraph::resources(&store, &id, &scope, &labels()).unwrap();
 
     let labels: Vec<&str> = graph.nodes.iter().map(|n| n.label.as_str()).collect();
     assert!(

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::error::StoreError;
+use crate::labels::{DiagramLabels, fill};
 use crate::model::{Edge, EdgeKind, Resource, azure_types, network};
 use crate::store::Store;
 
@@ -157,9 +158,13 @@ pub(crate) struct Tile {
 
 /// Tiles for a zone at the requested detail level: aggregated for a document
 /// summary, one per resource for a standalone export.
-pub(crate) fn tiles_for(resources: &[&Resource], detail: DiagramDetail) -> Vec<Tile> {
+pub(crate) fn tiles_for(
+    resources: &[&Resource],
+    detail: DiagramDetail,
+    labels: &DiagramLabels,
+) -> Vec<Tile> {
     if detail.aggregates() {
-        return aggregate_by_type(resources);
+        return aggregate_by_type(resources, labels);
     }
     resources
         .iter()
@@ -178,7 +183,7 @@ pub(crate) fn tiles_for(resources: &[&Resource], detail: DiagramDetail) -> Vec<T
 /// identical glyphs that says nothing; "Storage Account ×13" says the same
 /// thing in one tile and leaves room for the group to fit a page. Singletons
 /// keep their name, because for those the name *is* the information.
-pub(crate) fn aggregate_by_type(resources: &[&Resource]) -> Vec<Tile> {
+pub(crate) fn aggregate_by_type(resources: &[&Resource], labels: &DiagramLabels) -> Vec<Tile> {
     let mut order: Vec<&str> = Vec::new();
     let mut by_type: HashMap<&str, Vec<&Resource>> = HashMap::new();
     for resource in resources {
@@ -215,7 +220,7 @@ pub(crate) fn aggregate_by_type(resources: &[&Resource]) -> Vec<Tile> {
                 many => Tile {
                     azure_type: (*azure_type).to_owned(),
                     label: display,
-                    sublabel: format!("×{}", many.len()),
+                    sublabel: fill(&labels.aggregate, &[("count", &many.len())]),
                     resource_id: None,
                 },
             }
@@ -231,8 +236,11 @@ pub(crate) fn aggregate_by_type(resources: &[&Resource]) -> Vec<Tile> {
         tiles.push(Tile {
             // The generic glyph: this tile stands for no one type.
             azure_type: "microsoft.resources/resourcegroups".to_owned(),
-            label: "Other resources".to_owned(),
-            sublabel: format!("{} types · ×{count}", rest.len()),
+            label: labels.other_resources.clone(),
+            sublabel: fill(
+                &labels.other_resources_sub,
+                &[("types", &rest.len()), ("count", &count)],
+            ),
             resource_id: None,
         });
     }
@@ -257,18 +265,22 @@ impl EstateGraph {
     }
 
     /// Tenant → subscriptions → resource groups with resource-count badges.
-    pub fn hierarchy(store: &Store, snapshot_id: &str) -> Result<Self, StoreError> {
+    pub fn hierarchy(
+        store: &Store,
+        snapshot_id: &str,
+        labels: &DiagramLabels,
+    ) -> Result<Self, StoreError> {
         let snapshot = store.get_snapshot(snapshot_id)?;
         let subscriptions = store.subscriptions(snapshot_id)?;
         let groups = store.resource_groups(snapshot_id)?;
         let resources = store.resources(snapshot_id)?;
 
         let mut graph = Self {
-            title: format!("Azure estate — tenant {}", snapshot.tenant_id),
+            title: fill(&labels.hierarchy_title, &[("tenant", &snapshot.tenant_id)]),
             ..Self::default()
         };
         let tenant = graph.add_node(
-            format!("Tenant {}", snapshot.tenant_id),
+            fill(&labels.tenant_node, &[("tenant", &snapshot.tenant_id)]),
             None,
             NodeKind::Tenant,
             None,
@@ -280,7 +292,7 @@ impl EstateGraph {
                 .count();
             let sub_node = graph.add_node(
                 &sub.display_name,
-                Some(format!("{count} resources")),
+                Some(fill(&labels.resource_count, &[("count", &count)])),
                 NodeKind::Subscription,
                 Some(tenant),
             );
@@ -297,7 +309,7 @@ impl EstateGraph {
                     .count();
                 graph.add_node(
                     &rg.name,
-                    Some(format!("{rg_count} resources")),
+                    Some(fill(&labels.resource_count, &[("count", &rg_count)])),
                     NodeKind::ResourceGroup,
                     Some(sub_node),
                 );
@@ -311,6 +323,7 @@ impl EstateGraph {
         store: &Store,
         snapshot_id: &str,
         scope: &DiagramScope,
+        labels: &DiagramLabels,
     ) -> Result<Self, StoreError> {
         let subscriptions = store.subscriptions(snapshot_id)?;
         let groups = store.resource_groups(snapshot_id)?;
@@ -318,7 +331,7 @@ impl EstateGraph {
         let edges = store.edges(snapshot_id)?;
 
         let mut graph = Self {
-            title: "Azure resources".to_owned(),
+            title: labels.resources_title.clone(),
             ..Self::default()
         };
         let mut by_resource_id: HashMap<&str, usize> = HashMap::new();
@@ -368,7 +381,7 @@ impl EstateGraph {
                 }
             }
         }
-        graph.add_resource_edges(&edges, &by_resource_id);
+        graph.add_resource_edges(&edges, &by_resource_id, labels);
         Ok(graph)
     }
 
@@ -378,12 +391,13 @@ impl EstateGraph {
         store: &Store,
         snapshot_id: &str,
         scope: &DiagramScope,
+        labels: &DiagramLabels,
     ) -> Result<Self, StoreError> {
         let resources = scoped_resources(store, snapshot_id, scope)?;
         let edges = store.edges(snapshot_id)?;
 
         let mut graph = Self {
-            title: "Azure network topology".to_owned(),
+            title: labels.network_title.clone(),
             ..Self::default()
         };
         let mut node_ids: HashMap<String, usize> = HashMap::new();
@@ -412,7 +426,7 @@ impl EstateGraph {
                                 .as_ref()
                                 .and_then(|p| p.get("state"))
                                 .and_then(|s| s.as_str())
-                                .unwrap_or("peered");
+                                .unwrap_or(&labels.peered);
                             graph.edges.push(DiagEdge {
                                 source: a,
                                 target: b,
@@ -489,8 +503,8 @@ impl EstateGraph {
             .collect();
         if !floating.is_empty() {
             let container = graph.add_node(
-                "Connected services",
-                Some("NSGs & private-link targets".to_owned()),
+                labels.connected_services.as_str(),
+                Some(labels.connected_services_sub.clone()),
                 NodeKind::ResourceGroup,
                 None,
             );
@@ -564,6 +578,7 @@ impl EstateGraph {
         store: &Store,
         snapshot_id: &str,
         scope: &DiagramScope,
+        labels: &DiagramLabels,
     ) -> Result<Vec<NamedGraph>, StoreError> {
         let resources = scoped_resources(store, snapshot_id, scope)?;
         let edges = store.edges(snapshot_id)?;
@@ -578,7 +593,7 @@ impl EstateGraph {
 
         let mut named = Vec::new();
         for vnet in vnets {
-            let sheet_name = format!("VNet - {}", vnet.name);
+            let sheet_name = fill(&labels.vnet_sheet, &[("name", &vnet.name)]);
             let mut graph = Self {
                 title: sheet_name.clone(),
                 ..Self::default()
@@ -594,7 +609,7 @@ impl EstateGraph {
                     let label = by_id
                         .get(edge.target_id.as_str())
                         .map(|r| r.name.clone())
-                        .unwrap_or_else(|| remote_vnet_label(&edge.target_id));
+                        .unwrap_or_else(|| remote_vnet_label(&edge.target_id, labels));
                     graph.nodes.push(Node {
                         label,
                         sublabel: None,
@@ -606,7 +621,7 @@ impl EstateGraph {
                 graph.edges.push(DiagEdge {
                     source: vnet_node,
                     target: stub,
-                    label: Some(peering_state(edge)),
+                    label: Some(peering_state(edge, labels)),
                     style: EdgeStyle::Dashed,
                 });
             }
@@ -630,6 +645,7 @@ impl EstateGraph {
         snapshot_id: &str,
         scope: &DiagramScope,
         detail: DiagramDetail,
+        labels: &DiagramLabels,
     ) -> Result<Vec<NamedGraph>, StoreError> {
         let groups = store.resource_groups(snapshot_id)?;
         let resources = scoped_resources(store, snapshot_id, scope)?;
@@ -683,8 +699,11 @@ impl EstateGraph {
             // Group names repeat across subscriptions, so a bare group name is
             // an ambiguous caption once the fan-out is spread over a directory.
             let sheet_name = match &subscription_name {
-                Some(sub) => format!("Resource Group - {} · {sub}", rg.name),
-                None => format!("Resource Group - {}", rg.name),
+                Some(sub) => fill(
+                    &labels.resource_group_sheet,
+                    &[("name", &rg.name), ("subscription", sub)],
+                ),
+                None => fill(&labels.resource_group_sheet_bare, &[("name", &rg.name)]),
             };
             let mut graph = Self {
                 title: sheet_name.clone(),
@@ -719,15 +738,12 @@ impl EstateGraph {
                 })
                 .count();
             if !standalone.is_empty() || nested > 0 {
-                let mut label = format!(
-                    "Not in a virtual network  ·  {} resources",
-                    standalone.len()
-                );
+                let mut label = fill(&labels.not_in_vnet, &[("count", &standalone.len())]);
                 if nested > 0 {
-                    label.push_str(&format!("  ·  {nested} nested"));
+                    label.push_str(&fill(&labels.nested_suffix, &[("count", &nested)]));
                 }
                 let container = graph.add_node(label, None, NodeKind::Zone, Some(rg_node));
-                for tile in tiles_for(&standalone, detail) {
+                for tile in tiles_for(&standalone, detail, labels) {
                     let node = graph.add_node(
                         tile.label,
                         Some(tile.sublabel),
@@ -748,7 +764,7 @@ impl EstateGraph {
                 .iter()
                 .map(|(id, &node)| (id.as_str(), node))
                 .collect();
-            graph.add_resource_edges(&edges, &by_resource_id);
+            graph.add_resource_edges(&edges, &by_resource_id, labels);
             named.push(NamedGraph {
                 slug: slugify(&rg.name),
                 sheet_name,
@@ -771,12 +787,13 @@ impl EstateGraph {
         store: &Store,
         snapshot_id: &str,
         scope: &DiagramScope,
+        labels: &DiagramLabels,
     ) -> Result<Self, StoreError> {
         let resources = scoped_resources(store, snapshot_id, scope)?;
         let edges = store.edges(snapshot_id)?;
 
         let mut graph = Self {
-            title: "VNet peerings".to_owned(),
+            title: labels.peerings_title.clone(),
             layout: LayoutMode::Relational,
             ..Self::default()
         };
@@ -798,7 +815,7 @@ impl EstateGraph {
             };
             let target = *node_ids.entry(edge.target_id.clone()).or_insert_with(|| {
                 graph.nodes.push(Node {
-                    label: remote_vnet_label(&edge.target_id),
+                    label: remote_vnet_label(&edge.target_id, labels),
                     sublabel: None,
                     kind: NodeKind::Vnet,
                     parent: None,
@@ -812,7 +829,7 @@ impl EstateGraph {
             graph.edges.push(DiagEdge {
                 source,
                 target,
-                label: Some(peering_state(edge)),
+                label: Some(peering_state(edge, labels)),
                 style: EdgeStyle::Dashed,
             });
         }
@@ -828,7 +845,7 @@ impl EstateGraph {
             .collect();
         if !unpeered.is_empty() {
             let zone = graph.add_node(
-                format!("Not peered  ·  {} virtual networks", unpeered.len()),
+                fill(&labels.not_peered, &[("count", &unpeered.len())]),
                 None,
                 NodeKind::Zone,
                 None,
@@ -850,6 +867,7 @@ impl EstateGraph {
         resource: &Resource,
         by_id: &HashMap<&str, &Resource>,
         edges: &[Edge],
+        labels: &DiagramLabels,
     ) -> Self {
         // No title: this diagram always sits directly under the resource's own
         // heading in the report, so a title band would just repeat it.
@@ -915,11 +933,16 @@ impl EstateGraph {
             .iter()
             .map(|(id, &node)| (id.as_str(), node))
             .collect();
-        graph.add_resource_edges(edges, &by_resource_id);
+        graph.add_resource_edges(edges, &by_resource_id, labels);
         graph
     }
 
-    fn add_resource_edges(&mut self, edges: &[Edge], by_resource_id: &HashMap<&str, usize>) {
+    fn add_resource_edges(
+        &mut self,
+        edges: &[Edge],
+        by_resource_id: &HashMap<&str, usize>,
+        labels: &DiagramLabels,
+    ) {
         for edge in edges {
             let (Some(&source), Some(&target)) = (
                 by_resource_id.get(edge.source_id.as_str()),
@@ -930,7 +953,7 @@ impl EstateGraph {
             let (label, style) = match edge.kind {
                 EdgeKind::AttachedTo => (None, EdgeStyle::Solid),
                 EdgeKind::PrivateEndpointFor => {
-                    (Some("private link".to_owned()), EdgeStyle::Association)
+                    (Some(labels.private_link.clone()), EdgeStyle::Association)
                 }
                 EdgeKind::NsgAttached => (None, EdgeStyle::Association),
                 _ => continue,
@@ -979,17 +1002,21 @@ fn is_represented_by_host(
         && !std::ptr::eq(host_representative(resource, edges, by_id), resource)
 }
 
-fn remote_vnet_label(arm_id: &str) -> String {
+fn remote_vnet_label(arm_id: &str, labels: &DiagramLabels) -> String {
     let name = crate::model::short_name(arm_id);
-    if name.is_empty() { "remote vnet" } else { name }.to_owned()
+    if name.is_empty() {
+        labels.remote_vnet.clone()
+    } else {
+        name.to_owned()
+    }
 }
 
-fn peering_state(edge: &Edge) -> String {
+fn peering_state(edge: &Edge, labels: &DiagramLabels) -> String {
     edge.properties
         .as_ref()
         .and_then(|p| p.get("state"))
         .and_then(|s| s.as_str())
-        .unwrap_or("peered")
+        .unwrap_or(&labels.peered)
         .to_owned()
 }
 

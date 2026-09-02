@@ -243,6 +243,7 @@ peerings_title = "VNet peerings"
 not_peered = "Not peered  ·  {count} virtual networks"
 peered = "peered"
 remote_vnet = "remote vnet"
+private_link = "private link"
 
 [diagram.legend]
 vnet = "Virtual network"
