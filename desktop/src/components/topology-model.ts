@@ -1,5 +1,10 @@
 import type { Edge, EdgeKind, EstateSnapshot, Resource, ResourceGroup } from "../types";
 import { stableCompare } from "../ordering";
+import { DEFAULT_LABELS } from "../labels";
+
+// Preview-only mirror of groups.rs, so it reads the built-in label the way
+// the Rust side reads the installed one.
+const SUBSCRIPTION_SCOPE = DEFAULT_LABELS.common.subscription_scope;
 
 export interface ResourceTypeCount {
   azureType: string;
@@ -39,7 +44,7 @@ function groupMatchKey(subscriptionId: string, name: string) {
 }
 
 function syntheticGroup(resource: Resource): ResourceGroup {
-  const name = resource.resourceGroup || "Subscription scope";
+  const name = resource.resourceGroup || SUBSCRIPTION_SCOPE;
   return {
     id: resource.resourceGroup
       ? `/subscriptions/${resource.subscriptionId}/resourcegroups/${resource.resourceGroup}`.toLowerCase()
@@ -60,7 +65,7 @@ export function buildResourceGroupTopology(estate: EstateSnapshot): ResourceGrou
     groupsByKey.set(groupMatchKey(group.subscriptionId, group.name), group);
   }
   for (const resource of estate.resources) {
-    const key = groupMatchKey(resource.subscriptionId, resource.resourceGroup ?? "Subscription scope");
+    const key = groupMatchKey(resource.subscriptionId, resource.resourceGroup ?? SUBSCRIPTION_SCOPE);
     if (!groupsByKey.has(key)) groupsByKey.set(key, syntheticGroup(resource));
   }
 
@@ -77,7 +82,7 @@ export function buildResourceGroupTopology(estate: EstateSnapshot): ResourceGrou
 
   const resourceGroupByResourceId = new Map<string, string>();
   for (const resource of estate.resources) {
-    const key = groupMatchKey(resource.subscriptionId, resource.resourceGroup ?? "Subscription scope");
+    const key = groupMatchKey(resource.subscriptionId, resource.resourceGroup ?? SUBSCRIPTION_SCOPE);
     const groupId = groupIdByKey.get(key);
     if (!groupId) continue;
     resourceGroupByResourceId.set(resource.id, groupId);

@@ -7,6 +7,8 @@
  * `Intl.DateTimeFormat` is not cheap and these run per row.
  */
 
+import { createElement, Fragment, type ReactNode } from "react";
+
 import { labels } from "./labels";
 
 const memo = new Map<string, Intl.DateTimeFormat>();
@@ -110,6 +112,29 @@ export function fill(template: string, vars: Vars) {
   return template.replaceAll(/\{([a-z_][a-z0-9_]*)\}/g, (whole, name: string) =>
     name in vars ? String(vars[name]) : whole,
   );
+}
+
+/**
+ * `fill` for templates whose values are elements — a `<span className="mono">`
+ * inside a sentence. Text between placeholders becomes strings; each
+ * placeholder becomes the node registered under its name, or is left as
+ * text when nothing is. The twin of the print document's run splitter.
+ */
+export function fillNodes(template: string, nodes: Record<string, ReactNode>): ReactNode[] {
+  const out: ReactNode[] = [];
+  const pattern = /\{([a-z_][a-z0-9_]*)\}/g;
+  let last = 0;
+  for (const match of template.matchAll(pattern)) {
+    const index = match.index ?? 0;
+    if (index > last) out.push(template.slice(last, index));
+    const name = match[1];
+    out.push(
+      name in nodes ? createElement(Fragment, { key: `${name}-${index}` }, nodes[name]) : match[0],
+    );
+    last = index + match[0].length;
+  }
+  if (last < template.length) out.push(template.slice(last));
+  return out;
 }
 
 export type PluralForms = { one: string; other: string };

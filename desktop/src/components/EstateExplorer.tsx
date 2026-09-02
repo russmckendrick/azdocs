@@ -15,6 +15,8 @@ import { displayLocation } from "../azure-values";
 import type { EstateSnapshot, Resource, ResourceType, ScopeSelection } from "../types";
 import { ShowMore, useProgressiveList } from "./progressive-list";
 import { EmptyState } from "./view-chrome";
+import { fill, fillNodes } from "../format";
+import { useLabels } from "../labels";
 import { matchesResourceSearch, useResourceTypeMap, useSubscriptionNames } from "../estate-lookups";
 
 type SortKey = "name" | "type" | "location" | "findings";
@@ -45,6 +47,7 @@ export function EstateExplorer({
 
   const resourceTypeMap = useResourceTypeMap(estate);
   const subscriptionMap = useSubscriptionNames(estate);
+  const { common, desktop: { estate: words } } = useLabels();
 
   const filtered = useMemo(() => {
     const matches = estate.resources.filter((resource) => {
@@ -68,7 +71,7 @@ export function EstateExplorer({
     ? scope.resourceGroup
     : scope.subscriptionId
       ? subscriptionMap.get(scope.subscriptionId)
-      : "Entire estate";
+      : words.entire_estate;
 
   useEffect(() => {
     const subscriptionId = scope.subscriptionId;
@@ -127,11 +130,11 @@ export function EstateExplorer({
 
   return (
     <div className="estate-explorer">
-      <aside className="scope-pane" aria-label="Estate hierarchy">
+      <aside className="scope-pane" aria-label={words.hierarchy_aria}>
         <div className="pane-heading">
           <div>
-            <h1>Azure estate</h1>
-            <span>{estate.totals.subscriptions} subscriptions · {estate.totals.resourceGroups} groups</span>
+            <h1>{words.title}</h1>
+            <span>{fill(words.summary, { subscriptions: estate.totals.subscriptions, groups: estate.totals.resourceGroups })}</span>
           </div>
           <img className="azure-entity-icon" src={ALL_RESOURCES_ICON} alt="" />
         </div>
@@ -141,7 +144,7 @@ export function EstateExplorer({
             className={!scope.subscriptionId ? "scope-all active" : "scope-all"}
             onClick={() => onScopeChange({})}
           >
-            <span><img src={ALL_RESOURCES_ICON} alt="" /> Entire estate</span>
+            <span><img src={ALL_RESOURCES_ICON} alt="" /> {words.entire_estate}</span>
             <b>{estate.totals.resources}</b>
           </button>
           {estate.subscriptions.map((subscription) => {
@@ -156,7 +159,7 @@ export function EstateExplorer({
                     className="tree-disclosure"
                     onClick={() => toggleExpanded(setExpandedSubscriptions, subscription.id)}
                     aria-expanded={expanded}
-                    aria-label={`${expanded ? "Collapse" : "Expand"} ${subscription.displayName}`}
+                    aria-label={fill(expanded ? words.collapse : words.expand, { name: subscription.displayName })}
                   >
                     {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                   </button>
@@ -182,7 +185,7 @@ export function EstateExplorer({
                             className="tree-disclosure"
                             onClick={() => toggleExpanded(setExpandedGroups, group.id)}
                             aria-expanded={groupExpanded}
-                            aria-label={`${groupExpanded ? "Collapse" : "Expand"} ${group.name}`}
+                            aria-label={fill(groupExpanded ? words.collapse : words.expand, { name: group.name })}
                           >
                             {groupExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
                           </button>
@@ -223,7 +226,7 @@ export function EstateExplorer({
                                 <EmptyState
                                   className="tree-empty-row"
                                   icon={<img src={ALL_RESOURCES_ICON} alt="" />}
-                                  detail="No stored resources"
+                                  detail={words.no_stored_resources}
                                 />
                               )}
                           </div>
@@ -239,13 +242,13 @@ export function EstateExplorer({
 
       </aside>
 
-      <section className="resource-pane" aria-label="Resource inventory">
+      <section className="resource-pane" aria-label={words.inventory_aria}>
         <header className="resource-header">
           <div>
             <h2>{activeScopeName}</h2>
             <p>
-              <strong>{filtered.length}</strong> of {estate.totals.resources} resources
-              {search ? <> matching “{search}”</> : null}
+              {fillNodes(words.of_total, { count: <strong>{filtered.length}</strong>, total: estate.totals.resources })}
+              {search ? fill(words.matching, { search }) : null}
             </p>
           </div>
         </header>
@@ -253,8 +256,8 @@ export function EstateExplorer({
         <div className="resource-controls">
           <label>
             <Layers3 size={14} />
-            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} aria-label="Filter by resource type">
-              <option value="">All resource types</option>
+            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} aria-label={words.type_filter_aria}>
+              <option value="">{words.all_types}</option>
               {estate.resourceTypes.map((type) => (
                 <option key={type.azureType} value={type.azureType}>{type.displayName} ({type.count})</option>
               ))}
@@ -262,44 +265,44 @@ export function EstateExplorer({
           </label>
           <label>
             <MapPin size={14} />
-            <select value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)} aria-label="Filter by location">
-              <option value="">All locations</option>
+            <select value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)} aria-label={words.location_filter_aria}>
+              <option value="">{words.all_locations}</option>
               {estate.locations.map((location) => (
                 <option key={location.name} value={location.name}>
-                  {displayLocation(estate.azureMetadata, location.name, "Not stored")} ({location.count})
+                  {displayLocation(estate.azureMetadata, location.name, words.location_not_stored)} ({location.count})
                 </option>
               ))}
             </select>
           </label>
           <label>
             <ArrowDownAZ size={14} />
-            <select value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)} aria-label="Sort resources">
-              <option value="name">Name</option>
-              <option value="type">Resource type</option>
-              <option value="location">Location</option>
-              <option value="findings">Findings first</option>
+            <select value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)} aria-label={words.sort_aria}>
+              <option value="name">{words.sort_name}</option>
+              <option value="type">{words.sort_type}</option>
+              <option value="location">{words.sort_location}</option>
+              <option value="findings">{words.sort_findings}</option>
             </select>
           </label>
           {(typeFilter || locationFilter || search) ? (
             <button className="clear-filters" onClick={() => { setTypeFilter(""); setLocationFilter(""); }}>
-              <X size={13} /> Clear local filters
+              <X size={13} /> {words.clear_filters}
             </button>
           ) : null}
         </div>
 
         <div className="resource-table-head" aria-hidden="true">
-          <span>Resource</span>
-          <span>Resource group</span>
-          <span>Location</span>
-          <span>Signals</span>
+          <span>{common.columns.resource}</span>
+          <span>{common.columns.resource_group}</span>
+          <span>{common.columns.location}</span>
+          <span>{words.signals}</span>
         </div>
-        <div ref={resourceListRef} className="resource-list" role="listbox" aria-label="Resources" onKeyDown={handleResourceListKeyDown}>
+        <div ref={resourceListRef} className="resource-list" role="listbox" aria-label={words.list_aria} onKeyDown={handleResourceListKeyDown}>
           {visibleResources.map((resource, index) => (
             <ResourceRow
               key={resource.id}
               resource={resource}
               type={resourceTypeMap.get(resource.azureType)}
-              locationName={displayLocation(estate.azureMetadata, resource.location, "Global")}
+              locationName={displayLocation(estate.azureMetadata, resource.location, words.location_global)}
               index={index}
               tabIndex={index === 0 ? 0 : -1}
               onSelect={() => onSelectResource(resource.id)}
@@ -309,8 +312,8 @@ export function EstateExplorer({
             <EmptyState
               className="no-results"
               icon={<SearchX size={28} />}
-              title="No resources match this view"
-              detail="Clear a filter or search the whole snapshot."
+              title={words.empty_title}
+              detail={words.empty_detail}
             />
           ) : null}
           {visibleResources.length < filtered.length ? (
@@ -338,6 +341,7 @@ function ResourceRow({
   tabIndex: number;
   onSelect: () => void;
 }) {
+  const { common, desktop: { estate: words } } = useLabels();
   return (
     <button className="resource-row" data-resource-index={index} data-resource-id={resource.id} tabIndex={tabIndex} onClick={onSelect} role="option" aria-selected="false">
       <span className="resource-identity">
@@ -347,12 +351,12 @@ function ResourceRow({
           <small>{type?.displayName ?? resource.azureType}</small>
         </span>
       </span>
-      <span className="resource-group-cell">{resource.resourceGroup ?? "—"}</span>
+      <span className="resource-group-cell">{resource.resourceGroup ?? common.verdict.none}</span>
       <span className="resource-location-cell">{locationName}</span>
       <span className="signal-cell">
         {resource.findingCount > 0 ? <em className="finding-signal"><AlertTriangle size={13} />{resource.findingCount}</em> : null}
         {resource.edgeCount > 0 ? <em className="edge-signal"><GitBranch size={13} />{resource.edgeCount}</em> : null}
-        {!resource.findingCount && !resource.edgeCount ? <small>Quiet</small> : null}
+        {!resource.findingCount && !resource.edgeCount ? <small>{words.quiet}</small> : null}
       </span>
     </button>
   );

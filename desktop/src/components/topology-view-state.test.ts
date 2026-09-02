@@ -93,8 +93,8 @@ describe("describeCounts", () => {
 
   it("unit_names_collapsed_and_unconnected_groups_when_they_cover_the_aggregated_count", () => {
     expect(describeCounts(estateGraph()).extras).toEqual([
-      { count: 28, label: "in collapsed subscriptions" },
-      { count: 9, label: "unconnected" },
+      { count: 28, kind: "collapsed" },
+      { count: 9, kind: "unconnected" },
     ]);
   });
 
@@ -103,10 +103,10 @@ describe("describeCounts", () => {
     graph.counts.aggregated = 40;
     graph.counts.hiddenByFilter = 3;
     expect(describeCounts(graph).extras).toEqual([
-      { count: 28, label: "in collapsed subscriptions" },
-      { count: 9, label: "unconnected" },
-      { count: 3, label: "in ×N tiles" },
-      { count: 3, label: "hidden by filters", emphasis: true },
+      { count: 28, kind: "collapsed" },
+      { count: 9, kind: "unconnected" },
+      { count: 3, kind: "tiles" },
+      { count: 3, kind: "hidden", emphasis: true },
     ]);
   });
 });

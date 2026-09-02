@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { fill } from "../format";
+import { useLabels } from "../labels";
 
 export interface ProgressiveList<T> {
   visible: T[];
@@ -52,13 +54,14 @@ export function useProgressiveList<T>(
  * strip, which omits the loaded-count line.
  */
 export function ShowMore<T>({ list, inline = false }: { list: ProgressiveList<T>; inline?: boolean }) {
+  const words = useLabels().desktop.progressive;
   if (!list.hasMore) return null;
   return (
     <button className={inline ? "load-more inline" : "load-more"} onClick={list.showMore}>
-      Show {list.remaining} more
+      {fill(words.show_more, { count: list.remaining })}
       {inline ? null : (
         <span>
-          {list.visible.length.toLocaleString()} of {list.total.toLocaleString()} loaded
+          {fill(words.loaded, { visible: list.visible.length.toLocaleString(), total: list.total.toLocaleString() })}
         </span>
       )}
     </button>

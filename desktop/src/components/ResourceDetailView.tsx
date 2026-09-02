@@ -11,12 +11,14 @@ import { resourceIcon } from "../azure-icons";
 import { displayKind, displayLocation } from "../azure-values";
 import type { EstateSnapshot, Resource, ResourceType } from "../types";
 import { AdaptiveDataView, describeStoredValue, hasStoredValue } from "./AdaptiveDataView";
-import { resourceName, spaced } from "../format";
+import { plural, resourceName, spaced } from "../format";
+import { useLabels } from "../labels";
 import { EmptyState } from "./view-chrome";
 import { useEscapeKey, useResourceTypeMap } from "../estate-lookups";
 
-function prettyRelation(kind: string) {
-  return spaced(kind);
+/** The connector text for an edge kind: from the labels, spaced key as the fallback. */
+function prettyRelation(kind: string, edgeKinds: Record<string, string>) {
+  return edgeKinds[kind] ?? spaced(kind);
 }
 
 export function ResourceDetailView({
@@ -40,6 +42,7 @@ export function ResourceDetailView({
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const resourceTypeMap = useResourceTypeMap(estate);
+  const { common, desktop: { record: words, topology: { edge_kinds: edgeKinds } } } = useLabels();
   const subscription = estate.subscriptions.find((item) => item.id === resource.subscriptionId);
   const resourceGroup = estate.resourceGroups.find(
     (item) => item.subscriptionId === resource.subscriptionId && item.name.toLowerCase() === resource.resourceGroup,
@@ -48,15 +51,15 @@ export function ResourceDetailView({
   const relatedEdges = estate.edges.filter((edge) => edge.sourceId === resource.id || edge.targetId === resource.id);
   const tags = Object.entries(resource.tags ?? {}).sort(([left], [right]) => left.localeCompare(right));
   const locationName = displayLocation(estate.azureMetadata, resource.location);
-  const groupLocationName = displayLocation(estate.azureMetadata, resourceGroup?.location, "Not stored");
+  const groupLocationName = displayLocation(estate.azureMetadata, resourceGroup?.location, common.columns.location);
   const kindName = displayKind(estate.azureMetadata, resource.azureType, resource.kind);
   const resourceContext = {
     resourceIdentity: {
       name: resource.name,
       azureType: resource.azureType,
-      subscription: subscription?.displayName ?? "Unknown",
+      subscription: subscription?.displayName ?? words.unknown_subscription,
       subscriptionId: resource.subscriptionId,
-      resourceGroup: resource.resourceGroup ?? "Subscription scope",
+      resourceGroup: resource.resourceGroup ?? common.subscription_scope,
       groupLocation: groupLocationName,
       resourceLocation: locationName,
       kind: kindName,
@@ -70,7 +73,7 @@ export function ResourceDetailView({
       snapshot: estate.id,
       findingCount: resource.findingCount,
       edgeCount: resource.edgeCount,
-      source: "Selected SQLite snapshot; this page does not query Azure.",
+      source: words.source_note,
     },
   };
 
@@ -95,28 +98,28 @@ export function ResourceDetailView({
             <div className="resource-record-path">
               <span>{subscription?.displayName ?? resource.subscriptionId}</span>
               <ChevronRight size={12} aria-hidden="true" />
-              <span>{resource.resourceGroup ?? "Subscription scope"}</span>
+              <span>{resource.resourceGroup ?? common.subscription_scope}</span>
             </div>
           </div>
         </div>
         <div className="resource-record-header-tools">
-          <dl className="resource-record-meta" aria-label="Resource summary">
-            <div><dt>Location</dt><dd>{locationName}</dd></div>
-            <div><dt>Kind</dt><dd>{kindName}</dd></div>
-            <div><dt>Findings</dt><dd className={relatedFindings.length > 0 ? "risk" : ""}>{relatedFindings.length}</dd></div>
-            <div><dt>Relationships</dt><dd>{relatedEdges.length}</dd></div>
-            <div><dt>Tags</dt><dd>{tags.length}</dd></div>
+          <dl className="resource-record-meta" aria-label={words.summary_aria}>
+            <div><dt>{common.columns.location}</dt><dd>{locationName}</dd></div>
+            <div><dt>{common.columns.kind}</dt><dd>{kindName}</dd></div>
+            <div><dt>{common.columns.findings}</dt><dd className={relatedFindings.length > 0 ? "risk" : ""}>{relatedFindings.length}</dd></div>
+            <div><dt>{words.relationships}</dt><dd>{relatedEdges.length}</dd></div>
+            <div><dt>{common.columns.tags}</dt><dd>{tags.length}</dd></div>
           </dl>
           <div className="resource-record-actions">
             {relatedFindings.length > 0 ? (
               <button className="quiet-button" onClick={onOpenFindings}>
-                <AlertTriangle size={15} /> Review findings
+                <AlertTriangle size={15} /> {words.review_findings}
               </button>
             ) : null}
             <button className="quiet-button" onClick={onOpenTopology} disabled={relatedEdges.length === 0}>
               <GitBranch size={15} /> {relatedEdges.length > 0
-                ? `Explore ${relatedEdges.length} relationship${relatedEdges.length === 1 ? "" : "s"}`
-                : "No relationships to explore"}
+                ? plural(words.explore_relationships, relatedEdges.length)
+                : words.no_relationships}
             </button>
           </div>
         </div>
@@ -126,7 +129,7 @@ export function ResourceDetailView({
         <div className="resource-record-evidence">
           <section className="resource-record-section">
             <div className="resource-record-section-heading">
-              <div><h2>Audit findings</h2><p>Stored checks linked to this exact resource.</p></div>
+              <div><h2>{words.findings_title}</h2><p>{words.findings_detail}</p></div>
               <strong>{relatedFindings.length}</strong>
             </div>
             {relatedFindings.length > 0 ? (
@@ -134,10 +137,10 @@ export function ResourceDetailView({
                 {relatedFindings.map((finding, index) => (
                   <article key={`${finding.queryName}-${index}`}>
                     <header>
-                      <span className={`record-severity ${finding.severity}`}>{finding.severity}</span>
+                      <span className={`record-severity ${finding.severity}`}>{common.severity[finding.severity].name}</span>
                       <div><h3>{finding.title}</h3><p>{finding.category} · {finding.queryName}</p></div>
                     </header>
-                    <EvidenceData label="Finding evidence" value={finding.detail} compact />
+                    <EvidenceData label={words.finding_evidence} value={finding.detail} compact />
                   </article>
                 ))}
               </div>
@@ -145,7 +148,7 @@ export function ResourceDetailView({
               <EmptyState
                 className="resource-record-clear"
                 icon={<CircleDot size={17} />}
-                detail="No audit findings are linked to this resource."
+                detail={words.no_findings}
               />
             )}
           </section>
@@ -153,8 +156,8 @@ export function ResourceDetailView({
           <section className="resource-record-section resource-context-section">
             <div className="resource-record-section-heading">
               <div>
-                <h2>Resource context</h2>
-                <p>Identity, tags, ARM identifiers, and snapshot provenance for this stored record.</p>
+                <h2>{words.context_title}</h2>
+                <p>{words.context_detail}</p>
               </div>
             </div>
             <AdaptiveDataView value={resourceContext} />
@@ -162,19 +165,19 @@ export function ResourceDetailView({
 
           <section className="resource-record-section">
             <div className="resource-record-section-heading">
-              <div><h2>Resource properties</h2><p>Stored fields and collections from Azure Resource Graph.</p></div>
+              <div><h2>{words.properties_title}</h2><p>{words.properties_detail}</p></div>
               <ListTree size={18} />
             </div>
             <div className="resource-property-stack">
-              <EvidenceData label="Properties" value={resource.properties} />
-              <EvidenceData label="SKU" value={resource.sku} />
-              <EvidenceData label="Managed identity" value={resource.identity} />
+              <EvidenceData label={words.properties} value={resource.properties} />
+              <EvidenceData label={words.sku} value={resource.sku} />
+              <EvidenceData label={words.identity} value={resource.identity} />
             </div>
           </section>
 
           <section className="resource-record-section">
             <div className="resource-record-section-heading">
-              <div><h2>Relationships</h2><p>Every derived edge touching this resource, including stored edge properties.</p></div>
+              <div><h2>{words.relationships_title}</h2><p>{words.relationships_detail}</p></div>
               <strong>{relatedEdges.length}</strong>
             </div>
             {relatedEdges.length > 0 ? (
@@ -193,17 +196,17 @@ export function ResourceDetailView({
                   return (
                     <article key={`${edge.sourceId}-${edge.targetId}-${edge.kind}-${index}`}>
                       <button onClick={() => other && onSelectResource(other.id)} disabled={!other}>
-                        <span className="relation-direction">{outbound ? "OUT" : "IN"}</span>
+                        <span className="relation-direction">{outbound ? words.outbound : words.inbound}</span>
                         <img src={resourceIcon(otherType)} alt="" />
-                        <span><strong>{other?.name ?? resourceName(otherId)}</strong><small>{prettyRelation(edge.kind)}</small></span>
+                        <span><strong>{other?.name ?? resourceName(otherId)}</strong><small>{prettyRelation(edge.kind, edgeKinds)}</small></span>
                         {other ? <ChevronRight size={14} /> : null}
                       </button>
-                      <EvidenceData label="Relationship evidence" value={relationshipEvidence} compact />
+                      <EvidenceData label={words.relationship_evidence} value={relationshipEvidence} compact />
                     </article>
                   );
                 })}
               </div>
-            ) : <p className="muted-copy">No derived relationships touch this resource.</p>}
+            ) : <p className="muted-copy">{words.no_relationship_rows}</p>}
           </section>
         </div>
       </div>

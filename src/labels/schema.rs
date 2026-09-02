@@ -599,7 +599,301 @@ pub struct DesktopLabels {
     pub errors: DesktopErrorLabels,
     pub dialogs: DesktopDialogLabels,
     pub topology: DesktopTopologyLabels,
+    pub overview: DesktopOverviewLabels,
+    pub findings: DesktopFindingsLabels,
+    pub history: DesktopHistoryLabels,
+    pub inventory: DesktopInventoryLabels,
+    pub settings: DesktopSettingsLabels,
+    pub governance: DesktopGovernanceLabels,
+    pub estate: DesktopEstateLabels,
+    pub record: DesktopRecordLabels,
+    pub data_view: DesktopDataViewLabels,
+    pub progressive: DesktopProgressiveLabels,
+    pub exports: DesktopExportsLabels,
     pub backend: DesktopBackendLabels,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DesktopEstateLabels {
+    pub hierarchy_aria: String,
+    pub title: String,
+    pub summary: String,
+    pub entire_estate: String,
+    pub collapse: String,
+    pub expand: String,
+    pub no_stored_resources: String,
+    pub inventory_aria: String,
+    pub of_total: String,
+    pub matching: String,
+    pub type_filter_aria: String,
+    pub all_types: String,
+    pub location_filter_aria: String,
+    pub all_locations: String,
+    pub location_not_stored: String,
+    pub location_global: String,
+    pub sort_aria: String,
+    pub sort_name: String,
+    pub sort_type: String,
+    pub sort_location: String,
+    pub sort_findings: String,
+    pub clear_filters: String,
+    pub signals: String,
+    pub list_aria: String,
+    pub empty_title: String,
+    pub empty_detail: String,
+    pub quiet: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DesktopRecordLabels {
+    pub unknown_subscription: String,
+    pub source_note: String,
+    pub summary_aria: String,
+    pub relationships: String,
+    pub review_findings: String,
+    pub explore_relationships: Plural,
+    pub no_relationships: String,
+    pub findings_title: String,
+    pub findings_detail: String,
+    pub finding_evidence: String,
+    pub no_findings: String,
+    pub context_title: String,
+    pub context_detail: String,
+    pub properties_title: String,
+    pub properties_detail: String,
+    pub properties: String,
+    pub sku: String,
+    pub identity: String,
+    pub relationships_title: String,
+    pub relationships_detail: String,
+    pub outbound: String,
+    pub inbound: String,
+    pub relationship_evidence: String,
+    pub no_relationship_rows: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DesktopDataViewLabels {
+    pub no_value: String,
+    pub items: Plural,
+    pub fields: Plural,
+    pub stored_value: String,
+    pub not_stored: String,
+    pub no_items: String,
+    pub no_fields: String,
+    pub r#true: String,
+    pub r#false: String,
+    pub empty_string: String,
+    pub item: String,
+    pub value: String,
+    pub items_path: String,
+    pub col_item: String,
+    pub col_field: String,
+    pub col_stored_value: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DesktopProgressiveLabels {
+    pub show_more: String,
+    pub loaded: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DesktopExportsLabels {
+    pub title: String,
+    pub description: String,
+    pub source_aria: String,
+    pub snapshot: String,
+    pub resources: String,
+    pub choose_title: String,
+    pub choose_detail: String,
+    pub legend: String,
+    pub advanced_note: String,
+    pub run_title: String,
+    pub destination: String,
+    pub not_selected: String,
+    pub choose_folder: String,
+    pub source: String,
+    pub source_value: String,
+    pub deliverable: String,
+    pub format: String,
+    pub access: String,
+    pub access_value: String,
+    pub generating: String,
+    pub run_action: String,
+    pub preview_action: String,
+    pub choose_directory: String,
+    pub exported: Plural,
+    pub preparing: String,
+    pub failed: String,
+    pub incomplete: String,
+    pub complete: String,
+    pub preview_note: String,
+    /// Keyed by the preset ids in `ExportsView.tsx`.
+    pub presets: std::collections::BTreeMap<String, ExportPresetLabels>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ExportPresetLabels {
+    pub label: String,
+    pub action: String,
+    pub detail: String,
+    pub includes: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DesktopOverviewLabels {
+    pub title: String,
+    pub description: String,
+    pub snapshot_stamp: String,
+    pub resources: String,
+    pub resource_groups: String,
+    pub findings: String,
+    pub tag_coverage: String,
+    pub relationships: String,
+    pub types_caption: String,
+    pub growth_aria: String,
+    pub growth_caption: String,
+    pub location_not_stored: String,
+    pub regions_caption: String,
+    pub attention: String,
+    pub estate_level: String,
+    pub no_findings: String,
+    pub review_all: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DesktopFindingsLabels {
+    pub title: String,
+    pub description: String,
+    pub severity_counts_aria: String,
+    pub count: String,
+    pub all_severities: String,
+    pub list_aria: String,
+    pub empty_title: String,
+    pub empty_detail: String,
+    pub estate_level: String,
+    pub close_evidence: String,
+    pub affected_resource: String,
+    pub stored_evidence: String,
+    pub no_detail: String,
+    pub audit_context: String,
+    pub query: String,
+    pub category: String,
+    pub snapshot: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DesktopHistoryLabels {
+    pub title: String,
+    pub description: String,
+    pub source_stamp: String,
+    pub captured: String,
+    pub estate: String,
+    pub findings: String,
+    pub status: String,
+    pub resources: String,
+    pub subscriptions: String,
+    pub audit_signals: String,
+    pub what_changed: String,
+    pub earliest: String,
+    pub base: String,
+    pub base_aria: String,
+    pub base_option: String,
+    pub target: String,
+    pub comparing: String,
+    pub added: String,
+    pub changed: String,
+    pub removed: String,
+    pub no_older: String,
+    pub health: String,
+    pub health_summary: String,
+    pub run_detail: String,
+    /// Keyed by change kind (`added`, `changed`, `removed`).
+    pub kinds: std::collections::BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DesktopInventoryLabels {
+    pub title: String,
+    pub description: String,
+    pub pack_unreadable: String,
+    pub pack_failed: String,
+    pub collected_stamp: String,
+    pub collected_value: String,
+    pub empty_title: String,
+    pub empty_detail: String,
+    pub categories_aria: String,
+    pub table: String,
+    pub query_option: String,
+    pub position: String,
+    pub failed: String,
+    pub reading: String,
+    pub no_search_rows: String,
+    pub no_rows: String,
+    pub row_count: Plural,
+    pub visible_of: String,
+    pub matching: String,
+    pub collected_in: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DesktopSettingsLabels {
+    pub title: String,
+    pub description: String,
+    pub appearance: String,
+    pub theme: String,
+    pub theme_detail: String,
+    pub theme_aria: String,
+    pub resolving: String,
+    pub following_system: String,
+    pub resolved_end: String,
+    pub database: String,
+    pub store: String,
+    pub store_detail: String,
+    pub open_another: String,
+    pub snapshots_held: String,
+    pub prune_hint: String,
+    pub prune_command: String,
+    pub snapshot_count: Plural,
+    pub snapshot_range: String,
+    pub collection: String,
+    pub configuration: String,
+    pub configuration_detail: String,
+    pub credentials_found: String,
+    pub credentials_missing: String,
+    pub required_tags: String,
+    pub required_tags_detail: String,
+    pub none_configured: String,
+    pub none_configured_key: String,
+    pub active_snapshot: String,
+    pub active_snapshot_detail: String,
+    /// Keyed by theme preference (`system`, `light`, `dark`).
+    pub theme_options: std::collections::BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DesktopGovernanceLabels {
+    pub title: String,
+    pub required_tags_from: String,
+    pub not_enforced: String,
+    pub governance_findings: String,
+    pub key_caption: String,
+    pub subscription_caption: String,
+    pub all_clear: String,
+    pub worst_caption: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -689,9 +983,149 @@ pub struct DesktopAppLabels {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DesktopTopologyLabels {
+    pub choose_resource: String,
+    pub select_prompt: String,
+    pub reach_subtitle: String,
+    pub group_subtitle: Plural,
+    pub estate_subtitle: String,
+    pub subscription_count: Plural,
+    pub hops: Plural,
+    pub unit_groups: String,
+    pub unit_resources: String,
+    pub include_unconnected_resources: String,
+    pub include_unconnected_groups: String,
+    pub neighbourhood_stage: String,
+    pub no_selected_resource: String,
+    pub group_stage: String,
+    pub estate_stage: String,
+    pub back: String,
+    pub trail_aria: String,
+    pub depth_aria: String,
+    pub reach: String,
+    pub unconnected: String,
+    pub refresh_failed: String,
+    pub error_title: String,
+    pub error_previous: String,
+    pub retry: String,
+    pub revert: String,
+    pub no_map_title: String,
+    pub no_map_detail: String,
+    pub building: String,
+    pub status_aria: String,
+    pub drawn_caption: String,
+    pub building_short: String,
+    pub cross_group: String,
+    pub relationship: Plural,
+    pub connector: Plural,
+    pub drawn_as: String,
+    pub stale: String,
+    pub legend: String,
+    pub legend_aria: String,
+    /// Keyed by `describeCounts` kind.
+    pub counts: std::collections::BTreeMap<String, String>,
+    pub regions: TopologyRegionLabels,
+    /// Keyed by the `kind_class` family names.
+    pub kind_classes: std::collections::BTreeMap<String, String>,
+    pub tools: TopologyToolLabels,
+    pub graph: TopologyGraphLabels,
+    pub graph_extra: TopologyGraphExtraLabels,
     pub nodes: TopologyNodeLabels,
     /// Keyed by `EdgeKind::as_str()`.
     pub edge_kinds: std::collections::BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TopologyRegionLabels {
+    pub external: String,
+    pub services: String,
+    pub unconnected: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TopologyToolLabels {
+    pub controls_aria: String,
+    pub fit_all_aria: String,
+    pub fit_all: String,
+    pub zoom_in: String,
+    pub zoom_in_tip: String,
+    pub zoom_out: String,
+    pub zoom_out_tip: String,
+    pub motion_reduced_aria: String,
+    pub motion_pause_aria: String,
+    pub motion_play_aria: String,
+    pub motion_reduced: String,
+    pub motion_pause: String,
+    pub motion_play: String,
+    pub reset_lanes: String,
+    pub lanes_default: String,
+    pub help_aria: String,
+    pub help: String,
+    pub help_title: String,
+    pub help_body: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TopologyGraphLabels {
+    pub init_failed: String,
+    pub layout_failed: String,
+    pub resource_fallback: String,
+    pub relationship_fallback: String,
+    pub links: String,
+    pub summary_none: String,
+    pub summary_out_of_scope: String,
+    pub summary_no_connectors: String,
+    pub summary_connectors: String,
+    pub connectors: Plural,
+    pub connector_sentence: String,
+    pub outbound: String,
+    pub inbound: String,
+    pub to: String,
+    pub from: String,
+    pub other_item: String,
+    pub findings_suffix: Plural,
+    pub findings_badge: String,
+    pub lane_expanded: String,
+    pub expand: String,
+    pub vnet_card: String,
+    pub subscription_collapsed: String,
+    pub aggregate_groups: String,
+    pub aggregate_resources: String,
+    pub collapse: String,
+    pub show: String,
+    pub no_cross_group: String,
+    pub unconnected_groups_aria: String,
+    pub no_drawn_connectors: String,
+    pub hops_away: Plural,
+    pub open_record: String,
+    pub external_card: String,
+    pub group_card: String,
+    pub resource_card: String,
+    pub explore_hint: String,
+    pub no_relationships_hint: String,
+    pub explore_aria: String,
+    pub no_relationships_aria: String,
+    pub explore: String,
+    pub no_relationships: String,
+    pub nothing_title: String,
+    pub nothing_detail: String,
+}
+
+/// Card and lane copy that arrived after the main graph table was laid out;
+/// kept as its own table so an override file stays readable.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TopologyGraphExtraLabels {
+    pub group_count: Plural,
+    pub lane_summary: String,
+    pub collapse_lane: String,
+    pub member_group: String,
+    pub members_aria: String,
+    pub renderer_unavailable: String,
+    pub renderer_retry_detail: String,
+    pub renderer_retry: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,7 +1,8 @@
 import { useMemo } from "react";
 import { displayLocation } from "../azure-values";
 import type { AppBootstrap, EstateSnapshot, ViewId } from "../types";
-import { dayMonth, resourceName } from "../format";
+import { dayMonth, fill, resourceName } from "../format";
+import { useLabels } from "../labels";
 import { SEVERITY_TOKEN, severityRank } from "../ordering";
 import { DatabaseStamp, ViewHeading } from "./view-chrome";
 
@@ -45,20 +46,21 @@ export function OverviewView({
     [estate.findings],
   );
   const growth = series.length > 1 ? sparkPath(series.map((entry) => entry.resources), 560, 120) : undefined;
+  const words = useLabels().desktop.overview;
 
   return (
     <div className="overview-workspace">
       <ViewHeading
-        title="Overview"
-        description={
-          <>
-            {estate.tenantId} · {estate.totals.subscriptions} subscriptions · {estate.totals.resourceGroups} resource
-            groups · {estate.locations.length} regions
-          </>
-        }
+        title={words.title}
+        description={fill(words.description, {
+          tenant: estate.tenantId,
+          subscriptions: estate.totals.subscriptions,
+          groups: estate.totals.resourceGroups,
+          regions: estate.locations.length,
+        })}
       >
         <DatabaseStamp
-          label="Snapshot"
+          label={words.snapshot_stamp}
           value={<>{estate.id.slice(0, 8)} · {estate.status}</>}
         />
       </ViewHeading>
@@ -66,23 +68,23 @@ export function OverviewView({
       <div className="stat-strip">
         <button className="stat-cell" onClick={() => onOpenView("estate")}>
           <strong>{estate.totals.resources}</strong>
-          <span>Resources</span>
+          <span>{words.resources}</span>
         </button>
         <button className="stat-cell" onClick={() => onOpenView("estate")}>
           <strong>{estate.totals.resourceGroups}</strong>
-          <span>Resource groups</span>
+          <span>{words.resource_groups}</span>
         </button>
         <button className="stat-cell" onClick={() => onOpenView("findings")}>
           <strong className="risk">{estate.totals.findings}</strong>
-          <span>Findings · {estate.severityCounts.high} high</span>
+          <span>{fill(words.findings, { high: estate.severityCounts.high })}</span>
         </button>
         <button className="stat-cell" onClick={() => onOpenView("governance")}>
           <strong>{estate.tagCoverage.percent}%</strong>
-          <span>Tag coverage</span>
+          <span>{words.tag_coverage}</span>
         </button>
         <button className="stat-cell" onClick={() => onOpenView("topology")}>
           <strong>{estate.edges.length}</strong>
-          <span>Relationships</span>
+          <span>{words.relationships}</span>
         </button>
       </div>
 
@@ -101,14 +103,12 @@ export function OverviewView({
                 </div>
               </div>
             ))}
-            <div className="fig-caption">
-              Most common resource types — one fixed colour per service category, everywhere in the app.
-            </div>
+            <div className="fig-caption">{words.types_caption}</div>
           </div>
 
           {growth ? (
             <div className="figure-block">
-              <svg className="spark" viewBox="0 0 560 120" role="img" aria-label="Resource count across stored snapshots">
+              <svg className="spark" viewBox="0 0 560 120" role="img" aria-label={words.growth_aria}>
                 <line x1="4" y1="102" x2="556" y2="102" stroke="var(--line-strong)" strokeWidth="1" />
                 <path d={growth.line} fill="none" stroke="var(--accent)" strokeWidth="2" />
                 {growth.points.map((point, index) => (
@@ -130,14 +130,14 @@ export function OverviewView({
                   {dayMonth(series.at(-1)?.createdAt)}
                 </text>
               </svg>
-              <div className="fig-caption">Resource count over the stored snapshots — one measure, so one hue.</div>
+              <div className="fig-caption">{words.growth_caption}</div>
             </div>
           ) : null}
 
           <div className="figure-block">
             {topLocations.map((location) => (
               <div className="bar-row" key={location.name}>
-                <span>{displayLocation(estate.azureMetadata, location.name, "Not stored")}</span>
+                <span>{displayLocation(estate.azureMetadata, location.name, words.location_not_stored)}</span>
                 <div className="bar-track">
                   <div
                     className="bar-fill"
@@ -147,13 +147,13 @@ export function OverviewView({
                 </div>
               </div>
             ))}
-            <div className="fig-caption">Resources by region.</div>
+            <div className="fig-caption">{words.regions_caption}</div>
           </div>
         </div>
 
         <div className="overview-side">
           <section>
-            <h2>Findings that need attention</h2>
+            <h2>{words.attention}</h2>
             <div className="ledger-rows">
               {attention.map((finding, index) => (
                 <button
@@ -166,16 +166,16 @@ export function OverviewView({
                   <span>
                     <strong>{finding.title}</strong>
                     <small>
-                      {finding.category} · <span className="mono">{finding.resourceId ? resourceName(finding.resourceId) : "estate-level"}</span>
+                      {finding.category} · <span className="mono">{finding.resourceId ? resourceName(finding.resourceId) : words.estate_level}</span>
                     </small>
                   </span>
                 </button>
               ))}
-              {attention.length === 0 ? <div><small>No findings in this snapshot.</small></div> : null}
+              {attention.length === 0 ? <div><small>{words.no_findings}</small></div> : null}
             </div>
           </section>
 
-          <button className="overview-all-findings" onClick={() => onOpenView("findings")}>Review all findings</button>
+          <button className="overview-all-findings" onClick={() => onOpenView("findings")}>{words.review_all}</button>
         </div>
       </div>
     </div>

@@ -1,4 +1,7 @@
-import { capitalise, preciseDateTime, resourceName } from "../format";
+import { capitalise, fill, plural, preciseDateTime, resourceName } from "../format";
+import { labels } from "../labels";
+
+const words = () => labels().desktop.data_view;
 
 type DataRecord = Record<string, unknown>;
 
@@ -58,13 +61,11 @@ export function hasStoredValue(value: unknown) {
 }
 
 export function describeStoredValue(value: unknown) {
-  if (!hasStoredValue(value)) return "No value stored";
-  if (Array.isArray(value)) return `${value.length} ${value.length === 1 ? "item" : "items"}`;
-  if (isRecord(value)) {
-    const count = Object.keys(value).length;
-    return `${count} ${count === 1 ? "field" : "fields"}`;
-  }
-  return "Stored value";
+  const text = words();
+  if (!hasStoredValue(value)) return text.no_value;
+  if (Array.isArray(value)) return plural(text.items, value.length);
+  if (isRecord(value)) return plural(text.fields, Object.keys(value).length);
+  return text.stored_value;
 }
 
 function humanizeKey(key: string) {
@@ -99,12 +100,13 @@ function looksLikeIdentifier(path: string[], value: string) {
 
 
 function ScalarValue({ path = [], value }: { path?: string[]; value: unknown }) {
+  const t = words();
   if (value === undefined || value === null) {
-    return <span className="adaptive-value empty">Not stored</span>;
+    return <span className="adaptive-value empty">{t.not_stored}</span>;
   }
 
   if (Array.isArray(value)) {
-    if (value.length === 0) return <span className="adaptive-value empty">No items stored</span>;
+    if (value.length === 0) return <span className="adaptive-value empty">{t.no_items}</span>;
     return (
       <span className="adaptive-inline-list">
         {value.map((item, index) => <ScalarValue key={index} path={path} value={item} />)}
@@ -112,12 +114,12 @@ function ScalarValue({ path = [], value }: { path?: string[]; value: unknown }) 
     );
   }
 
-  if (isRecord(value)) return <span className="adaptive-value empty">No fields stored</span>;
-  if (typeof value === "boolean") return <span className="adaptive-value boolean">{value ? "True" : "False"}</span>;
+  if (isRecord(value)) return <span className="adaptive-value empty">{t.no_fields}</span>;
+  if (typeof value === "boolean") return <span className="adaptive-value boolean">{value ? t.true : t.false}</span>;
   if (typeof value === "number") return <span className="adaptive-value number">{value.toLocaleString()}</span>;
 
   const text = String(value);
-  if (text.length === 0) return <span className="adaptive-value empty">Empty string</span>;
+  if (text.length === 0) return <span className="adaptive-value empty">{t.empty_string}</span>;
 
   if (ISO_DATE.test(text)) {
     const formatted = preciseDateTime(text);
@@ -161,15 +163,17 @@ function collectRecord(
 }
 
 function flattenCollectionItem(value: unknown, path: string[] = [], fields: FlatField[] = []) {
+  const text = words();
+  const here = path.length > 0 ? path : [text.value];
   if (Array.isArray(value)) {
-    if (value.length === 0 || isScalarArray(value)) fields.push({ path: path.length > 0 ? path : ["Value"], value });
-    else value.forEach((item, index) => flattenCollectionItem(item, [...path, `Item ${index + 1}`], fields));
+    if (value.length === 0 || isScalarArray(value)) fields.push({ path: here, value });
+    else value.forEach((item, index) => flattenCollectionItem(item, [...path, fill(text.item, { index: index + 1 })], fields));
   } else if (isRecord(value)) {
     const entries = Object.entries(value);
-    if (entries.length === 0) fields.push({ path: path.length > 0 ? path : ["Value"], value });
+    if (entries.length === 0) fields.push({ path: here, value });
     else entries.forEach(([key, item]) => flattenCollectionItem(item, [...path, key], fields));
   } else {
-    fields.push({ path: path.length > 0 ? path : ["Value"], value });
+    fields.push({ path: here, value });
   }
   return fields;
 }
@@ -179,7 +183,7 @@ function FieldName({ path }: { path: string[] }) {
   return (
     <>
       {context.length > 0 ? <small>{readablePath(context)}</small> : null}
-      <span>{humanizeKey(path.at(-1) ?? "Value")}</span>
+      <span>{humanizeKey(path.at(-1) ?? words().value)}</span>
     </>
   );
 }
@@ -247,7 +251,7 @@ function sequenceTitle(value: unknown, index: number) {
       }
     }
   }
-  return `Item ${index + 1}`;
+  return fill(words().item, { index: index + 1 });
 }
 
 function CollectionTable({ collection }: { collection: DataCollection }) {
@@ -259,6 +263,7 @@ function CollectionTable({ collection }: { collection: DataCollection }) {
   rows.forEach((row) => row.fields.forEach((field) => columnMap.set(fieldKey(field.path), field.path)));
   const columns = Array.from(columnMap.entries());
   const horizontal = columns.length > 0 && columns.length <= 6;
+  const text = words();
 
   return (
     <div className="adaptive-collection-table-wrap">
@@ -266,7 +271,7 @@ function CollectionTable({ collection }: { collection: DataCollection }) {
         <caption><span>{readablePath(collection.path)}</span><small>{describeStoredValue(collection.items)}</small></caption>
         {horizontal ? (
           <>
-            <thead><tr><th>Item</th>{columns.map(([key, path]) => <th key={key}><FieldName path={path} /></th>)}</tr></thead>
+            <thead><tr><th>{text.col_item}</th>{columns.map(([key, path]) => <th key={key}><FieldName path={path} /></th>)}</tr></thead>
             <tbody>
               {rows.map((row, index) => {
                 const values = new Map(row.fields.map((field) => [fieldKey(field.path), field]));
@@ -281,7 +286,7 @@ function CollectionTable({ collection }: { collection: DataCollection }) {
           </>
         ) : (
           <>
-            <thead><tr><th>Item</th><th>Field</th><th>Stored value</th></tr></thead>
+            <thead><tr><th>{text.col_item}</th><th>{text.col_field}</th><th>{text.col_stored_value}</th></tr></thead>
             <tbody>
               {rows.flatMap((row, itemIndex) => row.fields.map((field, fieldIndex) => (
                 <tr className={fieldIndex === 0 ? "item-start" : undefined} key={`${itemIndex}-${fieldKey(field.path)}`}>
@@ -303,8 +308,8 @@ export function AdaptiveDataView({ value }: { value: unknown }) {
   const collections: DataCollection[] = [];
 
   if (isRecord(value)) collectRecord(value, [], fields, collections);
-  else if (Array.isArray(value) && !isScalarArray(value)) collections.push({ path: ["Items"], items: value });
-  else fields.push({ path: ["Value"], value });
+  else if (Array.isArray(value) && !isScalarArray(value)) collections.push({ path: [words().items_path], items: value });
+  else fields.push({ path: [words().value], value });
 
   return (
     <div className="adaptive-data">

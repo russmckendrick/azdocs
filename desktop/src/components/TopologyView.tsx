@@ -39,7 +39,8 @@ import {
   describeCounts,
   expandSubscriptionLane,
 } from "./topology-view-state";
-import { errorMessage } from "../format";
+import { errorMessage, fill, fillNodes, plural } from "../format";
+import { labels, useLabels } from "../labels";
 import { EmptyState } from "./view-chrome";
 
 const ALL_KIND_CLASSES = ["network", "structure", "data", "identity", "monitoring"] as const;
@@ -95,6 +96,7 @@ export function TopologyView({
   const [topologyStale, setTopologyStale] = useState(false);
   const [topologyError, setTopologyError] = useState<TopologyError>();
   const [retryNonce, setRetryNonce] = useState(0);
+  const { desktop: { nav, topology: words } } = useLabels();
   const lastLocationRef = useRef("");
   const requestTokenRef = useRef(0);
   const successfulControlsRef = useRef<RelationshipWorkspaceState | undefined>(undefined);
@@ -175,7 +177,7 @@ export function TopologyView({
       })
       .catch((error: unknown) => {
         if (requestTokenRef.current !== token) return;
-        const failed = refreshFailed(Boolean(topology), errorMessage(error, "The map could not be refreshed."));
+        const failed = refreshFailed(Boolean(topology), errorMessage(error, labels().desktop.topology.refresh_failed));
         setTopologyStale(failed.stale);
         setTopologyError(failed.error);
       });
@@ -229,7 +231,7 @@ export function TopologyView({
   }, [active]);
 
   const counts = topology?.counts;
-  const graphUnit = topology?.level === "estate" ? "groups" : "resources";
+  const graphUnit = topology?.level === "estate" ? words.unit_groups : words.unit_resources;
   const classCounts = new Map((topology?.kindClasses ?? []).map((entry) => [entry.class, entry.count]));
   const countsCaption = topology ? describeCounts(topology) : undefined;
   // The trail is the title: Map › subscription › group › resource, every
@@ -237,19 +239,23 @@ export function TopologyView({
   // separate crumb pointed at the same place as Map and named nothing the
   // reader had seen, so it is gone.
   const title = mode === "neighbourhood"
-    ? selected?.name ?? "Choose a resource"
-    : activeResourceGroup?.name ?? "Map";
+    ? selected?.name ?? words.choose_resource
+    : activeResourceGroup?.name ?? nav.topology;
   const subtitle = mode === "neighbourhood"
     ? selected
-      ? `${depth} hop${depth === 1 ? "" : "s"} · ${counts?.total ?? "…"} resources in reach`
-      : "Select a resource to explore its neighbourhood"
+      ? fill(words.reach_subtitle, { hops: plural(words.hops, depth), count: counts?.total ?? "…" })
+      : words.select_prompt
     : activeResourceGroup
-      ? `${activeResourceGroup.resourceCount} resource${activeResourceGroup.resourceCount === 1 ? "" : "s"}`
-      : `${estate.subscriptions.length} subscription${estate.subscriptions.length === 1 ? "" : "s"} · ${resourceGroups.length} groups · ${estate.resources.length.toLocaleString()} resources`;
+      ? plural(words.group_subtitle, activeResourceGroup.resourceCount)
+      : fill(words.estate_subtitle, {
+          subscriptions: plural(words.subscription_count, estate.subscriptions.length),
+          groups: resourceGroups.length,
+          resources: estate.resources.length.toLocaleString(),
+        });
   const trailGroup = mode === "neighbourhood" ? selectedResourceGroup : activeResourceGroup;
   const trail: Array<{ key: string; label: string; open: () => void }> = [];
   if (trailGroup) {
-    trail.push({ key: "map", label: "Map", open: showResourceGroups });
+    trail.push({ key: "map", label: nav.topology, open: showResourceGroups });
     trail.push({
       key: "subscription",
       label: trailGroup.subscriptionName,
@@ -264,10 +270,9 @@ export function TopologyView({
     });
   }
 
-  const plural = (count: number, noun: string) => (count === 1 ? noun : `${noun}s`);
   const unconnectedLabel = activeResourceGroup
-    ? "Include resources without drawn relationships"
-    : "Include groups without cross-group relationships";
+    ? words.include_unconnected_resources
+    : words.include_unconnected_groups;
 
   function requestCamera(cameraMode: GraphCameraMode) {
     setCamera((current) => ({ mode: cameraMode, nonce: current.nonce + 1 }));
@@ -376,17 +381,17 @@ export function TopologyView({
   return (
     <div className={active ? "topology-workspace" : "topology-workspace covered"} aria-hidden={!active}>
       <section className="topology-stage" aria-label={mode === "neighbourhood"
-        ? `Neighbourhood of ${selected?.name ?? "no selected resource"}`
+        ? fill(words.neighbourhood_stage, { name: selected?.name ?? words.no_selected_resource })
         : activeResourceGroup
-          ? `Map of resource group ${activeResourceGroup.name}`
-          : "Estate map"}>
+          ? fill(words.group_stage, { name: activeResourceGroup.name })
+          : words.estate_stage}>
         <header className="topology-commandbar">
           {backLabel && onBack ? (
             <button className="topology-return" onClick={onBack} aria-label={backLabel} title={backLabel}>
-              <ArrowLeft size={15} /> <span>Back</span>
+              <ArrowLeft size={15} /> <span>{words.back}</span>
             </button>
           ) : null}
-          <nav className="topology-trail" aria-label="Map location">
+          <nav className="topology-trail" aria-label={words.trail_aria}>
             {trail.map((crumb) => (
               <Fragment key={crumb.key}>
                 <button className="topology-trail-crumb" title={crumb.label} onClick={crumb.open}>{crumb.label}</button>
@@ -398,11 +403,11 @@ export function TopologyView({
           </nav>
 
           {mode === "neighbourhood" ? (
-            <div className="graph-depth-switch" role="radiogroup" aria-label="Neighbourhood depth" onKeyDown={handleDepthKeyDown}>
-              <span className="graph-depth-label" aria-hidden="true"><Waypoints size={14} /> Reach</span>
+            <div className="graph-depth-switch" role="radiogroup" aria-label={words.depth_aria} onKeyDown={handleDepthKeyDown}>
+              <span className="graph-depth-label" aria-hidden="true"><Waypoints size={14} /> {words.reach}</span>
               {[1, 2].map((value) => (
                 <button key={value} data-depth={value} role="radio" aria-checked={depth === value} tabIndex={depth === value ? 0 : -1} className={depth === value ? "active" : ""} onClick={() => replaceWorkspace({ depth: value as 1 | 2 })}>
-                  {value} hop{value === 1 ? "" : "s"}
+                  {plural(words.hops, value)}
                 </button>
               ))}
             </div>
@@ -410,33 +415,33 @@ export function TopologyView({
 
           {mode === "estate" ? (
             <button className={showUnconnected ? "topology-inline-toggle active" : "topology-inline-toggle"} aria-pressed={showUnconnected} aria-label={unconnectedLabel} title={unconnectedLabel} onClick={() => replaceWorkspace({ showUnconnected: !showUnconnected })}>
-              <Unplug size={15} /><span>Unconnected</span>
+              <Unplug size={15} /><span>{words.unconnected}</span>
             </button>
           ) : null}
 
-          <div className="topology-tools" role="group" aria-label="Graph view controls">
-            <button className="topology-tool-button" aria-label="Fit all represented regions" data-tooltip="Fit all" onClick={() => requestCamera("all")}>
+          <div className="topology-tools" role="group" aria-label={words.tools.controls_aria}>
+            <button className="topology-tool-button" aria-label={words.tools.fit_all_aria} data-tooltip={words.tools.fit_all} onClick={() => requestCamera("all")}>
               <Scan size={16} />
             </button>
-            <button className="topology-tool-button" aria-label="Zoom in" data-tooltip="Zoom in · +" onClick={() => requestCamera("zoom-in")}>
+            <button className="topology-tool-button" aria-label={words.tools.zoom_in} data-tooltip={words.tools.zoom_in_tip} onClick={() => requestCamera("zoom-in")}>
               <ZoomIn size={16} />
             </button>
-            <button className="topology-tool-button" aria-label="Zoom out" data-tooltip="Zoom out · −" onClick={() => requestCamera("zoom-out")}>
+            <button className="topology-tool-button" aria-label={words.tools.zoom_out} data-tooltip={words.tools.zoom_out_tip} onClick={() => requestCamera("zoom-out")}>
               <ZoomOut size={16} />
             </button>
-            <button className="topology-tool-button" aria-label={motionReduced ? "Motion reduced by system preference" : motionEnabled ? "Pause selected path motion" : "Play selected path motion"} aria-pressed={motionEnabled && !motionReduced} data-tooltip={motionReduced ? "Motion reduced" : motionEnabled ? "Pause path motion" : "Play path motion"} onClick={() => setMotionEnabled((current) => !current)} disabled={motionReduced}>
+            <button className="topology-tool-button" aria-label={motionReduced ? words.tools.motion_reduced_aria : motionEnabled ? words.tools.motion_pause_aria : words.tools.motion_play_aria} aria-pressed={motionEnabled && !motionReduced} data-tooltip={motionReduced ? words.tools.motion_reduced : motionEnabled ? words.tools.motion_pause : words.tools.motion_play} onClick={() => setMotionEnabled((current) => !current)} disabled={motionReduced}>
               {motionEnabled && !motionReduced ? <PauseCircle size={16} /> : <PlayCircle size={16} />}
             </button>
-            <button className="topology-tool-button" aria-label="Reset subscription lanes" data-tooltip={expandedSubscriptions ? "Reset subscription lanes" : "Subscription lanes at default"} onClick={() => replaceWorkspace({ expandedSubscriptions: undefined })} disabled={!expandedSubscriptions}>
+            <button className="topology-tool-button" aria-label={words.tools.reset_lanes} data-tooltip={expandedSubscriptions ? words.tools.reset_lanes : words.tools.lanes_default} onClick={() => replaceWorkspace({ expandedSubscriptions: undefined })} disabled={!expandedSubscriptions}>
               <RotateCcw size={16} />
             </button>
-            <button className="topology-tool-button" aria-label="Graph interaction help" data-tooltip="Interaction help" onClick={() => setHelpOpen((current) => !current)} aria-expanded={helpOpen} aria-controls="topology-help-popover">
+            <button className="topology-tool-button" aria-label={words.tools.help_aria} data-tooltip={words.tools.help} onClick={() => setHelpOpen((current) => !current)} aria-expanded={helpOpen} aria-controls="topology-help-popover">
               <CircleHelp size={16} />
             </button>
             {helpOpen ? (
               <div id="topology-help-popover" className="topology-help-popover" role="note">
-                <strong>Graph controls</strong>
-                <span>Enter opens a record; R explores its relationships. Aggregate tiles expand in place. Arrow keys move spatially; drag to pan; scroll to zoom; 0 fits the readable core.</span>
+                <strong>{words.tools.help_title}</strong>
+                <span>{words.tools.help_body}</span>
               </div>
             ) : null}
           </div>
@@ -445,9 +450,9 @@ export function TopologyView({
         {topologyError ? (
           <div className="topology-error-rail" role="alert" aria-live="assertive">
             <AlertTriangle size={16} />
-            <span><strong>Map refresh failed.</strong> {topologyError.message}{topologyError.hasPrevious ? " The last successful graph is still shown." : ""}</span>
-            <button onClick={() => setRetryNonce((value) => value + 1)}>Retry</button>
-            {topologyError.hasPrevious ? <button onClick={revertGraph}>Revert controls</button> : null}
+            <span><strong>{words.error_title}</strong> {topologyError.message}{topologyError.hasPrevious ? words.error_previous : ""}</span>
+            <button onClick={() => setRetryNonce((value) => value + 1)}>{words.retry}</button>
+            {topologyError.hasPrevious ? <button onClick={revertGraph}>{words.revert}</button> : null}
           </div>
         ) : null}
 
@@ -458,37 +463,37 @@ export function TopologyView({
             className="graph-empty-state"
             role="status"
             icon={<AlertTriangle size={24} />}
-            title="No map is available"
-            detail="Retry the request or return to the estate after checking the stored snapshot."
+            title={words.no_map_title}
+            detail={words.no_map_detail}
           />
         ) : (
           <EmptyState
             className="graph-empty-state"
             role="status"
             icon={<img src={RESOURCE_GROUP_ICON} alt="" />}
-            title="Building the map…"
+            title={words.building}
           />
         )}
 
-        <footer className="topology-status-rail" aria-label="Map status and legend">
+        <footer className="topology-status-rail" aria-label={words.status_aria}>
           <div className="topology-counts" role="status">
             <Activity size={14} />
             {counts && countsCaption ? (
-              <span><strong>{counts.drawn}</strong> of <strong>{counts.total}</strong> {graphUnit} drawn{countsCaption.extras.map((extra) => <span key={extra.label}> · {extra.emphasis ? <strong>{extra.count} {extra.label}</strong> : <>{extra.count} {extra.label}</>}</span>)}</span>
-            ) : <span>Building map…</span>}
+              <span>{fillNodes(words.drawn_caption, { drawn: <strong>{counts.drawn}</strong>, total: <strong>{counts.total}</strong>, unit: graphUnit })}{countsCaption.extras.map((extra) => <span key={extra.kind}> · {extra.emphasis ? <strong>{extra.count} {words.counts[extra.kind]}</strong> : <>{extra.count} {words.counts[extra.kind]}</>}</span>)}</span>
+            ) : <span>{words.building_short}</span>}
             <i />
-            <span><strong>{counts?.totalLinks ?? 0}</strong> {topology?.level === "estate" ? "cross-group " : ""}{plural(counts?.totalLinks ?? 0, "relationship")} drawn as <strong>{counts?.drawnLinks ?? 0}</strong> {plural(counts?.drawnLinks ?? 0, "connector")}</span>
-            {topologyStale ? <b className="topology-stale">Stale map</b> : null}
+            <span><strong>{counts?.totalLinks ?? 0}</strong> {topology?.level === "estate" ? words.cross_group : ""}{plural(words.relationship, counts?.totalLinks ?? 0)}{words.drawn_as}<strong>{counts?.drawnLinks ?? 0}</strong> {plural(words.connector, counts?.drawnLinks ?? 0)}</span>
+            {topologyStale ? <b className="topology-stale">{words.stale}</b> : null}
           </div>
-          <button className="topology-legend-toggle" onClick={() => setLegendOpen((current) => !current)} aria-expanded={legendOpen} aria-controls="topology-kind-legend">Legend <ChevronDown size={13} /></button>
-          <div id="topology-kind-legend" className={legendOpen ? "topology-kind-legend open" : "topology-kind-legend"} aria-label="Relationship kinds">
+          <button className="topology-legend-toggle" onClick={() => setLegendOpen((current) => !current)} aria-expanded={legendOpen} aria-controls="topology-kind-legend">{words.legend} <ChevronDown size={13} /></button>
+          <div id="topology-kind-legend" className={legendOpen ? "topology-kind-legend open" : "topology-kind-legend"} aria-label={words.legend_aria}>
             {ALL_KIND_CLASSES.map((kindClass) => {
               const active = !excludedClasses.includes(kindClass);
               const count = classCounts.get(kindClass);
               return mode === "neighbourhood" ? (
-                <button key={kindClass} aria-pressed={active} className={active ? "active" : ""} onClick={() => toggleClass(kindClass)}><i style={{ background: kindClassColor(kindClass) }} />{kindClass}{count !== undefined ? <b>{count}</b> : null}</button>
+                <button key={kindClass} aria-pressed={active} className={active ? "active" : ""} onClick={() => toggleClass(kindClass)}><i style={{ background: kindClassColor(kindClass) }} />{words.kind_classes[kindClass]}{count !== undefined ? <b>{count}</b> : null}</button>
               ) : (
-                <span key={kindClass}><i style={{ background: kindClassColor(kindClass) }} />{kindClass}{count !== undefined ? <b>{count}</b> : null}</span>
+                <span key={kindClass}><i style={{ background: kindClassColor(kindClass) }} />{words.kind_classes[kindClass]}{count !== undefined ? <b>{count}</b> : null}</span>
               );
             })}
           </div>

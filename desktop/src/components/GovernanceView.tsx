@@ -1,4 +1,6 @@
 import type { EstateSnapshot } from "../types";
+import { fill, fillNodes } from "../format";
+import { useLabels } from "../labels";
 import { ViewHeading } from "./view-chrome";
 
 /**
@@ -24,46 +26,46 @@ export function GovernanceView({
   const { governance } = estate;
   const enforced = requiredTags.length > 0;
   const governanceFindings = estate.findings.filter((finding) => finding.category === "governance").length;
+  const { common, desktop: { governance: words } } = useLabels();
+  const columns = common.columns;
 
   return (
     <div className="governance-workspace">
       <ViewHeading
-        title="Governance & tags"
+        title={words.title}
         description={
-          enforced ? (
-            <>
-              Required tags from azdocs.toml: <span className="mono">{requiredTags.join(" · ")}</span>
-            </>
-          ) : (
-            "No required tags are configured — coverage is reported, compliance is not enforced."
-          )
+          enforced
+            ? fillNodes(words.required_tags_from, {
+                tags: <span className="mono">{requiredTags.join(" · ")}</span>,
+              })
+            : words.not_enforced
         }
       />
 
       <div className="stat-strip">
         <div className="stat-cell">
           <strong>{estate.tagCoverage.percent}%</strong>
-          <span>Tag coverage</span>
+          <span>{columns.tag_coverage}</span>
         </div>
         <div className="stat-cell">
           <strong>{governance.distinctKeys}</strong>
-          <span>Distinct keys</span>
+          <span>{columns.distinct_keys}</span>
         </div>
         <div className="stat-cell">
           <strong className={governance.nonCompliant > 0 ? "risk" : undefined}>
-            {enforced ? governance.nonCompliant : "—"}
+            {enforced ? governance.nonCompliant : common.verdict.none}
           </strong>
-          <span>Non-compliant</span>
+          <span>{columns.non_compliant}</span>
         </div>
         <button className="stat-cell" onClick={onOpenFindings}>
           <strong>{governanceFindings}</strong>
-          <span>Governance findings</span>
+          <span>{words.governance_findings}</span>
         </button>
       </div>
 
       <div className="governance-columns">
         <div className="figure-block">
-          <h2 className="figure-title">Coverage by tag key</h2>
+          <h2 className="figure-title">{common.governance.coverage_by_key}</h2>
           {governance.topKeys.map((entry) => (
             <div className="meter-row" key={entry.key}>
               <span className="meter-key" title={entry.key}>{entry.key}</span>
@@ -73,13 +75,11 @@ export function GovernanceView({
               <span className="meter-val">{entry.percent}%</span>
             </div>
           ))}
-          {governance.topKeys.length === 0 ? <p className="muted-copy">No tags are stored in this snapshot.</p> : null}
-          <div className="fig-caption">
-            Share of the {estate.tagCoverage.tagged} tagged resources carrying each key. One measure, one hue.
-          </div>
+          {governance.topKeys.length === 0 ? <p className="muted-copy">{common.governance.no_tags}</p> : null}
+          <div className="fig-caption">{fill(words.key_caption, { tagged: estate.tagCoverage.tagged })}</div>
         </div>
         <div className="figure-block">
-          <h2 className="figure-title">Coverage by subscription</h2>
+          <h2 className="figure-title">{common.governance.coverage_by_subscription}</h2>
           {governance.subscriptions.map((entry) => (
             <div className="meter-row" key={entry.subscriptionId}>
               <span className="meter-key sans" title={entry.displayName}>{entry.displayName}</span>
@@ -94,7 +94,7 @@ export function GovernanceView({
               <span className="meter-val">{entry.percent}%</span>
             </div>
           ))}
-          <div className="fig-caption">Any tag counts here; the required-tag sweep below is stricter.</div>
+          <div className="fig-caption">{words.subscription_caption}</div>
         </div>
       </div>
 
@@ -103,11 +103,11 @@ export function GovernanceView({
           <table className="data-grid">
             <thead>
               <tr>
-                <th>Resource group</th>
-                <th>Subscription</th>
-                <th className="numeric">Resources</th>
-                <th className="numeric">Non-compliant</th>
-                <th>Missed tags</th>
+                <th>{columns.resource_group}</th>
+                <th>{columns.subscription}</th>
+                <th className="numeric">{columns.resources}</th>
+                <th className="numeric">{columns.non_compliant}</th>
+                <th>{columns.missed_tags}</th>
               </tr>
             </thead>
             <tbody>
@@ -130,15 +130,13 @@ export function GovernanceView({
               ))}
               {governance.worstGroups.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="all-clear">
-                    Every resource carries all required tags.
-                  </td>
+                  <td colSpan={5} className="all-clear">{words.all_clear}</td>
                 </tr>
               ) : null}
             </tbody>
           </table>
           <div className="fig-caption spaced">
-            Least compliant resource groups, from the <span className="mono upright">missing_required_tags</span> audit rules.
+            {fillNodes(words.worst_caption, { audit: <span className="mono upright">missing_required_tags</span> })}
           </div>
         </div>
       ) : null}
