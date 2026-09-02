@@ -14,7 +14,7 @@ the same palette is how they drift.
 | [`desktop/src/styles.css`](desktop/src/styles.css) | **The tokens.** The only place a colour value is written down. |
 | [`docs/reference/design.md`](docs/reference/design.md) | **The language.** Rules, rationale, component anatomy — the authoritative sheet. |
 | [`docs/reference/design.html`](docs/reference/design.html) | **The swatches.** Generated from `styles.css`, because Markdown cannot show a colour. |
-| [`docs/development/desktop-relationships.md`](docs/development/desktop-relationships.md) | **The relationship map contract**, including its regression rules. |
+| [`docs/development/desktop-relationships.md`](docs/development/desktop-relationships.md) | **The Map workspace contract**, including its regression rules. |
 
 Regenerate the swatch sheet after changing a token:
 

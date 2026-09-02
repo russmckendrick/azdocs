@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { edgeKindClass } from "./topology-fallback";
+import { buildFallbackTopology, edgeKindClass } from "./topology-fallback";
+import { mockEstate } from "../mock-data";
 import type { EdgeKind, KindClass } from "../types";
 
 /**
@@ -70,5 +71,48 @@ describe("edgeKindClass", () => {
   it("unit_classifies_monitors_as_monitoring_when_called", () => {
     // The specific regression: a switch `default` made this "structure".
     expect(edgeKindClass("monitors")).toBe("monitoring");
+  });
+});
+
+describe("buildFallbackTopology estate", () => {
+  const everySubscription = mockEstate.subscriptions.map((subscription) => subscription.id);
+  const request = (showUnconnected: boolean, expandedSubscriptions = everySubscription) => ({
+    snapshotId: mockEstate.id,
+    mode: { kind: "estate" as const, expandedSubscriptions },
+    scope: { subscriptions: [], azureTypes: [], showUnconnected },
+  });
+
+  it("unit_opens_with_every_subscription_collapsed_when_nothing_is_expanded", () => {
+    const graph = buildFallbackTopology(mockEstate, request(true, []));
+    expect(graph.lanes.every((lane) => !lane.expanded)).toBe(true);
+    expect(graph.nodes.every((node) => node.kind === "subscription")).toBe(true);
+    expect(graph.counts.drawn).toBe(0);
+    expect(graph.counts.aggregated).toBe(graph.counts.total);
+  });
+
+  it("unit_draws_connected_groups_and_tiles_the_rest_per_subscription_when_mirroring_rust", () => {
+    const graph = buildFallbackTopology(mockEstate, request(true));
+    const cards = graph.nodes.filter((node) => node.kind === "resource-group");
+    const tiles = graph.nodes.filter((node) => node.kind === "aggregate");
+    expect(graph.counts.drawn).toBe(cards.length);
+    expect(graph.counts.drawn + graph.counts.folded + graph.counts.aggregated).toBe(graph.counts.total);
+    expect(tiles.length).toBeGreaterThan(0);
+    for (const tile of tiles) {
+      expect(tile.id).toBe(`aggregate:unconnected:${tile.lane}`);
+      expect(tile.groupIds.length).toBe(tile.count);
+      expect(tile.zone).toBe("unconnected");
+    }
+    // No card is unconnected and no connector reaches a tile.
+    const tileIds = new Set(tiles.map((tile) => tile.id));
+    expect(graph.links.some((link) => tileIds.has(link.sourceId) || tileIds.has(link.targetId))).toBe(false);
+  });
+
+  it("unit_counts_hidden_groups_when_the_unconnected_toggle_is_off", () => {
+    const shown = buildFallbackTopology(mockEstate, request(true));
+    const hidden = buildFallbackTopology(mockEstate, request(false));
+    const tiled = shown.nodes.filter((node) => node.kind === "aggregate").reduce((total, node) => total + node.count, 0);
+    expect(hidden.nodes.some((node) => node.kind === "aggregate")).toBe(false);
+    expect(hidden.counts.hiddenByFilter).toBe(tiled);
+    expect(hidden.counts.drawn).toBe(shown.counts.drawn);
   });
 });

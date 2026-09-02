@@ -18,7 +18,6 @@ import { buildResourceGroupTopology, resourceGroupNodeId } from "./topology-mode
 import { spaced } from "../format";
 
 const NEIGHBOUR_FANOUT_LIMIT = 6;
-const ESTATE_CARD_BUDGET = 24;
 
 /**
  * Mirrors `kind_class` in desktop/src-tauri/src/topology.rs.
@@ -68,6 +67,7 @@ function resourceNode(resource: Resource, extra: Partial<TopologyNode> = {}): To
     count: 1,
     findingCount: resource.findingCount,
     resourceId: resource.id,
+    groupIds: [],
     ...extra,
   };
 }
@@ -78,11 +78,14 @@ export function buildFallbackTopology(estate: EstateSnapshot, request: TopologyR
   if (mode.kind === "neighbourhood") {
     return neighbourhoodGraph(estate, mode.resourceId, mode.depth ?? 1, mode.kindClasses ?? []);
   }
-  return estateGraph(estate, mode.expandedSubscriptions ?? []);
+  return estateGraph(estate, mode.expandedSubscriptions ?? [], request.scope.showUnconnected);
 }
 
-function estateGraph(estate: EstateSnapshot, expandedSubscriptions: string[]): TopologyGraph {
+function estateGraph(estate: EstateSnapshot, expandedSubscriptions: string[], showUnconnected: boolean): TopologyGraph {
   const topology = buildResourceGroupTopology(estate);
+  // Mirrors `estate_graph` in topology.rs: only a connected group becomes a
+  // card, and only the subscriptions the reader expanded are laid out.
+  const connected = (group: { externalLinkCount: number }) => group.externalLinkCount > 0;
   const laneSummaries = estate.subscriptions
     .map((subscription) => {
       const groups = topology.groups.filter((group) => group.subscriptionId === subscription.id);
@@ -99,20 +102,6 @@ function estateGraph(estate: EstateSnapshot, expandedSubscriptions: string[]): T
     .filter((lane) => lane.groupCount > 0)
     .sort((left, right) => (left.name < right.name ? -1 : 1));
   const expanded = new Set(expandedSubscriptions);
-  if (expanded.size === 0) {
-    let budget = ESTATE_CARD_BUDGET;
-    const ranked = [...laneSummaries].sort((left, right) =>
-      right.linkCount - left.linkCount
-        || right.resourceCount - left.resourceCount
-        || (left.name < right.name ? -1 : 1),
-    );
-    for (const lane of ranked) {
-      if (expanded.size === 0 || lane.groupCount <= budget) {
-        expanded.add(lane.subscriptionId);
-        budget = Math.max(0, budget - lane.groupCount);
-      }
-    }
-  }
   const lanes: TopologyLane[] = laneSummaries.map((lane) => ({
     subscriptionId: lane.subscriptionId,
     name: lane.name,
@@ -128,9 +117,15 @@ function estateGraph(estate: EstateSnapshot, expandedSubscriptions: string[]): T
     return `subscription:${group.subscriptionId}`;
   };
 
+  const expandedGroups = topology.groups.filter((group) => expanded.has(group.subscriptionId));
+  const unconnectedGroups = expandedGroups.filter((group) => !connected(group));
+  const unconnectedByLane = new Map<string, typeof unconnectedGroups>();
+  for (const group of unconnectedGroups) {
+    unconnectedByLane.set(group.subscriptionId, [...(unconnectedByLane.get(group.subscriptionId) ?? []), group]);
+  }
   const nodes: TopologyNode[] = [
-    ...topology.groups
-      .filter((group) => expanded.has(group.subscriptionId))
+    ...expandedGroups
+      .filter(connected)
       .map((group) => ({
         id: resourceGroupNodeId(group.id),
         kind: "resource-group" as const,
@@ -141,7 +136,24 @@ function estateGraph(estate: EstateSnapshot, expandedSubscriptions: string[]): T
         count: group.resourceCount,
         findingCount: group.findingCount,
         groupId: group.id,
+        groupIds: [],
       })),
+    ...(showUnconnected
+      ? [...unconnectedByLane.entries()]
+          .sort(([left], [right]) => (left < right ? -1 : 1))
+          .map(([subscriptionId, groups]) => ({
+            id: `aggregate:unconnected:${subscriptionId}`,
+            kind: "aggregate" as const,
+            name: "Unconnected groups",
+            subtitle: `×${groups.length}`,
+            lane: subscriptionId,
+            zone: "unconnected" as const,
+            memberIds: groups.flatMap((group) => group.resourceIds),
+            count: groups.length,
+            findingCount: groups.reduce((total, group) => total + group.findingCount, 0),
+            groupIds: groups.map((group) => group.id),
+          }))
+      : []),
     ...lanes
       .filter((lane) => !lane.expanded)
       .map((lane) => ({
@@ -153,6 +165,7 @@ function estateGraph(estate: EstateSnapshot, expandedSubscriptions: string[]): T
         memberIds: [],
         count: lane.groupCount,
         findingCount: lane.findingCount,
+        groupIds: [],
       })),
   ];
   const mergedLinks = new Map<string, TopologyLink>();
@@ -180,8 +193,9 @@ function estateGraph(estate: EstateSnapshot, expandedSubscriptions: string[]): T
       || left.targetId.localeCompare(right.targetId)
       || left.kindClass.localeCompare(right.kindClass),
   );
-  const drawn = lanes.filter((lane) => lane.expanded).reduce((total, lane) => total + lane.groupCount, 0);
-  const aggregated = topology.groups.length - drawn;
+  const drawn = expandedGroups.filter(connected).length;
+  const hiddenUnconnected = showUnconnected ? 0 : unconnectedGroups.length;
+  const aggregated = topology.groups.length - drawn - hiddenUnconnected;
 
   return {
     level: "estate",
@@ -195,7 +209,7 @@ function estateGraph(estate: EstateSnapshot, expandedSubscriptions: string[]): T
       folded: 0,
       aggregated,
       external: 0,
-      hiddenByFilter: 0,
+      hiddenByFilter: hiddenUnconnected,
       totalLinks: topology.links.reduce((total, link) => total + link.count, 0),
       drawnLinks: links.length,
     },
@@ -292,6 +306,7 @@ function groupGraph(estate: EstateSnapshot, groupId: string): TopologyGraph {
       memberIds: unconnected.map((resource) => resource.id),
       count: unconnected.length,
       findingCount: unconnected.reduce((total, resource) => total + resource.findingCount, 0),
+      groupIds: [],
     });
   }
 
@@ -413,6 +428,7 @@ function neighbourhoodGraph(
         memberIds: ids,
         count: ids.length,
         findingCount: ids.reduce((total, member) => total + (byId.get(member)?.findingCount ?? 0), 0),
+        groupIds: [],
       });
     } else {
       for (const member of ids.sort()) {

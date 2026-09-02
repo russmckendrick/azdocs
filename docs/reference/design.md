@@ -135,11 +135,11 @@ one product family. Serif Regular/SemiBold is bundled with the frontend
   types and inventory queries use labelled selectors; lists and tables own
   their scroll area, while detail never permanently narrows them.
 
-### Relationships workspace
+### Map workspace
 
-Relationships alone is full-bleed. It uses one flat command rail above the
-canvas and one slim count/legend rail below it; breadcrumbs are part of the
-title block and graph controls form a joined icon ribbon with visible tooltips
+Map alone is full-bleed. It uses one flat command rail above the
+canvas and one slim count/legend rail below it; the breadcrumb trail *is*
+the title block, ending in the current page's name as the heading, and graph controls form a joined icon ribbon with visible tooltips
 and accessible names. Fit all leads the ribbon, followed by zoom, selected-path
 motion, lane reset, and interaction help. The
 initial camera shows a readable connected core rather than indiscriminately
@@ -184,7 +184,7 @@ participate in trace, counts, camera targets, navigation, or accessible
 summaries. The independently announced route summary remains available to
 assistive technology. Hidden windows, the pause control, and reduced-motion
 preferences stop connector motion. The complete engineering and regression
-contract is [Desktop relationship maps](../development/desktop-relationships.md).
+contract is [Desktop map](../development/desktop-relationships.md).
 
 One click and Enter share the same primary activation model: a group opens its
 group map and a resource opens its resource record. A separate, visible
@@ -196,8 +196,8 @@ group exits. Aggregate tiles expand in place to list their members; there is no
 topology drawer or double-click navigation.
 Graph labels form one roving Tab stop with spatial arrow-key movement.
 Selection uses `--evidence`; the accent is reserved for keyboard focus. The
-bottom rail says **source relationships**
-and **connectors**, because those are distinct measures, and contains the
+bottom rail says "N relationships drawn as N connectors", because those are
+distinct measures and the sentence says how they relate, and contains the
 relationship-kind legend (collapsed behind a labelled control at compact
 widths). Failed refreshes retain and mark the last successful graph as stale,
 with Retry and Revert actions and an `aria-live` announcement.

@@ -6,9 +6,9 @@ import {
   FileClock,
   FileOutput,
   FolderSearch2,
-  GitBranch,
   LayoutGrid,
   LoaderCircle,
+  Map as MapIcon,
   PanelLeftClose,
   RefreshCw,
   Search,
@@ -56,7 +56,7 @@ const views: Array<{
 }> = [
   { id: "overview", label: "Overview", icon: LayoutGrid },
   { id: "estate", label: "Estate", icon: Boxes },
-  { id: "topology", label: "Relationships", icon: GitBranch },
+  { id: "topology", label: "Map", icon: MapIcon },
   { id: "inventory", label: "Inventory", icon: Table2 },
   { id: "findings", label: "Findings", icon: ShieldCheck },
   { id: "governance", label: "Governance", icon: Tags },
@@ -92,7 +92,7 @@ function frameLabel(frame: NavigationFrame | undefined, estate?: EstateSnapshot)
       const name = estate?.resources.find((resource) => resource.id === location.resourceId)?.name;
       return name ? `${name} neighbourhood` : "neighbourhood";
     }
-    return "Relationships";
+    return "Map";
   }
   return frame.section === "settings"
     ? "Settings"

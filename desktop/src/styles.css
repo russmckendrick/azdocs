@@ -3026,28 +3026,6 @@ button.stat-cell.active {
   padding: 8px 12px;
   backdrop-filter: blur(6px);
 }
-.topology-title {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  min-width: 0;
-}
-.topology-title-icon {
-  color: var(--faint);
-  display: flex;
-}
-.topology-title h1 {
-  font-size: 15px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.topology-title span {
-  display: block;
-  font-size: 11px;
-  color: var(--muted);
-  white-space: nowrap;
-}
 .graph-depth-switch,
 .graph-mode-switch {
   display: flex;
@@ -3212,6 +3190,9 @@ button.stat-cell.active {
   display: flex;
   align-items: center;
   gap: 7px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--surface);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -3249,13 +3230,20 @@ button.stat-cell.active {
 .graph-aggregate-label {
   width: 180px;
 }
+/* No `position: relative` here: the label layer places every child
+   absolutely, and a relative cluster was offset by its own flow position. */
 .graph-aggregate-cluster {
-  position: relative;
   width: 180px;
   min-height: 44px;
 }
 .graph-aggregate-cluster.expanded {
   z-index: 50;
+}
+/* The estate-level unconnected-groups tile shares a grid cell with the group
+   cards, so it borrows their width rather than truncating its label. */
+.graph-aggregate-cluster.groups,
+.graph-aggregate-label.groups {
+  width: 232px;
 }
 .graph-aggregate-members {
   position: absolute;
@@ -3402,9 +3390,11 @@ button.stat-cell.active {
 }
 .graph-lane-expand {
   font-style: normal;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 600;
-  color: var(--accent);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
   margin-left: auto;
 }
 .graph-route-count {
@@ -3722,6 +3712,10 @@ button.stat-cell.active {
 .topology-commandbar {
   position: relative;
   z-index: 24;
+  /* A grid item's automatic minimum is its min-content width; without this
+     a long nowrap name in the trail widens the bar past the stage instead
+     of shrinking inside it. */
+  min-width: 0;
   min-height: 56px;
   flex-wrap: nowrap;
   gap: 10px;
@@ -3757,59 +3751,55 @@ button.stat-cell.active {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.topology-title {
-  flex: 1 1 280px;
-  gap: 8px;
-}
-.topology-title > div {
-  display: grid;
-  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
-  align-items: baseline;
-  column-gap: 8px;
-  min-width: 0;
-}
-.topology-title-icon {
-  color: var(--body);
-}
-.topology-title h1 {
-  margin: 2px 0 0;
-  font-family: var(--font-serif);
-  font-size: 16px;
-  line-height: 1.1;
-  color: var(--ink);
-}
-.topology-title > div > span {
-  min-width: 0;
-  margin-top: 0;
-  overflow: hidden;
-  font-size: 11px;
-  text-overflow: ellipsis;
-  color: var(--muted);
-}
-.topology-scope-line {
-  grid-column: 1 / -1;
+/* The trail is the title. Earlier crumbs give way first (shrink 3:1) and
+   cap at a sensible width, so a long subscription name cannot squeeze the
+   current page's name; the note gives way before the name does. */
+.topology-trail {
+  flex: 1 1 auto;
   display: flex;
-  align-items: center;
-  gap: 4px;
+  align-items: baseline;
+  gap: 6px;
   min-width: 0;
-  font-size: 11px;
-  line-height: 1;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.2;
   color: var(--muted);
   white-space: nowrap;
 }
-.topology-scope-line strong {
-  color: var(--body);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+.topology-trail > svg {
+  flex: 0 0 auto;
+  align-self: center;
+  color: var(--faint);
 }
-.topology-scope-line button {
+.topology-trail-crumb {
+  flex: 0 3 auto;
+  min-width: 3ch;
+  max-width: 220px;
+  overflow: hidden;
+  padding: 0;
   color: var(--accent);
   font-size: inherit;
   font-weight: 600;
-}
-.topology-scope-line span {
-  overflow: hidden;
   text-overflow: ellipsis;
+}
+.topology-trail h1 {
+  flex: 0 1 auto;
+  min-width: 8ch;
+  margin: 0;
+  overflow: hidden;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  text-overflow: ellipsis;
+}
+.topology-trail-note {
+  flex: 0 4 auto;
+  min-width: 0;
+  margin-left: 4px;
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  color: var(--muted);
 }
 .graph-mode-switch,
 .graph-depth-switch {
@@ -4111,19 +4101,26 @@ span.graph-container-label {
 .graph-node-copy strong {
   font-size: 12.5px;
 }
+/* The lane header is a band the width of its frame (set from the frame's
+   rendered box): name, then the count, then the action at the far edge. */
 .graph-lane-label {
-  gap: 8px;
-  max-width: 720px;
-  padding: 2px 4px;
+  gap: 12px;
+  padding: 3px 8px;
   text-align: left;
 }
+.graph-lane-label small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .graph-lane-label i {
-  margin-left: 5px;
-  color: var(--accent);
+  margin-left: auto;
+  padding-left: 12px;
+  color: var(--muted);
   font-size: 11px;
+  font-weight: 600;
   font-style: normal;
-  letter-spacing: 0;
-  text-transform: none;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 .graph-lane-bar-label {
   width: 304px;
@@ -4263,8 +4260,8 @@ span.graph-container-label {
 }
 
 @media (max-width: 1260px) {
-  .topology-title {
-    flex: 1 1 280px;
+  .topology-trail-crumb {
+    max-width: 160px;
   }
 }
 
@@ -4272,9 +4269,6 @@ span.graph-container-label {
   .topology-commandbar {
     gap: 6px;
     padding: 5px 9px;
-  }
-  .topology-title {
-    flex-basis: 300px;
   }
   .topology-status-rail {
     min-height: 42px;
@@ -4313,7 +4307,7 @@ span.graph-container-label {
     min-height: 52px;
     padding: 5px 7px;
   }
-  .topology-title {
+  .topology-trail {
     flex: 1 1 0;
   }
   .topology-return {
@@ -4324,15 +4318,6 @@ span.graph-container-label {
   }
   .topology-return span {
     display: none;
-  }
-  .topology-title h1 {
-    font-size: 15px;
-  }
-  .topology-title-icon {
-    display: none;
-  }
-  .topology-scope-line {
-    overflow: hidden;
   }
   .graph-mode-switch button {
     padding: 5px 7px;

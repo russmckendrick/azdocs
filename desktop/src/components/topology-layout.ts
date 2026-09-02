@@ -132,40 +132,51 @@ function layoutEstate(graph: TopologyGraph, viewport: GraphViewport): TopologyLa
   const coreNodeIds: string[] = [];
   const secondaryNodeIds: string[] = [];
   const expandedLanes = graph.lanes.filter((lane) => lane.expanded);
-  const hasCollapsedLanes = graph.lanes.some((lane) => !lane.expanded);
-  const railAllowance = hasCollapsedLanes && viewport.width >= 1040 ? GRAPH_SIZE.laneBarWidth + 96 : 0;
-  const availableWidth = Math.max(620, viewport.width - railAllowance - 120);
+  // The grid gets the whole width. A side rail for collapsed subscriptions
+  // used to take 416px of it, which left the default window a two-column
+  // strip with dead space either side.
+  const availableWidth = Math.max(620, viewport.width - 96);
   const columns = columnCount(availableWidth, GRAPH_SIZE.groupWidth, 44, 6);
-  const laneWidth = columns * GRAPH_SIZE.groupWidth + Math.max(0, columns - 1) * 44;
   let cursorY = 0;
+
+  // Collapsed subscriptions are an orientation strip above the grids: they
+  // read first, wrap with the width, and never narrow the cards below.
+  const collapsed = graph.nodes
+    .filter((node) => node.kind === "subscription")
+    .sort((left, right) => stableCompare(left.name, right.name) || stableCompare(left.id, right.id));
+  if (collapsed.length > 0) {
+    const stripColumns = columnCount(availableWidth, GRAPH_SIZE.laneBarWidth, 24, 6);
+    let rows = 1;
+    for (const [index, node] of collapsed.entries()) {
+      const cell = gridPosition(collapsed.length, stripColumns, index, GRAPH_SIZE.laneBarWidth, GRAPH_SIZE.laneBarHeight, 24, 20);
+      rows = cell.rows;
+      positions.set(node.id, { x: cell.x, y: cell.y });
+      secondaryNodeIds.push(node.id);
+    }
+    // The first lane's frame reaches 22px above its cards and its header
+    // straddles that border, so the strip needs clear air below it.
+    cursorY = rows * (GRAPH_SIZE.laneBarHeight + 20) + 104;
+  }
 
   for (const lane of expandedLanes) {
     const cards = graph.nodes
       .filter((node) => node.kind === "resource-group" && node.lane === lane.subscriptionId)
       .sort((left, right) => stableCompare(left.name, right.name) || stableCompare(left.id, right.id));
-    if (cards.length === 0) continue;
+    // The lane's unconnected-groups tile takes the last cell, after every card.
+    const tiles = graph.nodes
+      .filter((node) => node.kind === "aggregate" && node.lane === lane.subscriptionId)
+      .sort((left, right) => stableCompare(left.id, right.id));
+    const cells = [...cards, ...tiles];
+    if (cells.length === 0) continue;
     let rows = 1;
-    for (const [index, card] of cards.entries()) {
-      const cell = gridPosition(cards.length, columns, index, GRAPH_SIZE.groupWidth, GRAPH_SIZE.groupHeight, 44, 42);
-      rows = cell.rows;
-      positions.set(card.id, { x: cell.x, y: cursorY + cell.y });
-      coreNodeIds.push(card.id);
+    for (const [index, cell] of cells.entries()) {
+      const slot = gridPosition(cells.length, columns, index, GRAPH_SIZE.groupWidth, GRAPH_SIZE.groupHeight, 44, 42);
+      rows = slot.rows;
+      positions.set(cell.id, { x: slot.x, y: cursorY + slot.y });
+      coreNodeIds.push(cell.id);
     }
     coreNodeIds.push(`lane:${lane.subscriptionId}`);
     cursorY += rows * (GRAPH_SIZE.groupHeight + 42) + 68;
-  }
-
-  const collapsed = graph.nodes
-    .filter((node) => node.kind === "subscription")
-    .sort((left, right) => stableCompare(left.name, right.name) || stableCompare(left.id, right.id));
-  const railX = viewport.width >= 1040 && coreNodeIds.length > 0 ? laneWidth + 92 : 0;
-  const railY = viewport.width >= 1040 && coreNodeIds.length > 0 ? 0 : cursorY;
-  for (const [index, node] of collapsed.entries()) {
-    positions.set(node.id, {
-      x: railX,
-      y: railY + index * (GRAPH_SIZE.laneBarHeight + 20),
-    });
-    secondaryNodeIds.push(node.id);
   }
 
   if (coreNodeIds.length === 0) coreNodeIds.push(...secondaryNodeIds);

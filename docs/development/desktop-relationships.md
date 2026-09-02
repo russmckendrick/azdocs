@@ -1,7 +1,7 @@
-# Desktop relationship maps
+# Desktop map
 
-This is the implementation contract for the desktop **Relationships**
-workspace. It exists to prevent a visually plausible refactor from restoring
+This is the implementation contract for the desktop **Map** workspace (the
+`topology` route; "relationship" is the word for an edge, not the section). It exists to prevent a visually plausible refactor from restoring
 the defects already removed: clipped entry frames, centre-to-centre links,
 shared connector trunks, crossed service routes, labels under lines, and
 unconnected resources dominating the opening camera.
@@ -80,7 +80,7 @@ order, animation timing, or the current pointer position.
 
 | Scope | Primary composition | Opening camera includes | Opening camera excludes |
 |---|---|---|---|
-| Estate | Expanded subscriptions as responsive resource-group grids; collapsed subscriptions on a side rail at wide widths and below at compact widths | Expanded lane frames and cards, plus every collapsed subscription bar | Nothing needed for subscription orientation |
+| Estate | A strip of subscription bars above (every subscription starts collapsed); each subscription the reader expands as a full-width grid of its connected resource groups, with one **Unconnected groups ×N** tile as the lane's last cell | Collapsed bars, expanded lane frames, cards and tiles | Nothing needed for subscription orientation |
 | Resource group | VNet/subnet compounds as the network core; external context on a left boundary rail; free connected resources on a right service rail | Connected/contained resources and external neighbours | The unconnected shelf |
 | Neighbourhood | Dominant subject in the centre; inbound one-hop peers left; outbound one-hop peers right; second hops in stable outer columns | Subject and one-hop peers | Second-hop context |
 
@@ -116,6 +116,17 @@ cards even if the edge style remains orthogonal.
 The unconnected shelf starts well below the connected bounds and is marked as
 secondary. It remains reachable through **Fit all** and direct selection, but
 must not enlarge the initial group frame.
+
+At estate level the same idea is applied in Rust before layout: a resource
+group with no cross-group edge never gets a card. `estate_graph` folds every
+such group in an expanded subscription into one `aggregate:unconnected:<sub>`
+node (`group_ids` names the groups, `member_ids` their resources), expansion
+is explicit (an empty `expanded_subscriptions` means every subscription is a
+bar), and `show_unconnected = false` moves the tile's count into
+`hidden_by_filter`. The grid takes the whole viewport width
+(four columns at the 1440px default window) and collapsed subscriptions sit in
+a strip above it. A side rail for them is what once narrowed the default
+window to two columns.
 
 ## Connector ports and taxi channels
 
@@ -227,6 +238,8 @@ The following are prohibited, even when a small fixture still looks tidy:
 - shrinking graph text below `11px`, hardcoding canvas colours, or creating a
   separate dark-mode composition;
 - silently capping nodes, connectors, aggregate members, or collapsed lanes;
+- drawing a full card for every zero-link group at estate level, or reserving
+  a side rail for collapsed subscriptions that narrows the grid;
 - deriving resource-group membership, or any other DTO semantics, in the
   webview — importing `topology-model.ts` from a production component is the
   concrete form of this, and it had already drifted from the Rust rule on

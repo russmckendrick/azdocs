@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, Fragment } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -6,7 +6,6 @@ import {
   ChevronDown,
   ChevronRight,
   CircleHelp,
-  GitBranch,
   PauseCircle,
   PlayCircle,
   RotateCcw,
@@ -37,6 +36,8 @@ import {
   refreshSucceeded,
   resolveAggregateActivation,
   toggleSubscriptionLane,
+  describeCounts,
+  expandSubscriptionLane,
 } from "./topology-view-state";
 import { errorMessage } from "../format";
 import { EmptyState } from "./view-chrome";
@@ -174,7 +175,7 @@ export function TopologyView({
       })
       .catch((error: unknown) => {
         if (requestTokenRef.current !== token) return;
-        const failed = refreshFailed(Boolean(topology), errorMessage(error, "The relationship graph could not be refreshed."));
+        const failed = refreshFailed(Boolean(topology), errorMessage(error, "The map could not be refreshed."));
         setTopologyStale(failed.stale);
         setTopologyError(failed.error);
       });
@@ -230,16 +231,43 @@ export function TopologyView({
   const counts = topology?.counts;
   const graphUnit = topology?.level === "estate" ? "groups" : "resources";
   const classCounts = new Map((topology?.kindClasses ?? []).map((entry) => [entry.class, entry.count]));
-  const contextTitle = mode === "neighbourhood"
+  const countsCaption = topology ? describeCounts(topology) : undefined;
+  // The trail is the title: Map › subscription › group › resource, every
+  // crumb but the last a link, the last the page's own name. "Estate" as a
+  // separate crumb pointed at the same place as Map and named nothing the
+  // reader had seen, so it is gone.
+  const title = mode === "neighbourhood"
     ? selected?.name ?? "Choose a resource"
-    : activeResourceGroup?.name ?? "Estate map";
-  const contextSubtitle = mode === "neighbourhood"
+    : activeResourceGroup?.name ?? "Map";
+  const subtitle = mode === "neighbourhood"
     ? selected
       ? `${depth} hop${depth === 1 ? "" : "s"} · ${counts?.total ?? "…"} resources in reach`
       : "Select a resource to explore its neighbourhood"
     : activeResourceGroup
-      ? `${activeResourceGroup.subscriptionName} · ${activeResourceGroup.resourceCount} resources`
-      : `${resourceGroups.length} groups · ${estate.resources.length.toLocaleString()} resources`;
+      ? `${activeResourceGroup.resourceCount} resource${activeResourceGroup.resourceCount === 1 ? "" : "s"}`
+      : `${estate.subscriptions.length} subscription${estate.subscriptions.length === 1 ? "" : "s"} · ${resourceGroups.length} groups · ${estate.resources.length.toLocaleString()} resources`;
+  const trailGroup = mode === "neighbourhood" ? selectedResourceGroup : activeResourceGroup;
+  const trail: Array<{ key: string; label: string; open: () => void }> = [];
+  if (trailGroup) {
+    trail.push({ key: "map", label: "Map", open: showResourceGroups });
+    trail.push({
+      key: "subscription",
+      label: trailGroup.subscriptionName,
+      open: () => openSubscription(trailGroup.subscriptionId),
+    });
+  }
+  if (mode === "neighbourhood" && selectedResourceGroup) {
+    trail.push({
+      key: "group",
+      label: selectedResourceGroup.name,
+      open: () => openResourceGroup(selectedResourceGroup.id),
+    });
+  }
+
+  const plural = (count: number, noun: string) => (count === 1 ? noun : `${noun}s`);
+  const unconnectedLabel = activeResourceGroup
+    ? "Include resources without drawn relationships"
+    : "Include groups without cross-group relationships";
 
   function requestCamera(cameraMode: GraphCameraMode) {
     setCamera((current) => ({ mode: cameraMode, nonce: current.nonce + 1 }));
@@ -254,6 +282,17 @@ export function TopologyView({
 
   function showResourceGroups() {
     navigateWorkspace({ location: { kind: "estate" }, expandedAggregateId: undefined });
+  }
+
+  function openSubscription(subscriptionId: string) {
+    const drawnExpanded = topology?.lanes
+      .filter((lane) => lane.expanded)
+      .map((lane) => lane.subscriptionId) ?? [];
+    navigateWorkspace({
+      location: { kind: "estate" },
+      expandedAggregateId: undefined,
+      expandedSubscriptions: expandSubscriptionLane(expandedSubscriptions, drawnExpanded, subscriptionId),
+    });
   }
 
   function openNeighbourhood(resourceId: string) {
@@ -294,9 +333,13 @@ export function TopologyView({
     if (activation.kind === "aggregate") {
       const aggregate = topology?.nodes.find((node) => node.id === activation.nodeId);
       if (!aggregate) return;
-      const next = resolveAggregateActivation(expandedAggregateId, activation.nodeId, aggregate.memberIds);
+      const next = resolveAggregateActivation(expandedAggregateId, activation.nodeId, aggregate.memberIds, aggregate.groupIds);
       if (next.kind === "open-resource") {
         onInspect(next.resourceId);
+        return;
+      }
+      if (next.kind === "open-group") {
+        openResourceGroup(next.groupId);
         return;
       }
       replaceWorkspace({ expandedAggregateId: next.expandedId });
@@ -333,50 +376,26 @@ export function TopologyView({
   return (
     <div className={active ? "topology-workspace" : "topology-workspace covered"} aria-hidden={!active}>
       <section className="topology-stage" aria-label={mode === "neighbourhood"
-        ? `Relationship neighbourhood for ${selected?.name ?? "no selected resource"}`
+        ? `Neighbourhood of ${selected?.name ?? "no selected resource"}`
         : activeResourceGroup
-          ? `Relationship map for resource group ${activeResourceGroup.name}`
-          : "Azure estate relationship map"}>
+          ? `Map of resource group ${activeResourceGroup.name}`
+          : "Estate map"}>
         <header className="topology-commandbar">
           {backLabel && onBack ? (
-            <button className="topology-return" onClick={onBack}>
-              <ArrowLeft size={15} /> <span>{backLabel}</span>
+            <button className="topology-return" onClick={onBack} aria-label={backLabel} title={backLabel}>
+              <ArrowLeft size={15} /> <span>Back</span>
             </button>
           ) : null}
-          <div className="topology-title">
-            <span className="topology-title-icon"><GitBranch size={18} /></span>
-            <div>
-              <nav className="topology-scope-line" aria-label="Relationship location">
-                <button onClick={showResourceGroups}>Relationships</button>
-                {workspace.location.kind !== "estate" ? (
-                  <>
-                    <ChevronRight size={12} aria-hidden="true" />
-                    <button onClick={showResourceGroups}>Estate</button>
-                  </>
-                ) : null}
-                {activeResourceGroup ? (
-                  <>
-                    <ChevronRight size={12} aria-hidden="true" />
-                    <span>{activeResourceGroup.subscriptionName}</span>
-                    <ChevronRight size={12} aria-hidden="true" />
-                    <span aria-current="page">{activeResourceGroup.name}</span>
-                  </>
-                ) : null}
-                {mode === "neighbourhood" && selectedResourceGroup ? (
-                  <>
-                    <ChevronRight size={12} aria-hidden="true" />
-                    <span>{selectedResourceGroup.subscriptionName}</span>
-                    <ChevronRight size={12} aria-hidden="true" />
-                    <button onClick={() => openResourceGroup(selectedResourceGroup.id)}>{selectedResourceGroup.name}</button>
-                    <ChevronRight size={12} aria-hidden="true" />
-                    <span aria-current="page">{selected?.name}</span>
-                  </>
-                ) : null}
-              </nav>
-              <h1>{contextTitle}</h1>
-              <span>{contextSubtitle}</span>
-            </div>
-          </div>
+          <nav className="topology-trail" aria-label="Map location">
+            {trail.map((crumb) => (
+              <Fragment key={crumb.key}>
+                <button className="topology-trail-crumb" title={crumb.label} onClick={crumb.open}>{crumb.label}</button>
+                <ChevronRight size={12} aria-hidden="true" />
+              </Fragment>
+            ))}
+            <h1 title={title}>{title}</h1>
+            <span className="topology-trail-note">{subtitle}</span>
+          </nav>
 
           {mode === "neighbourhood" ? (
             <div className="graph-depth-switch" role="radiogroup" aria-label="Neighbourhood depth" onKeyDown={handleDepthKeyDown}>
@@ -389,8 +408,8 @@ export function TopologyView({
             </div>
           ) : null}
 
-          {mode === "estate" && activeResourceGroup ? (
-            <button className={showUnconnected ? "topology-inline-toggle active" : "topology-inline-toggle"} aria-pressed={showUnconnected} aria-label="Include resources without drawn relationships" title="Include resources without drawn relationships" onClick={() => replaceWorkspace({ showUnconnected: !showUnconnected })}>
+          {mode === "estate" ? (
+            <button className={showUnconnected ? "topology-inline-toggle active" : "topology-inline-toggle"} aria-pressed={showUnconnected} aria-label={unconnectedLabel} title={unconnectedLabel} onClick={() => replaceWorkspace({ showUnconnected: !showUnconnected })}>
               <Unplug size={15} /><span>Unconnected</span>
             </button>
           ) : null}
@@ -426,7 +445,7 @@ export function TopologyView({
         {topologyError ? (
           <div className="topology-error-rail" role="alert" aria-live="assertive">
             <AlertTriangle size={16} />
-            <span><strong>Relationship refresh failed.</strong> {topologyError.message}{topologyError.hasPrevious ? " The last successful graph is still shown." : ""}</span>
+            <span><strong>Map refresh failed.</strong> {topologyError.message}{topologyError.hasPrevious ? " The last successful graph is still shown." : ""}</span>
             <button onClick={() => setRetryNonce((value) => value + 1)}>Retry</button>
             {topologyError.hasPrevious ? <button onClick={revertGraph}>Revert controls</button> : null}
           </div>
@@ -439,7 +458,7 @@ export function TopologyView({
             className="graph-empty-state"
             role="status"
             icon={<AlertTriangle size={24} />}
-            title="No relationship graph is available"
+            title="No map is available"
             detail="Retry the request or return to the estate after checking the stored snapshot."
           />
         ) : (
@@ -447,21 +466,21 @@ export function TopologyView({
             className="graph-empty-state"
             role="status"
             icon={<img src={RESOURCE_GROUP_ICON} alt="" />}
-            title="Building the relationship graph…"
+            title="Building the map…"
           />
         )}
 
-        <footer className="topology-status-rail" aria-label="Relationship graph status and legend">
+        <footer className="topology-status-rail" aria-label="Map status and legend">
           <div className="topology-counts" role="status">
             <Activity size={14} />
-            {counts ? (
-              <span><strong>{counts.total}</strong> {graphUnit} represented{counts.folded > 0 ? <> · {counts.folded} folded</> : null}{counts.aggregated > 0 ? <> · {counts.aggregated} aggregated</> : null}{counts.external > 0 ? <> · {counts.external} external</> : null}{counts.hiddenByFilter > 0 ? <> · <strong>{counts.hiddenByFilter} filtered</strong></> : null}</span>
-            ) : <span>Building graph…</span>}
+            {counts && countsCaption ? (
+              <span><strong>{counts.drawn}</strong> of <strong>{counts.total}</strong> {graphUnit} drawn{countsCaption.extras.map((extra) => <span key={extra.label}> · {extra.emphasis ? <strong>{extra.count} {extra.label}</strong> : <>{extra.count} {extra.label}</>}</span>)}</span>
+            ) : <span>Building map…</span>}
             <i />
-            <span><strong>{counts?.totalLinks ?? 0}</strong> source relationships · <strong>{counts?.drawnLinks ?? 0}</strong> connectors</span>
-            {topologyStale ? <b className="topology-stale">Stale graph</b> : null}
+            <span><strong>{counts?.totalLinks ?? 0}</strong> {topology?.level === "estate" ? "cross-group " : ""}{plural(counts?.totalLinks ?? 0, "relationship")} drawn as <strong>{counts?.drawnLinks ?? 0}</strong> {plural(counts?.drawnLinks ?? 0, "connector")}</span>
+            {topologyStale ? <b className="topology-stale">Stale map</b> : null}
           </div>
-          <button className="topology-legend-toggle" onClick={() => setLegendOpen((current) => !current)} aria-expanded={legendOpen} aria-controls="topology-kind-legend">Kinds <ChevronDown size={13} /></button>
+          <button className="topology-legend-toggle" onClick={() => setLegendOpen((current) => !current)} aria-expanded={legendOpen} aria-controls="topology-kind-legend">Legend <ChevronDown size={13} /></button>
           <div id="topology-kind-legend" className={legendOpen ? "topology-kind-legend open" : "topology-kind-legend"} aria-label="Relationship kinds">
             {ALL_KIND_CLASSES.map((kindClass) => {
               const active = !excludedClasses.includes(kindClass);

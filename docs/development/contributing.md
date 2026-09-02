@@ -29,7 +29,7 @@
 
 ### Change the desktop relationship renderer
 
-Read [Desktop relationship maps](desktop-relationships.md) before editing the
+Read [Desktop map](desktop-relationships.md) before editing the
 layout or Cytoscape component. Keep graph semantics in Rust, deterministic
 placement in `topology-layout.ts`, and pure connector/label decisions in
 `topology-presentation.ts`. A rendered relationship uses two invisible

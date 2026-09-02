@@ -1,3 +1,47 @@
+import type { TopologyGraph } from "../types";
+
+export interface CountsExtra {
+  count: number;
+  label: string;
+  emphasis?: boolean;
+}
+
+/**
+ * The status rail's plain-language account of everything that is not a
+ * drawn card. It has to add up: the counts contract is
+ * `drawn + folded + aggregated == total`, and every aggregated item is named
+ * by what happened to it (a collapsed subscription, an unconnected tile, a
+ * ×N tile) rather than by the word "aggregated".
+ */
+export function describeCounts(graph: TopologyGraph): { extras: CountsExtra[] } {
+  const { counts } = graph;
+  const extras: CountsExtra[] = [];
+  if (counts.folded > 0) extras.push({ count: counts.folded, label: "folded into hosts" });
+  let accounted = 0;
+  if (graph.level === "estate") {
+    const collapsed = graph.nodes
+      .filter((node) => node.kind === "subscription")
+      .reduce((total, node) => total + node.count, 0);
+    const unconnected = graph.nodes
+      .filter((node) => node.kind === "aggregate" && node.groupIds.length > 0)
+      .reduce((total, node) => total + node.count, 0);
+    if (collapsed > 0) extras.push({ count: collapsed, label: "in collapsed subscriptions" });
+    if (unconnected > 0) extras.push({ count: unconnected, label: "unconnected" });
+    accounted = collapsed + unconnected;
+  } else if (graph.level === "group") {
+    const unconnected = graph.nodes
+      .filter((node) => node.kind === "aggregate" && node.zone === "unconnected")
+      .reduce((total, node) => total + node.count, 0);
+    if (unconnected > 0) extras.push({ count: unconnected, label: "unconnected" });
+    accounted = unconnected;
+  }
+  const remainder = counts.aggregated - accounted;
+  if (remainder > 0) extras.push({ count: remainder, label: "in ×N tiles" });
+  if (counts.external > 0) extras.push({ count: counts.external, label: "from other groups" });
+  if (counts.hiddenByFilter > 0) extras.push({ count: counts.hiddenByFilter, label: "hidden by filters", emphasis: true });
+  return { extras };
+}
+
 export interface RefreshPresentation {
   stale: boolean;
   error?: { message: string; hasPrevious: boolean };
@@ -26,16 +70,33 @@ export function toggleSubscriptionLane(
     : [...source, subscriptionId].sort();
 }
 
+/** The trail's subscription crumb: make sure that lane is expanded, keep the rest. */
+export function expandSubscriptionLane(
+  override: readonly string[] | undefined,
+  drawnExpanded: readonly string[],
+  subscriptionId: string,
+) {
+  const source = override ?? drawnExpanded;
+  return source.includes(subscriptionId) ? [...source] : [...source, subscriptionId].sort();
+}
+
 export type AggregateActivation =
   | { kind: "open-resource"; resourceId: string }
+  | { kind: "open-group"; groupId: string }
   | { kind: "toggle"; expandedId?: string };
 
 export function resolveAggregateActivation(
   expandedId: string | undefined,
   nodeId: string,
   memberIds: readonly string[],
+  groupIds: readonly string[] = [],
 ): AggregateActivation {
-  if (memberIds.length === 1) {
+  // An estate-level tile aggregates groups, not resources: a lone member opens
+  // its group map, the way a lone resource member opens its record.
+  if (groupIds.length === 1) {
+    return { kind: "open-group", groupId: groupIds[0] };
+  }
+  if (groupIds.length === 0 && memberIds.length === 1) {
     return { kind: "open-resource", resourceId: memberIds[0] };
   }
   return { kind: "toggle", expandedId: expandedId === nodeId ? undefined : nodeId };

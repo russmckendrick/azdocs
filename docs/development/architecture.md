@@ -63,7 +63,7 @@ flowchart LR
 | `src/diagram/` | `EstateGraph` builders (incl. per-VNet/per-RG fan-out) → `page` (A4 fractions, density rungs) → `layout` (measure/justify) → `route` (orthogonal connectors) → mermaid / drawio (single + workbook) / svg / png emitters |
 | `src/tui/` | ratatui browse; `App` is a pure state machine, `ui.rs` renders it |
 | `desktop/src-tauri/` | Thin Tauri v2 boundary; opens the shared `Store` per command and maps core models to serialisable DTOs. `topology.rs` builds the explorer's view-ready relationship graphs (estate lanes, group drill-in with folding, ×N aggregation and cross-group ghost stubs, bounded-depth neighbourhoods) with honest drawn/folded/aggregated counts |
-| `desktop/src/` | React/TypeScript estate explorer and lazy-loaded Cytoscape.js relationship canvas; `topology-layout.ts` owns deterministic zones/cameras, `topology-presentation.ts` owns synthetic boundary ports and DOM label placement, and `CytoscapeResourceGraph.tsx` coordinates paint and interaction. No direct file, database, credential, or Azure access. See [Desktop relationship maps](desktop-relationships.md). |
+| `desktop/src/` | React/TypeScript estate explorer and lazy-loaded Cytoscape.js relationship canvas; `topology-layout.ts` owns deterministic zones/cameras, `topology-presentation.ts` owns synthetic boundary ports and DOM label placement, and `CytoscapeResourceGraph.tsx` coordinates paint and interaction. No direct file, database, credential, or Azure access. See [Desktop map](desktop-relationships.md). |
 
 ## Design decisions
 

@@ -46,7 +46,7 @@ flowchart TD
 | Display metadata | Asserts the Rust and TypeScript `humanize_identifier` agree on a shared case list — both are live, one renders the reports and one the desktop | `desktop/src/azure-values.test.ts`, `src/model/azure_values.rs` |
 
 The full relationship rendering and screenshot review contract is in
-[Desktop relationship maps](desktop-relationships.md#tests-and-review).
+[Desktop map](desktop-relationships.md#tests-and-review).
 
 ## The fixture estate
 

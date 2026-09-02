@@ -136,6 +136,11 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
       },
     },
     {
+      // The estate tile sits in a group-card cell and carries a longer label.
+      selector: "node.group-aggregate-node",
+      style: { width: GROUP_W },
+    },
+    {
       selector: "node.aggregate-node",
       style: {
         width: AGGREGATE_W,
@@ -207,11 +212,10 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
         label: "",
         "z-index": 1,
         "z-index-compare": "manual",
-        // Room for the DOM header label above the children.
-        "padding-top": "52px",
-        "padding-left": "22px",
-        "padding-right": "22px",
-        "padding-bottom": "22px",
+        // Cytoscape aliases every `padding-<side>` to `padding`, so a taller
+        // top band cannot be asked for here; the DOM header sits on the
+        // frame's top border instead (see syncLabels).
+        padding: "22px",
       },
     },
     {
@@ -219,7 +223,6 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
       style: {
         "corner-radius": "4px",
         "border-opacity": 0.6,
-        "padding-top": "42px",
       },
     },
     {
@@ -350,11 +353,17 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
 
 const LABEL_SCALE_FLOOR = 0.88;
 
+/** Estate-level nodes that live inside a subscription lane frame. */
+function laneMember(node: TopologyNode) {
+  return Boolean(node.lane) && (node.kind === "resource-group" || (node.kind === "aggregate" && node.groupIds.length > 0));
+}
+
 function nodeClasses(node: TopologyNode, selectedNodeId?: string) {
   const classes: string[] = [];
   if (node.kind === "resource") classes.push("resource-node");
   if (node.kind === "resource-group") classes.push("resource-group-node");
   if (node.kind === "aggregate") classes.push("aggregate-node");
+  if (node.kind === "aggregate" && node.groupIds.length > 0) classes.push("group-aggregate-node");
   if (node.kind === "external") classes.push("external-node");
   if (node.kind === "subscription") classes.push("lane-bar-node");
   if (node.kind === "vnet") classes.push("vnet-frame");
@@ -373,12 +382,15 @@ function graphElements(
   for (const node of graph.nodes) {
     if (node.parentId) childCount.set(node.parentId, (childCount.get(node.parentId) ?? 0) + 1);
   }
-  const laneHasCards = new Set(
-    graph.nodes.filter((node) => node.kind === "resource-group" && node.lane).map((node) => node.lane as string),
+  // A lane is framed when it holds anything: cards, or only the unconnected
+  // groups tile. A subscription whose groups are all unconnected still needs
+  // its name above the tile.
+  const laneHasMembers = new Set(
+    graph.nodes.filter((node) => laneMember(node)).map((node) => node.lane as string),
   );
   const elements: ElementDefinition[] = [];
   for (const lane of graph.lanes.filter((candidate) => candidate.expanded)) {
-    if (!laneHasCards.has(lane.subscriptionId)) continue;
+    if (!laneHasMembers.has(lane.subscriptionId)) continue;
     elements.push({
       group: "nodes",
       data: { id: `lane:${lane.subscriptionId}`, kind: "lane" },
@@ -391,7 +403,7 @@ function graphElements(
     const isEmptySubnet = node.kind === "subnet" && (childCount.get(node.id) ?? 0) === 0;
     const parent =
       node.parentId ??
-      (graph.level === "estate" && node.kind === "resource-group" && node.lane && laneHasCards.has(node.lane)
+      (graph.level === "estate" && laneMember(node) && laneHasMembers.has(node.lane as string)
         ? `lane:${node.lane}`
         : undefined);
     elements.push({
@@ -639,7 +651,7 @@ export function CytoscapeResourceGraph({
       cyRef.current = cy;
       setRendererError(undefined);
     } catch (error) {
-      setRendererError(errorMessage(error, "The relationship graph could not be initialised."));
+      setRendererError(errorMessage(error, "The map could not be initialised."));
       return;
     }
 
@@ -666,8 +678,16 @@ export function CytoscapeResourceGraph({
         const node = cy.getElementById(id);
         if (node.empty()) continue;
         if (frameIds.has(id) && !node.hasClass("subnet-empty")) {
+          // Frame headers straddle the frame's top border on a paper plate,
+          // the way a map legend names a region. The frame's padding is
+          // uniform, so a header inside it would sit on the first row.
           const box = node.renderedBoundingBox({ includeLabels: false, includeOverlays: false });
-          label.style.transform = `translate3d(${box.x1 + 14 * zoom}px, ${box.y1 + 6 * zoom}px, 0) scale(${labelScale})`;
+          label.style.transform = `translate3d(${box.x1 + 14 * zoom}px, ${box.y1}px, 0) scale(${labelScale}) translate(0, -50%)`;
+          // A lane header spans its frame so the action sits at the far edge
+          // instead of crowding the name.
+          if (label.classList.contains("graph-lane-label")) {
+            label.style.width = `${Math.max(0, (box.w - 28 * zoom) / labelScale)}px`;
+          }
         } else {
           const point = node.renderedPosition();
           label.style.transform = `translate3d(${point.x}px, ${point.y}px, 0) scale(${labelScale}) translate(-50%, -50%)`;
@@ -1047,7 +1067,7 @@ export function CytoscapeResourceGraph({
         }
       }
     } catch (error) {
-      setRendererError(errorMessage(error, "The relationship layout could not be calculated."));
+      setRendererError(errorMessage(error, "The map layout could not be calculated."));
       cyRef.current = undefined;
       cy.destroy();
       return;
@@ -1303,7 +1323,7 @@ export function CytoscapeResourceGraph({
       </div>
       <div className="graph-label-layer">
         {graph.lanes
-          .filter((lane) => lane.expanded && graph.nodes.some((node) => node.kind === "resource-group" && node.lane === lane.subscriptionId))
+          .filter((lane) => lane.expanded && graph.nodes.some((node) => laneMember(node) && node.lane === lane.subscriptionId))
           .map((lane) => (
             <button
               key={`lane:${lane.subscriptionId}`}
@@ -1318,7 +1338,7 @@ export function CytoscapeResourceGraph({
               <small>
                 {lane.groupCount} group{lane.groupCount === 1 ? "" : "s"} · {lane.resourceCount} resources
               </small>
-              <i>Collapse</i>
+              <i>Collapse ‹</i>
             </button>
           ))}
         {graph.nodes.map((node) => {
@@ -1373,6 +1393,61 @@ export function CytoscapeResourceGraph({
                 <span className="graph-route-count"><GitBranch size={12} />{connectionMeta.get(node.id)?.connectors ?? 0}</span>
                 <i className="graph-lane-expand">Expand ›</i>
               </button>
+            );
+          }
+          if (node.kind === "aggregate" && node.groupIds.length > 0) {
+            // An estate-level tile: the groups nothing crosses into, one per
+            // subscription. Expanding lists the groups; each opens its map.
+            const expanded = node.id === expandedAggregateId;
+            const groups = node.groupIds
+              .map((id) => estate.resourceGroupSummaries.find((group) => group.id === id))
+              .filter((group): group is NonNullable<typeof group> => Boolean(group))
+              .sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0));
+            return (
+              <div
+                key={node.id}
+                ref={registerLabel(node.id)}
+                className={tracedClassName(
+                  "graph-aggregate-cluster groups",
+                  node.id,
+                  expanded && "expanded",
+                )}
+                onKeyDown={(event) => {
+                  if (event.key !== "Escape" || !expanded) return;
+                  event.preventDefault();
+                  onActivate({ kind: "aggregate", nodeId: node.id });
+                  event.currentTarget.querySelector<HTMLButtonElement>("[data-graph-roving]")?.focus();
+                }}
+              >
+                <button
+                  className={expanded ? "graph-aggregate-label groups selected" : "graph-aggregate-label groups"}
+                  onClick={() => onActivate({ kind: "aggregate", nodeId: node.id })}
+                  aria-expanded={expanded}
+                  aria-label={`${node.count} unconnected groups, aggregated${findingText(node)}. ${expanded ? "Collapse" : "Show"} groups.`}
+                  {...graphButtonProps(node.id)}
+                >
+                  <img src={RESOURCE_GROUP_ICON} alt="" />
+                  <span className="graph-node-copy">
+                    <strong>{node.name}</strong>
+                    <small>No cross-group connectors</small>
+                  </span>
+                  <b>{node.subtitle}</b>
+                  {node.findingCount > 0 ? <em aria-label={`${node.findingCount} findings`}>{node.findingCount}</em> : null}
+                </button>
+                {expanded ? (
+                  <div className="graph-aggregate-members" role="group" aria-label="Unconnected resource groups">
+                    {groups.map((group) => (
+                      <button key={group.id} onClick={() => requestActivation(
+                        { kind: "resource-group", groupId: group.id },
+                        node.id,
+                      )} title={group.name}>
+                        <img src={RESOURCE_GROUP_ICON} alt="" />
+                        <span><strong>{group.name}</strong><small>{group.resourceCount} resource{group.resourceCount === 1 ? "" : "s"} · Open group map</small></span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
             );
           }
           if (node.kind === "aggregate") {
@@ -1569,7 +1644,7 @@ export function CytoscapeResourceGraph({
         <div className="graph-renderer-error" role="alert" aria-live="assertive">
           <strong>Graph rendering is unavailable</strong>
           <span>{rendererError}</span>
-          <p>The relationship view can be retried without leaving this page.</p>
+          <p>The map can be retried without leaving this page.</p>
           <button onClick={() => setRendererRetryNonce((value) => value + 1)}>Retry renderer</button>
         </div>
       ) : null}

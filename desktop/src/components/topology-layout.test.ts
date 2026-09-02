@@ -18,6 +18,7 @@ function node(id: string, kind: TopologyNode["kind"], overrides: Partial<Topolog
     memberIds: [],
     count: 1,
     findingCount: 0,
+    groupIds: [],
     ...overrides,
   };
 }
@@ -79,10 +80,35 @@ describe.each([1440, 1060, 800])("topology layout at %ipx", (width) => {
         )).toBe(true);
       }
     }
+    // Collapsed subscriptions form an orientation strip above the grid at
+    // every width; a side rail used to narrow the grid to two columns.
     const collapsed = first.positions.get("sub-b");
-    const cardBottom = Math.max(...cards.map((position) => (position?.y ?? 0) + GRAPH_SIZE.groupHeight));
-    if (width < 1040) expect(collapsed?.y).toBeGreaterThan(cardBottom);
-    else expect(collapsed?.x).toBeGreaterThan(Math.max(...cards.map((position) => position?.x ?? 0)));
+    const cardTop = Math.min(...cards.map((position) => position?.y ?? 0));
+    expect((collapsed?.y ?? 0) + GRAPH_SIZE.laneBarHeight).toBeLessThan(cardTop);
+  });
+
+  it("unit_uses_the_whole_width_for_cards_and_places_the_unconnected_tile_last", () => {
+    const estate = graph("estate", [
+      node("g-a", "resource-group", { lane: "sub-a" }),
+      node("g-b", "resource-group", { lane: "sub-a" }),
+      node("g-c", "resource-group", { lane: "sub-a" }),
+      node("g-d", "resource-group", { lane: "sub-a" }),
+      node("g-e", "resource-group", { lane: "sub-a" }),
+      node("aggregate:unconnected:sub-a", "aggregate", { lane: "sub-a", zone: "unconnected", count: 9, groupIds: ["x", "y"] }),
+    ], {
+      lanes: [
+        { subscriptionId: "sub-a", name: "A", expanded: true, groupCount: 14, resourceCount: 40, findingCount: 0 },
+      ],
+    });
+    const plan = layoutTopology(estate, { width, height: 760 });
+    const columns = new Set(["g-a", "g-b", "g-c", "g-d", "g-e"].map((id) => plan.positions.get(id)?.x)).size;
+    // 1440 → 4 columns, 1060 → 3, 800 → 2 (the pre-change default window drew 2).
+    expect(columns).toBe(width >= 1440 ? 4 : width >= 1060 ? 3 : 2);
+    const tile = plan.positions.get("aggregate:unconnected:sub-a");
+    const lastCard = plan.positions.get("g-e");
+    expect(tile && lastCard && (tile.y > lastCard.y || (tile.y === lastCard.y && tile.x > lastCard.x))).toBe(true);
+    expect(plan.coreNodeIds).toContain("aggregate:unconnected:sub-a");
+    expect(plan.entryNodeIds).toContain("aggregate:unconnected:sub-a");
   });
 
   it("places group neighbours on a boundary rail and isolated aggregates below the core", () => {

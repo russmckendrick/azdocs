@@ -18,7 +18,7 @@ relationships or export the whole estate — entirely offline once collected.
 - **Snapshots**: diff estates over time, prune old runs
 - **Desktop explorer**: Tauri app with a subscription/resource-group tree,
   searchable resource ledger, property inspector, findings, snapshot history,
-  and a Cytoscape.js Azure-icon relationship graph — all backed by the same local
+  and a Cytoscape.js Azure-icon estate map — all backed by the same local
   database
 - **TUI**: browse the stored estate interactively (`azdocs browse`)
 - Single static binary for macOS, Linux, and Windows; no OpenSSL, no system

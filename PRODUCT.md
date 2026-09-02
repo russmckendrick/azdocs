@@ -37,7 +37,7 @@ evidence behind it.
 | | |
 |---|---|
 | **CLI** (`azdocs`) | Collect, report, diagram, and a terminal browser. Scriptable, CI-friendly, static binaries. |
-| **Desktop** (Tauri) | Interactive exploration of the same snapshot: estate explorer, relationship maps, findings, history, exports. |
+| **Desktop** (Tauri) | Interactive exploration of the same snapshot: estate explorer, the estate map, findings, history, exports. |
 
 Neither is a subset of the other, and both read the same SQLite database
 through the same Rust library. A resource type is named the same way, a
@@ -58,7 +58,7 @@ changes what azdocs *is*:
 - **Output is deterministic.** The same snapshot renders byte-identically. A
   diff between two reports is a diff between two estates, never noise.
 - **Nothing is silently dropped.** Where a view cannot draw everything — a
-  crowded relationship map, a capped diagram set — it states the arithmetic.
+  crowded map, a capped diagram set — it states the arithmetic.
   `drawn + folded + aggregated == total`, and truncation is logged.
 - **Credentials never reach the webview.** The desktop's frontend has no
   Azure access, no filesystem access and no database handle; it renders DTOs

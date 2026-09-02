@@ -192,9 +192,11 @@ frontend — Cytoscape only renders the DTO. The invariant, enforced by unit
 tests over a synthetic 1,000-resource estate: **drawn + folded + aggregated
 == total, never a silent cap** (the old slice-based node limits are gone for
 good). NICs/disks fold into their VM and child types into their ARM parent;
-unlinked resources aggregate into ×N shelf tiles; other groups' neighbours
-appear as ghost "external" stubs; whole subscriptions collapse into
-expandable lanes past the card budget; anything a filter hides is counted in
+unlinked resources aggregate into ×N shelf tiles, and at estate level groups
+with no cross-group edge aggregate into one ×N tile per subscription
+(`group_ids` on the node) so only connected groups cost a card; other groups' neighbours
+appear as ghost "external" stubs; subscriptions open collapsed to bars and
+expand into lanes only on request; anything a filter hides is counted in
 `counts.hidden_by_filter`. Edge kinds map to filter families via the
 exhaustive `kind_class` match — a new `EdgeKind` forces a classification
 (mirror it in `desktop/src/components/topology-fallback.ts`, the

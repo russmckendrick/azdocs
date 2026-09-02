@@ -48,12 +48,17 @@ pnpm run tauri build
 - **Estate** keeps the subscription/resource-group hierarchy, searchable
   resource ledger, and resource inspector visible together. Filter by scope,
   type, location, resource name, ARM type, group, or tags.
-- **Relationships** is a full-bleed, hierarchical graph workspace. Its initial
+- **Map** is a full-bleed, hierarchical graph workspace. Its initial
   camera fits the readable connected core; **Fit all** is the first control in
-  the icon ribbon when you need the complete overview. The **estate map** lays expanded
-  subscriptions out as responsive resource-group grids and keeps collapsed
-  subscriptions as compact, individually toggleable lanes. Click or press
-  Enter on a group to open its group map immediately.
+  the icon ribbon when you need the complete overview. The **estate** level
+  opens with every subscription collapsed to a bar in a strip across the
+  top; expand one and it is laid out below as a full-width grid of the
+  resource groups that have cross-group relationships. Groups nothing crosses
+  into share one **Unconnected groups ×N** tile per subscription, so the
+  connectors are the picture rather than a wall of boxes; the tile expands in
+  place to list its groups, and the **Unconnected** toggle hides it (the
+  hidden count stays on the status rail). Click or press Enter on a group to
+  open its group map immediately.
   A group map places contained and connected resources first, neighbours from
   other groups on boundary rails, and resources without drawn relationships in
   a lower secondary region outside the default camera. VNet → subnet
@@ -79,15 +84,20 @@ pnpm run tauri build
   action on the card, or press **R** while the card has keyboard focus, to open
   its neighbourhood directly. The record repeats this as **Explore N
   relationships**. Back returns through the exact group, record, and
-  neighbourhood history, while the breadcrumb moves directly through the
-  estate/group/resource hierarchy. Aggregate tiles expand in place to expose
+  neighbourhood history, while the trail in the title bar — Map ›
+  subscription › group › resource, ending in the current page's own name —
+  moves directly through the hierarchy: the subscription crumb returns to
+  the map with that subscription expanded, and the group crumb opens its
+  group map. Aggregate tiles expand in place to expose
   their members. Spatial arrow keys move between graph
   items. The joined icon ribbon exposes Fit all, zoom, selected-path motion,
   subscription-lane reset, and help with visible tooltips and accessible names.
-  The slim bottom rail reports
-  **source relationships** separately from rendered **connectors** and carries
-  the relationship-kind legend/filter. Anything hidden by a filter remains
-  counted. If a topology request fails, the last successful graph is retained
+  The slim bottom rail reports how many groups or resources are drawn
+  and where the rest went (collapsed subscriptions, unconnected tiles, folded
+  hosts, filters), then how many **relationships** are drawn as how many
+  **connectors** — the two differ because parallel relationships between the
+  same pair share one connector — and carries the relationship-kind
+  legend/filter. Anything hidden by a filter remains counted. If a topology request fails, the last successful graph is retained
   and identified as stale with Retry and Revert controls. Relationships remain
   Rust post-pass edges already stored in SQLite; opening this view does not add
   API calls.

@@ -164,7 +164,12 @@ hop?: number | null,
 /**
  * Members folded or aggregated into this node (resource ids).
  */
-memberIds: Array<string>, count: number, findingCount: number, resourceId?: string | null, groupId?: string | null, };
+memberIds: Array<string>, count: number, findingCount: number, resourceId?: string | null, groupId?: string | null, 
+/**
+ * Resource groups rolled into an estate-level "unconnected groups" tile.
+ * Empty on every other node; `member_ids` still lists their resources.
+ */
+groupIds: Array<string>, };
 
 export type TopologyLink = { sourceId: string, targetId: string, label: string, kindClass: KindClass, count: number, };
 

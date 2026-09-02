@@ -18,7 +18,6 @@ use ts_rs::TS;
 
 /// How many resource-group cards the estate view draws before whole
 /// subscriptions collapse into expandable lane bars.
-const ESTATE_CARD_BUDGET: usize = 24;
 /// Same-type neighbours beyond this fold into one ×N node in a neighbourhood.
 const NEIGHBOUR_FANOUT_LIMIT: usize = 6;
 
@@ -138,6 +137,9 @@ pub struct TopologyNodeDto {
     pub finding_count: usize,
     pub resource_id: Option<String>,
     pub group_id: Option<String>,
+    /// Resource groups rolled into an estate-level "unconnected groups" tile.
+    /// Empty on every other node; `member_ids` still lists their resources.
+    pub group_ids: Vec<String>,
 }
 
 #[derive(Debug, Serialize, TS)]
@@ -253,6 +255,10 @@ fn group_node_id(group_id: &str) -> String {
     format!("resource-group:{group_id}")
 }
 
+fn unconnected_groups_node_id(subscription_id: &str) -> String {
+    format!("aggregate:unconnected:{subscription_id}")
+}
+
 fn lane_node_id(subscription_id: &str) -> String {
     format!("subscription:{subscription_id}")
 }
@@ -362,37 +368,12 @@ fn estate_graph(
         )
     });
 
-    // Expansion: honour the explicit request, otherwise expand the busiest
-    // lanes (most cross-group links, then most resources) within the budget.
+    // Expansion is explicit: the map opens with every subscription collapsed
+    // to its bar and the reader expands the ones they want to read. Choosing
+    // "the busiest" for them filled the default window before they had a
+    // bearing on the estate.
     let lane_group_count = |lane: &str| groups.iter().filter(|g| g.subscription_id == lane).count();
-    let expanded: HashSet<&str> = if expanded_subscriptions.is_empty() {
-        let mut ranked = lane_ids.clone();
-        ranked.sort_by_key(|lane| {
-            let links: usize = groups
-                .iter()
-                .filter(|g| g.subscription_id == *lane)
-                .map(|g| g.external_links)
-                .sum();
-            let resources: usize = groups
-                .iter()
-                .filter(|g| g.subscription_id == *lane)
-                .map(|g| g.resources.len())
-                .sum();
-            (std::cmp::Reverse(links), std::cmp::Reverse(resources))
-        });
-        let mut budget = ESTATE_CARD_BUDGET;
-        let mut chosen = HashSet::new();
-        for lane in ranked {
-            let cards = lane_group_count(lane);
-            if chosen.is_empty() || cards <= budget {
-                chosen.insert(lane);
-                budget = budget.saturating_sub(cards);
-            }
-        }
-        chosen
-    } else {
-        expanded_subscriptions.iter().map(|s| s.as_str()).collect()
-    };
+    let expanded: HashSet<&str> = expanded_subscriptions.iter().map(|s| s.as_str()).collect();
 
     let lanes: Vec<LaneDto> = lane_ids
         .iter()
@@ -418,10 +399,15 @@ fn estate_graph(
         })
         .collect();
 
-    // Nodes: a card per group in an expanded lane; one bar per collapsed lane.
+    // Nodes: a card per connected group in an expanded lane, one ×N tile per
+    // expanded lane for the groups nothing crosses into, and one bar per
+    // collapsed lane. Cards are what the map is for; a full card for every
+    // zero-link group is what buried the connectors.
     let mut nodes = Vec::new();
     let mut drawn = 0usize;
     let mut aggregated = 0usize;
+    let mut hidden_unconnected = 0usize;
+    let mut unconnected_by_lane: BTreeMap<&str, Vec<&GroupSummary>> = BTreeMap::new();
     let mut sorted_group_indices: Vec<usize> = (0..groups.len()).collect();
     sorted_group_indices.sort_by(|&a, &b| {
         groups[a]
@@ -434,11 +420,14 @@ fn estate_graph(
         if !expanded.contains(group.subscription_id.as_str()) {
             continue;
         }
-        drawn += 1;
-        let mut type_counts: BTreeMap<&str, usize> = BTreeMap::new();
-        for resource in &group.resources {
-            *type_counts.entry(resource.azure_type.as_str()).or_default() += 1;
+        if group.external_links == 0 {
+            unconnected_by_lane
+                .entry(group.subscription_id.as_str())
+                .or_default()
+                .push(group);
+            continue;
         }
+        drawn += 1;
         nodes.push(TopologyNodeDto {
             id: group_node_id(&group.id),
             kind: "resource-group".to_owned(),
@@ -454,6 +443,34 @@ fn estate_graph(
             finding_count: group.finding_count,
             resource_id: None,
             group_id: Some(group.id.clone()),
+            group_ids: Vec::new(),
+        });
+    }
+    for (lane, members) in &unconnected_by_lane {
+        if !scope.show_unconnected {
+            hidden_unconnected += members.len();
+            continue;
+        }
+        aggregated += members.len();
+        nodes.push(TopologyNodeDto {
+            id: unconnected_groups_node_id(lane),
+            kind: "aggregate".to_owned(),
+            name: "Unconnected groups".to_owned(),
+            subtitle: format!("×{}", members.len()),
+            azure_type: None,
+            lane: Some((*lane).to_owned()),
+            parent_id: None,
+            zone: Some("unconnected".to_owned()),
+            hop: None,
+            member_ids: members
+                .iter()
+                .flat_map(|g| g.resources.iter().map(|r| r.id.clone()))
+                .collect(),
+            count: members.len(),
+            finding_count: members.iter().map(|g| g.finding_count).sum(),
+            resource_id: None,
+            group_id: None,
+            group_ids: members.iter().map(|g| g.id.clone()).collect(),
         });
     }
     for lane in lanes.iter().filter(|lane| !lane.expanded) {
@@ -476,6 +493,7 @@ fn estate_graph(
             finding_count: lane.finding_count,
             resource_id: None,
             group_id: None,
+            group_ids: Vec::new(),
         });
     }
 
@@ -522,7 +540,7 @@ fn estate_graph(
             folded: 0,
             aggregated,
             external: 0,
-            hidden_by_filter: scoped.hidden_by_filter,
+            hidden_by_filter: scoped.hidden_by_filter + hidden_unconnected,
             total_links,
             drawn_links,
         },
@@ -614,6 +632,7 @@ fn group_graph(
             finding_count: finding_count(input, &vnet.id),
             resource_id: Some(vnet.id.clone()),
             group_id: None,
+            group_ids: Vec::new(),
         });
         for subnet in network::vnet_subnets(vnet) {
             let node_id = format!("subnet:{}", subnet.id);
@@ -633,6 +652,7 @@ fn group_graph(
                 finding_count: 0,
                 resource_id: None,
                 group_id: None,
+                group_ids: Vec::new(),
             });
         }
     }
@@ -723,6 +743,7 @@ fn group_graph(
             finding_count: findings,
             resource_id: Some(resource.id.clone()),
             group_id: None,
+            group_ids: Vec::new(),
         });
     }
 
@@ -753,6 +774,7 @@ fn group_graph(
                 finding_count: finding_count(input, &resource.id),
                 resource_id: Some(resource.id.clone()),
                 group_id: None,
+                group_ids: Vec::new(),
             });
             continue;
         }
@@ -772,6 +794,7 @@ fn group_graph(
             finding_count: members.iter().map(|r| finding_count(input, &r.id)).sum(),
             resource_id: None,
             group_id: None,
+            group_ids: Vec::new(),
         });
     }
 
@@ -842,6 +865,7 @@ fn group_graph(
                 finding_count: 0,
                 resource_id: None,
                 group_id: None,
+                group_ids: Vec::new(),
             });
         } else {
             for member in members {
@@ -867,6 +891,7 @@ fn group_graph(
                     finding_count: 0,
                     resource_id: Some(resource.id.clone()),
                     group_id: None,
+                    group_ids: Vec::new(),
                 });
             }
         }
@@ -1058,6 +1083,7 @@ fn neighbourhood_graph(
                 finding_count: members.iter().map(|id| finding_count(input, id)).sum(),
                 resource_id: None,
                 group_id: None,
+                group_ids: Vec::new(),
             });
         } else {
             for member in members {
@@ -1151,6 +1177,7 @@ fn resource_node(input: &TopologyInput, resource: &Resource, hop: u32) -> Topolo
         finding_count: finding_count(input, &resource.id),
         resource_id: Some(resource.id.clone()),
         group_id: None,
+        group_ids: Vec::new(),
     }
 }
 
@@ -1324,14 +1351,149 @@ mod tests {
         assert_eq!(
             graph.counts.drawn + graph.counts.aggregated,
             graph.counts.total,
-            "every group is a card or inside a collapsed lane"
+            "every group is a card, inside an unconnected tile, or inside a collapsed lane"
         );
         assert_eq!(graph.lanes.len(), 10);
         assert!(
-            graph.lanes.iter().any(|lane| !lane.expanded),
-            "100 groups cannot all fit the card budget"
+            graph.lanes.iter().all(|lane| !lane.expanded),
+            "the map opens with every subscription collapsed"
         );
-        assert!(graph.counts.drawn <= ESTATE_CARD_BUDGET);
+        assert_eq!(graph.counts.drawn, 0);
+        assert_eq!(graph.counts.aggregated, 100);
+        assert_eq!(
+            graph
+                .nodes
+                .iter()
+                .filter(|node| node.kind == "subscription")
+                .count(),
+            10
+        );
+
+        let request = TopologyRequest {
+            snapshot_id: None,
+            mode: TopologyMode::Estate {
+                expanded_subscriptions: subs.iter().map(|s| s.subscription_id.clone()).collect(),
+            },
+            scope: TopologyScope::default(),
+        };
+        let graph = build(
+            &request,
+            &input(&subs, &groups, &resources, &edges, &findings),
+        );
+        assert!(graph.lanes.iter().all(|lane| lane.expanded));
+        assert_eq!(graph.counts.drawn, 20, "only connected groups become cards");
+        let tiles: Vec<_> = graph
+            .nodes
+            .iter()
+            .filter(|node| node.kind == "aggregate")
+            .collect();
+        assert_eq!(
+            tiles.len(),
+            10,
+            "one unconnected-groups tile per expanded lane"
+        );
+        assert!(
+            tiles
+                .iter()
+                .all(|tile| tile.count == 8 && tile.group_ids.len() == 8)
+        );
+        assert!(
+            tiles.iter().all(|tile| tile.member_ids.len() == 80),
+            "member_ids still list the resources behind the tile"
+        );
+        assert_eq!(graph.counts.aggregated, 80);
+        assert_eq!(graph.counts.hidden_by_filter, 0);
+    }
+
+    #[test]
+    fn unit_estate_hides_unconnected_groups_when_the_toggle_is_off() {
+        let (subs, groups, resources, edges) = large_estate();
+        let findings = BTreeMap::new();
+        let request = TopologyRequest {
+            snapshot_id: None,
+            mode: TopologyMode::Estate {
+                expanded_subscriptions: subs.iter().map(|s| s.subscription_id.clone()).collect(),
+            },
+            scope: TopologyScope {
+                show_unconnected: false,
+                ..TopologyScope::default()
+            },
+        };
+
+        let graph = build(
+            &request,
+            &input(&subs, &groups, &resources, &edges, &findings),
+        );
+
+        assert!(graph.nodes.iter().all(|node| node.kind != "aggregate"));
+        assert_eq!(graph.counts.drawn, 20);
+        assert_eq!(graph.counts.aggregated, 0);
+        assert_eq!(
+            graph.counts.hidden_by_filter, 80,
+            "hidden groups are counted, never silently dropped"
+        );
+    }
+
+    #[test]
+    fn unit_estate_expands_only_the_requested_subscriptions() {
+        // Two subscriptions of 30 groups; expanding one draws its connected
+        // pair as cards and tiles the rest, while the other stays a bar.
+        let mut subs = Vec::new();
+        let mut groups = Vec::new();
+        let mut resources = Vec::new();
+        let mut edges = Vec::new();
+        for s in 0..2 {
+            let sub = format!("sub-{s:02}");
+            subs.push(subscription(&sub, &format!("Subscription {s:02}")));
+            for g in 0..30 {
+                let rg = format!("rg-{s:02}-{g:02}");
+                groups.push(group(&sub, &rg));
+                resources.push(resource(&sub, &rg, "sql-0", "microsoft.sql/servers"));
+            }
+            let a = resource(
+                &sub,
+                &format!("rg-{s:02}-00"),
+                "pe-0",
+                "microsoft.network/privateendpoints",
+            );
+            let b = resource(
+                &sub,
+                &format!("rg-{s:02}-01"),
+                "sql-0",
+                "microsoft.sql/servers",
+            );
+            edges.push(edge(&a, &b, EdgeKind::PrivateEndpointFor));
+            resources.push(a);
+        }
+        let findings = BTreeMap::new();
+        let request = TopologyRequest {
+            snapshot_id: None,
+            mode: TopologyMode::Estate {
+                expanded_subscriptions: vec!["sub-00".to_owned()],
+            },
+            scope: TopologyScope::default(),
+        };
+
+        let graph = build(
+            &request,
+            &input(&subs, &groups, &resources, &edges, &findings),
+        );
+
+        assert_eq!(graph.lanes.iter().filter(|lane| lane.expanded).count(), 1);
+        assert_eq!(graph.counts.drawn, 2);
+        assert_eq!(
+            graph.counts.aggregated, 58,
+            "28 in the tile, 30 behind the bar"
+        );
+        assert_eq!(graph.counts.total, 60);
+        assert_eq!(
+            graph
+                .nodes
+                .iter()
+                .filter(|node| node.kind == "aggregate")
+                .count(),
+            1
+        );
     }
 
     #[test]

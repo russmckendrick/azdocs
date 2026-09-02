@@ -55,7 +55,7 @@ generated from the stored snapshot, never live Azure.
 | Page | Covers |
 |---|---|
 | [Architecture](development/architecture.md) | Modules, data flow, design decisions |
-| [Desktop relationship maps](development/desktop-relationships.md) | Relationship layout, multi-port routing, label layering and regression contract |
+| [Desktop map](development/desktop-relationships.md) | Map layout, multi-port routing, label layering and regression contract |
 | [Data model](development/data-model.md) | SQLite schema and migrations |
 | [Azure display metadata](development/azure-metadata.md) | Friendly Azure values and the reproducible refresh workflow |
 | [Testing](development/testing.md) | Test layers, fixtures, golden files |
