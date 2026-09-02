@@ -20,7 +20,7 @@ use crate::model::{Finding, Resource, ResourceGroup, Subscription};
 /// against today's config, so a report and the explorer describe the estate as
 /// it was audited — editing `required_tags` after a collection no longer makes
 /// the two disagree about the same snapshot.
-const TAG_AUDIT: &str = "missing_required_tags";
+pub(crate) const TAG_AUDIT: &str = "missing_required_tags";
 
 /// Shown where a resource has no resource group of its own.
 const UNGROUPED: &str = "—";

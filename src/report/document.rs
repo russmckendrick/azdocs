@@ -8,6 +8,8 @@ use super::{
     FLAGGED_NON_COMPLIANT_SHARE, HEALTHY_TAG_COVERAGE_PERCENT, ReportContext, cell_to_string,
 };
 use crate::diagram::assets::{DiagramAsset, DiagramAssetKind};
+use crate::labels::template::{Segment, segments};
+use crate::labels::{Labels, counted};
 
 #[derive(Debug, Serialize)]
 pub(crate) struct PrintDocument<'a> {
@@ -142,6 +144,7 @@ impl<'a> PrintDocument<'a> {
         branding: &'a BrandingContext,
         diagrams: &'a [DiagramAsset],
     ) -> Self {
+        let labels = &branding.labels;
         let mut blocks = Vec::new();
         let group_diagrams: BTreeMap<&str, &DiagramAsset> = diagrams
             .iter()
@@ -154,13 +157,19 @@ impl<'a> PrintDocument<'a> {
             .filter_map(|asset| Some((asset.resource_id.as_deref()?, asset)))
             .collect();
 
-        build_summary(report, &mut blocks);
-        build_overviews(diagrams, &mut blocks);
-        build_findings(report, &mut blocks);
-        build_governance(report, &mut blocks);
-        build_type_index(report, &mut blocks);
-        build_estate(report, &group_diagrams, &resource_diagrams, &mut blocks);
-        build_evidence(report, &mut blocks);
+        build_summary(report, labels, &mut blocks);
+        build_overviews(diagrams, labels, &mut blocks);
+        build_findings(report, labels, &mut blocks);
+        build_governance(report, labels, &mut blocks);
+        build_type_index(report, labels, &mut blocks);
+        build_estate(
+            report,
+            labels,
+            &group_diagrams,
+            &resource_diagrams,
+            &mut blocks,
+        );
+        build_evidence(report, labels, &mut blocks);
 
         Self {
             cover: Cover {
@@ -188,69 +197,104 @@ impl<'a> PrintDocument<'a> {
     }
 }
 
-fn build_summary<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) {
-    major_chapter(blocks, "Executive Summary", false);
+fn build_summary<'a>(report: &'a ReportContext, labels: &'a Labels, blocks: &mut Vec<Block<'a>>) {
+    let summary = &labels.report.summary;
+    let columns = &labels.common.columns;
+    major_chapter(blocks, summary.chapter.as_str(), false);
     blocks.push(Block::Statistics {
         items: vec![
-            statistic(report.totals.subscriptions.to_string(), "Subscriptions"),
-            statistic(report.totals.resource_groups.to_string(), "Resource groups"),
-            statistic(report.totals.resources.to_string(), "Resources"),
-            statistic(report.totals.findings.to_string(), "Findings"),
-            statistic(format!("{}%", report.tag_coverage.percent), "Tag coverage"),
+            statistic(
+                report.totals.subscriptions.to_string(),
+                &columns.subscriptions,
+            ),
+            statistic(
+                report.totals.resource_groups.to_string(),
+                &columns.resource_groups,
+            ),
+            statistic(report.totals.resources.to_string(), &columns.resources),
+            statistic(report.totals.findings.to_string(), &columns.findings),
+            statistic(
+                format!("{}%", report.tag_coverage.percent),
+                &columns.tag_coverage,
+            ),
         ],
     });
 
+    let comparison = if report.tag_coverage.is_healthy() {
+        &summary.coverage_at_or_above
+    } else {
+        &summary.coverage_below
+    };
     blocks.push(Block::Paragraph {
         style: ParagraphStyle::Body,
-        runs: vec![
-            normal("This snapshot covers "),
-            strong(report.totals.resources.to_string()),
-            normal(" resources across "),
-            strong(report.totals.resource_groups.to_string()),
-            normal(" resource groups in "),
-            strong(report.totals.subscriptions.to_string()),
-            normal(" subscriptions. It records "),
-            strong(report.totals.findings.to_string()),
-            normal(" findings, including "),
-            severity_run(report.severity_counts.high.to_string(), "high"),
-            normal(" high and "),
-            severity_run(report.severity_counts.medium.to_string(), "medium"),
-            normal(" medium priority items. "),
-            strong(report.tag_coverage.tagged.to_string()),
-            normal(" resources are tagged and "),
-            strong(report.tag_coverage.untagged.to_string()),
-            normal(" are untagged, giving "),
-            strong(format!("{}%", report.tag_coverage.percent)),
-            normal(if report.tag_coverage.is_healthy() {
-                " tag coverage, at or above the "
-            } else {
-                " tag coverage, below the "
-            }),
-            strong(format!("{HEALTHY_TAG_COVERAGE_PERCENT}%")),
-            normal(" this report treats as healthy."),
-        ],
+        runs: runs_from_template(
+            &summary.sentence,
+            vec![
+                ("resources", strong(report.totals.resources.to_string())),
+                (
+                    "resource_groups",
+                    strong(report.totals.resource_groups.to_string()),
+                ),
+                (
+                    "subscriptions",
+                    strong(report.totals.subscriptions.to_string()),
+                ),
+                ("findings", strong(report.totals.findings.to_string())),
+                (
+                    "high",
+                    severity_run(report.severity_counts.high.to_string(), "high"),
+                ),
+                (
+                    "medium",
+                    severity_run(report.severity_counts.medium.to_string(), "medium"),
+                ),
+                ("tagged", strong(report.tag_coverage.tagged.to_string())),
+                ("untagged", strong(report.tag_coverage.untagged.to_string())),
+                (
+                    "percent",
+                    strong(format!("{}%", report.tag_coverage.percent)),
+                ),
+                ("comparison", normal(comparison.as_str())),
+                (
+                    "threshold",
+                    strong(format!("{HEALTHY_TAG_COVERAGE_PERCENT}%")),
+                ),
+            ],
+        ),
     });
 
     if !report.type_counts.is_empty() {
-        heading(blocks, 2, "Largest resource types", None);
+        heading(blocks, 2, summary.largest_types.as_str(), None);
         blocks.push(Block::Facts {
             items: report
                 .type_counts
                 .iter()
                 .take(8)
-                .map(|item| fact(item.display.as_str(), resource_count(item.count), false))
+                .map(|item| {
+                    fact(
+                        item.display.as_str(),
+                        resource_count(labels, item.count),
+                        false,
+                    )
+                })
                 .collect(),
         });
     }
 
     if !report.location_counts.is_empty() {
-        heading(blocks, 2, "Geographic footprint", None);
+        heading(blocks, 2, summary.geographic_footprint.as_str(), None);
         blocks.push(Block::Facts {
             items: report
                 .location_counts
                 .iter()
                 .take(6)
-                .map(|item| fact(item.display.as_str(), resource_count(item.count), false))
+                .map(|item| {
+                    fact(
+                        item.display.as_str(),
+                        resource_count(labels, item.count),
+                        false,
+                    )
+                })
                 .collect(),
         });
     }
@@ -267,49 +311,58 @@ fn build_summary<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) {
             .then(left.title.cmp(&right.title))
     });
     if !priority.is_empty() {
-        heading(blocks, 2, "Priority findings", None);
+        heading(blocks, 2, summary.priority_findings.as_str(), None);
         for finding in priority.into_iter().take(5) {
             blocks.push(finding_callout(finding));
         }
     }
 }
 
-fn build_findings<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) {
-    major_chapter(blocks, "Findings", true);
+fn build_findings<'a>(report: &'a ReportContext, labels: &'a Labels, blocks: &mut Vec<Block<'a>>) {
+    let findings = &labels.report.findings;
+    let severity = &labels.common.severity;
+    major_chapter(blocks, findings.chapter.as_str(), true);
     if report.findings.is_empty() {
-        empty(blocks, "No findings.");
+        empty(blocks, &findings.empty);
         return;
     }
     blocks.push(Block::Statistics {
         items: vec![
-            statistic(report.severity_counts.high.to_string(), "High"),
-            statistic(report.severity_counts.medium.to_string(), "Medium"),
-            statistic(report.severity_counts.low.to_string(), "Low"),
-            statistic(report.severity_counts.info.to_string(), "Info"),
+            statistic(
+                report.severity_counts.high.to_string(),
+                &severity.high.label,
+            ),
+            statistic(
+                report.severity_counts.medium.to_string(),
+                &severity.medium.label,
+            ),
+            statistic(report.severity_counts.low.to_string(), &severity.low.label),
+            statistic(
+                report.severity_counts.info.to_string(),
+                &severity.info.label,
+            ),
         ],
     });
     blocks.push(Block::Paragraph {
         style: ParagraphStyle::Body,
-        runs: vec![normal(
-            "Findings are grouped by priority so the most consequential work can be reviewed first. The evidence appendix retains the underlying query output.",
-        )],
+        runs: vec![normal(findings.intro.as_str())],
     });
 
-    for (severity, title) in [
-        ("high", "High priority"),
-        ("medium", "Medium priority"),
-        ("low", "Low priority"),
-        ("info", "Informational"),
+    for (key, title) in [
+        ("high", &severity.high.heading),
+        ("medium", &severity.medium.heading),
+        ("low", &severity.low.heading),
+        ("info", &severity.info.heading),
     ] {
         let findings: Vec<_> = report
             .findings
             .iter()
-            .filter(|finding| finding.severity == severity)
+            .filter(|finding| finding.severity == key)
             .collect();
         if findings.is_empty() {
             continue;
         }
-        heading(blocks, 2, title, None);
+        heading(blocks, 2, title.as_str(), None);
         for finding in findings {
             blocks.push(finding_callout(finding));
         }
@@ -319,28 +372,37 @@ fn build_findings<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) {
 /// Tag governance: coverage, where it comes from, and who is worst at the
 /// required tags. Same analysis the explorer draws, so a reader comparing the
 /// two sees the same groups called out.
-fn build_governance<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) {
+fn build_governance<'a>(
+    report: &'a ReportContext,
+    labels: &'a Labels,
+    blocks: &mut Vec<Block<'a>>,
+) {
     let governance = &report.governance;
-    major_chapter(blocks, "Governance", true);
+    let words = &labels.common.governance;
+    let columns = &labels.common.columns;
+    let verdict = &labels.common.verdict;
+    major_chapter(blocks, labels.report.governance.chapter.as_str(), true);
     blocks.push(Block::Statistics {
         items: vec![
-            statistic(format!("{}%", report.tag_coverage.percent), "Tag coverage"),
-            statistic(governance.distinct_keys.to_string(), "Distinct keys"),
-            statistic(governance.non_compliant.to_string(), "Non-compliant"),
+            statistic(
+                format!("{}%", report.tag_coverage.percent),
+                &columns.tag_coverage,
+            ),
+            statistic(governance.distinct_keys.to_string(), &columns.distinct_keys),
+            statistic(governance.non_compliant.to_string(), &columns.non_compliant),
         ],
     });
 
     if governance.top_keys.is_empty() {
-        empty(blocks, "No tags are stored in this snapshot.");
+        empty(blocks, &words.no_tags);
     } else {
-        heading(blocks, 2, "Coverage by tag key", None);
+        heading(blocks, 2, words.coverage_by_key.as_str(), None);
         blocks.push(Block::Paragraph {
             style: ParagraphStyle::Muted,
-            runs: vec![
-                normal("Share of the "),
-                strong(report.tag_coverage.tagged.to_string()),
-                normal(" tagged resources carrying each key."),
-            ],
+            runs: runs_from_template(
+                &words.key_share,
+                vec![("tagged", strong(report.tag_coverage.tagged.to_string()))],
+            ),
         });
         blocks.push(Block::Facts {
             items: governance
@@ -361,12 +423,10 @@ fn build_governance<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) 
     }
 
     if !governance.subscriptions.is_empty() {
-        heading(blocks, 2, "Coverage by subscription", None);
+        heading(blocks, 2, words.coverage_by_subscription.as_str(), None);
         blocks.push(Block::Paragraph {
             style: ParagraphStyle::Muted,
-            runs: vec![normal(
-                "Any tag counts here; the required-tag sweep is stricter.",
-            )],
+            runs: vec![normal(words.subscription_note.as_str())],
         });
         blocks.push(Block::Facts {
             items: governance
@@ -379,9 +439,9 @@ fn build_governance<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) 
                             "{}% ({})",
                             subscription.percent,
                             if subscription.healthy {
-                                "healthy"
+                                &verdict.healthy
                             } else {
-                                "below threshold"
+                                &verdict.below_threshold
                             }
                         ),
                         false,
@@ -395,37 +455,38 @@ fn build_governance<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) 
         return;
     }
 
-    heading(blocks, 2, "Least compliant resource groups", None);
+    heading(blocks, 2, words.least_compliant.as_str(), None);
     blocks.push(Block::Paragraph {
         style: ParagraphStyle::Body,
-        runs: vec![
-            strong(governance.non_compliant.to_string()),
-            normal(" resources are missing at least one required tag, recorded by the "),
-            mono("missing_required_tags"),
-            normal(" audit."),
-        ],
+        runs: runs_from_template(
+            &words.non_compliant_sentence,
+            vec![
+                ("count", strong(governance.non_compliant.to_string())),
+                ("audit", mono(super::governance::TAG_AUDIT)),
+            ],
+        ),
     });
     blocks.push(Block::Table {
         style: TableKind::Data,
         columns: vec![
             TableColumn {
-                label: Cow::Borrowed("Resource group"),
+                label: Cow::Borrowed(&columns.resource_group),
                 mono: false,
             },
             TableColumn {
-                label: Cow::Borrowed("Subscription"),
+                label: Cow::Borrowed(&columns.subscription),
                 mono: false,
             },
             TableColumn {
-                label: Cow::Borrowed("Resources"),
+                label: Cow::Borrowed(&columns.resources),
                 mono: false,
             },
             TableColumn {
-                label: Cow::Borrowed("Non-compliant"),
+                label: Cow::Borrowed(&columns.non_compliant),
                 mono: false,
             },
             TableColumn {
-                label: Cow::Borrowed("Missed tags"),
+                label: Cow::Borrowed(&columns.missed_tags),
                 mono: true,
             },
         ],
@@ -453,28 +514,29 @@ fn build_governance<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) 
     if !flagged.is_empty() {
         blocks.push(Block::Paragraph {
             style: ParagraphStyle::Muted,
-            runs: vec![
-                normal(format!(
-                    "Past the {}% share this report calls out: ",
-                    (FLAGGED_NON_COMPLIANT_SHARE * 100.0) as u32
-                )),
-                strong(flagged.join(", ")),
-                normal("."),
-            ],
+            runs: runs_from_template(
+                &labels.report.governance.flagged_note,
+                vec![
+                    (
+                        "share",
+                        normal(((FLAGGED_NON_COMPLIANT_SHARE * 100.0) as u32).to_string()),
+                    ),
+                    ("groups", strong(flagged.join(", "))),
+                ],
+            ),
         });
     }
 }
 
-fn build_evidence<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) {
+fn build_evidence<'a>(report: &'a ReportContext, labels: &'a Labels, blocks: &mut Vec<Block<'a>>) {
     if report.categories.is_empty() {
         return;
     }
-    major_chapter(blocks, "Evidence appendix", true);
+    let evidence = &labels.report.evidence;
+    major_chapter(blocks, evidence.chapter.as_str(), true);
     blocks.push(Block::Paragraph {
         style: ParagraphStyle::Body,
-        runs: vec![normal(
-            "The following sections preserve the collected inventory evidence. Compact results are presented as facts; larger result sets remain tables for comparison and audit use.",
-        )],
+        runs: vec![normal(evidence.intro.as_str())],
     });
     for category in &report.categories {
         heading(blocks, 2, capitalise(&category.name), None);
@@ -507,7 +569,7 @@ fn build_evidence<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) {
                 })
                 .collect();
             if table_columns.is_empty() || query.rows.is_empty() {
-                empty(blocks, "No results.");
+                empty(blocks, &evidence.no_results);
             } else if query.rows.len() == 1 && table_columns.len() <= 6 {
                 let row = &query.rows[0];
                 blocks.push(Block::Facts {
@@ -534,13 +596,16 @@ fn build_evidence<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) {
     }
 }
 
-fn build_type_index<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) {
-    major_chapter(blocks, "Resources by type", true);
+fn build_type_index<'a>(
+    report: &'a ReportContext,
+    labels: &'a Labels,
+    blocks: &mut Vec<Block<'a>>,
+) {
+    let index = &labels.report.type_index;
+    major_chapter(blocks, index.chapter.as_str(), true);
     blocks.push(Block::Paragraph {
         style: ParagraphStyle::Body,
-        runs: vec![normal(
-            "This index keeps a compliance sweep by resource type available before the estate is documented in its Azure hierarchy.",
-        )],
+        runs: vec![normal(index.intro.as_str())],
     });
     for section in &report.resource_types {
         heading(
@@ -566,10 +631,12 @@ fn build_type_index<'a>(report: &'a ReportContext, blocks: &mut Vec<Block<'a>>) 
 
 fn build_estate<'a>(
     report: &'a ReportContext,
+    labels: &'a Labels,
     group_diagrams: &BTreeMap<&str, &'a DiagramAsset>,
     resource_diagrams: &BTreeMap<&str, &'a DiagramAsset>,
     blocks: &mut Vec<Block<'a>>,
 ) {
+    let estate = &labels.report.estate;
     for subscription in &report.subscriptions {
         chapter(blocks, subscription.display_name.as_str(), true);
         let group_prefix = format!("{}/", subscription.subscription_id.to_lowercase());
@@ -585,14 +652,14 @@ fn build_estate<'a>(
             .sum();
         blocks.push(Block::Paragraph {
             style: ParagraphStyle::Body,
-            runs: vec![
-                strong(subscription.resource_count.to_string()),
-                normal(" resources across "),
-                strong(pages.len().to_string()),
-                normal(" resource groups, with "),
-                strong(subscription_findings.to_string()),
-                normal(" findings recorded in this snapshot."),
-            ],
+            runs: runs_from_template(
+                &estate.subscription_sentence,
+                vec![
+                    ("resources", strong(subscription.resource_count.to_string())),
+                    ("groups", strong(pages.len().to_string())),
+                    ("findings", strong(subscription_findings.to_string())),
+                ],
+            ),
         });
         blocks.push(Block::Paragraph {
             style: ParagraphStyle::Muted,
@@ -611,19 +678,22 @@ fn build_estate<'a>(
                 .iter()
                 .map(|detail| detail.findings.len())
                 .sum();
-            let mut runs = vec![
-                strong(page.resources.len().to_string()),
-                normal(" resources across "),
-                strong(types.len().to_string()),
-                normal(" resource types"),
-            ];
+            let mut runs = runs_from_template(
+                &estate.group_summary,
+                vec![
+                    ("resources", strong(page.resources.len().to_string())),
+                    ("types", strong(types.len().to_string())),
+                ],
+            );
             if let Some(location) = &page.location {
                 runs.push(normal(" · "));
                 runs.push(normal(location.as_str()));
             }
             runs.push(normal(" · "));
-            runs.push(strong(group_findings.to_string()));
-            runs.push(normal(" findings"));
+            runs.extend(runs_from_template(
+                &estate.group_findings,
+                vec![("findings", strong(group_findings.to_string()))],
+            ));
             blocks.push(Block::Paragraph {
                 style: ParagraphStyle::Muted,
                 runs,
@@ -646,9 +716,9 @@ fn build_estate<'a>(
                     context.push(normal(location.as_str()));
                 }
                 context.push(normal(" · "));
-                context.push(normal(relationship_count(detail.related.len())));
+                context.push(normal(relationship_count(labels, detail.related.len())));
                 context.push(normal(" · "));
-                context.push(normal(finding_count(detail.findings.len())));
+                context.push(normal(finding_count(labels, detail.findings.len())));
                 blocks.push(Block::Paragraph {
                     style: ParagraphStyle::Muted,
                     runs: context,
@@ -660,16 +730,16 @@ fn build_estate<'a>(
 
                 let normalized_id = detail.arm_id.to_lowercase();
                 if let Some(asset) = resource_diagrams.get(normalized_id.as_str()) {
-                    sub_label(blocks, "Relationships");
+                    sub_label(blocks, &estate.relationships);
                     blocks.push(Block::Diagram {
                         slug: Cow::Borrowed(asset.slug.as_str()),
                         caption: None,
                     });
                 }
 
-                sub_label(blocks, "Settings");
+                sub_label(blocks, &estate.settings);
                 if detail.settings.is_empty() {
-                    empty(blocks, "No settings recorded.");
+                    empty(blocks, &estate.no_settings);
                 } else {
                     blocks.push(Block::Facts {
                         items: detail
@@ -683,7 +753,7 @@ fn build_estate<'a>(
                 }
 
                 if !detail.findings.is_empty() {
-                    sub_label(blocks, "Findings");
+                    sub_label(blocks, &estate.findings);
                     for callout in &detail.findings {
                         blocks.push(Block::Callout {
                             severity: Cow::Borrowed(callout.severity.as_str()),
@@ -693,7 +763,7 @@ fn build_estate<'a>(
                     }
                 }
                 if !detail.related.is_empty() {
-                    sub_label(blocks, "Related resources");
+                    sub_label(blocks, &estate.related);
                     blocks.push(Block::Paragraph {
                         style: ParagraphStyle::Body,
                         runs: vec![normal(detail.related.join(" · "))],
@@ -704,7 +774,11 @@ fn build_estate<'a>(
     }
 }
 
-fn build_overviews<'a>(diagrams: &'a [DiagramAsset], blocks: &mut Vec<Block<'a>>) {
+fn build_overviews<'a>(
+    diagrams: &'a [DiagramAsset],
+    labels: &'a Labels,
+    blocks: &mut Vec<Block<'a>>,
+) {
     let overviews: Vec<&DiagramAsset> = diagrams
         .iter()
         .filter(|asset| {
@@ -717,12 +791,11 @@ fn build_overviews<'a>(diagrams: &'a [DiagramAsset], blocks: &mut Vec<Block<'a>>
     if overviews.is_empty() {
         return;
     }
-    major_chapter(blocks, "Estate overview", true);
+    let overview = &labels.report.overview;
+    major_chapter(blocks, overview.chapter.as_str(), true);
     blocks.push(Block::Paragraph {
         style: ParagraphStyle::Body,
-        runs: vec![normal(
-            "These overview diagrams orient the detailed subscription and resource-group sections that follow. Resource-group diagrams remain with their own sections.",
-        )],
+        runs: vec![normal(overview.intro.as_str())],
     });
     for asset in overviews {
         blocks.push(Block::Diagram {
@@ -730,6 +803,40 @@ fn build_overviews<'a>(diagrams: &'a [DiagramAsset], blocks: &mut Vec<Block<'a>>
             caption: Some(Cow::Borrowed(asset.title.as_str())),
         });
     }
+}
+
+/// Text between placeholders becomes Normal runs borrowed from the template;
+/// each placeholder is replaced by the run registered under its name. A
+/// placeholder nobody registered is emitted literally — the same visible,
+/// deterministic rule as `labels::fill` — and trips a debug assertion.
+fn runs_from_template<'a>(
+    template: &'a str,
+    slots: Vec<(&'static str, TextRun<'a>)>,
+) -> Vec<TextRun<'a>> {
+    let mut slots: Vec<(&str, Option<TextRun<'a>>)> = slots
+        .into_iter()
+        .map(|(name, run)| (name, Some(run)))
+        .collect();
+    let mut runs = Vec::new();
+    for segment in segments(template) {
+        match segment {
+            Segment::Text(text) => runs.push(normal(text)),
+            Segment::Placeholder(name) => {
+                let slot = slots
+                    .iter_mut()
+                    .find(|(key, run)| *key == name && run.is_some())
+                    .and_then(|(_, run)| run.take());
+                match slot {
+                    Some(run) => runs.push(run),
+                    None => {
+                        debug_assert!(false, "label placeholder `{{{name}}}` has no run");
+                        runs.push(normal(format!("{{{name}}}")));
+                    }
+                }
+            }
+        }
+    }
+    runs
 }
 
 fn major_chapter<'a>(
@@ -765,13 +872,13 @@ fn heading<'a>(
     });
 }
 
-fn sub_label<'a>(blocks: &mut Vec<Block<'a>>, title: &'static str) {
+fn sub_label<'a>(blocks: &mut Vec<Block<'a>>, title: &'a str) {
     blocks.push(Block::SubLabel {
         title: Cow::Borrowed(title),
     });
 }
 
-fn empty<'a>(blocks: &mut Vec<Block<'a>>, text: &'static str) {
+fn empty<'a>(blocks: &mut Vec<Block<'a>>, text: &'a str) {
     blocks.push(Block::EmptyState {
         text: Cow::Borrowed(text),
     });
@@ -811,23 +918,31 @@ fn severity_rank(severity: &str) -> u8 {
     }
 }
 
-fn resource_count(count: usize) -> String {
-    counted(count, "resource", "resources")
+fn resource_count(labels: &Labels, count: usize) -> String {
+    counted(
+        &labels.common.counted,
+        count,
+        &labels.common.plurals.resource,
+    )
 }
 
-fn relationship_count(count: usize) -> String {
-    counted(count, "relationship", "relationships")
+fn relationship_count(labels: &Labels, count: usize) -> String {
+    counted(
+        &labels.common.counted,
+        count,
+        &labels.common.plurals.relationship,
+    )
 }
 
-fn finding_count(count: usize) -> String {
-    counted(count, "finding", "findings")
+fn finding_count(labels: &Labels, count: usize) -> String {
+    counted(
+        &labels.common.counted,
+        count,
+        &labels.common.plurals.finding,
+    )
 }
 
-fn counted(count: usize, singular: &str, plural: &str) -> String {
-    format!("{count} {}", if count == 1 { singular } else { plural })
-}
-
-fn statistic<'a>(value: String, label: &'static str) -> Statistic<'a> {
+fn statistic<'a>(value: String, label: &'a str) -> Statistic<'a> {
     Statistic {
         value: Cow::Owned(value),
         label: Cow::Borrowed(label),
@@ -1180,6 +1295,32 @@ mod tests {
                 ("network", Some("Azure network")),
                 ("group", Some("rg-app")),
                 ("resource", None),
+            ]
+        );
+    }
+
+    #[test]
+    fn unit_runs_from_template_keeps_text_between_placeholders_as_normal_runs() {
+        let runs = runs_from_template(
+            "Covers {n} items, {high} high.",
+            vec![
+                ("n", strong("3".to_owned())),
+                ("high", severity_run("1".to_owned(), "high")),
+            ],
+        );
+
+        let shape: Vec<(&str, TextStyle)> = runs
+            .iter()
+            .map(|run| (run.text.as_ref(), run.style))
+            .collect();
+        assert_eq!(
+            shape,
+            vec![
+                ("Covers ", TextStyle::Normal),
+                ("3", TextStyle::Strong),
+                (" items, ", TextStyle::Normal),
+                ("1", TextStyle::Severity),
+                (" high.", TextStyle::Normal),
             ]
         );
     }

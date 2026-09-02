@@ -307,16 +307,17 @@ fn cover_metadata(ctx: &Ctx, cover: &Cover<'_>, align: AlignmentType, reversed: 
             .color(color.clone())
             .fonts(ctx.mono())
     };
+    let words = &ctx.labels.common.cover;
     Paragraph::new()
         .align(align)
         .line_spacing(LineSpacing::new().before(160))
-        .add_run(label("Tenant "))
+        .add_run(label(&format!("{} ", words.tenant)))
         .add_run(value(&cover.tenant))
-        .add_run(label(" · Snapshot "))
+        .add_run(label(&format!(" · {} ", words.snapshot)))
         .add_run(value(&cover.snapshot))
-        .add_run(label(" · Collected "))
+        .add_run(label(&format!(" · {} ", words.collected)))
         .add_run(label(&cover.collected))
-        .add_run(label(" · Status "))
+        .add_run(label(&format!(" · {} ", words.status)))
         .add_run(label(&cover.status))
 }
 

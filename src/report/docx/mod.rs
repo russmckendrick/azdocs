@@ -45,6 +45,7 @@ pub fn render(
     let (mut docx, usable_twips, usable_height_twips) = style::document(branding);
     let ctx = style::Ctx {
         tokens: &branding.tokens,
+        labels: &branding.labels,
         usable_twips,
         usable_height_twips,
     };
@@ -57,7 +58,7 @@ pub fn render(
     docx = docx.add_table_of_contents(
         TableOfContents::new()
             .heading_styles_range(1, document.toc_depth as usize)
-            .alias("Contents")
+            .alias(&branding.labels.report.toc_title)
             .auto()
             .dirty(),
     );
