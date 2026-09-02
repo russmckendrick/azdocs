@@ -9,6 +9,9 @@
  *   which ts-rs cannot infer. Hand-written, referenced from the Rust structs.
  * - This file — types that exist only in the UI and have no Rust counterpart.
  *
+ * Wording is the one type not declared here: `./labels` infers `Labels` from
+ * `generated-labels.json`, written by the same test as `./generated`.
+ *
  * Import from `./types` everywhere; the split is an implementation detail.
  */
 

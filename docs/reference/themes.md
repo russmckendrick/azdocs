@@ -186,4 +186,4 @@ theme = "acme"
 On macOS the config directory is
 `~/Library/Application Support/azdocs/`; on Windows `%APPDATA%\azdocs\`.
 
-Next: [Queries](queries.md)
+Next: [Labels](labels.md)

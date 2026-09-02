@@ -150,7 +150,9 @@ The **Exports** workspace uses a native directory picker; the selected path is
 sent to Rust only for the duration of the export. The webview receives progress
 and a sorted manifest of completed files, but it never receives general file
 system access. Existing configuration still supplies report branding, custom
-themes, logos, and fonts.
+themes, logos, fonts and labels. The app's own wording comes from the same
+`[branding] labels` set, resolved once at startup — see
+[reference/labels.md](../reference/labels.md).
 
 Reports compose shared diagram assets once even when several formats are
 selected. Per-VNet and per-resource-group diagrams fan out beneath the chosen

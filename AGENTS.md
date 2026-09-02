@@ -112,11 +112,33 @@ anywhere on a theme's name.** User overrides live in
 
 - `report/theme/mod.rs` parses and resolves; `theme/color.rs` holds the colour
   maths and the `lighten/darken/mix/readable_on` expression language.
+- `docs/reference/labels.md` documents the sibling pattern for wording.
 - Anything drawn on top of a brand colour must go through `readable_on`, or a
   pale `primary_color` produces white-on-white.
 - The PDF's type is vendored (`data/fonts`, IBM Plex, OFL). DOCX cannot embed
   fonts, so themes carry separate `docx_sans`/`docx_mono` names that Word can
   resolve locally — do not point those at the vendored family.
+
+## Labels are data
+
+The third instance of the pattern, for wording. `data/labels/en.toml` holds
+every user-facing string — report headings and columns, diagram legends, CLI
+progress lines, TUI labels, the desktop's copy — typed by `src/labels/schema.rs`
+(`deny_unknown_fields`, no defaults). `[branding] labels` names the set; a
+partial `<config dir>/azdocs/labels/<name>.toml` is deep-merged over the
+built-in. **No user-facing literal in Rust, the templates or the desktop TSX**;
+name a key. `{snake_case}` placeholders are filled by `labels::fill` (Rust) and
+`fill` in `desktop/src/format.ts`; plurals are `{ one, other }` tables. Exempt:
+clap `///` help, thiserror messages, `[branding] title`/`footer`.
+
+- `BrandingContext.labels` reaches every report emitter; diagram builders,
+  the TUI and commands take it explicitly. No global.
+- The desktop ships `common` + `desktop` on `AppBootstrap` and types itself
+  from `desktop/src/generated-labels.json`, **generated** by
+  `cargo test -p azdocs-desktop` alongside `generated.ts` (CI checks both).
+  `desktop.topology.edge_kinds` must name every `EdgeKind`.
+- The built-in wording must reproduce today's output byte for byte: a wording
+  change is a golden change, reviewed through the snapshots.
 
 ## Report structure
 
@@ -175,6 +197,8 @@ Three layers, and it matters which one a type belongs in:
   Hand-written, and pointed at from the struct with `#[ts(type = "...")]`.
 - `types.ts` — UI-only types with no Rust counterpart. Re-exports the other two;
   everything imports from `./types`.
+- `labels.ts` — `Labels`, inferred from `generated-labels.json` (also written by
+  the bindings test). Wording only; never a wire shape.
 
 Two traps this replaced, both of which had shipped:
 

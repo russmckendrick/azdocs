@@ -56,6 +56,7 @@ flowchart LR
 | `src/auth/` | `TokenProvider` trait + OAuth2 client-credentials flow, cached single-flight refresh |
 | `src/arg/` | ARG client: `$skipToken` pagination, 429 backoff, quota-header pacing |
 | `src/querypack/` | `QueryDef` TOML model; built-ins embedded, user `queries.d/` merged by name |
+| `src/labels/` | Every user-facing string, typed from `data/labels/en.toml`; user files deep-merged by name |
 | `src/store/` | All SQL. Versioned migrations, snapshot-scoped tables, cascade delete |
 | `src/model/` | Plain data types + `azure_types.rs` display names |
 | `src/collect/` | Runner, `ingest.rs`, `extractors.rs`, `audit.rs` |
@@ -89,7 +90,8 @@ The `TokenProvider` trait (static dispatch) keeps it swappable and testable.
 **Queries are data, not code.** A new audit check is a TOML file. Routing in
 `collect/ingest.rs`: the three core inventory queries fill typed tables, other
 inventory rows land in `query_results` for report tables, finding rows become
-`findings`.
+`findings`. Display names, themes and labels follow the same rule: embedded
+TOML, user overrides from the config dir, no branch on a name in Rust.
 
 **One graph, many emitters.** Diagram builders produce a single `EstateGraph`
 (typed nodes with parent containment + styled edges); the Mermaid and draw.io
