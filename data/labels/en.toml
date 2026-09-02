@@ -1,0 +1,365 @@
+# Labels are data: every user-facing string azdocs prints, draws or exports.
+#
+# Placeholders are {snake_case} and are filled by the code that owns the
+# string; plurals are `{ one = "...", other = "..." }` tables. A string that
+# starts or ends with a space keeps it — some of these are fragments joined
+# around a value. Section names mirror the surface that reads them.
+#
+# User overrides: drop a partial file at <config dir>/azdocs/labels/en.toml
+# (or <name>.toml, selected with `[branding] labels = "<name>"`); its keys are
+# deep-merged over these built-ins. Unknown keys are an error.
+
+[common]
+subscription_scope = "Subscription scope"
+counted = "{count} {noun}"
+
+[common.plurals]
+resource = { one = "resource", other = "resources" }
+finding = { one = "finding", other = "findings" }
+relationship = { one = "relationship", other = "relationships" }
+
+[common.severity.high]
+name = "high"
+label = "High"
+heading = "High priority"
+
+[common.severity.medium]
+name = "medium"
+label = "Medium"
+heading = "Medium priority"
+
+[common.severity.low]
+name = "low"
+label = "Low"
+heading = "Low priority"
+
+[common.severity.info]
+name = "info"
+label = "Info"
+heading = "Informational"
+
+[common.cover]
+tenant = "Tenant"
+snapshot = "Snapshot"
+collected = "Collected"
+status = "Status"
+notes = "Notes"
+
+[common.verdict]
+healthy = "healthy"
+below_threshold = "below threshold"
+called_out = "called out"
+none = "—"
+
+[common.columns]
+resource_group = "Resource group"
+subscription = "Subscription"
+subscriptions = "Subscriptions"
+resource_groups = "Resource groups"
+resources = "Resources"
+findings = "Findings"
+non_compliant = "Non-compliant"
+missed_tags = "Missed tags"
+tag_key = "Tag key"
+tag_coverage = "Tag coverage"
+distinct_keys = "Distinct keys"
+share = "Share"
+coverage = "Coverage"
+status = "Status"
+severity = "Severity"
+title = "Title"
+category = "Category"
+check = "Check"
+resource = "Resource"
+name = "Name"
+type = "Type"
+azure_type = "Azure type"
+kind = "Kind"
+location = "Location"
+tags = "Tags"
+count = "Count"
+metric = "Metric"
+setting = "Setting"
+value = "Value"
+
+[common.governance]
+coverage_by_key = "Coverage by tag key"
+coverage_by_subscription = "Coverage by subscription"
+least_compliant = "Least compliant resource groups"
+no_tags = "No tags are stored in this snapshot."
+subscription_note = "Any tag counts here; the required-tag sweep is stricter."
+key_share = "Share of the {tagged} tagged resources carrying each key."
+non_compliant_sentence = "{count} resources are missing at least one required tag, recorded by the {audit} audit."
+
+[report]
+toc_title = "Contents"
+
+[report.summary]
+chapter = "Executive Summary"
+sentence = "This snapshot covers {resources} resources across {resource_groups} resource groups in {subscriptions} subscriptions. It records {findings} findings, including {high} high and {medium} medium priority items. {tagged} resources are tagged and {untagged} are untagged, giving {percent} tag coverage, {comparison} {threshold} this report treats as healthy."
+coverage_at_or_above = "at or above the"
+coverage_below = "below the"
+largest_types = "Largest resource types"
+geographic_footprint = "Geographic footprint"
+priority_findings = "Priority findings"
+
+[report.findings]
+chapter = "Findings"
+empty = "No findings."
+intro = "Findings are grouped by priority so the most consequential work can be reviewed first. The evidence appendix retains the underlying query output."
+
+[report.governance]
+chapter = "Governance"
+flagged_note = "Past the {share}% share this report calls out: {groups}."
+
+[report.overview]
+chapter = "Estate overview"
+intro = "These overview diagrams orient the detailed subscription and resource-group sections that follow. Resource-group diagrams remain with their own sections."
+
+[report.type_index]
+chapter = "Resources by type"
+intro = "This index keeps a compliance sweep by resource type available before the estate is documented in its Azure hierarchy."
+
+[report.estate]
+subscription_sentence = "{resources} resources across {groups} resource groups, with {findings} findings recorded in this snapshot."
+group_summary = "{resources} resources across {types} resource types"
+group_findings = "{findings} findings"
+relationships = "Relationships"
+settings = "Settings"
+no_settings = "No settings recorded."
+findings = "Findings"
+related = "Related resources"
+
+[report.evidence]
+chapter = "Evidence appendix"
+intro = "The following sections preserve the collected inventory evidence. Compact results are presented as facts; larger result sets remain tables for comparison and audit use."
+no_results = "No results."
+
+[report.pdf]
+page_counter = "1 / 1"
+
+[report.markdown]
+title = "Azure Estate Report"
+back_to_index = "← index"
+summary = "Summary"
+findings_by_severity = "Findings by severity"
+see = "see"
+tag_coverage_line = "{percent}% ({tagged} tagged, {untagged} untagged)"
+key_share = "share of the {tagged} tagged resources carrying each key."
+subscription_note = "any tag counts here; the required-tag sweep is stricter."
+resources_by_type = "Resources by type"
+resources_by_location = "Resources by location"
+sections = "Sections"
+subscription_link = "subscription: {name}"
+subscription_title = "Subscription: {name}"
+id = "Id"
+state = "State"
+resource_details = "Resource details →"
+related = "Related"
+no_rows = "_No rows._"
+no_resources = "_No resources._"
+
+[report.html]
+collected = "collected"
+tenant = "tenant"
+status = "status"
+subscriptions = "subscriptions"
+resource_groups = "resource groups"
+resources = "resources"
+findings = "findings"
+tag_coverage = "tag coverage"
+distinct_keys = "distinct keys"
+non_compliant = "non-compliant"
+filter_placeholder = "Filter findings..."
+no_findings = "No findings. 🎉"
+share_of_tagged = "Share of {tagged} tagged"
+subscriptions_heading = "Subscriptions"
+diagrams = "Diagrams"
+
+[report.xlsx]
+sheet_summary = "Summary"
+sheet_inventory = "Inventory"
+sheet_findings = "Findings"
+sheet_governance = "Governance"
+queries_sheet = "{category} queries"
+high_findings = "High findings"
+medium_findings = "Medium findings"
+low_findings = "Low findings"
+info_findings = "Info findings"
+tag_coverage_percent = "Tag coverage %"
+share_of_tagged_percent = "Share of tagged %"
+
+[report.xlsx.inventory_columns]
+name = "name"
+type = "type"
+kind = "kind"
+location = "location"
+resource_group = "resource group"
+subscription = "subscription"
+tags = "tags"
+id = "id"
+
+[report.xlsx.findings_columns]
+severity = "severity"
+category = "category"
+check = "check"
+title = "title"
+resource = "resource"
+
+[report.csv.inventory_columns]
+id = "id"
+name = "name"
+type = "type"
+kind = "kind"
+location = "location"
+resource_group = "resource_group"
+subscription_id = "subscription_id"
+tags = "tags"
+
+[report.csv.findings_columns]
+severity = "severity"
+category = "category"
+check = "check"
+title = "title"
+resource_id = "resource_id"
+
+[diagram]
+hierarchy_title = "Azure estate — tenant {tenant}"
+tenant_node = "Tenant {tenant}"
+resource_count = "{count} resources"
+aggregate = "×{count}"
+other_resources = "Other resources"
+other_resources_sub = "{types} types · ×{count}"
+resources_title = "Azure resources"
+network_title = "Azure network topology"
+connected_services = "Connected services"
+connected_services_sub = "NSGs & private-link targets"
+vnet_sheet = "VNet - {name}"
+resource_group_sheet = "Resource Group - {name} · {subscription}"
+resource_group_sheet_bare = "Resource Group - {name}"
+not_in_vnet = "Not in a virtual network  ·  {count} resources"
+nested_suffix = "  ·  {count} nested"
+peerings_title = "VNet peerings"
+not_peered = "Not peered  ·  {count} virtual networks"
+peered = "peered"
+remote_vnet = "remote vnet"
+
+[diagram.legend]
+vnet = "Virtual network"
+subnet = "Subnet"
+zone = "Outside the topology"
+aggregate = "aggregated resources of one type"
+watermark = "Microsoft Azure"
+
+[diagram.workbook]
+network_topology = "Network Topology"
+vnet_peerings = "VNet Peerings"
+
+[cli.check]
+config_ok = "Config OK (tenant {tenant})"
+token_ok = "Token OK, Resource Graph reachable."
+visible_subscriptions = "Visible subscriptions: {count}"
+
+[cli.collect]
+all_subscriptions = "all visible subscriptions"
+some_subscriptions = "{count} subscriptions"
+collecting = "Collecting {queries} queries across {scope} (concurrency {concurrency})..."
+snapshot_written = "Snapshot {id} — {status} ({queries} queries, {failed} failed, {rows} rows)"
+partial_hint = "Some queries failed; see `azdocs snapshots show {id}`"
+
+[cli.diagram]
+large_warning = "Warning: {name}: {count} nodes — large diagrams get unreadable; consider --subscription or --resource-group scoping."
+written = "{name} diagram -> {path}"
+sheet_written = "{name} -> {path}"
+nothing_to_write = "No {kind} diagrams to write for this snapshot."
+skipping_mermaid = "note: skipping Mermaid — the workbook is draw.io-only"
+workbook_written = "workbook ({count} sheets) -> {path}"
+
+[cli.init]
+tenant_prompt = "Tenant ID"
+client_prompt = "Client (app) ID"
+secret_prompt = "Client secret (leave empty to supply via AZDOCS_CLIENT_SECRET)"
+wrote = "Wrote {path}"
+plaintext_note = "Note: the client secret is stored in plaintext. For CI or shared machines, remove it from the file and set {env} instead."
+next_step = "Next: run `azdocs check` to verify connectivity."
+
+[cli.query]
+rows_summary = "{rows} rows ({pages} pages)"
+user_queries_dir = "User queries dir: {path}"
+no_rows = "(no rows)"
+
+[cli.query.columns]
+name = "name"
+category = "category"
+kind = "kind"
+severity = "severity"
+description = "description"
+
+[cli.report]
+markdown_written = "Markdown docs -> {path}"
+html_written = "HTML report -> {path}"
+site_written = "HTML docs -> {path}"
+csv_written = "CSV -> {inventory} + {findings}"
+xlsx_written = "XLSX workbook -> {path}"
+pdf_written = "PDF report -> {path}"
+docx_written = "DOCX report -> {path}"
+
+[cli.snapshots]
+none_yet = "No snapshots yet — run `azdocs collect` first."
+snapshot = "Snapshot   {value}"
+created = "Created    {value}"
+tenant = "Tenant     {value}"
+status = "Status     {value}"
+tool = "Tool       azdocs {value}"
+notes = "Notes      {value}"
+comparing = "Comparing {a} -> {b}\n  added: {added}\n  removed: {removed}\n  changed: {changed}"
+nothing_to_prune = "Nothing to prune."
+deleted = "Deleted {count} snapshot(s)."
+
+[cli.snapshots.columns]
+id = "id"
+created = "created (UTC)"
+status = "status"
+subscriptions = "subs"
+resources = "resources"
+findings = "findings"
+
+[cli.snapshots.run_columns]
+query = "query"
+category = "category"
+rows = "rows"
+ms = "ms"
+error = "error"
+
+[tui.panes]
+snapshots = "Snapshots"
+estate = "Estate"
+resources = "Resources ({count})"
+detail = "Detail"
+findings = "Findings ({count})"
+
+[tui.keys]
+snapshots = "↑↓ select · Enter open · q quit"
+estate = "Tab pane · ↑↓ move · Enter drill in · / filter · f findings · s snapshots · q quit"
+filtering = "filter: {filter}▌ (Enter keep · Esc clear)"
+filtered = "filter: {filter} · / re-filter · Tab pane · f findings · q quit"
+findings = "↑↓ select · Enter jump to resource · Esc back · q quit"
+
+[tui.fields]
+name = "name"
+type = "type"
+kind = "kind"
+location = "location"
+subscription = "sub"
+id = "id"
+tags = "tags"
+related = "related"
+properties = "properties"
+
+[tui.units]
+subscriptions = "subs"
+resources = "resources"
+findings = "findings"
+
+[tui.messages]
+no_selection = "No resource selected."
