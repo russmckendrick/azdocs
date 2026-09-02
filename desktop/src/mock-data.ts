@@ -11,6 +11,7 @@ import type {
   Severity,
 } from "./types";
 import { buildResourceGroupTopology } from "./components/topology-model";
+import { DEFAULT_LABELS } from "./labels";
 
 const ids = {
   vnetHub: "/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/virtualnetworks/vnet-hub",
@@ -226,6 +227,7 @@ const resourceTypes: ResourceType[] = Object.entries(
   .sort((a, b) => b.count - a.count || a.displayName.localeCompare(b.displayName));
 
 export const mockBootstrap: AppBootstrap = {
+  labels: DEFAULT_LABELS,
   databasePath: "/Users/demo/Library/Application Support/azdocs/azdocs.db",
   configPath: "/Users/demo/Library/Application Support/azdocs/azdocs.toml",
   configFound: true,

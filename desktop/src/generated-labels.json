@@ -1,0 +1,213 @@
+{
+  "common": {
+    "subscription_scope": "Subscription scope",
+    "counted": "{count} {noun}",
+    "plurals": {
+      "resource": {
+        "one": "resource",
+        "other": "resources"
+      },
+      "finding": {
+        "one": "finding",
+        "other": "findings"
+      },
+      "relationship": {
+        "one": "relationship",
+        "other": "relationships"
+      }
+    },
+    "severity": {
+      "high": {
+        "name": "high",
+        "label": "High",
+        "heading": "High priority"
+      },
+      "medium": {
+        "name": "medium",
+        "label": "Medium",
+        "heading": "Medium priority"
+      },
+      "low": {
+        "name": "low",
+        "label": "Low",
+        "heading": "Low priority"
+      },
+      "info": {
+        "name": "info",
+        "label": "Info",
+        "heading": "Informational"
+      }
+    },
+    "cover": {
+      "tenant": "Tenant",
+      "snapshot": "Snapshot",
+      "collected": "Collected",
+      "status": "Status",
+      "notes": "Notes"
+    },
+    "verdict": {
+      "healthy": "healthy",
+      "below_threshold": "below threshold",
+      "called_out": "called out",
+      "none": "—"
+    },
+    "columns": {
+      "resource_group": "Resource group",
+      "subscription": "Subscription",
+      "subscriptions": "Subscriptions",
+      "resource_groups": "Resource groups",
+      "resources": "Resources",
+      "findings": "Findings",
+      "non_compliant": "Non-compliant",
+      "missed_tags": "Missed tags",
+      "tag_key": "Tag key",
+      "tag_coverage": "Tag coverage",
+      "distinct_keys": "Distinct keys",
+      "share": "Share",
+      "coverage": "Coverage",
+      "status": "Status",
+      "severity": "Severity",
+      "title": "Title",
+      "category": "Category",
+      "check": "Check",
+      "resource": "Resource",
+      "name": "Name",
+      "type": "Type",
+      "azure_type": "Azure type",
+      "kind": "Kind",
+      "location": "Location",
+      "tags": "Tags",
+      "count": "Count",
+      "metric": "Metric",
+      "setting": "Setting",
+      "value": "Value"
+    },
+    "governance": {
+      "coverage_by_key": "Coverage by tag key",
+      "coverage_by_subscription": "Coverage by subscription",
+      "least_compliant": "Least compliant resource groups",
+      "no_tags": "No tags are stored in this snapshot.",
+      "subscription_note": "Any tag counts here; the required-tag sweep is stricter.",
+      "key_share": "Share of the {tagged} tagged resources carrying each key.",
+      "non_compliant_sentence": "{count} resources are missing at least one required tag, recorded by the {audit} audit."
+    }
+  },
+  "desktop": {
+    "app": {
+      "window_title": "azdocs — Azure estate explorer"
+    },
+    "nav": {
+      "overview": "Overview",
+      "estate": "Estate",
+      "topology": "Map",
+      "inventory": "Inventory",
+      "findings": "Findings",
+      "governance": "Governance",
+      "history": "Changes",
+      "exports": "Exports",
+      "settings": "Settings",
+      "previous_view": "previous view",
+      "resource": "resource",
+      "resource_group": "resource group",
+      "neighbourhood": "neighbourhood",
+      "neighbourhood_of": "{name} neighbourhood",
+      "back_to": "Back to {target}"
+    },
+    "shell": {
+      "tagline": "Estate field report",
+      "preview_badge": "Illustrative workspace",
+      "snapshot": "Snapshot",
+      "snapshot_option": "{date} · {count} resources",
+      "snapshot_picker": "Active snapshot",
+      "search_placeholder": "Search resources, types, groups, tags…",
+      "search_aria": "Search the active snapshot",
+      "search_results": "Matching resources",
+      "search_no_matches": "No matching resources in this snapshot.",
+      "shortcut_mac": "⌘ K",
+      "shortcut_other": "Ctrl K",
+      "open_data": "Open data",
+      "collect": "Collect snapshot",
+      "collecting": "Collecting",
+      "collect_hint": "Collect a new snapshot",
+      "configure_credentials": "Configure credentials in {path}",
+      "primary_navigation": "Primary navigation",
+      "preparing_collection": "Preparing read-only collection",
+      "snapshot_stored": "Snapshot stored; rebuilding estate view",
+      "collected": "Collected {rows} rows into a {status} snapshot",
+      "source_note": "Azure Resource Graph · read-only",
+      "dismiss": "Dismiss",
+      "loading_title": "Opening the estate record",
+      "loading_detail": "Reading subscriptions, resources, relationships, and findings from SQLite.",
+      "empty_title": "No stored snapshots yet",
+      "empty_detail": "Open an existing azdocs database or collect a read-only Azure snapshot. Exploration and exports remain offline after collection.",
+      "open_database": "Open database",
+      "collect_first": "Collect first snapshot",
+      "status_aria": "Application status",
+      "status_snapshot": "{status} snapshot",
+      "status_none": "No snapshot loaded",
+      "status_resolving": "Resolving database…",
+      "status_selection": "{edges} relationships · {findings} findings",
+      "status_stored_relationships": "{count} stored relationships",
+      "status_export_ready": "{id} · ready for offline export",
+      "status_no_selection": "No resource selected"
+    },
+    "errors": {
+      "generic": "Something went wrong."
+    },
+    "dialogs": {
+      "open_database_title": "Open an azdocs SQLite database",
+      "sqlite_filter": "SQLite database",
+      "export_directory_title": "Choose an export directory",
+      "preview_collecting": "Running read-only Azure queries",
+      "preview_exporting": "Composing offline export preview",
+      "collect_notes": "Collected from azdocs desktop"
+    },
+    "topology": {
+      "nodes": {
+        "group_resources": "{count} resources",
+        "unconnected_groups": "Unconnected groups",
+        "times_n": "×{count}",
+        "collapsed_subscription": "{groups} groups · {resources} resources",
+        "links": {
+          "one": "{count} link",
+          "other": "{count} links"
+        },
+        "attached_suffix": "+{count} attached",
+        "in_other_groups": "×{count} in other groups",
+        "in_group": "in {group}",
+        "label_times": "{name} ×{count}"
+      },
+      "edge_kinds": {
+        "attached_to": "attached to",
+        "depends_on": "depends on",
+        "dns_linked": "dns linked",
+        "in_vnet": "in vnet",
+        "logs_to": "logs to",
+        "monitors": "monitors",
+        "nic_in_subnet": "nic in subnet",
+        "nsg_attached": "nsg attached",
+        "peered_with": "peered with",
+        "private_endpoint_for": "private endpoint for",
+        "runs_on": "runs on",
+        "subnet_of": "subnet of",
+        "uses_identity": "uses identity"
+      }
+    },
+    "backend": {
+      "phases": {
+        "loading_pack": "Loading query pack and credentials",
+        "running_queries": "Running {count} read-only Azure queries",
+        "composing_reports": "Composing {count} report format(s)",
+        "rendering_diagram": "Rendering {kind} as {format}"
+      },
+      "errors": {
+        "no_report_format": "select at least one report format",
+        "no_diagram_type": "select a diagram type",
+        "no_diagram_format": "select at least one diagram format",
+        "no_destination": "choose an output directory",
+        "destination_not_dir": "output destination is not a directory: {path}",
+        "unsupported_kind": "unsupported export kind `{kind}`"
+      }
+    }
+  }
+}

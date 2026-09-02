@@ -32,6 +32,7 @@ pub struct Labels {
     pub diagram: DiagramLabels,
     pub cli: CliLabels,
     pub tui: TuiLabels,
+    pub desktop: DesktopLabels,
 }
 
 // ------------------------------------------------------------------ common --
@@ -580,4 +581,156 @@ pub struct TuiUnits {
 #[serde(deny_unknown_fields)]
 pub struct TuiMessages {
     pub no_selection: String,
+}
+
+// ----------------------------------------------------------------- desktop --
+//
+// Typed here rather than in the desktop crate so one loader validates the
+// whole user file and `azdocs check` can report a typo anywhere in it. The
+// frontend's TypeScript type is inferred from the serialised JSON, so keep
+// every leaf a `String`, a [`Plural`] or a `BTreeMap<String, String>`.
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DesktopLabels {
+    pub app: DesktopAppLabels,
+    pub nav: DesktopNavLabels,
+    pub shell: DesktopShellLabels,
+    pub errors: DesktopErrorLabels,
+    pub dialogs: DesktopDialogLabels,
+    pub topology: DesktopTopologyLabels,
+    pub backend: DesktopBackendLabels,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DesktopNavLabels {
+    pub overview: String,
+    pub estate: String,
+    pub topology: String,
+    pub inventory: String,
+    pub findings: String,
+    pub governance: String,
+    pub history: String,
+    pub exports: String,
+    pub settings: String,
+    pub previous_view: String,
+    pub resource: String,
+    pub resource_group: String,
+    pub neighbourhood: String,
+    pub neighbourhood_of: String,
+    pub back_to: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DesktopShellLabels {
+    pub tagline: String,
+    pub preview_badge: String,
+    pub snapshot: String,
+    pub snapshot_option: String,
+    pub snapshot_picker: String,
+    pub search_placeholder: String,
+    pub search_aria: String,
+    pub search_results: String,
+    pub search_no_matches: String,
+    pub shortcut_mac: String,
+    pub shortcut_other: String,
+    pub open_data: String,
+    pub collect: String,
+    pub collecting: String,
+    pub collect_hint: String,
+    pub configure_credentials: String,
+    pub primary_navigation: String,
+    pub preparing_collection: String,
+    pub snapshot_stored: String,
+    pub collected: String,
+    pub source_note: String,
+    pub dismiss: String,
+    pub loading_title: String,
+    pub loading_detail: String,
+    pub empty_title: String,
+    pub empty_detail: String,
+    pub open_database: String,
+    pub collect_first: String,
+    pub status_aria: String,
+    pub status_snapshot: String,
+    pub status_none: String,
+    pub status_resolving: String,
+    pub status_selection: String,
+    pub status_stored_relationships: String,
+    pub status_export_ready: String,
+    pub status_no_selection: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DesktopErrorLabels {
+    pub generic: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DesktopDialogLabels {
+    pub open_database_title: String,
+    pub sqlite_filter: String,
+    pub export_directory_title: String,
+    pub preview_collecting: String,
+    pub preview_exporting: String,
+    pub collect_notes: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DesktopAppLabels {
+    pub window_title: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DesktopTopologyLabels {
+    pub nodes: TopologyNodeLabels,
+    /// Keyed by `EdgeKind::as_str()`.
+    pub edge_kinds: std::collections::BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TopologyNodeLabels {
+    pub group_resources: String,
+    pub unconnected_groups: String,
+    pub times_n: String,
+    pub collapsed_subscription: String,
+    pub links: Plural,
+    pub attached_suffix: String,
+    pub in_other_groups: String,
+    pub in_group: String,
+    pub label_times: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DesktopBackendLabels {
+    pub phases: BackendPhaseLabels,
+    pub errors: BackendErrorLabels,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BackendPhaseLabels {
+    pub loading_pack: String,
+    pub running_queries: String,
+    pub composing_reports: String,
+    pub rendering_diagram: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct BackendErrorLabels {
+    pub no_report_format: String,
+    pub no_diagram_type: String,
+    pub no_diagram_format: String,
+    pub no_destination: String,
+    pub destination_not_dir: String,
+    pub unsupported_kind: String,
 }

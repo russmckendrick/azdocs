@@ -14,6 +14,7 @@ import type {
   TopologyGraph,
   TopologyRequest,
 } from "./types";
+import { labels } from "./labels";
 
 export const isTauri = "__TAURI_INTERNALS__" in window;
 
@@ -57,11 +58,12 @@ export async function getTopology(request: TopologyRequest): Promise<TopologyGra
 
 export async function chooseDatabase(): Promise<AppBootstrap | undefined> {
   if (PREVIEW && !isTauri) return (await import("./mock-data")).mockBootstrap;
+  const words = labels().desktop.dialogs;
   const path = await open({
-    title: "Open an azdocs SQLite database",
+    title: words.open_database_title,
     multiple: false,
     directory: false,
-    filters: [{ name: "SQLite database", extensions: ["db", "sqlite", "sqlite3"] }],
+    filters: [{ name: words.sqlite_filter, extensions: ["db", "sqlite", "sqlite3"] }],
   });
   if (!path) return undefined;
   return invoke<AppBootstrap>("open_database", { path });
@@ -70,7 +72,7 @@ export async function chooseDatabase(): Promise<AppBootstrap | undefined> {
 export async function chooseExportDirectory(): Promise<string | undefined> {
   if (PREVIEW && !isTauri) return "/Users/demo/Documents/azdocs-exports";
   const path = await open({
-    title: "Choose an export directory",
+    title: labels().desktop.dialogs.export_directory_title,
     multiple: false,
     directory: true,
   });
@@ -107,7 +109,7 @@ export async function collectEstate(
   onUpdate: (event: CollectionEvent) => void,
 ): Promise<CollectResult> {
   if (PREVIEW && !isTauri) {
-    onUpdate({ event: "phase", data: { message: "Running read-only Azure queries" } });
+    onUpdate({ event: "phase", data: { message: labels().desktop.dialogs.preview_collecting } });
     await pause(1000);
     const { mockEstate } = await import("./mock-data");
     const result = {
@@ -123,7 +125,7 @@ export async function collectEstate(
   const channel = new Channel<CollectionEvent>();
   channel.onmessage = onUpdate;
   return invoke<CollectResult>("collect_snapshot", {
-    request: { subscriptions: [], notes: "Collected from azdocs desktop" },
+    request: { subscriptions: [], notes: labels().desktop.dialogs.collect_notes },
     onEvent: channel,
   });
 }
@@ -133,7 +135,7 @@ export async function exportSnapshot(
   onUpdate: (event: ExportEvent) => void,
 ): Promise<ExportResult> {
   if (PREVIEW && !isTauri) {
-    onUpdate({ event: "phase", data: { message: "Composing offline export preview" } });
+    onUpdate({ event: "phase", data: { message: labels().desktop.dialogs.preview_exporting } });
     await pause(720);
     const outputs = (await import("./mock-data")).mockExportOutputs(request);
     onUpdate({ event: "complete", data: { outputCount: outputs.length } });

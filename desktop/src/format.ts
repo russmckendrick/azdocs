@@ -7,6 +7,8 @@
  * `Intl.DateTimeFormat` is not cheap and these run per row.
  */
 
+import { labels } from "./labels";
+
 const memo = new Map<string, Intl.DateTimeFormat>();
 
 function formatter(options: Intl.DateTimeFormatOptions) {
@@ -86,12 +88,35 @@ export function resourceName(id: string | null | undefined) {
  *
  * `catch` gives `unknown`; this narrows it in one place rather than each call
  * site inventing its own `instanceof Error` check. `fallback` covers the cases
- * where `String(error)` would surface something like "[object Object]".
+ * where `String(error)` would surface something like "[object Object]", and
+ * defaults to the labels' generic message.
  */
-export function errorMessage(error: unknown, fallback = "Something went wrong.") {
+export function errorMessage(error: unknown, fallback = labels().desktop.errors.generic) {
   if (error instanceof Error && error.message) return error.message;
   if (typeof error === "string" && error) return error;
   return fallback;
+}
+
+export type Vars = Record<string, string | number>;
+
+/**
+ * `{name}` substitution, the twin of Rust's `labels::fill`.
+ *
+ * An unknown placeholder is left in the output so a typo in an override file
+ * shows on screen rather than vanishing; values are never re-scanned, so a
+ * resource name containing braces is safe.
+ */
+export function fill(template: string, vars: Vars) {
+  return template.replaceAll(/\{([a-z_][a-z0-9_]*)\}/g, (whole, name: string) =>
+    name in vars ? String(vars[name]) : whole,
+  );
+}
+
+export type PluralForms = { one: string; other: string };
+
+/** The form for `count` (`one` for exactly one), with `{count}` and `vars` filled. */
+export function plural(forms: PluralForms, count: number, vars: Vars = {}) {
+  return fill(count === 1 ? forms.one : forms.other, { count, ...vars });
 }
 
 /** First letter upper-cased, everything else untouched. */
