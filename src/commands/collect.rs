@@ -5,11 +5,18 @@ use anyhow::bail;
 use crate::arg::ArgClient;
 use crate::cli::CollectArgs;
 use crate::config::Config;
+use crate::labels::{Labels, fill};
 use crate::model::SnapshotStatus;
 use crate::querypack::QueryPack;
 use crate::store::Store;
 
-pub async fn run(config: &Config, store: &Store, args: &CollectArgs) -> anyhow::Result<()> {
+pub async fn run(
+    config: &Config,
+    store: &Store,
+    args: &CollectArgs,
+    labels: &Labels,
+) -> anyhow::Result<()> {
+    let words = &labels.cli.collect;
     let credentials = config.credentials()?;
     let pack = QueryPack::load()?;
     let selected: Vec<_> = pack
@@ -33,14 +40,24 @@ pub async fn run(config: &Config, store: &Store, args: &CollectArgs) -> anyhow::
     let provider = super::token_provider(config)?;
     let client = Arc::new(ArgClient::new(super::http_client(), provider));
 
+    let scope = if subscriptions.is_empty() {
+        words.all_subscriptions.clone()
+    } else {
+        fill(
+            &words.some_subscriptions,
+            &[("count", &subscriptions.len())],
+        )
+    };
     println!(
-        "Collecting {} queries across {} (concurrency {concurrency})...",
-        selected.len(),
-        if subscriptions.is_empty() {
-            "all visible subscriptions".to_owned()
-        } else {
-            format!("{} subscriptions", subscriptions.len())
-        },
+        "{}",
+        fill(
+            &words.collecting,
+            &[
+                ("queries", &selected.len()),
+                ("scope", &scope),
+                ("concurrency", &concurrency),
+            ]
+        )
     );
 
     let summary = crate::collect::run(
@@ -59,17 +76,22 @@ pub async fn run(config: &Config, store: &Store, args: &CollectArgs) -> anyhow::
     .await?;
 
     println!(
-        "Snapshot {} — {} ({} queries, {} failed, {} rows)",
-        summary.snapshot_id,
-        summary.status.as_str(),
-        summary.queries_run,
-        summary.queries_failed,
-        summary.rows_ingested,
+        "{}",
+        fill(
+            &words.snapshot_written,
+            &[
+                ("id", &summary.snapshot_id),
+                ("status", &summary.status.as_str()),
+                ("queries", &summary.queries_run),
+                ("failed", &summary.queries_failed),
+                ("rows", &summary.rows_ingested),
+            ]
+        )
     );
     if summary.status == SnapshotStatus::Partial {
         println!(
-            "Some queries failed; see `azdocs snapshots show {}`",
-            summary.snapshot_id
+            "{}",
+            fill(&words.partial_hint, &[("id", &summary.snapshot_id)])
         );
     }
     Ok(())

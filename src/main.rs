@@ -5,6 +5,7 @@ use tracing_subscriber::EnvFilter;
 use azdocs::cli::{Cli, Command, QueryCommand};
 use azdocs::commands;
 use azdocs::config::Config;
+use azdocs::labels::{DEFAULT_LABELS, LabelPack, Labels};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -15,10 +16,16 @@ async fn main() -> Result<()> {
         Command::Init {
             force,
             non_interactive,
-        } => commands::init::run(cli.config.as_deref(), force, non_interactive),
+        } => commands::init::run(
+            cli.config.as_deref(),
+            force,
+            non_interactive,
+            &default_labels()?,
+        ),
         Command::Check => {
             let config = Config::load(cli.config.as_deref())?;
-            commands::check::run(&config).await
+            let labels = azdocs::labels::resolve(&config.branding)?;
+            commands::check::run(&config, &labels).await
         }
         Command::Query(QueryCommand::Run {
             query,
@@ -26,16 +33,18 @@ async fn main() -> Result<()> {
             subscriptions,
         }) => {
             let config = Config::load(cli.config.as_deref())?;
-            commands::query::run(&config, &query, format, &subscriptions).await
+            let labels = azdocs::labels::resolve(&config.branding)?;
+            commands::query::run(&config, &query, format, &subscriptions, &labels).await
         }
         Command::Query(QueryCommand::List { category }) => {
-            commands::query::list(category.as_deref())
+            commands::query::list(category.as_deref(), &default_labels()?)
         }
         Command::Query(QueryCommand::Show { name }) => commands::query::show(&name),
         Command::Collect(args) => {
             let config = Config::load(cli.config.as_deref())?;
             let store = open_store(&config, cli.db.as_deref())?;
-            commands::collect::run(&config, &store, &args).await
+            let labels = azdocs::labels::resolve(&config.branding)?;
+            commands::collect::run(&config, &store, &args, &labels).await
         }
         Command::Diagram(args) => {
             let config = Config::load(cli.config.as_deref())?;
@@ -52,12 +61,14 @@ async fn main() -> Result<()> {
         Command::Browse { snapshot } => {
             let config = Config::load(cli.config.as_deref())?;
             let store = open_store(&config, cli.db.as_deref())?;
-            azdocs::tui::run(&store, &snapshot)
+            let labels = azdocs::labels::resolve(&config.branding)?;
+            azdocs::tui::run(&store, &snapshot, labels.tui)
         }
         Command::Snapshots(subcommand) => {
             let config = Config::load(cli.config.as_deref())?;
             let store = open_store(&config, cli.db.as_deref())?;
-            commands::snapshots::run(&store, &subcommand)
+            let labels = azdocs::labels::resolve(&config.branding)?;
+            commands::snapshots::run(&store, &subcommand, &labels)
         }
         Command::Completions { shell } => {
             use clap::CommandFactory;
@@ -65,6 +76,12 @@ async fn main() -> Result<()> {
             Ok(())
         }
     }
+}
+
+/// Labels for commands that run before any config exists: the built-in
+/// default set, still overridable from the user labels directory.
+fn default_labels() -> Result<Labels> {
+    Ok(LabelPack::load()?.get(DEFAULT_LABELS)?)
 }
 
 fn init_tracing(verbosity: u8, no_color: bool) {

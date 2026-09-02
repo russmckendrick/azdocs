@@ -3,6 +3,7 @@ mod ui;
 use ratatui::crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
 
 use crate::error::StoreError;
+use crate::labels::TuiLabels;
 use crate::model::{Edge, Finding, Resource, ResourceGroup, Subscription};
 use crate::store::{SnapshotCounts, Store};
 
@@ -57,10 +58,12 @@ pub struct App {
     pub filter: String,
     pub filtering: bool,
     pub quit: bool,
+    /// Every word the screens draw, resolved once at startup.
+    pub labels: TuiLabels,
 }
 
 impl App {
-    pub fn new(snapshots: Vec<SnapshotCounts>) -> Self {
+    pub fn new(snapshots: Vec<SnapshotCounts>, labels: TuiLabels) -> Self {
         Self {
             snapshots,
             screen: Screen::Snapshots,
@@ -74,6 +77,7 @@ impl App {
             filter: String::new(),
             filtering: false,
             quit: false,
+            labels,
         }
     }
 
@@ -313,12 +317,12 @@ pub fn render_for_test(frame: &mut ratatui::Frame<'_>, app: &App) {
 }
 
 /// Interactive entry point: full-screen terminal until the user quits.
-pub fn run(store: &Store, snapshot: &str) -> anyhow::Result<()> {
+pub fn run(store: &Store, snapshot: &str, labels: TuiLabels) -> anyhow::Result<()> {
     let snapshots = store.list_snapshots()?;
     if snapshots.is_empty() {
         anyhow::bail!("no snapshots stored yet — run `azdocs collect` first");
     }
-    let mut app = App::new(snapshots);
+    let mut app = App::new(snapshots, labels);
     if let Ok(id) = store.resolve_snapshot(snapshot) {
         app.load_estate(store, &id)?;
     }
