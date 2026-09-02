@@ -1,5 +1,7 @@
 mod common;
 
+use azdocs::labels::Labels;
+
 use azdocs::store::Store;
 use azdocs::tui::{App, Pane, Screen};
 use ratatui::Terminal;
@@ -9,7 +11,7 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent};
 fn seeded_app() -> (Store, App) {
     let store = Store::open_in_memory().unwrap();
     let id = common::seed_estate(&store);
-    let mut app = App::new(store.list_snapshots().unwrap());
+    let mut app = App::new(store.list_snapshots().unwrap(), Labels::default().tui);
     app.load_estate(&store, &id).unwrap();
     (store, app)
 }
@@ -43,7 +45,7 @@ fn estate_view_shows_tree_resources_and_detail() {
 #[test]
 fn snapshot_picker_lists_snapshot_counts() {
     let (store, _) = seeded_app();
-    let app = App::new(store.list_snapshots().unwrap());
+    let app = App::new(store.list_snapshots().unwrap(), Labels::default().tui);
 
     let text = buffer_text(&app);
 

@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use crate::cli::{ReportArgs, ReportFormat};
 use crate::config::{BrandingConfig, Config};
 use crate::error::ConfigError;
+use crate::labels::fill;
 use crate::report::branding::BrandingContext;
 use crate::report::{self, ReportContext};
 use crate::store::Store;
@@ -76,6 +77,7 @@ pub fn run_selected_with_outputs(
             store,
             &snapshot_id,
             &crate::diagram::DiagramScope::default(),
+            &branding.labels.diagram,
         )?
     } else {
         Vec::new()
@@ -89,39 +91,52 @@ pub fn run_selected_with_outputs(
         diagrams.extend(crate::diagram::assets::build_resource_diagrams(
             store,
             &snapshot_id,
+            &branding.labels.diagram,
         )?);
     }
 
+    let words = &branding.labels.cli.report;
     let mut outputs = Vec::new();
     for format in formats {
         match format {
             ReportFormat::Md => {
                 let out_dir = out_root.join("docs");
-                report::markdown::write(&context, &out_dir)?;
+                report::markdown::write(&context, &branding.labels, &out_dir)?;
                 let out = out_dir.join("index.md");
-                println!("Markdown docs -> {}", out.display());
+                println!(
+                    "{}",
+                    fill(&words.markdown_written, &[("path", &out.display())])
+                );
                 outputs.push(out);
             }
             ReportFormat::Html => {
                 let out = out_root.join("report.html");
                 report::html::write(&context, &branding, &out)?;
-                println!("HTML report -> {}", out.display());
+                println!("{}", fill(&words.html_written, &[("path", &out.display())]));
                 outputs.push(out);
                 let site_dir = out_root.join("docs-html");
                 report::site::write(&context, &branding, &diagrams, &site_dir)?;
                 let site_index = site_dir.join("index.html");
-                println!("HTML docs -> {}", site_index.display());
+                println!(
+                    "{}",
+                    fill(&words.site_written, &[("path", &site_index.display())])
+                );
                 outputs.push(site_index);
             }
             ReportFormat::Csv => {
                 let inventory = out_root.join("inventory.csv");
                 let findings_path = out_root.join("findings.csv");
-                report::csv::write_inventory(&resources, &inventory)?;
-                report::csv::write_findings(&findings, &findings_path)?;
+                report::csv::write_inventory(&resources, &branding.labels, &inventory)?;
+                report::csv::write_findings(&findings, &branding.labels, &findings_path)?;
                 println!(
-                    "CSV -> {} + {}",
-                    inventory.display(),
-                    findings_path.display()
+                    "{}",
+                    fill(
+                        &words.csv_written,
+                        &[
+                            ("inventory", &inventory.display()),
+                            ("findings", &findings_path.display()),
+                        ]
+                    )
                 );
                 outputs.push(inventory);
                 outputs.push(findings_path);
@@ -129,19 +144,19 @@ pub fn run_selected_with_outputs(
             ReportFormat::Xlsx => {
                 let out = out_root.join("azdocs.xlsx");
                 report::xlsx::write(&context, &branding, &resources, &out)?;
-                println!("XLSX workbook -> {}", out.display());
+                println!("{}", fill(&words.xlsx_written, &[("path", &out.display())]));
                 outputs.push(out);
             }
             ReportFormat::Pdf => {
                 let out = out_root.join("report.pdf");
                 report::pdf::write(&context, &branding, &diagrams, &out)?;
-                println!("PDF report -> {}", out.display());
+                println!("{}", fill(&words.pdf_written, &[("path", &out.display())]));
                 outputs.push(out);
             }
             ReportFormat::Docx => {
                 let out = out_root.join("report.docx");
                 report::docx::write(&context, &branding, &diagrams, &out)?;
-                println!("DOCX report -> {}", out.display());
+                println!("{}", fill(&words.docx_written, &[("path", &out.display())]));
                 outputs.push(out);
             }
             ReportFormat::All => unreachable!("expanded above"),

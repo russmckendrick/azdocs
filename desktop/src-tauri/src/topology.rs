@@ -10,9 +10,11 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
+use azdocs::labels::fill;
 use azdocs::model::{Edge, EdgeKind, Resource, ResourceGroup, Subscription, azure_types, network};
 
 use crate::groups;
+use crate::labels::AppLabels;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -188,6 +190,8 @@ pub struct TopologyInput<'a> {
     pub resources: &'a [Resource],
     pub edges: &'a [Edge],
     pub finding_counts: &'a BTreeMap<String, usize>,
+    /// Wording for the DTO: subtitles, edge labels and the stand-in group name.
+    pub labels: &'a AppLabels,
 }
 
 /// The coarse family an edge kind belongs to — what the UI filters by.
@@ -206,8 +210,16 @@ pub fn kind_class(kind: EdgeKind) -> &'static str {
     }
 }
 
-fn kind_label(kind: EdgeKind) -> String {
-    kind.as_str().replace('_', " ")
+/// The connector text for an edge kind: from the labels file, with the
+/// snake_case key spaced out as the fallback so an unlabelled kind still reads.
+fn kind_label(kind: EdgeKind, labels: &AppLabels) -> String {
+    labels
+        .desktop
+        .topology
+        .edge_kinds
+        .get(kind.as_str())
+        .cloned()
+        .unwrap_or_else(|| kind.as_str().replace('_', " "))
 }
 
 pub fn build(request: &TopologyRequest, input: &TopologyInput) -> TopologyGraphDto {
@@ -296,6 +308,7 @@ fn collect_groups<'a>(
         input.resource_groups,
         scoped.resources.iter().copied(),
         &scope.subscriptions,
+        &input.labels.common.subscription_scope,
     );
     let summaries = buckets
         .into_iter()
@@ -324,6 +337,7 @@ fn estate_graph(
     scope: &TopologyScope,
     expanded_subscriptions: &[String],
 ) -> TopologyGraphDto {
+    let words = &input.labels.desktop.topology.nodes;
     let (mut groups, group_by_resource) = collect_groups(input, scoped, scope);
 
     // Bundle cross-group links: (source group, target group, class) → count.
@@ -432,7 +446,7 @@ fn estate_graph(
             id: group_node_id(&group.id),
             kind: "resource-group".to_owned(),
             name: group.name.clone(),
-            subtitle: format!("{} resources", group.resources.len()),
+            subtitle: fill(&words.group_resources, &[("count", &group.resources.len())]),
             azure_type: None,
             lane: Some(group.subscription_id.clone()),
             parent_id: None,
@@ -455,8 +469,8 @@ fn estate_graph(
         nodes.push(TopologyNodeDto {
             id: unconnected_groups_node_id(lane),
             kind: "aggregate".to_owned(),
-            name: "Unconnected groups".to_owned(),
-            subtitle: format!("×{}", members.len()),
+            name: words.unconnected_groups.clone(),
+            subtitle: fill(&words.times_n, &[("count", &members.len())]),
             azure_type: None,
             lane: Some((*lane).to_owned()),
             parent_id: None,
@@ -479,9 +493,12 @@ fn estate_graph(
             id: lane_node_id(&lane.subscription_id),
             kind: "subscription".to_owned(),
             name: lane.name.clone(),
-            subtitle: format!(
-                "{} groups · {} resources",
-                lane.group_count, lane.resource_count
+            subtitle: fill(
+                &words.collapsed_subscription,
+                &[
+                    ("groups", &lane.group_count),
+                    ("resources", &lane.resource_count),
+                ],
             ),
             azure_type: None,
             lane: Some(lane.subscription_id.clone()),
@@ -520,7 +537,7 @@ fn estate_graph(
         .map(|((source_id, target_id, class), count)| TopologyLinkDto {
             source_id,
             target_id,
-            label: format!("{count} link{}", if count == 1 { "" } else { "s" }),
+            label: fill(words.links.pick(count), &[("count", &count)]),
             kind_class: class.to_owned(),
             count,
         })
@@ -557,6 +574,7 @@ fn group_graph(
     scope: &TopologyScope,
     group_id: &str,
 ) -> TopologyGraphDto {
+    let words = &input.labels.desktop.topology.nodes;
     let (groups, group_by_resource) = collect_groups(input, scoped, scope);
     let Some(group_index) = groups.iter().position(|g| g.id == group_id) else {
         return empty_graph("group", scoped.hidden_by_filter);
@@ -721,7 +739,10 @@ fn group_graph(
         let subtitle = if folded_here.is_empty() {
             String::new()
         } else {
-            format!("+{} attached", folded_here.len())
+            fill(
+                &input.labels.desktop.topology.nodes.attached_suffix,
+                &[("count", &folded_here.len())],
+            )
         };
         let findings = finding_count(input, &resource.id)
             + folded_here
@@ -783,7 +804,7 @@ fn group_graph(
             id: format!("aggregate:{group_id}:{azure_type}"),
             kind: "aggregate".to_owned(),
             name: azure_types::display_name(azure_type).to_owned(),
-            subtitle: format!("×{}", members.len()),
+            subtitle: fill(&words.times_n, &[("count", &members.len())]),
             azure_type: Some((*azure_type).to_owned()),
             lane: None,
             parent_id: None,
@@ -854,7 +875,7 @@ fn group_graph(
                 id: stub_id,
                 kind: "external".to_owned(),
                 name: azure_types::display_name(azure_type).to_owned(),
-                subtitle: format!("×{} in other groups", members.len()),
+                subtitle: fill(&words.in_other_groups, &[("count", &members.len())]),
                 azure_type: Some((*azure_type).to_owned()),
                 lane: None,
                 parent_id: None,
@@ -879,7 +900,7 @@ fn group_graph(
                     subtitle: resource
                         .resource_group
                         .as_deref()
-                        .map(|group| format!("in {group}"))
+                        .map(|group| fill(&words.in_group, &[("group", &group)]))
                         .unwrap_or_default(),
                     azure_type: Some(resource.azure_type.clone()),
                     lane: None,
@@ -940,7 +961,7 @@ fn group_graph(
         .map(|((source_id, target_id, kind), count)| TopologyLinkDto {
             source_id,
             target_id,
-            label: kind_label(kind),
+            label: kind_label(kind, input.labels),
             kind_class: kind_class(kind).to_owned(),
             count,
         })
@@ -1072,7 +1093,10 @@ fn neighbourhood_graph(
                 id,
                 kind: "aggregate".to_owned(),
                 name: azure_types::display_name(azure_type).to_owned(),
-                subtitle: format!("×{}", members.len()),
+                subtitle: fill(
+                    &input.labels.desktop.topology.nodes.times_n,
+                    &[("count", &members.len())],
+                ),
                 azure_type: Some((*azure_type).to_owned()),
                 lane: None,
                 parent_id: None,
@@ -1131,9 +1155,12 @@ fn neighbourhood_graph(
             source_id,
             target_id,
             label: if count == 1 {
-                kind_label(kind)
+                kind_label(kind, input.labels)
             } else {
-                format!("{} ×{count}", kind_label(kind))
+                fill(
+                    &input.labels.desktop.topology.nodes.label_times,
+                    &[("name", &kind_label(kind, input.labels)), ("count", &count)],
+                )
             },
             kind_class: kind_class(kind).to_owned(),
             count,
@@ -1314,6 +1341,11 @@ mod tests {
         (subscriptions, groups, resources, edges)
     }
 
+    fn labels() -> &'static AppLabels {
+        static LABELS: std::sync::OnceLock<AppLabels> = std::sync::OnceLock::new();
+        LABELS.get_or_init(AppLabels::builtin)
+    }
+
     fn input<'a>(
         subscriptions: &'a [Subscription],
         groups: &'a [ResourceGroup],
@@ -1327,6 +1359,7 @@ mod tests {
             resources,
             edges,
             finding_counts: findings,
+            labels: labels(),
         }
     }
 

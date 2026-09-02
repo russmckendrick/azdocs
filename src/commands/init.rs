@@ -4,6 +4,7 @@ use anyhow::{Context, bail};
 use dialoguer::{Input, Password};
 
 use crate::config::{Config, ENV_CLIENT_ID, ENV_CLIENT_SECRET, ENV_TENANT_ID, default_config_path};
+use crate::labels::{Labels, fill};
 
 const SP_GUIDANCE: &str = "\
 To create a read-only service principal for azdocs:
@@ -14,7 +15,13 @@ To create a read-only service principal for azdocs:
 Use the returned tenant/appId/password values here. Grant the Reader role on
 every subscription (or a management group) you want azdocs to see.";
 
-pub fn run(config_path: Option<&Path>, force: bool, non_interactive: bool) -> anyhow::Result<()> {
+pub fn run(
+    config_path: Option<&Path>,
+    force: bool,
+    non_interactive: bool,
+    labels: &Labels,
+) -> anyhow::Result<()> {
+    let words = &labels.cli.init;
     let default_path = default_config_path();
     let path = config_path.unwrap_or(&default_path);
     if path.exists() && !force {
@@ -40,15 +47,15 @@ pub fn run(config_path: Option<&Path>, force: bool, non_interactive: bool) -> an
     } else {
         println!("{SP_GUIDANCE}\n");
         let tenant_id: String = Input::new()
-            .with_prompt("Tenant ID")
+            .with_prompt(words.tenant_prompt.as_str())
             .interact_text()
             .context("reading tenant id")?;
         let client_id: String = Input::new()
-            .with_prompt("Client (app) ID")
+            .with_prompt(words.client_prompt.as_str())
             .interact_text()
             .context("reading client id")?;
         let client_secret = Password::new()
-            .with_prompt("Client secret (leave empty to supply via AZDOCS_CLIENT_SECRET)")
+            .with_prompt(words.secret_prompt.as_str())
             .allow_empty_password(true)
             .interact()
             .context("reading client secret")?;
@@ -65,14 +72,14 @@ pub fn run(config_path: Option<&Path>, force: bool, non_interactive: bool) -> an
     std::fs::write(path, rendered).with_context(|| format!("writing {}", path.display()))?;
     restrict_permissions(path)?;
 
-    println!("Wrote {}", path.display());
+    println!("{}", fill(&words.wrote, &[("path", &path.display())]));
     if config.auth.client_secret.is_some() {
         println!(
-            "Note: the client secret is stored in plaintext. For CI or shared machines, \
-             remove it from the file and set {ENV_CLIENT_SECRET} instead."
+            "{}",
+            fill(&words.plaintext_note, &[("env", &ENV_CLIENT_SECRET)])
         );
     }
-    println!("Next: run `azdocs check` to verify connectivity.");
+    println!("{}", words.next_step);
     Ok(())
 }
 

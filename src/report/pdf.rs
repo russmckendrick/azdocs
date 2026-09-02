@@ -136,6 +136,10 @@ impl ReportWorld {
             "icons".into(),
             Value::Str(serde_json::to_string(&icons)?.into()),
         );
+        inputs.insert(
+            "labels".into(),
+            Value::Str(serde_json::to_string(&branding.labels)?.into()),
+        );
 
         let mut files = BTreeMap::new();
         for asset in diagrams {

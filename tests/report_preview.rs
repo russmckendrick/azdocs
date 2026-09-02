@@ -9,6 +9,8 @@
 
 mod common;
 
+use azdocs::labels::Labels;
+
 use std::path::PathBuf;
 
 use azdocs::config::BrandingConfig;
@@ -25,9 +27,16 @@ fn writes_every_theme_in_every_format() {
     let store = Store::open_in_memory().unwrap();
     let snapshot = common::seed_estate(&store);
     let context = ReportContext::build(&store, &snapshot).unwrap();
-    let mut diagrams =
-        assets::build_overviews(&store, &snapshot, &DiagramScope::default()).unwrap();
-    diagrams.extend(assets::build_resource_diagrams(&store, &snapshot).unwrap());
+    let mut diagrams = assets::build_overviews(
+        &store,
+        &snapshot,
+        &DiagramScope::default(),
+        &Labels::default().diagram,
+    )
+    .unwrap();
+    diagrams.extend(
+        assets::build_resource_diagrams(&store, &snapshot, &Labels::default().diagram).unwrap(),
+    );
     let resources = store.resources(&snapshot).unwrap();
     let findings = store.findings(&snapshot).unwrap();
 
@@ -54,8 +63,10 @@ fn writes_every_theme_in_every_format() {
         report::html::write(&context, &branding, &out.join("report.html")).unwrap();
         report::site::write(&context, &branding, &diagrams, &out.join("docs-html")).unwrap();
         report::xlsx::write(&context, &branding, &resources, &out.join("azdocs.xlsx")).unwrap();
-        report::csv::write_inventory(&resources, &out.join("inventory.csv")).unwrap();
-        report::csv::write_findings(&findings, &out.join("findings.csv")).unwrap();
+        report::csv::write_inventory(&resources, &branding.labels, &out.join("inventory.csv"))
+            .unwrap();
+        report::csv::write_findings(&findings, &branding.labels, &out.join("findings.csv"))
+            .unwrap();
 
         println!("{theme:>10} -> {}", out.display());
     }

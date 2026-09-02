@@ -15,7 +15,17 @@ import type {
   TopologyRequest,
 } from "../types";
 import { buildResourceGroupTopology, resourceGroupNodeId } from "./topology-model";
-import { spaced } from "../format";
+import { fill, plural, spaced } from "../format";
+import { DEFAULT_LABELS } from "../labels";
+
+// Built-ins, not the installed set: this file only runs in the browser
+// preview, where the bootstrap labels are the built-ins by construction.
+const NODE_WORDS = DEFAULT_LABELS.desktop.topology.nodes;
+const EDGE_WORDS = DEFAULT_LABELS.desktop.topology.edge_kinds;
+
+function kindLabel(kind: string) {
+  return EDGE_WORDS[kind as keyof typeof EDGE_WORDS] ?? spaced(kind);
+}
 
 const NEIGHBOUR_FANOUT_LIMIT = 6;
 
@@ -130,7 +140,7 @@ function estateGraph(estate: EstateSnapshot, expandedSubscriptions: string[], sh
         id: resourceGroupNodeId(group.id),
         kind: "resource-group" as const,
         name: group.name,
-        subtitle: `${group.resourceCount} resources`,
+        subtitle: fill(NODE_WORDS.group_resources, { count: group.resourceCount }),
         lane: group.subscriptionId,
         memberIds: group.resourceIds,
         count: group.resourceCount,
@@ -144,8 +154,8 @@ function estateGraph(estate: EstateSnapshot, expandedSubscriptions: string[], sh
           .map(([subscriptionId, groups]) => ({
             id: `aggregate:unconnected:${subscriptionId}`,
             kind: "aggregate" as const,
-            name: "Unconnected groups",
-            subtitle: `×${groups.length}`,
+            name: NODE_WORDS.unconnected_groups,
+            subtitle: fill(NODE_WORDS.times_n, { count: groups.length }),
             lane: subscriptionId,
             zone: "unconnected" as const,
             memberIds: groups.flatMap((group) => group.resourceIds),
@@ -160,7 +170,7 @@ function estateGraph(estate: EstateSnapshot, expandedSubscriptions: string[], sh
         id: `subscription:${lane.subscriptionId}`,
         kind: "subscription" as const,
         name: lane.name,
-        subtitle: `${lane.groupCount} groups · ${lane.resourceCount} resources`,
+        subtitle: fill(NODE_WORDS.collapsed_subscription, { groups: lane.groupCount, resources: lane.resourceCount }),
         lane: lane.subscriptionId,
         memberIds: [],
         count: lane.groupCount,
@@ -183,7 +193,7 @@ function estateGraph(estate: EstateSnapshot, expandedSubscriptions: string[], sh
     mergedLinks.set(key, {
       sourceId,
       targetId,
-      label: `${count} link${count === 1 ? "" : "s"}`,
+      label: plural(NODE_WORDS.links, count),
       kindClass,
       count,
     });
@@ -300,7 +310,7 @@ function groupGraph(estate: EstateSnapshot, groupId: string): TopologyGraph {
       id: `aggregate:${groupId}:${azureType}`,
       kind: "aggregate",
       name: azureType,
-      subtitle: `×${unconnected.length}`,
+      subtitle: fill(NODE_WORDS.times_n, { count: unconnected.length }),
       azureType,
       zone: "unconnected",
       memberIds: unconnected.map((resource) => resource.id),
@@ -327,7 +337,7 @@ function groupGraph(estate: EstateSnapshot, groupId: string): TopologyGraph {
       merged.set(key, {
         sourceId: source,
         targetId: target,
-        label: spaced(edge.kind),
+        label: kindLabel(edge.kind),
         kindClass: edgeKindClass(edge.kind),
         count: 1,
       });
@@ -422,7 +432,7 @@ function neighbourhoodGraph(
         id,
         kind: "aggregate",
         name: azureType,
-        subtitle: `×${ids.length}`,
+        subtitle: fill(NODE_WORDS.times_n, { count: ids.length }),
         azureType,
         hop,
         memberIds: ids,
@@ -455,7 +465,7 @@ function neighbourhoodGraph(
       merged.set(key, {
         sourceId: source,
         targetId: target,
-        label: spaced(edge.kind),
+        label: kindLabel(edge.kind),
         kindClass: edgeKindClass(edge.kind),
         count: 1,
       });
@@ -463,7 +473,7 @@ function neighbourhoodGraph(
   }
   const links = [...merged.values()].map((link) => ({
     ...link,
-    label: link.count > 1 ? `${link.label} ×${link.count}` : link.label,
+    label: link.count > 1 ? fill(NODE_WORDS.label_times, { name: link.label, count: link.count }) : link.label,
   }));
 
   return {

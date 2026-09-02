@@ -34,6 +34,24 @@ pub enum ConfigError {
     },
     #[error(transparent)]
     Theme(#[from] ThemeError),
+    #[error(transparent)]
+    Labels(#[from] LabelsError),
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum LabelsError {
+    #[error("unknown labels `{name}` (available: {available})")]
+    Unknown { name: String, available: String },
+    #[error("failed to parse labels {path}: {source}")]
+    Parse {
+        path: String,
+        source: Box<toml::de::Error>,
+    },
+    #[error("failed to read user labels dir {path}: {source}")]
+    ReadDir {
+        path: String,
+        source: std::io::Error,
+    },
 }
 
 #[derive(Debug, thiserror::Error)]

@@ -1,6 +1,7 @@
 mod common;
 
 use azdocs::config::BrandingConfig;
+use azdocs::labels::Labels;
 use azdocs::report::branding::BrandingContext;
 use azdocs::report::{ReportContext, csv, html, markdown, xlsx};
 use azdocs::store::Store;
@@ -30,7 +31,7 @@ fn markdown_pages_match_golden_files() {
     let report = ReportContext::build(&store, &id).unwrap();
     let dir = tempfile::tempdir().unwrap();
 
-    markdown::write(&report, dir.path()).unwrap();
+    markdown::write(&report, &Labels::default(), dir.path()).unwrap();
 
     insta_settings().bind(|| {
         for page in [
@@ -94,7 +95,7 @@ fn inventory_csv_has_row_per_resource() {
     let dir = tempfile::tempdir().unwrap();
     let out = dir.path().join("inventory.csv");
 
-    csv::write_inventory(&resources, &out).unwrap();
+    csv::write_inventory(&resources, &Labels::default(), &out).unwrap();
 
     let content = std::fs::read_to_string(&out).unwrap();
     assert_eq!(content.lines().count(), resources.len() + 1);
@@ -107,7 +108,7 @@ fn findings_csv_orders_high_severity_first() {
     let dir = tempfile::tempdir().unwrap();
     let out = dir.path().join("findings.csv");
 
-    csv::write_findings(&findings, &out).unwrap();
+    csv::write_findings(&findings, &Labels::default(), &out).unwrap();
 
     let content = std::fs::read_to_string(&out).unwrap();
     let second_line = content.lines().nth(1).unwrap();

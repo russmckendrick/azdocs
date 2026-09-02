@@ -18,6 +18,10 @@ pub struct AppBootstrap {
     pub required_tags: Vec<String>,
     pub snapshots: Vec<SnapshotSummary>,
     pub latest_snapshot_id: Option<String>,
+    /// Every word the frontend shows, already resolved against the user's
+    /// overrides. Typed in TypeScript from `generated-labels.json`.
+    #[ts(type = "Labels")]
+    pub labels: crate::labels::AppLabels,
 }
 
 #[derive(Debug, Serialize, TS)]
@@ -501,6 +505,7 @@ impl EstateSnapshot {
         edges: Vec<Edge>,
         query_runs: Vec<QueryRun>,
         previous_diff: Option<SnapshotComparison>,
+        scope_name: &str,
     ) -> Self {
         let mut finding_counts = BTreeMap::new();
         for finding in &findings {
@@ -555,7 +560,8 @@ impl EstateSnapshot {
             .iter()
             .map(|s| (s.subscription_id.as_str(), s.display_name.as_str()))
             .collect();
-        let (buckets, _) = crate::groups::bucket_resources(&resource_groups, &resources, &[]);
+        let (buckets, _) =
+            crate::groups::bucket_resources(&resource_groups, &resources, &[], scope_name);
         let mut resource_group_summaries: Vec<ResourceGroupSummaryDto> = buckets
             .into_iter()
             .map(|bucket| {

@@ -9,6 +9,7 @@ use serde::Serialize;
 use super::theme::{ThemePack, ThemeTokens};
 use crate::config::BrandingConfig;
 use crate::error::ConfigError;
+use crate::labels::Labels;
 
 /// A branding logo loaded into memory: a data URI for HTML embedding plus the
 /// raw bytes for emitters (PDF) that embed the image directly.
@@ -37,6 +38,11 @@ pub struct BrandingContext {
     pub footer: String,
     /// The resolved theme: every design value every emitter uses.
     pub tokens: ThemeTokens,
+    /// The resolved wording: every user-facing string every emitter prints.
+    /// Not serialised — the HTML context and the Typst `branding` input keep
+    /// their shape; emitters that need it pass it explicitly.
+    #[serde(skip)]
+    pub labels: Labels,
     /// Extra font faces from `branding.font_dir`, appended to the PDF font
     /// book. Bytes only — the PDF emitter reads them, nothing serializes them.
     #[serde(skip)]
@@ -79,6 +85,8 @@ impl BrandingContext {
             tokens.typography.mono = config.mono_family.clone();
         }
 
+        let labels = crate::labels::resolve(config)?;
+
         let extra_fonts = match &config.font_dir {
             Some(path) => load_fonts(path, config_dir)?,
             None => Vec::new(),
@@ -95,6 +103,7 @@ impl BrandingContext {
             margin: config.margin.clone(),
             footer: config.footer.clone(),
             tokens,
+            labels,
             extra_fonts,
         })
     }

@@ -95,6 +95,9 @@ fn length_twips(value: &str) -> Option<u32> {
 /// plus the text width tables and images must fit inside.
 pub struct Ctx<'a> {
     pub tokens: &'a ThemeTokens,
+    /// The resolved wording, so cover metadata and every other word the
+    /// renderer writes itself comes from the same file as the document body.
+    pub labels: &'a crate::labels::Labels,
     pub usable_twips: u32,
     pub usable_height_twips: u32,
 }

@@ -27,7 +27,8 @@ import {
 } from "./topology-presentation";
 import { EmptyState } from "./view-chrome";
 import { useResourceTypeMap } from "../estate-lookups";
-import { errorMessage } from "../format";
+import { errorMessage, fill, plural } from "../format";
+import { labels, useLabels } from "../labels";
 
 export type GraphMode = "neighbourhood" | "estate";
 
@@ -525,24 +526,25 @@ export function CytoscapeResourceGraph({
     }
     return result;
   }, [graph.links]);
+  const { graph: words, graph_extra: extra, regions: regionWords } = useLabels().desktop.topology;
   const graphRegions = useMemo(() => {
     if (graph.level !== "group") return [];
     const candidates = [
       {
         id: "external",
-        label: "External context",
+        label: regionWords.external,
         nodes: graph.nodes.filter((node) => node.zone === "external"),
       },
       {
         id: "services",
-        label: "Connected services",
+        label: regionWords.services,
         nodes: graph.nodes.filter(
           (node) => node.kind === "resource" && !node.parentId && node.zone === "core",
         ),
       },
       {
         id: "unconnected",
-        label: "Unconnected shelf",
+        label: regionWords.unconnected,
         nodes: graph.nodes.filter((node) => node.zone === "unconnected"),
       },
     ];
@@ -554,7 +556,7 @@ export function CytoscapeResourceGraph({
         count: region.nodes.reduce((total, node) => total + node.count, 0),
         nodeIds: region.nodes.map((node) => node.id),
       }));
-  }, [graph]);
+  }, [graph, regionWords]);
   const graphStructureKey = useMemo(
     () =>
       [
@@ -567,20 +569,30 @@ export function CytoscapeResourceGraph({
   );
   const announcedTraceNodeId = focusedTraceNodeId ?? selectedNodeId;
   const selectedSummary = useMemo(() => {
-    if (!announcedTraceNodeId) return "No graph item selected.";
+    const text = labels().desktop.topology.graph;
+    if (!announcedTraceNodeId) return text.summary_none;
     const selected = graph.nodes.find((node) => node.id === announcedTraceNodeId);
-    if (!selected) return "The selected item is outside the current graph scope.";
+    if (!selected) return text.summary_out_of_scope;
     const links = graph.links.filter(
       (link) => link.sourceId === announcedTraceNodeId || link.targetId === announcedTraceNodeId,
     );
-    if (links.length === 0) return `${selected.name}. No drawn connectors in this scope.`;
+    if (links.length === 0) return fill(text.summary_no_connectors, { name: selected.name });
     const names = new Map(graph.nodes.map((node) => [node.id, node.name]));
     const descriptions = links.map((link) => {
       const outbound = link.sourceId === announcedTraceNodeId;
-      const other = names.get(outbound ? link.targetId : link.sourceId) ?? "another represented item";
-      return `${outbound ? "outbound" : "inbound"} ${link.label} ${outbound ? "to" : "from"} ${other}`;
+      const other = names.get(outbound ? link.targetId : link.sourceId) ?? text.other_item;
+      return fill(text.connector_sentence, {
+        direction: outbound ? text.outbound : text.inbound,
+        label: link.label,
+        preposition: outbound ? text.to : text.from,
+        other,
+      });
     });
-    return `${selected.name}. ${links.length} connector${links.length === 1 ? "" : "s"}: ${descriptions.join("; ")}.`;
+    return fill(text.summary_connectors, {
+      name: selected.name,
+      connectors: plural(text.connectors, links.length),
+      descriptions: descriptions.join("; "),
+    });
   }, [announcedTraceNodeId, graph.links, graph.nodes]);
 
   useEffect(() => {
@@ -651,7 +663,7 @@ export function CytoscapeResourceGraph({
       cyRef.current = cy;
       setRendererError(undefined);
     } catch (error) {
-      setRendererError(errorMessage(error, "The map could not be initialised."));
+      setRendererError(errorMessage(error, labels().desktop.topology.graph.init_failed));
       return;
     }
 
@@ -1067,7 +1079,7 @@ export function CytoscapeResourceGraph({
         }
       }
     } catch (error) {
-      setRendererError(errorMessage(error, "The map layout could not be calculated."));
+      setRendererError(errorMessage(error, labels().desktop.topology.graph.layout_failed));
       cyRef.current = undefined;
       cy.destroy();
       return;
@@ -1145,13 +1157,11 @@ export function CytoscapeResourceGraph({
 
   function typeName(azureType?: string | null) {
     const type = azureType ? typeMap.get(azureType) : undefined;
-    return type?.displayName ?? azureType ?? "Resource";
+    return type?.displayName ?? azureType ?? words.resource_fallback;
   }
 
   function findingText(node: TopologyNode) {
-    return node.findingCount > 0
-      ? `, ${node.findingCount} finding${node.findingCount === 1 ? "" : "s"}`
-      : "";
+    return node.findingCount > 0 ? plural(words.findings_suffix, node.findingCount) : "";
   }
 
   function spatialPoints() {
@@ -1330,15 +1340,15 @@ export function CytoscapeResourceGraph({
               ref={registerLabel(`lane:${lane.subscriptionId}`)}
               className="graph-container-label graph-lane-label"
               onClick={() => onActivate({ kind: "subscription", subscriptionId: lane.subscriptionId })}
-              aria-label={`${lane.name}, expanded subscription, ${lane.groupCount} groups. Collapse subscription.`}
+              aria-label={fill(words.lane_expanded, { name: lane.name, groups: lane.groupCount })}
               {...graphButtonProps(`lane:${lane.subscriptionId}`, false)}
             >
               <img src={SUBSCRIPTION_ICON} alt="" />
               <strong>{lane.name}</strong>
               <small>
-                {lane.groupCount} group{lane.groupCount === 1 ? "" : "s"} · {lane.resourceCount} resources
+                {fill(extra.lane_summary, { groups: plural(extra.group_count, lane.groupCount), resources: lane.resourceCount })}
               </small>
-              <i>Collapse ‹</i>
+              <i>{extra.collapse_lane}</i>
             </button>
           ))}
         {graph.nodes.map((node) => {
@@ -1358,7 +1368,7 @@ export function CytoscapeResourceGraph({
                   node.id,
                 )}
                 aria-pressed={node.id === selectedNodeId}
-                aria-label={`${node.name}, virtual network${findingText(node)}. Open resource record.`}
+                aria-label={fill(words.vnet_card, { name: node.name, findings: findingText(node) })}
                 {...graphButtonProps(node.id)}
               >{content}</button>
             ) : (
@@ -1380,7 +1390,7 @@ export function CytoscapeResourceGraph({
                 ref={registerLabel(node.id)}
                 className={tracedClassName("graph-lane-bar-label", node.id)}
                 onClick={() => onActivate({ kind: "subscription", subscriptionId: node.lane ?? "" })}
-                aria-label={`${node.name}, collapsed subscription, ${node.count} groups${findingText(node)}. Expand subscription.`}
+                aria-label={fill(words.subscription_collapsed, { name: node.name, groups: node.count, findings: findingText(node) })}
                 {...graphButtonProps(node.id)}
               >
                 <img src={SUBSCRIPTION_ICON} alt="" />
@@ -1388,10 +1398,10 @@ export function CytoscapeResourceGraph({
                   <strong>{node.name}</strong>
                   <small>{node.subtitle}</small>
                 </span>
-                {node.findingCount > 0 ? <em aria-label={`${node.findingCount} findings`}>{node.findingCount}</em> : null}
+                {node.findingCount > 0 ? <em aria-label={fill(words.findings_badge, { count: node.findingCount })}>{node.findingCount}</em> : null}
                 {kindMarks(node.id)}
                 <span className="graph-route-count"><GitBranch size={12} />{connectionMeta.get(node.id)?.connectors ?? 0}</span>
-                <i className="graph-lane-expand">Expand ›</i>
+                <i className="graph-lane-expand">{words.expand}</i>
               </button>
             );
           }
@@ -1423,26 +1433,26 @@ export function CytoscapeResourceGraph({
                   className={expanded ? "graph-aggregate-label groups selected" : "graph-aggregate-label groups"}
                   onClick={() => onActivate({ kind: "aggregate", nodeId: node.id })}
                   aria-expanded={expanded}
-                  aria-label={`${node.count} unconnected groups, aggregated${findingText(node)}. ${expanded ? "Collapse" : "Show"} groups.`}
+                  aria-label={fill(words.aggregate_groups, { count: node.count, findings: findingText(node), action: expanded ? words.collapse : words.show })}
                   {...graphButtonProps(node.id)}
                 >
                   <img src={RESOURCE_GROUP_ICON} alt="" />
                   <span className="graph-node-copy">
                     <strong>{node.name}</strong>
-                    <small>No cross-group connectors</small>
+                    <small>{words.no_cross_group}</small>
                   </span>
                   <b>{node.subtitle}</b>
-                  {node.findingCount > 0 ? <em aria-label={`${node.findingCount} findings`}>{node.findingCount}</em> : null}
+                  {node.findingCount > 0 ? <em aria-label={fill(words.findings_badge, { count: node.findingCount })}>{node.findingCount}</em> : null}
                 </button>
                 {expanded ? (
-                  <div className="graph-aggregate-members" role="group" aria-label="Unconnected resource groups">
+                  <div className="graph-aggregate-members" role="group" aria-label={words.unconnected_groups_aria}>
                     {groups.map((group) => (
                       <button key={group.id} onClick={() => requestActivation(
                         { kind: "resource-group", groupId: group.id },
                         node.id,
                       )} title={group.name}>
                         <img src={RESOURCE_GROUP_ICON} alt="" />
-                        <span><strong>{group.name}</strong><small>{group.resourceCount} resource{group.resourceCount === 1 ? "" : "s"} · Open group map</small></span>
+                        <span><strong>{group.name}</strong><small>{fill(extra.member_group, { resources: plural(labels().common.plurals.resource, group.resourceCount, { count: group.resourceCount }) })}</small></span>
                       </button>
                     ))}
                   </div>
@@ -1475,26 +1485,26 @@ export function CytoscapeResourceGraph({
                   className={expanded ? "graph-aggregate-label selected" : "graph-aggregate-label"}
                   onClick={() => onActivate({ kind: "aggregate", nodeId: node.id })}
                   aria-expanded={expanded}
-                  aria-label={`${node.count} ${typeName(node.azureType)}, aggregated${findingText(node)}. ${expanded ? "Collapse" : "Show"} resources.`}
+                  aria-label={fill(words.aggregate_resources, { count: node.count, type: typeName(node.azureType), findings: findingText(node), action: expanded ? words.collapse : words.show })}
                   {...graphButtonProps(node.id)}
                 >
                   {typeIcon(node.azureType) ? <img src={typeIcon(node.azureType)} alt="" /> : null}
                   <span className="graph-node-copy">
                     <strong>{typeName(node.azureType)}</strong>
-                    <small>{node.zone === "unconnected" ? "No drawn connectors" : `${node.hop ?? 1} hop${(node.hop ?? 1) === 1 ? "" : "s"} away`}</small>
+                    <small>{node.zone === "unconnected" ? words.no_drawn_connectors : plural(words.hops_away, node.hop ?? 1)}</small>
                   </span>
                   <b>{node.subtitle}</b>
-                  {node.findingCount > 0 ? <em aria-label={`${node.findingCount} findings`}>{node.findingCount}</em> : null}
+                  {node.findingCount > 0 ? <em aria-label={fill(words.findings_badge, { count: node.findingCount })}>{node.findingCount}</em> : null}
                 </button>
                 {expanded ? (
-                  <div className="graph-aggregate-members" role="group" aria-label={`${typeName(node.azureType)} resources`}>
+                  <div className="graph-aggregate-members" role="group" aria-label={fill(extra.members_aria, { type: typeName(node.azureType) })}>
                     {members.map((resource) => (
                       <button key={resource.id} onClick={() => requestActivation(
                         { kind: "resource", resourceId: resource.id },
                         node.id,
                       )} title={resource.name}>
                         {typeIcon(resource.azureType) ? <img src={typeIcon(resource.azureType)} alt="" /> : null}
-                        <span><strong>{resource.name}</strong><small>{resource.findingCount > 0 ? `${resource.findingCount} findings` : "Open resource record"}</small></span>
+                        <span><strong>{resource.name}</strong><small>{resource.findingCount > 0 ? fill(words.findings_badge, { count: resource.findingCount }) : words.open_record}</small></span>
                       </button>
                     ))}
                   </div>
@@ -1516,7 +1526,7 @@ export function CytoscapeResourceGraph({
                   ? requestActivation({ kind: "resource", resourceId: node.resourceId }, node.id)
                   : onActivate({ kind: "aggregate", nodeId: node.id })}
                 aria-pressed={node.id === selectedNodeId}
-                aria-label={`${node.name}, in another resource group${findingText(node)}. Open resource record.`}
+                aria-label={fill(words.external_card, { name: node.name, findings: findingText(node) })}
                 {...graphButtonProps(node.id)}
               >
                 <span className="graph-node-icon">
@@ -1547,7 +1557,7 @@ export function CytoscapeResourceGraph({
                   node.id,
                 )}
                 aria-pressed={selected}
-                aria-label={`${node.name}, ${node.count} resources${findingText(node)}. Open group map.`}
+                aria-label={fill(words.group_card, { name: node.name, count: node.count, findings: findingText(node) })}
                 {...graphButtonProps(node.id)}
               >
                 <span className="graph-group-heading">
@@ -1558,7 +1568,7 @@ export function CytoscapeResourceGraph({
                     <strong>{node.name}</strong>
                     <small>{node.subtitle}</small>
                   </span>
-                  {node.findingCount > 0 ? <em aria-label={`${node.findingCount} findings`}>{node.findingCount}</em> : null}
+                  {node.findingCount > 0 ? <em aria-label={fill(words.findings_badge, { count: node.findingCount })}>{node.findingCount}</em> : null}
                 </span>
                 <span className="graph-group-types" aria-hidden="true">
                   <span className="graph-group-type-icons">
@@ -1594,7 +1604,14 @@ export function CytoscapeResourceGraph({
                   className="graph-node-primary"
                   onClick={() => requestActivation({ kind: "resource", resourceId }, node.id)}
                   aria-pressed={selected}
-                  aria-label={`${node.name}, ${typeName(node.azureType)}${findingText(node)}. Open resource record.${relationshipCount > 0 ? ` Press R to explore ${relationshipCount} relationships.` : " No relationships to explore."}`}
+                  aria-label={fill(words.resource_card, {
+                    name: node.name,
+                    type: typeName(node.azureType),
+                    findings: findingText(node),
+                    relationships: relationshipCount > 0
+                      ? fill(words.explore_hint, { count: relationshipCount })
+                      : words.no_relationships_hint,
+                  })}
                   {...resourceButtonProps(node.id, resourceId, relationshipCount)}
                 >
                   <span className="graph-node-icon">
@@ -1604,7 +1621,7 @@ export function CytoscapeResourceGraph({
                     <strong>{node.name}</strong>
                     <small>{node.subtitle || typeName(node.azureType)}</small>
                   </span>
-                  {node.findingCount > 0 ? <em aria-label={`${node.findingCount} findings`}>{node.findingCount}</em> : null}
+                  {node.findingCount > 0 ? <em aria-label={fill(words.findings_badge, { count: node.findingCount })}>{node.findingCount}</em> : null}
                 </button>
                 <button
                   className="graph-node-relationships"
@@ -1615,11 +1632,11 @@ export function CytoscapeResourceGraph({
                     node.id,
                   )}
                   aria-label={relationshipCount > 0
-                    ? `Explore ${relationshipCount} relationships for ${node.name}`
-                    : `${node.name} has no relationships to explore`}
+                    ? fill(words.explore_aria, { count: relationshipCount, name: node.name })
+                    : fill(words.no_relationships_aria, { name: node.name })}
                   title={relationshipCount > 0
-                    ? `Explore ${relationshipCount} relationships`
-                    : "No relationships to explore"}
+                    ? fill(words.explore, { count: relationshipCount })
+                    : words.no_relationships}
                 >
                   <GitBranch size={13} aria-hidden="true" />
                   <span>{relationshipCount}</span>
@@ -1636,16 +1653,16 @@ export function CytoscapeResourceGraph({
           className="graph-empty-state"
           role="status"
           icon={<img src={RESOURCE_GROUP_ICON} alt="" />}
-          title="Nothing to draw"
-          detail="The current scope contains no stored resources."
+          title={words.nothing_title}
+          detail={words.nothing_detail}
         />
       ) : null}
       {rendererError ? (
         <div className="graph-renderer-error" role="alert" aria-live="assertive">
-          <strong>Graph rendering is unavailable</strong>
+          <strong>{extra.renderer_unavailable}</strong>
           <span>{rendererError}</span>
-          <p>The map can be retried without leaving this page.</p>
-          <button onClick={() => setRendererRetryNonce((value) => value + 1)}>Retry renderer</button>
+          <p>{extra.renderer_retry_detail}</p>
+          <button onClick={() => setRendererRetryNonce((value) => value + 1)}>{extra.renderer_retry}</button>
         </div>
       ) : null}
     </div>

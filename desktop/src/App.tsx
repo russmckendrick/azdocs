@@ -42,26 +42,27 @@ import type {
   ThemePreference,
   ViewId,
 } from "./types";
-import { dayMonthTime, errorMessage } from "./format";
+import { dayMonthTime, errorMessage, fill } from "./format";
+import { installLabels, useLabels, type Labels } from "./labels";
 import { matchesResourceSearch, useResourceTypeMap } from "./estate-lookups";
 
 const TopologyView = lazy(() =>
   import("./components/TopologyView").then((module) => ({ default: module.TopologyView })),
 );
 
+/** The side-nav entries; labels come from `desktop.nav` under the same ids. */
 const views: Array<{
-  id: ViewId;
-  label: string;
+  id: Exclude<ViewId, "settings">;
   icon: typeof Boxes;
 }> = [
-  { id: "overview", label: "Overview", icon: LayoutGrid },
-  { id: "estate", label: "Estate", icon: Boxes },
-  { id: "topology", label: "Map", icon: MapIcon },
-  { id: "inventory", label: "Inventory", icon: Table2 },
-  { id: "findings", label: "Findings", icon: ShieldCheck },
-  { id: "governance", label: "Governance", icon: Tags },
-  { id: "history", label: "Changes", icon: FileClock },
-  { id: "exports", label: "Exports", icon: FileOutput },
+  { id: "overview", icon: LayoutGrid },
+  { id: "estate", icon: Boxes },
+  { id: "topology", icon: MapIcon },
+  { id: "inventory", icon: Table2 },
+  { id: "findings", icon: ShieldCheck },
+  { id: "governance", icon: Tags },
+  { id: "history", icon: FileClock },
+  { id: "exports", icon: FileOutput },
 ];
 
 const THEME_STORAGE_KEY = "azdocs-theme";
@@ -75,28 +76,30 @@ function readThemePreference(): ThemePreference {
   }
 }
 
-function frameLabel(frame: NavigationFrame | undefined, estate?: EstateSnapshot) {
-  if (!frame) return "previous view";
+function frameLabel(
+  frame: NavigationFrame | undefined,
+  nav: Labels["desktop"]["nav"],
+  estate?: EstateSnapshot,
+) {
+  if (!frame) return nav.previous_view;
   if (frame.surface.kind === "resource") {
     const resourceId = frame.surface.resourceId;
     return estate?.resources.find((resource) => resource.id === resourceId)?.name
-      ?? "resource";
+      ?? nav.resource;
   }
   if (frame.section === "topology") {
     const location = frame.relationships.location;
     if (location.kind === "group") {
       return estate?.resourceGroups.find((group) => group.id === location.groupId)?.name
-        ?? "resource group";
+        ?? nav.resource_group;
     }
     if (location.kind === "neighbourhood") {
       const name = estate?.resources.find((resource) => resource.id === location.resourceId)?.name;
-      return name ? `${name} neighbourhood` : "neighbourhood";
+      return name ? fill(nav.neighbourhood_of, { name }) : nav.neighbourhood;
     }
-    return "Map";
+    return nav.topology;
   }
-  return frame.section === "settings"
-    ? "Settings"
-    : views.find((item) => item.id === frame.section)?.label ?? "previous view";
+  return nav[frame.section] ?? nav.previous_view;
 }
 
 export default function App() {
@@ -116,6 +119,7 @@ export default function App() {
     () => window.matchMedia("(prefers-color-scheme: dark)").matches,
   );
   const searchRef = useRef<HTMLInputElement>(null);
+  const { desktop: { nav, shell } } = useLabels();
   const view = navigation.section;
   const resourceRecordId = navigation.surface.kind === "resource"
     ? navigation.surface.resourceId
@@ -164,6 +168,10 @@ export default function App() {
       try {
         const nextBootstrap = await getBootstrap();
         if (!active) return;
+        // Before setBootstrap: the re-render it triggers repaints the chrome
+        // with the installed words.
+        installLabels(nextBootstrap.labels);
+        document.title = nextBootstrap.labels.desktop.app.window_title;
         setBootstrap(nextBootstrap);
         if (nextBootstrap.latestSnapshotId) {
           const nextEstate = await getSnapshot(nextBootstrap.latestSnapshotId);
@@ -212,7 +220,9 @@ export default function App() {
       .filter((resource) => matchesResourceSearch(resource, value, estate.azureMetadata))
       .slice(0, 8);
   }, [estate, search]);
-  const shortcutLabel = navigator.platform.toLowerCase().includes("mac") ? "⌘ K" : "Ctrl K";
+  const shortcutLabel = navigator.platform.toLowerCase().includes("mac")
+    ? shell.shortcut_mac
+    : shell.shortcut_other;
   const highFindings = estate?.severityCounts.high ?? 0;
 
   function chooseSearchResult(index: number) {
@@ -246,6 +256,7 @@ export default function App() {
     try {
       const next = await chooseDatabase();
       if (!next) return;
+      installLabels(next.labels);
       setBootstrap(next);
       setEstate(undefined);
       dispatchNavigation({ type: "reset-snapshot" });
@@ -259,17 +270,20 @@ export default function App() {
     if (collecting) return;
     setCollecting(true);
     setError(undefined);
-    setCollectionMessage("Preparing read-only collection");
+    setCollectionMessage(shell.preparing_collection);
     try {
       const result = await collectEstate((event: CollectionEvent) => {
         if (event.event === "phase") setCollectionMessage(event.data.message);
-        if (event.event === "complete") setCollectionMessage("Snapshot stored; rebuilding estate view");
+        if (event.event === "complete") setCollectionMessage(shell.snapshot_stored);
         if (event.event === "failed") setCollectionMessage(event.data.message);
       });
       const nextBootstrap = await getBootstrap();
+      installLabels(nextBootstrap.labels);
       setBootstrap(nextBootstrap);
       await loadSnapshot(result.snapshotId);
-      setCollectionMessage(`Collected ${result.rowsIngested.toLocaleString()} rows into a ${result.status} snapshot`);
+      setCollectionMessage(
+        fill(shell.collected, { rows: result.rowsIngested.toLocaleString(), status: result.status }),
+      );
       window.setTimeout(() => setCollectionMessage(undefined), 4800);
     } catch (caught) {
       setError(errorMessage(caught));
@@ -311,20 +325,20 @@ export default function App() {
             <span className="brand-mark" aria-hidden="true" />
             <strong aria-hidden="true">zdocs</strong>
           </div>
-          <span>Estate field report</span>
-          {!isTauri ? <em>Illustrative workspace</em> : null}
+          <span>{shell.tagline}</span>
+          {!isTauri ? <em>{shell.preview_badge}</em> : null}
         </div>
         <label className="snapshot-control">
-          <span>Snapshot</span>
+          <span>{shell.snapshot}</span>
           <select
             value={estate?.id ?? ""}
             onChange={(event) => void loadSnapshot(event.target.value)}
             disabled={!bootstrap?.snapshots.length || loading}
-            aria-label="Active snapshot"
+            aria-label={shell.snapshot_picker}
           >
             {bootstrap?.snapshots.map((snapshot) => (
               <option key={snapshot.id} value={snapshot.id}>
-                {dayMonthTime(snapshot.createdAt)} · {snapshot.resources} resources
+                {fill(shell.snapshot_option, { date: dayMonthTime(snapshot.createdAt), count: snapshot.resources })}
               </option>
             ))}
           </select>
@@ -342,8 +356,8 @@ export default function App() {
             }}
             onFocus={() => setSearchOpen(Boolean(search.trim()))}
             onKeyDown={handleSearchKeyDown}
-            placeholder="Search resources, types, groups, tags…"
-            aria-label="Search the active snapshot"
+            placeholder={shell.search_placeholder}
+            aria-label={shell.search_aria}
             role="combobox"
             aria-autocomplete="list"
             aria-expanded={searchOpen && searchMatches.length > 0}
@@ -352,7 +366,7 @@ export default function App() {
           />
           <kbd>{shortcutLabel}</kbd>
           {searchOpen && search ? (
-            <div className="global-search-results" id="global-resource-results" role="listbox" aria-label="Matching resources">
+            <div className="global-search-results" id="global-resource-results" role="listbox" aria-label={shell.search_results}>
               {searchMatches.map((resource, index) => {
                 const type = resourceTypeMap.get(resource.azureType);
                 return (
@@ -370,29 +384,31 @@ export default function App() {
                   </button>
                 );
               })}
-              {searchMatches.length === 0 ? <p>No matching resources in this snapshot.</p> : null}
+              {searchMatches.length === 0 ? <p>{shell.search_no_matches}</p> : null}
             </div>
           ) : null}
         </div>
         <div className="masthead-actions">
           <button className="quiet-button" onClick={handleDatabase} title={bootstrap?.databasePath}>
             <FolderSearch2 size={15} />
-            Open data
+            {shell.open_data}
           </button>
           <button
             className="collect-button"
             onClick={() => void handleCollect()}
             disabled={collecting || !bootstrap?.hasCredentials}
-            title={bootstrap?.hasCredentials ? "Collect a new snapshot" : `Configure credentials in ${bootstrap?.configPath ?? "azdocs.toml"}`}
+            title={bootstrap?.hasCredentials
+              ? shell.collect_hint
+              : fill(shell.configure_credentials, { path: bootstrap?.configPath ?? "azdocs.toml" })}
           >
             {collecting ? <LoaderCircle className="spin" size={15} /> : <RefreshCw size={15} />}
-            {collecting ? "Collecting" : "Collect snapshot"}
+            {collecting ? shell.collecting : shell.collect}
           </button>
         </div>
       </header>
 
       <div className="app-body">
-        <nav className="side-nav" aria-label="Primary navigation">
+        <nav className="side-nav" aria-label={shell.primary_navigation}>
           {views.map((item) => {
             const Icon = item.icon;
             const badge = item.id === "findings" && highFindings > 0 ? highFindings : undefined;
@@ -402,10 +418,10 @@ export default function App() {
                 className={view === item.id ? "nav-row active" : "nav-row"}
                 onClick={() => openSection(item.id)}
                 aria-current={view === item.id ? "page" : undefined}
-                title={item.label}
+                title={nav[item.id]}
               >
                 <Icon size={15} strokeWidth={1.6} />
-                <span>{item.label}</span>
+                <span>{nav[item.id]}</span>
                 {badge ? <span className="nav-badge">{badge}</span> : null}
               </button>
             );
@@ -415,10 +431,10 @@ export default function App() {
             className={view === "settings" ? "nav-row active" : "nav-row"}
             onClick={() => openSection("settings")}
             aria-current={view === "settings" ? "page" : undefined}
-            title="Settings"
+            title={nav.settings}
           >
             <Settings2 size={15} strokeWidth={1.6} />
-            <span>Settings</span>
+            <span>{nav.settings}</span>
           </button>
         </nav>
 
@@ -427,14 +443,14 @@ export default function App() {
             <div className="collection-strip" role="status">
               <LoaderCircle className={collecting ? "spin" : ""} size={15} />
               <span>{collectionMessage}</span>
-              <small>Azure Resource Graph · read-only</small>
+              <small>{shell.source_note}</small>
             </div>
           ) : null}
           {error ? (
             <div className="error-strip" role="alert">
               <AlertTriangle size={16} />
               <span>{error}</span>
-              <button onClick={() => setError(undefined)}>Dismiss</button>
+              <button onClick={() => setError(undefined)}>{shell.dismiss}</button>
             </div>
           ) : null}
 
@@ -483,7 +499,7 @@ export default function App() {
                     workspace={navigation.relationships}
                     active={!selectedResource}
                     backLabel={navigation.history.length > 0
-                      ? `Back to ${frameLabel(navigation.history.at(-1), estate)}`
+                      ? fill(nav.back_to, { target: frameLabel(navigation.history.at(-1), nav, estate) })
                       : undefined}
                     onBack={navigation.history.length > 0 ? navigateBack : undefined}
                     onNavigate={navigateRelationships}
@@ -521,7 +537,7 @@ export default function App() {
                     resource={selectedResource}
                     type={resourceTypeMap.get(selectedResource.azureType)}
                     estate={estate}
-                    backLabel={`Back to ${frameLabel(navigation.history.at(-1), estate)}`}
+                    backLabel={fill(nav.back_to, { target: frameLabel(navigation.history.at(-1), nav, estate) })}
                     onBack={navigateBack}
                     onSelectResource={openResource}
                     onOpenTopology={() => openRelationships(selectedResource.id)}
@@ -534,25 +550,29 @@ export default function App() {
         </main>
       </div>
 
-      <footer className="statusbar" aria-label="Application status">
+      <footer className="statusbar" aria-label={shell.status_aria}>
         <span className={`status-dot ${estate?.status ?? "unknown"}`} />
-        <span>{estate ? `${estate.status} snapshot` : "No snapshot loaded"}</span>
+        <span>{estate ? fill(shell.status_snapshot, { status: estate.status }) : shell.status_none}</span>
         <span className="status-divider" />
-        <span className="mono">{bootstrap?.databasePath ?? "Resolving database…"}</span>
+        <span className="mono">{bootstrap?.databasePath ?? shell.status_resolving}</span>
         <span className="status-spacer" />
         <span>{selectedResource ?? relationshipResource
-          ? `${(selectedResource ?? relationshipResource)?.edgeCount} relationships · ${(selectedResource ?? relationshipResource)?.findingCount} findings`
+          ? fill(shell.status_selection, {
+              edges: (selectedResource ?? relationshipResource)?.edgeCount ?? 0,
+              findings: (selectedResource ?? relationshipResource)?.findingCount ?? 0,
+            })
             : view === "topology" && estate
-              ? `${estate.edges.length} stored relationships`
+              ? fill(shell.status_stored_relationships, { count: estate.edges.length })
             : view === "exports" && estate
-              ? `${estate.id} · ready for offline export`
-            : "No resource selected"}</span>
+              ? fill(shell.status_export_ready, { id: estate.id })
+            : shell.status_no_selection}</span>
       </footer>
     </div>
   );
 }
 
 function LoadingWorkspace() {
+  const { shell } = useLabels().desktop;
   return (
     <div className="loading-workspace" role="status">
       <div className="loading-cabinet">
@@ -560,8 +580,8 @@ function LoadingWorkspace() {
         <span />
         <span />
       </div>
-      <strong>Opening the estate record</strong>
-      <p>Reading subscriptions, resources, relationships, and findings from SQLite.</p>
+      <strong>{shell.loading_title}</strong>
+      <p>{shell.loading_detail}</p>
     </div>
   );
 }
@@ -575,16 +595,15 @@ function EmptyWorkspace({
   onCollect: () => void;
   onOpen: () => void;
 }) {
+  const { shell } = useLabels().desktop;
   return (
     <div className="empty-workspace">
       <PanelLeftClose size={38} strokeWidth={1.3} />
-      <h1>No stored snapshots yet</h1>
-      <p>
-        Open an existing azdocs database or collect a read-only Azure snapshot. Exploration and exports remain offline after collection.
-      </p>
+      <h1>{shell.empty_title}</h1>
+      <p>{shell.empty_detail}</p>
       <div>
-        <button className="collect-button" onClick={onOpen}>Open database</button>
-        <button className="quiet-button" onClick={onCollect} disabled={!canCollect}>Collect first snapshot</button>
+        <button className="collect-button" onClick={onOpen}>{shell.open_database}</button>
+        <button className="quiet-button" onClick={onCollect} disabled={!canCollect}>{shell.collect_first}</button>
       </div>
     </div>
   );

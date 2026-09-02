@@ -1,7 +1,10 @@
 import type { TopologyGraph, TopologyLink } from "../types";
 import type { Placement } from "./topology-layout";
 import { stableCompare } from "../ordering";
-import { capitalise } from "../format";
+import { capitalise, fill } from "../format";
+import { DEFAULT_LABELS, type Labels } from "../labels";
+
+type GraphWords = Labels["desktop"]["topology"]["graph"];
 
 export type RelationshipLabelSide = "left" | "right" | "top" | "bottom";
 export type ConnectorPortSide = RelationshipLabelSide;
@@ -105,13 +108,20 @@ function slotsForEndpoint(
   return slots;
 }
 
-function displayLabel(graph: TopologyGraph, link: TopologyLink) {
-  if (graph.level === "estate" && link.count > 1) return `${link.count} links`;
-  if (!link.label) return "Relationship";
+function displayLabel(graph: TopologyGraph, link: TopologyLink, words: GraphWords) {
+  if (graph.level === "estate" && link.count > 1) return fill(words.links, { count: link.count });
+  if (!link.label) return words.relationship_fallback;
   return capitalise(link.label);
 }
 
-export function buildLinkPresentations(graph: TopologyGraph): LinkPresentation[] {
+/**
+ * `words` is a parameter, not a module read, so this stays a pure function
+ * the tests can drive; the view passes the installed labels.
+ */
+export function buildLinkPresentations(
+  graph: TopologyGraph,
+  words: GraphWords = DEFAULT_LABELS.desktop.topology.graph,
+): LinkPresentation[] {
   const links = graph.links.map((link, index) => ({ link, index }));
   const sourceSlots = slotsForEndpoint(links, "sourceId");
   const targetSlots = slotsForEndpoint(links, "targetId");
@@ -127,7 +137,7 @@ export function buildLinkPresentations(graph: TopologyGraph): LinkPresentation[]
       index,
       sourceId: link.sourceId,
       targetId: link.targetId,
-      label: displayLabel(graph, link),
+      label: displayLabel(graph, link, words),
       kindClass: link.kindClass,
       count: link.count,
       taxiTurn: `${Number(turn.toFixed(1))}%`,

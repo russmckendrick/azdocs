@@ -6,6 +6,7 @@ use azdocs::cli::ArgValue;
 use azdocs::cli::{DiagramArgs, DiagramFormat, DiagramType, ReportArgs, ReportFormat};
 use azdocs::collect::CollectRequest;
 use azdocs::config::{Config, default_config_path};
+use azdocs::labels::fill;
 use azdocs::querypack::{QueryKind, QueryPack};
 use azdocs::report::ReportContext;
 use azdocs::store::Store;
@@ -19,6 +20,7 @@ use crate::dto::{
     SnapshotSummary,
 };
 use crate::error::AppError;
+use crate::labels::AppLabels;
 use crate::topology::{self, TopologyGraphDto, TopologyRequest};
 
 fn database_path(state: &State<'_, AppState>) -> Result<PathBuf, AppError> {
@@ -38,7 +40,7 @@ fn set_database_path(state: &State<'_, AppState>, path: PathBuf) -> Result<(), A
     Ok(())
 }
 
-fn bootstrap_for(path: &Path) -> Result<AppBootstrap, AppError> {
+fn bootstrap_for(path: &Path, labels: &AppLabels) -> Result<AppBootstrap, AppError> {
     let store = Store::open(path)?;
     let snapshots: Vec<SnapshotSummary> = store
         .list_snapshots()?
@@ -63,6 +65,7 @@ fn bootstrap_for(path: &Path) -> Result<AppBootstrap, AppError> {
         required_tags: config.audit.required_tags.clone(),
         snapshots,
         latest_snapshot_id,
+        labels: labels.clone(),
     })
 }
 
@@ -102,7 +105,7 @@ pub fn query_rows(
 
 #[tauri::command]
 pub fn bootstrap(state: State<'_, AppState>) -> Result<AppBootstrap, AppError> {
-    bootstrap_for(&database_path(&state)?)
+    bootstrap_for(&database_path(&state)?, &state.labels)
 }
 
 #[tauri::command]
@@ -111,7 +114,7 @@ pub fn open_database(path: String, state: State<'_, AppState>) -> Result<AppBoot
     if !path.is_file() {
         return Err(AppError::InvalidDatabase(path.display().to_string()));
     }
-    let bootstrap = bootstrap_for(&path)?;
+    let bootstrap = bootstrap_for(&path, &state.labels)?;
     set_database_path(&state, path)?;
     Ok(bootstrap)
 }
@@ -171,6 +174,7 @@ pub fn load_snapshot(
         edges,
         query_runs,
         previous_diff,
+        &state.labels.common.subscription_scope,
     ))
 }
 
@@ -200,6 +204,7 @@ pub fn topology_graph(
             resources: &resources,
             edges: &edges,
             finding_counts: &finding_counts,
+            labels: &state.labels,
         },
     ))
 }
@@ -211,6 +216,7 @@ pub async fn collect_snapshot(
     state: State<'_, AppState>,
 ) -> Result<CollectResultDto, AppError> {
     let path = database_path(&state)?;
+    let labels = Arc::clone(&state.labels);
     let failure_channel = on_event.clone();
     let result: Result<CollectResultDto, AppError> =
         tauri::async_runtime::spawn_blocking(move || {
@@ -219,8 +225,9 @@ pub async fn collect_snapshot(
                 .build()
                 .map_err(|error| AppError::Collection(error.to_string()))?;
             runtime.block_on(async move {
+                let phases = &labels.desktop.backend.phases;
                 let _ = on_event.send(CollectionEvent::Phase {
-                    message: "Loading query pack and credentials".to_owned(),
+                    message: phases.loading_pack.clone(),
                 });
                 let config =
                     Config::load(None).map_err(|error| AppError::Config(error.to_string()))?;
@@ -231,7 +238,7 @@ pub async fn collect_snapshot(
                     QueryPack::load().map_err(|error| AppError::Collection(error.to_string()))?;
                 let queries = pack.all().into_iter().cloned().collect::<Vec<_>>();
                 let _ = on_event.send(CollectionEvent::Phase {
-                    message: format!("Running {} read-only Azure queries", queries.len()),
+                    message: fill(&phases.running_queries, &[("count", &queries.len())]),
                 });
                 let provider = azdocs::commands::token_provider(&config)
                     .map_err(|error| AppError::Collection(error.to_string()))?;
@@ -322,6 +329,7 @@ fn export_reports(
     destination: &Path,
     store: &Store,
     on_event: &Channel<ExportEvent>,
+    labels: &AppLabels,
 ) -> Result<Vec<PathBuf>, AppError> {
     let mut formats = Vec::new();
     for value in &request.formats {
@@ -332,12 +340,15 @@ fn export_reports(
     }
     if formats.is_empty() {
         return Err(AppError::Export(
-            "select at least one report format".to_owned(),
+            labels.desktop.backend.errors.no_report_format.clone(),
         ));
     }
 
     let _ = on_event.send(ExportEvent::Phase {
-        message: format!("Composing {} report format(s)", formats.len()),
+        message: fill(
+            &labels.desktop.backend.phases.composing_reports,
+            &[("count", &formats.len())],
+        ),
     });
     let (config, source) =
         Config::load_with_source(None).map_err(|error| AppError::Config(error.to_string()))?;
@@ -357,11 +368,13 @@ fn export_diagrams(
     destination: &Path,
     store: &Store,
     on_event: &Channel<ExportEvent>,
+    labels: &AppLabels,
 ) -> Result<Vec<PathBuf>, AppError> {
+    let errors = &labels.desktop.backend.errors;
     let kind = request
         .diagram_type
         .as_deref()
-        .ok_or_else(|| AppError::Export("select a diagram type".to_owned()))
+        .ok_or_else(|| AppError::Export(errors.no_diagram_type.clone()))
         .and_then(diagram_type)?;
     let mut formats = Vec::new();
     for value in &request.formats {
@@ -371,9 +384,7 @@ fn export_diagrams(
         }
     }
     if formats.is_empty() {
-        return Err(AppError::Export(
-            "select at least one diagram format".to_owned(),
-        ));
+        return Err(AppError::Export(errors.no_diagram_format.clone()));
     }
     if let Some(reason) = formats
         .iter()
@@ -382,13 +393,22 @@ fn export_diagrams(
         return Err(AppError::Export(reason.to_owned()));
     }
 
+    // The diagram command prints through the CLI labels, so the desktop
+    // resolves the same set the report path does: the config's choice, with
+    // the built-ins when the config cannot be read.
+    let cli_labels = Config::load(None)
+        .ok()
+        .and_then(|config| azdocs::labels::resolve(&config.branding).ok())
+        .unwrap_or_default();
     let mut outputs = Vec::new();
     for format in formats {
         let _ = on_event.send(ExportEvent::Phase {
-            message: format!(
-                "Rendering {} as {}",
-                kind.slug(),
-                format.extension().unwrap_or("out")
+            message: fill(
+                &labels.desktop.backend.phases.rendering_diagram,
+                &[
+                    ("kind", &kind.slug()),
+                    ("format", &format.extension().unwrap_or("out")),
+                ],
             ),
         });
         let args = DiagramArgs {
@@ -404,7 +424,7 @@ fn export_diagrams(
             )),
         };
         outputs.extend(
-            azdocs::commands::diagram::run_with_outputs(store, &args)
+            azdocs::commands::diagram::run_with_outputs(store, &args, &cli_labels)
                 .map_err(|error| AppError::Export(error.to_string()))?,
         );
     }
@@ -418,27 +438,30 @@ pub async fn export_snapshot(
     state: State<'_, AppState>,
 ) -> Result<ExportResultDto, AppError> {
     let database = database_path(&state)?;
+    let labels = Arc::clone(&state.labels);
     let failure_channel = on_event.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
+        let errors = &labels.desktop.backend.errors;
         let destination = PathBuf::from(&request.destination);
         if request.destination.trim().is_empty() {
-            return Err(AppError::Export("choose an output directory".to_owned()));
+            return Err(AppError::Export(errors.no_destination.clone()));
         }
         if destination.exists() && !destination.is_dir() {
-            return Err(AppError::Export(format!(
-                "output destination is not a directory: {}",
-                destination.display()
+            return Err(AppError::Export(fill(
+                &errors.destination_not_dir,
+                &[("path", &destination.display())],
             )));
         }
         let store = Store::open(&database)?;
         store.resolve_snapshot(&request.snapshot_id)?;
         let export_kind = request.export_kind.clone();
         let mut outputs = match export_kind.as_str() {
-            "reports" => export_reports(request, &destination, &store, &on_event)?,
-            "diagrams" => export_diagrams(request, &destination, &store, &on_event)?,
+            "reports" => export_reports(request, &destination, &store, &on_event, &labels)?,
+            "diagrams" => export_diagrams(request, &destination, &store, &on_event, &labels)?,
             other => {
-                return Err(AppError::Export(format!(
-                    "unsupported export kind `{other}`"
+                return Err(AppError::Export(fill(
+                    &errors.unsupported_kind,
+                    &[("kind", &other)],
                 )));
             }
         };

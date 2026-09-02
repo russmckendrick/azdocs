@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { buildFallbackTopology, edgeKindClass } from "./topology-fallback";
 import { mockEstate } from "../mock-data";
+import { DEFAULT_LABELS } from "../labels";
 import type { EdgeKind, KindClass } from "../types";
 
 /**
@@ -71,6 +72,17 @@ describe("edgeKindClass", () => {
   it("unit_classifies_monitors_as_monitoring_when_called", () => {
     // The specific regression: a switch `default` made this "structure".
     expect(edgeKindClass("monitors")).toBe("monitoring");
+  });
+
+  it("unit_labels_every_rust_edge_kind_when_reading_the_labels_file", () => {
+    // A new EdgeKind forces a classification in Rust; this makes it force a
+    // connector label in data/labels/en.toml as well.
+    expect(Object.keys(DEFAULT_LABELS.desktop.topology.edge_kinds).sort()).toEqual(rustEdgeKinds());
+  });
+
+  it("unit_labels_every_kind_class_family_when_reading_the_labels_file", () => {
+    const families = [...new Set(rustKindClasses().values())].sort();
+    expect(Object.keys(DEFAULT_LABELS.desktop.topology.kind_classes).sort()).toEqual(families);
   });
 });
 

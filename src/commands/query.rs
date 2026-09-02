@@ -7,6 +7,7 @@ use serde_json::Value;
 use crate::arg::ArgClient;
 use crate::cli::QueryOutputFormat;
 use crate::config::Config;
+use crate::labels::{Labels, fill};
 use crate::model::rows::{cell_to_string, columns};
 use crate::querypack::QueryPack;
 
@@ -16,6 +17,7 @@ pub async fn run(
     query: &str,
     format: QueryOutputFormat,
     subscriptions: &[String],
+    labels: &Labels,
 ) -> anyhow::Result<()> {
     let kql = resolve_kql(query)?;
     let provider = super::token_provider(config)?;
@@ -30,8 +32,14 @@ pub async fn run(
         .await
         .context("query against Azure Resource Graph failed")?;
 
-    print_rows(&outcome.rows, format)?;
-    eprintln!("{} rows ({} pages)", outcome.rows.len(), outcome.pages);
+    print_rows(&outcome.rows, format, labels)?;
+    eprintln!(
+        "{}",
+        fill(
+            &labels.cli.query.rows_summary,
+            &[("rows", &outcome.rows.len()), ("pages", &outcome.pages)]
+        )
+    );
     Ok(())
 }
 
@@ -66,11 +74,19 @@ fn resolve_kql(query: &str) -> anyhow::Result<String> {
     Ok(def.kql.clone())
 }
 
-pub fn list(category: Option<&str>) -> anyhow::Result<()> {
+pub fn list(category: Option<&str>, labels: &Labels) -> anyhow::Result<()> {
+    let words = &labels.cli.query;
+    let columns = &words.columns;
     let pack = QueryPack::load()?;
     let mut table = comfy_table::Table::new();
     table.load_style(comfy_table::presets::UTF8_BORDERS_ONLY);
-    table.set_header(["name", "category", "kind", "severity", "description"]);
+    table.set_header([
+        columns.name.as_str(),
+        columns.category.as_str(),
+        columns.kind.as_str(),
+        columns.severity.as_str(),
+        columns.description.as_str(),
+    ]);
     for def in pack.all() {
         if category.is_some_and(|c| c != def.category) {
             continue;
@@ -86,7 +102,10 @@ pub fn list(category: Option<&str>) -> anyhow::Result<()> {
     }
     println!("{table}");
     if let Some(dir) = crate::querypack::user_queries_dir() {
-        println!("User queries dir: {}", dir.display());
+        println!(
+            "{}",
+            fill(&words.user_queries_dir, &[("path", &dir.display())])
+        );
     }
     Ok(())
 }
@@ -102,12 +121,12 @@ pub fn show(name: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn print_rows(rows: &[Value], format: QueryOutputFormat) -> anyhow::Result<()> {
+fn print_rows(rows: &[Value], format: QueryOutputFormat, labels: &Labels) -> anyhow::Result<()> {
     match format {
         QueryOutputFormat::Json => {
             println!("{}", serde_json::to_string_pretty(rows)?);
         }
-        QueryOutputFormat::Table => print_table(rows),
+        QueryOutputFormat::Table => print_table(rows, &labels.cli.query.no_rows),
         QueryOutputFormat::Csv => print_csv(rows)?,
     }
     Ok(())
@@ -115,9 +134,9 @@ fn print_rows(rows: &[Value], format: QueryOutputFormat) -> anyhow::Result<()> {
 
 /// Column order follows the first row's key order (ARG preserves the
 /// projection order in objectArray results).
-fn print_table(rows: &[Value]) {
+fn print_table(rows: &[Value], no_rows: &str) {
     if rows.is_empty() {
-        println!("(no rows)");
+        println!("{no_rows}");
         return;
     }
     let columns = columns(rows);

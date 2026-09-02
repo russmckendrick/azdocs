@@ -1,8 +1,11 @@
 import type { TopologyGraph } from "../types";
 
+/** What happened to a run of items that are not drawn cards; the view maps it to `desktop.topology.counts`. */
+export type CountsKind = "folded" | "collapsed" | "unconnected" | "tiles" | "external" | "hidden";
+
 export interface CountsExtra {
   count: number;
-  label: string;
+  kind: CountsKind;
   emphasis?: boolean;
 }
 
@@ -11,12 +14,13 @@ export interface CountsExtra {
  * drawn card. It has to add up: the counts contract is
  * `drawn + folded + aggregated == total`, and every aggregated item is named
  * by what happened to it (a collapsed subscription, an unconnected tile, a
- * ×N tile) rather than by the word "aggregated".
+ * ×N tile) rather than by the word "aggregated". Kinds, not phrases: the
+ * wording lives in the labels file and this module stays pure.
  */
 export function describeCounts(graph: TopologyGraph): { extras: CountsExtra[] } {
   const { counts } = graph;
   const extras: CountsExtra[] = [];
-  if (counts.folded > 0) extras.push({ count: counts.folded, label: "folded into hosts" });
+  if (counts.folded > 0) extras.push({ count: counts.folded, kind: "folded" });
   let accounted = 0;
   if (graph.level === "estate") {
     const collapsed = graph.nodes
@@ -25,20 +29,20 @@ export function describeCounts(graph: TopologyGraph): { extras: CountsExtra[] } 
     const unconnected = graph.nodes
       .filter((node) => node.kind === "aggregate" && node.groupIds.length > 0)
       .reduce((total, node) => total + node.count, 0);
-    if (collapsed > 0) extras.push({ count: collapsed, label: "in collapsed subscriptions" });
-    if (unconnected > 0) extras.push({ count: unconnected, label: "unconnected" });
+    if (collapsed > 0) extras.push({ count: collapsed, kind: "collapsed" });
+    if (unconnected > 0) extras.push({ count: unconnected, kind: "unconnected" });
     accounted = collapsed + unconnected;
   } else if (graph.level === "group") {
     const unconnected = graph.nodes
       .filter((node) => node.kind === "aggregate" && node.zone === "unconnected")
       .reduce((total, node) => total + node.count, 0);
-    if (unconnected > 0) extras.push({ count: unconnected, label: "unconnected" });
+    if (unconnected > 0) extras.push({ count: unconnected, kind: "unconnected" });
     accounted = unconnected;
   }
   const remainder = counts.aggregated - accounted;
-  if (remainder > 0) extras.push({ count: remainder, label: "in ×N tiles" });
-  if (counts.external > 0) extras.push({ count: counts.external, label: "from other groups" });
-  if (counts.hiddenByFilter > 0) extras.push({ count: counts.hiddenByFilter, label: "hidden by filters", emphasis: true });
+  if (remainder > 0) extras.push({ count: remainder, kind: "tiles" });
+  if (counts.external > 0) extras.push({ count: counts.external, kind: "external" });
+  if (counts.hiddenByFilter > 0) extras.push({ count: counts.hiddenByFilter, kind: "hidden", emphasis: true });
   return { extras };
 }
 

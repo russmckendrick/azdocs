@@ -1,15 +1,17 @@
-# Findings
+{%- set col = labels.common.columns -%}
+{%- set sev = labels.common.severity -%}
+# {{ labels.report.findings.chapter }}
 
-[← index](index.md)
+[{{ labels.report.markdown.back_to_index }}](index.md)
 
-**{{ severity_counts.high }} high · {{ severity_counts.medium }} medium · {{ severity_counts.low }} low · {{ severity_counts.info }} info**
+**{{ severity_counts.high }} {{ sev.high.name }} · {{ severity_counts.medium }} {{ sev.medium.name }} · {{ severity_counts.low }} {{ sev.low.name }} · {{ severity_counts.info }} {{ sev.info.name }}**
 
-{% for sev in ["high", "medium", "low", "info"] %}
-{%- set sev_findings = findings | selectattr("severity", "eq", sev) | list %}
+{% for key in ["high", "medium", "low", "info"] %}
+{%- set sev_findings = findings | selectattr("severity", "eq", key) | list %}
 {%- if sev_findings %}
-## {{ sev | title }}
+## {{ sev[key].label }}
 
-| Title | Category | Check | Resource |
+| {{ col.title }} | {{ col.category }} | {{ col.check }} | {{ col.resource }} |
 |---|---|---|---|
 {%- for f in sev_findings %}
 | {{ f.title | md_escape }} | {{ f.category }} | `{{ f.query_name }}` | {% if f.resource_id %}`{{ f.resource_id }}`{% endif %} |

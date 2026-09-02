@@ -1,0 +1,889 @@
+# Labels are data: every user-facing string azdocs prints, draws or exports.
+#
+# Placeholders are {snake_case} and are filled by the code that owns the
+# string; plurals are `{ one = "...", other = "..." }` tables. A string that
+# starts or ends with a space keeps it — some of these are fragments joined
+# around a value. Section names mirror the surface that reads them.
+#
+# User overrides: drop a partial file at <config dir>/azdocs/labels/en.toml
+# (or <name>.toml, selected with `[branding] labels = "<name>"`); its keys are
+# deep-merged over these built-ins. Unknown keys are an error.
+
+[common]
+subscription_scope = "Subscription scope"
+counted = "{count} {noun}"
+
+[common.plurals]
+resource = { one = "resource", other = "resources" }
+finding = { one = "finding", other = "findings" }
+relationship = { one = "relationship", other = "relationships" }
+
+[common.severity.high]
+name = "high"
+label = "High"
+heading = "High priority"
+
+[common.severity.medium]
+name = "medium"
+label = "Medium"
+heading = "Medium priority"
+
+[common.severity.low]
+name = "low"
+label = "Low"
+heading = "Low priority"
+
+[common.severity.info]
+name = "info"
+label = "Info"
+heading = "Informational"
+
+[common.cover]
+tenant = "Tenant"
+snapshot = "Snapshot"
+collected = "Collected"
+status = "Status"
+notes = "Notes"
+
+[common.verdict]
+healthy = "healthy"
+below_threshold = "below threshold"
+called_out = "called out"
+none = "—"
+
+[common.columns]
+resource_group = "Resource group"
+subscription = "Subscription"
+subscriptions = "Subscriptions"
+resource_groups = "Resource groups"
+resources = "Resources"
+findings = "Findings"
+non_compliant = "Non-compliant"
+missed_tags = "Missed tags"
+tag_key = "Tag key"
+tag_coverage = "Tag coverage"
+distinct_keys = "Distinct keys"
+share = "Share"
+coverage = "Coverage"
+status = "Status"
+severity = "Severity"
+title = "Title"
+category = "Category"
+check = "Check"
+resource = "Resource"
+name = "Name"
+type = "Type"
+azure_type = "Azure type"
+kind = "Kind"
+location = "Location"
+tags = "Tags"
+count = "Count"
+metric = "Metric"
+setting = "Setting"
+value = "Value"
+
+[common.governance]
+coverage_by_key = "Coverage by tag key"
+coverage_by_subscription = "Coverage by subscription"
+least_compliant = "Least compliant resource groups"
+no_tags = "No tags are stored in this snapshot."
+subscription_note = "Any tag counts here; the required-tag sweep is stricter."
+key_share = "Share of the {tagged} tagged resources carrying each key."
+non_compliant_sentence = "{count} resources are missing at least one required tag, recorded by the {audit} audit."
+
+[report]
+toc_title = "Contents"
+
+[report.summary]
+chapter = "Executive Summary"
+sentence = "This snapshot covers {resources} resources across {resource_groups} resource groups in {subscriptions} subscriptions. It records {findings} findings, including {high} high and {medium} medium priority items. {tagged} resources are tagged and {untagged} are untagged, giving {percent} tag coverage, {comparison} {threshold} this report treats as healthy."
+coverage_at_or_above = "at or above the"
+coverage_below = "below the"
+largest_types = "Largest resource types"
+geographic_footprint = "Geographic footprint"
+priority_findings = "Priority findings"
+
+[report.findings]
+chapter = "Findings"
+empty = "No findings."
+intro = "Findings are grouped by priority so the most consequential work can be reviewed first. The evidence appendix retains the underlying query output."
+
+[report.governance]
+chapter = "Governance"
+flagged_note = "Past the {share}% share this report calls out: {groups}."
+
+[report.overview]
+chapter = "Estate overview"
+intro = "These overview diagrams orient the detailed subscription and resource-group sections that follow. Resource-group diagrams remain with their own sections."
+
+[report.type_index]
+chapter = "Resources by type"
+intro = "This index keeps a compliance sweep by resource type available before the estate is documented in its Azure hierarchy."
+
+[report.estate]
+subscription_sentence = "{resources} resources across {groups} resource groups, with {findings} findings recorded in this snapshot."
+group_summary = "{resources} resources across {types} resource types"
+group_findings = "{findings} findings"
+relationships = "Relationships"
+settings = "Settings"
+no_settings = "No settings recorded."
+findings = "Findings"
+related = "Related resources"
+
+[report.evidence]
+chapter = "Evidence appendix"
+intro = "The following sections preserve the collected inventory evidence. Compact results are presented as facts; larger result sets remain tables for comparison and audit use."
+no_results = "No results."
+
+[report.pdf]
+page_counter = "1 / 1"
+
+[report.markdown]
+title = "Azure Estate Report"
+back_to_index = "← index"
+summary = "Summary"
+findings_by_severity = "Findings by severity"
+see = "see"
+tag_coverage_line = "{percent}% ({tagged} tagged, {untagged} untagged)"
+key_share = "share of the {tagged} tagged resources carrying each key."
+subscription_note = "any tag counts here; the required-tag sweep is stricter."
+resources_by_type = "Resources by type"
+resources_by_location = "Resources by location"
+sections = "Sections"
+subscription_link = "subscription: {name}"
+subscription_title = "Subscription: {name}"
+id = "Id"
+state = "State"
+resource_details = "Resource details →"
+related = "Related"
+no_rows = "_No rows._"
+no_resources = "_No resources._"
+
+[report.html]
+collected = "collected"
+tenant = "tenant"
+status = "status"
+subscriptions = "subscriptions"
+resource_groups = "resource groups"
+resources = "resources"
+findings = "findings"
+tag_coverage = "tag coverage"
+distinct_keys = "distinct keys"
+non_compliant = "non-compliant"
+filter_placeholder = "Filter findings..."
+no_findings = "No findings. 🎉"
+share_of_tagged = "Share of {tagged} tagged"
+subscriptions_heading = "Subscriptions"
+diagrams = "Diagrams"
+
+[report.xlsx]
+sheet_summary = "Summary"
+sheet_inventory = "Inventory"
+sheet_findings = "Findings"
+sheet_governance = "Governance"
+queries_sheet = "{category} queries"
+high_findings = "High findings"
+medium_findings = "Medium findings"
+low_findings = "Low findings"
+info_findings = "Info findings"
+tag_coverage_percent = "Tag coverage %"
+share_of_tagged_percent = "Share of tagged %"
+
+[report.xlsx.inventory_columns]
+name = "name"
+type = "type"
+kind = "kind"
+location = "location"
+resource_group = "resource group"
+subscription = "subscription"
+tags = "tags"
+id = "id"
+
+[report.xlsx.findings_columns]
+severity = "severity"
+category = "category"
+check = "check"
+title = "title"
+resource = "resource"
+
+[report.csv.inventory_columns]
+id = "id"
+name = "name"
+type = "type"
+kind = "kind"
+location = "location"
+resource_group = "resource_group"
+subscription_id = "subscription_id"
+tags = "tags"
+
+[report.csv.findings_columns]
+severity = "severity"
+category = "category"
+check = "check"
+title = "title"
+resource_id = "resource_id"
+
+[diagram]
+hierarchy_title = "Azure estate — tenant {tenant}"
+tenant_node = "Tenant {tenant}"
+resource_count = "{count} resources"
+aggregate = "×{count}"
+other_resources = "Other resources"
+other_resources_sub = "{types} types · ×{count}"
+resources_title = "Azure resources"
+network_title = "Azure network topology"
+connected_services = "Connected services"
+connected_services_sub = "NSGs & private-link targets"
+vnet_sheet = "VNet - {name}"
+resource_group_sheet = "Resource Group - {name} · {subscription}"
+resource_group_sheet_bare = "Resource Group - {name}"
+not_in_vnet = "Not in a virtual network  ·  {count} resources"
+nested_suffix = "  ·  {count} nested"
+peerings_title = "VNet peerings"
+not_peered = "Not peered  ·  {count} virtual networks"
+peered = "peered"
+remote_vnet = "remote vnet"
+private_link = "private link"
+
+[diagram.legend]
+vnet = "Virtual network"
+subnet = "Subnet"
+zone = "Outside the topology"
+aggregate = "aggregated resources of one type"
+watermark = "Microsoft Azure"
+
+[diagram.workbook]
+network_topology = "Network Topology"
+vnet_peerings = "VNet Peerings"
+
+[cli.check]
+config_ok = "Config OK (tenant {tenant})"
+token_ok = "Token OK, Resource Graph reachable."
+visible_subscriptions = "Visible subscriptions: {count}"
+
+[cli.collect]
+all_subscriptions = "all visible subscriptions"
+some_subscriptions = "{count} subscriptions"
+collecting = "Collecting {queries} queries across {scope} (concurrency {concurrency})..."
+snapshot_written = "Snapshot {id} — {status} ({queries} queries, {failed} failed, {rows} rows)"
+partial_hint = "Some queries failed; see `azdocs snapshots show {id}`"
+
+[cli.diagram]
+large_warning = "Warning: {name}: {count} nodes — large diagrams get unreadable; consider --subscription or --resource-group scoping."
+written = "{name} diagram -> {path}"
+sheet_written = "{name} -> {path}"
+nothing_to_write = "No {kind} diagrams to write for this snapshot."
+skipping_mermaid = "note: skipping Mermaid — the workbook is draw.io-only"
+workbook_written = "workbook ({count} sheets) -> {path}"
+
+[cli.init]
+tenant_prompt = "Tenant ID"
+client_prompt = "Client (app) ID"
+secret_prompt = "Client secret (leave empty to supply via AZDOCS_CLIENT_SECRET)"
+wrote = "Wrote {path}"
+plaintext_note = "Note: the client secret is stored in plaintext. For CI or shared machines, remove it from the file and set {env} instead."
+next_step = "Next: run `azdocs check` to verify connectivity."
+
+[cli.query]
+rows_summary = "{rows} rows ({pages} pages)"
+user_queries_dir = "User queries dir: {path}"
+no_rows = "(no rows)"
+
+[cli.query.columns]
+name = "name"
+category = "category"
+kind = "kind"
+severity = "severity"
+description = "description"
+
+[cli.report]
+markdown_written = "Markdown docs -> {path}"
+html_written = "HTML report -> {path}"
+site_written = "HTML docs -> {path}"
+csv_written = "CSV -> {inventory} + {findings}"
+xlsx_written = "XLSX workbook -> {path}"
+pdf_written = "PDF report -> {path}"
+docx_written = "DOCX report -> {path}"
+
+[cli.snapshots]
+none_yet = "No snapshots yet — run `azdocs collect` first."
+snapshot = "Snapshot   {value}"
+created = "Created    {value}"
+tenant = "Tenant     {value}"
+status = "Status     {value}"
+tool = "Tool       azdocs {value}"
+notes = "Notes      {value}"
+comparing = "Comparing {a} -> {b}\n  added: {added}\n  removed: {removed}\n  changed: {changed}"
+nothing_to_prune = "Nothing to prune."
+deleted = "Deleted {count} snapshot(s)."
+
+[cli.snapshots.columns]
+id = "id"
+created = "created (UTC)"
+status = "status"
+subscriptions = "subs"
+resources = "resources"
+findings = "findings"
+
+[cli.snapshots.run_columns]
+query = "query"
+category = "category"
+rows = "rows"
+ms = "ms"
+error = "error"
+
+[tui.panes]
+snapshots = "Snapshots"
+estate = "Estate"
+resources = "Resources ({count})"
+detail = "Detail"
+findings = "Findings ({count})"
+
+[tui.keys]
+snapshots = "↑↓ select · Enter open · q quit"
+estate = "Tab pane · ↑↓ move · Enter drill in · / filter · f findings · s snapshots · q quit"
+filtering = "filter: {filter}▌ (Enter keep · Esc clear)"
+filtered = "filter: {filter} · / re-filter · Tab pane · f findings · q quit"
+findings = "↑↓ select · Enter jump to resource · Esc back · q quit"
+
+[tui.fields]
+name = "name"
+type = "type"
+kind = "kind"
+location = "location"
+subscription = "sub"
+id = "id"
+tags = "tags"
+related = "related"
+properties = "properties"
+
+[tui.units]
+subscriptions = "subs"
+resources = "resources"
+findings = "findings"
+
+[tui.messages]
+no_selection = "No resource selected."
+
+# ------------------------------------------------------------------- desktop --
+# The Tauri explorer. `desktop.topology.nodes` and `desktop.backend` are read
+# by the Rust side; everything else is handed to the frontend at bootstrap.
+
+[desktop.app]
+window_title = "azdocs — Azure estate explorer"
+
+[desktop.topology.nodes]
+group_resources = "{count} resources"
+unconnected_groups = "Unconnected groups"
+times_n = "×{count}"
+collapsed_subscription = "{groups} groups · {resources} resources"
+links = { one = "{count} link", other = "{count} links" }
+attached_suffix = "+{count} attached"
+in_other_groups = "×{count} in other groups"
+in_group = "in {group}"
+label_times = "{name} ×{count}"
+
+# Keyed by EdgeKind::as_str(); a new edge kind needs a label here, and
+# topology-fallback.test.ts checks the two sets agree.
+[desktop.topology.edge_kinds]
+subnet_of = "subnet of"
+in_vnet = "in vnet"
+peered_with = "peered with"
+nsg_attached = "nsg attached"
+nic_in_subnet = "nic in subnet"
+attached_to = "attached to"
+private_endpoint_for = "private endpoint for"
+dns_linked = "dns linked"
+depends_on = "depends on"
+runs_on = "runs on"
+uses_identity = "uses identity"
+logs_to = "logs to"
+monitors = "monitors"
+
+[desktop.backend.phases]
+loading_pack = "Loading query pack and credentials"
+running_queries = "Running {count} read-only Azure queries"
+composing_reports = "Composing {count} report format(s)"
+rendering_diagram = "Rendering {kind} as {format}"
+
+[desktop.backend.errors]
+no_report_format = "select at least one report format"
+no_diagram_type = "select a diagram type"
+no_diagram_format = "select at least one diagram format"
+no_destination = "choose an output directory"
+destination_not_dir = "output destination is not a directory: {path}"
+unsupported_kind = "unsupported export kind `{kind}`"
+
+[desktop.nav]
+overview = "Overview"
+estate = "Estate"
+topology = "Map"
+inventory = "Inventory"
+findings = "Findings"
+governance = "Governance"
+history = "Changes"
+exports = "Exports"
+settings = "Settings"
+previous_view = "previous view"
+resource = "resource"
+resource_group = "resource group"
+neighbourhood = "neighbourhood"
+neighbourhood_of = "{name} neighbourhood"
+back_to = "Back to {target}"
+
+[desktop.shell]
+tagline = "Estate field report"
+preview_badge = "Illustrative workspace"
+snapshot = "Snapshot"
+snapshot_option = "{date} · {count} resources"
+snapshot_picker = "Active snapshot"
+search_placeholder = "Search resources, types, groups, tags…"
+search_aria = "Search the active snapshot"
+search_results = "Matching resources"
+search_no_matches = "No matching resources in this snapshot."
+shortcut_mac = "⌘ K"
+shortcut_other = "Ctrl K"
+open_data = "Open data"
+collect = "Collect snapshot"
+collecting = "Collecting"
+collect_hint = "Collect a new snapshot"
+configure_credentials = "Configure credentials in {path}"
+primary_navigation = "Primary navigation"
+preparing_collection = "Preparing read-only collection"
+snapshot_stored = "Snapshot stored; rebuilding estate view"
+collected = "Collected {rows} rows into a {status} snapshot"
+source_note = "Azure Resource Graph · read-only"
+dismiss = "Dismiss"
+loading_title = "Opening the estate record"
+loading_detail = "Reading subscriptions, resources, relationships, and findings from SQLite."
+empty_title = "No stored snapshots yet"
+empty_detail = "Open an existing azdocs database or collect a read-only Azure snapshot. Exploration and exports remain offline after collection."
+open_database = "Open database"
+collect_first = "Collect first snapshot"
+status_aria = "Application status"
+status_snapshot = "{status} snapshot"
+status_none = "No snapshot loaded"
+status_resolving = "Resolving database…"
+status_selection = "{edges} relationships · {findings} findings"
+status_stored_relationships = "{count} stored relationships"
+status_export_ready = "{id} · ready for offline export"
+status_no_selection = "No resource selected"
+
+[desktop.errors]
+generic = "Something went wrong."
+
+[desktop.dialogs]
+open_database_title = "Open an azdocs SQLite database"
+sqlite_filter = "SQLite database"
+export_directory_title = "Choose an export directory"
+preview_collecting = "Running read-only Azure queries"
+preview_exporting = "Composing offline export preview"
+collect_notes = "Collected from azdocs desktop"
+
+[desktop.overview]
+title = "Overview"
+description = "{tenant} · {subscriptions} subscriptions · {groups} resource groups · {regions} regions"
+snapshot_stamp = "Snapshot"
+resources = "Resources"
+resource_groups = "Resource groups"
+findings = "Findings · {high} high"
+tag_coverage = "Tag coverage"
+relationships = "Relationships"
+types_caption = "Most common resource types — one fixed colour per service category, everywhere in the app."
+growth_aria = "Resource count across stored snapshots"
+growth_caption = "Resource count over the stored snapshots — one measure, so one hue."
+location_not_stored = "Not stored"
+regions_caption = "Resources by region."
+attention = "Findings that need attention"
+estate_level = "estate-level"
+no_findings = "No findings in this snapshot."
+review_all = "Review all findings"
+
+[desktop.findings]
+title = "Audit findings"
+description = "Stored evidence ordered by severity, linked back to exact resources."
+severity_counts_aria = "Finding severity counts"
+count = "{count} findings"
+all_severities = "All severities"
+list_aria = "Audit findings"
+empty_title = "No findings match this view"
+empty_detail = "Try another severity or search phrase."
+estate_level = "Estate-level"
+close_evidence = "Close finding evidence"
+affected_resource = "Affected resource"
+stored_evidence = "Stored evidence"
+no_detail = "No additional detail was stored."
+audit_context = "Audit context"
+query = "Query"
+category = "Category"
+snapshot = "Snapshot"
+
+[desktop.history]
+title = "Changes"
+description = "Immutable estate observations, newest first. Compare any two without querying Azure."
+source_stamp = "SQLite source"
+captured = "Captured"
+estate = "Estate"
+findings = "Findings"
+status = "Status"
+resources = "{count} resources"
+subscriptions = "{count} subscriptions"
+audit_signals = "audit signals"
+what_changed = "What changed"
+earliest = "This is the earliest stored snapshot"
+base = "Base"
+base_aria = "Base snapshot to compare against"
+base_option = "{date} · {count} resources"
+target = "→ {date} (open)"
+comparing = "comparing…"
+added = "Added"
+changed = "Changed"
+removed = "Removed"
+no_older = "There is no older snapshot to compare against."
+health = "Collection health"
+health_summary = "{succeeded} of {total} queries succeeded"
+run_detail = "{rows} rows · {ms} ms"
+
+[desktop.history.kinds]
+added = "added"
+changed = "changed"
+removed = "removed"
+
+[desktop.inventory]
+title = "Inventory"
+description = "The shaped rows every collected query stored for this snapshot — the same tables the reports print, browsable per category."
+pack_unreadable = "The query pack could not be read."
+pack_failed = "The query pack could not be loaded: {error}"
+collected_stamp = "Collected queries"
+collected_value = "{inventory} inventory · {total} total"
+empty_title = "No shaped inventory rows in this snapshot"
+empty_detail = "Collect a snapshot to fill the per-query tables."
+categories_aria = "Query categories"
+table = "Table"
+query_option = "{name} · {rows} rows"
+position = "{index} of {total} in {category}"
+failed = " — this query failed: {error}"
+reading = "Reading stored rows…"
+no_search_rows = "No rows match the current search."
+no_rows = "This query stored no rows for the snapshot."
+row_count = { one = "{count} row", other = "{count} rows" }
+visible_of = "{visible} of "
+matching = " matching “{search}”"
+collected_in = " · collected in {ms} ms"
+
+[desktop.settings]
+title = "Settings"
+description = "Preferences live on this machine; nothing here touches the stored snapshots or Azure."
+appearance = "Appearance"
+theme = "Theme"
+theme_detail = "System follows the operating system; the report look is the light presentation."
+theme_aria = "Theme"
+resolving = "Currently resolving to {theme}{suffix}"
+following_system = " — following the operating system."
+resolved_end = "."
+database = "Database"
+store = "Snapshot store"
+store_detail = "The SQLite file every screen reads from."
+open_another = "Open another…"
+snapshots_held = "Snapshots held"
+prune_hint = "Prune old snapshots with the CLI: {command}."
+prune_command = "azdocs snapshots delete"
+snapshot_count = { one = "snapshot", other = "snapshots" }
+snapshot_range = " · {from} – {to}"
+collection = "Collection"
+configuration = "Configuration"
+configuration_detail = "Credentials stay in the file, never in the app."
+credentials_found = "● credentials found"
+credentials_missing = "○ credentials missing"
+required_tags = "Required tags"
+required_tags_detail = "Drives the governance sweep and the missing-required-tags audit."
+none_configured = "None configured — add {key} to azdocs.toml."
+none_configured_key = "[audit] required_tags"
+active_snapshot = "Active snapshot"
+active_snapshot_detail = "Everything on screen reads from this stored observation."
+
+[desktop.settings.theme_options]
+system = "System"
+light = "Light"
+dark = "Dark"
+
+[desktop.governance]
+title = "Governance & tags"
+required_tags_from = "Required tags from azdocs.toml: {tags}"
+not_enforced = "No required tags are configured — coverage is reported, compliance is not enforced."
+governance_findings = "Governance findings"
+key_caption = "Share of the {tagged} tagged resources carrying each key. One measure, one hue."
+subscription_caption = "Any tag counts here; the required-tag sweep below is stricter."
+all_clear = "Every resource carries all required tags."
+worst_caption = "Least compliant resource groups, from the {audit} audit rules."
+
+[desktop.estate]
+hierarchy_aria = "Estate hierarchy"
+title = "Azure estate"
+summary = "{subscriptions} subscriptions · {groups} groups"
+entire_estate = "Entire estate"
+collapse = "Collapse {name}"
+expand = "Expand {name}"
+no_stored_resources = "No stored resources"
+inventory_aria = "Resource inventory"
+of_total = "{count} of {total} resources"
+matching = " matching “{search}”"
+type_filter_aria = "Filter by resource type"
+all_types = "All resource types"
+location_filter_aria = "Filter by location"
+all_locations = "All locations"
+location_not_stored = "Not stored"
+location_global = "Global"
+sort_aria = "Sort resources"
+sort_name = "Name"
+sort_type = "Resource type"
+sort_location = "Location"
+sort_findings = "Findings first"
+clear_filters = "Clear local filters"
+signals = "Signals"
+list_aria = "Resources"
+empty_title = "No resources match this view"
+empty_detail = "Clear a filter or search the whole snapshot."
+quiet = "Quiet"
+
+[desktop.record]
+unknown_subscription = "Unknown"
+source_note = "Selected SQLite snapshot; this page does not query Azure."
+summary_aria = "Resource summary"
+relationships = "Relationships"
+review_findings = "Review findings"
+explore_relationships = { one = "Explore {count} relationship", other = "Explore {count} relationships" }
+no_relationships = "No relationships to explore"
+findings_title = "Audit findings"
+findings_detail = "Stored checks linked to this exact resource."
+finding_evidence = "Finding evidence"
+no_findings = "No audit findings are linked to this resource."
+context_title = "Resource context"
+context_detail = "Identity, tags, ARM identifiers, and snapshot provenance for this stored record."
+properties_title = "Resource properties"
+properties_detail = "Stored fields and collections from Azure Resource Graph."
+properties = "Properties"
+sku = "SKU"
+identity = "Managed identity"
+relationships_title = "Relationships"
+relationships_detail = "Every derived edge touching this resource, including stored edge properties."
+outbound = "OUT"
+inbound = "IN"
+relationship_evidence = "Relationship evidence"
+no_relationship_rows = "No derived relationships touch this resource."
+
+[desktop.data_view]
+no_value = "No value stored"
+items = { one = "{count} item", other = "{count} items" }
+fields = { one = "{count} field", other = "{count} fields" }
+stored_value = "Stored value"
+not_stored = "Not stored"
+no_items = "No items stored"
+no_fields = "No fields stored"
+true = "True"
+false = "False"
+empty_string = "Empty string"
+item = "Item {index}"
+value = "Value"
+items_path = "Items"
+col_item = "Item"
+col_field = "Field"
+col_stored_value = "Stored value"
+
+[desktop.progressive]
+show_more = "Show {count} more"
+loaded = "{visible} of {total} loaded"
+
+[desktop.exports]
+title = "Exports"
+description = "Produce a hand-off-ready artifact from the active stored snapshot. Generation stays offline."
+source_aria = "Export source"
+snapshot = "Snapshot"
+resources = "{count} resources"
+choose_title = "Choose a deliverable"
+choose_detail = "Each option has one clear purpose and a stable output format."
+legend = "Export deliverable"
+advanced_note = "Need HTML, CSV, Markdown, scoped diagrams or image exports? Those specialist formats remain available in the CLI."
+run_title = "Export run"
+destination = "Output directory"
+not_selected = "Not selected"
+choose_folder = "Choose folder…"
+source = "Source"
+source_value = "{status} snapshot"
+deliverable = "Deliverable"
+format = "Format"
+access = "Access"
+access_value = "SQLite only"
+generating = "Generating export"
+run_action = "Export {preset}"
+preview_action = "Preview {preset}"
+choose_directory = "Choose an output directory."
+exported = { one = "Exported {count} artifact.", other = "Exported {count} artifacts." }
+preparing = "Preparing the stored snapshot"
+failed = "The export could not be completed."
+incomplete = "Export did not complete."
+complete = "Export complete"
+preview_note = "Preview only — the browser workspace does not write files."
+
+# Keyed by the preset ids in ExportsView.tsx; ids, formats and extensions
+# stay in code because they name files and CLI values.
+[desktop.exports.presets.field-report]
+label = "Field Report"
+action = "Field Report"
+detail = "Print-ready estate review with findings, governance and diagrams."
+includes = "Best for review packs, sign-off and long-term filing."
+
+[desktop.exports.presets.word-report]
+label = "Word Report"
+action = "Word Report"
+detail = "The same evidence and structure in an editable document."
+includes = "Best when the report needs commentary or local editing."
+
+[desktop.exports.presets.data-workbook]
+label = "Data Workbook"
+action = "Data Workbook"
+detail = "Inventory, findings, governance and query results as worksheets."
+includes = "Best for filtering, reconciliation and further analysis."
+
+[desktop.exports.presets.diagram-workbook]
+label = "Diagram Workbook"
+action = "Diagram Workbook"
+detail = "Editable hierarchy, network, VNet and resource-group sheets."
+includes = "Best for architecture review and diagram hand-off."
+
+[desktop.topology]
+choose_resource = "Choose a resource"
+select_prompt = "Select a resource to explore its neighbourhood"
+reach_subtitle = "{hops} · {count} resources in reach"
+group_subtitle = { one = "{count} resource", other = "{count} resources" }
+estate_subtitle = "{subscriptions} · {groups} groups · {resources} resources"
+subscription_count = { one = "{count} subscription", other = "{count} subscriptions" }
+hops = { one = "{count} hop", other = "{count} hops" }
+unit_groups = "groups"
+unit_resources = "resources"
+include_unconnected_resources = "Include resources without drawn relationships"
+include_unconnected_groups = "Include groups without cross-group relationships"
+neighbourhood_stage = "Neighbourhood of {name}"
+no_selected_resource = "no selected resource"
+group_stage = "Map of resource group {name}"
+estate_stage = "Estate map"
+back = "Back"
+trail_aria = "Map location"
+depth_aria = "Neighbourhood depth"
+reach = "Reach"
+unconnected = "Unconnected"
+refresh_failed = "The map could not be refreshed."
+error_title = "Map refresh failed."
+error_previous = " The last successful graph is still shown."
+retry = "Retry"
+revert = "Revert controls"
+no_map_title = "No map is available"
+no_map_detail = "Retry the request or return to the estate after checking the stored snapshot."
+building = "Building the map…"
+status_aria = "Map status and legend"
+drawn_caption = "{drawn} of {total} {unit} drawn"
+building_short = "Building map…"
+cross_group = "cross-group "
+relationship = { one = "relationship", other = "relationships" }
+connector = { one = "connector", other = "connectors" }
+drawn_as = " drawn as "
+stale = "Stale map"
+legend = "Legend"
+legend_aria = "Relationship kinds"
+
+[desktop.topology.counts]
+folded = "folded into hosts"
+collapsed = "in collapsed subscriptions"
+unconnected = "unconnected"
+tiles = "in ×N tiles"
+external = "from other groups"
+hidden = "hidden by filters"
+
+[desktop.topology.regions]
+external = "External context"
+services = "Connected services"
+unconnected = "Unconnected shelf"
+
+# Keyed by the kind_class family names Rust serialises; the legend shows
+# these instead of the raw key.
+[desktop.topology.kind_classes]
+network = "network"
+structure = "structure"
+data = "data"
+identity = "identity"
+monitoring = "monitoring"
+
+[desktop.topology.tools]
+controls_aria = "Graph view controls"
+fit_all_aria = "Fit all represented regions"
+fit_all = "Fit all"
+zoom_in = "Zoom in"
+zoom_in_tip = "Zoom in · +"
+zoom_out = "Zoom out"
+zoom_out_tip = "Zoom out · −"
+motion_reduced_aria = "Motion reduced by system preference"
+motion_pause_aria = "Pause selected path motion"
+motion_play_aria = "Play selected path motion"
+motion_reduced = "Motion reduced"
+motion_pause = "Pause path motion"
+motion_play = "Play path motion"
+reset_lanes = "Reset subscription lanes"
+lanes_default = "Subscription lanes at default"
+help_aria = "Graph interaction help"
+help = "Interaction help"
+help_title = "Graph controls"
+help_body = "Enter opens a record; R explores its relationships. Aggregate tiles expand in place. Arrow keys move spatially; drag to pan; scroll to zoom; 0 fits the readable core."
+
+[desktop.topology.graph]
+init_failed = "The map could not be initialised."
+layout_failed = "The map layout could not be calculated."
+resource_fallback = "Resource"
+relationship_fallback = "Relationship"
+links = "{count} links"
+summary_none = "No graph item selected."
+summary_out_of_scope = "The selected item is outside the current graph scope."
+summary_no_connectors = "{name}. No drawn connectors in this scope."
+summary_connectors = "{name}. {connectors}: {descriptions}."
+connectors = { one = "{count} connector", other = "{count} connectors" }
+connector_sentence = "{direction} {label} {preposition} {other}"
+outbound = "outbound"
+inbound = "inbound"
+to = "to"
+from = "from"
+other_item = "another represented item"
+findings_suffix = { one = ", {count} finding", other = ", {count} findings" }
+findings_badge = "{count} findings"
+lane_expanded = "{name}, expanded subscription, {groups} groups. Collapse subscription."
+expand = "Expand ›"
+vnet_card = "{name}, virtual network{findings}. Open resource record."
+subscription_collapsed = "{name}, collapsed subscription, {groups} groups{findings}. Expand subscription."
+aggregate_groups = "{count} unconnected groups, aggregated{findings}. {action} groups."
+aggregate_resources = "{count} {type}, aggregated{findings}. {action} resources."
+collapse = "Collapse"
+show = "Show"
+no_cross_group = "No cross-group connectors"
+unconnected_groups_aria = "Unconnected resource groups"
+no_drawn_connectors = "No drawn connectors"
+hops_away = { one = "{count} hop away", other = "{count} hops away" }
+open_record = "Open resource record"
+external_card = "{name}, in another resource group{findings}. Open resource record."
+group_card = "{name}, {count} resources{findings}. Open group map."
+resource_card = "{name}, {type}{findings}. Open resource record.{relationships}"
+explore_hint = " Press R to explore {count} relationships."
+no_relationships_hint = " No relationships to explore."
+explore_aria = "Explore {count} relationships for {name}"
+no_relationships_aria = "{name} has no relationships to explore"
+explore = "Explore {count} relationships"
+no_relationships = "No relationships to explore"
+nothing_title = "Nothing to draw"
+nothing_detail = "The current scope contains no stored resources."
+
+[desktop.topology.graph_extra]
+group_count = { one = "{count} group", other = "{count} groups" }
+lane_summary = "{groups} · {resources} resources"
+collapse_lane = "Collapse ‹"
+member_group = "{resources} · Open group map"
+members_aria = "{type} resources"
+renderer_unavailable = "Graph rendering is unavailable"
+renderer_retry_detail = "The map can be retried without leaving this page."
+renderer_retry = "Retry renderer"

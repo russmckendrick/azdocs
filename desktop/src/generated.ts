@@ -2,7 +2,8 @@
 //
 // Source of truth: desktop/src-tauri/src/dto.rs and topology.rs.
 // Regenerate with `cargo test -p azdocs-desktop`; CI fails if this file
-// is stale. Hand-written unions live in ./api-types.
+// is stale. Hand-written unions live in ./api-types; the labels type
+// is inferred from generated-labels.json in ./labels.
 
 import type {
   EdgeKind,
@@ -16,7 +17,16 @@ import type {
   TopologyZone,
 } from "./api-types";
 
-export type AppBootstrap = { databasePath: string, configPath: string, configFound: boolean, hasCredentials: boolean, requiredTags: Array<string>, snapshots: Array<SnapshotSummary>, latestSnapshotId?: string | null, };
+import type {
+  Labels,
+} from "./labels";
+
+export type AppBootstrap = { databasePath: string, configPath: string, configFound: boolean, hasCredentials: boolean, requiredTags: Array<string>, snapshots: Array<SnapshotSummary>, latestSnapshotId?: string | null, 
+/**
+ * Every word the frontend shows, already resolved against the user's
+ * overrides. Typed in TypeScript from `generated-labels.json`.
+ */
+labels: Labels, };
 
 export type SnapshotSummary = { id: string, createdAt: string, tenantId: string, status: SnapshotStatus, notes?: string | null, subscriptions: number, resources: number, findings: number, };
 

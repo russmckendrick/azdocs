@@ -31,7 +31,7 @@
   footer: running-footer(branding),
 )
 
-#outline(title: "Contents", depth: print-doc.toc_depth)
+#outline(title: labels.report.toc_title, depth: print-doc.toc_depth)
 #pagebreak()
 
 #let render-runs(runs) = {

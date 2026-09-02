@@ -4,6 +4,9 @@
 // between. Nothing here knows a theme's name.
 
 #let theme = json(bytes(sys.inputs.theme))
+// Every word this file prints comes from the resolved labels
+// (`sys.inputs.labels`, produced by src/labels); nothing here is English.
+#let labels = json(bytes(sys.inputs.labels))
 
 #let pal = theme.palette
 #let typ = theme.typography
@@ -101,28 +104,6 @@
 
 #let row-fill(_, y) = if lay.zebra_rows and calc.odd(y) { zebra } else { none }
 
-/// A data table with a repeating header, wrapped long values and an explicit
-/// empty state. `widths` may be none to size every column automatically.
-#let data-table(columns, rows, widths: none) = {
-  if columns.len() == 0 or rows.len() == 0 {
-    return block(text(size: typ.small_pt * 1pt, fill: muted, style: "italic")[No results.])
-  }
-  block(above: 0.25em, below: 0.85em, breakable: true, table(
-    columns: if widths == none { columns.map(_ => auto) } else { widths },
-    inset: lay.table_inset_pt * 1pt,
-    stroke: table-stroke,
-    fill: row-fill,
-    // repeat: true keeps the header on every page a long table spans.
-    table.header(repeat: true, ..columns.map(header-cell)),
-    ..rows
-      .map(row => columns.map(c => text(
-        size: typ.table_pt * 1pt,
-        breakable(cell(row.at(c, default: none))),
-      )))
-      .flatten(),
-  ))
-}
-
 #let empty-state(body) = block(below: 0.8em,
   text(size: typ.small_pt * 1pt, fill: muted, style: "italic", body),
 )
@@ -140,7 +121,7 @@
 /// have already been resolved by PrintDocument, so no report logic lives here.
 #let print-table(_kind, columns, rows) = {
   if columns.len() == 0 or rows.len() == 0 {
-    return empty-state("No results.")
+    return empty-state(labels.report.evidence.no_results)
   }
   block(above: 0.25em, below: 0.85em, breakable: true, table(
     columns: columns.map(_ => auto),
@@ -229,8 +210,8 @@
 // ----------------------------------------------------------------- cover ----
 
 #let cover-meta(cover) = text(size: typ.small_pt * 1pt, fill: muted)[
-  Tenant #mono(breakable(cover.tenant)) · Snapshot #mono(breakable(cover.snapshot)) \
-  Collected #cover.collected · Status #cover.status
+  #labels.common.cover.tenant #mono(breakable(cover.tenant)) · #labels.common.cover.snapshot #mono(breakable(cover.snapshot)) \
+  #labels.common.cover.collected #cover.collected · #labels.common.cover.status #cover.status
 ]
 
 // Logos are user-supplied at any aspect ratio, so constrain both axes.
@@ -263,9 +244,9 @@
       // the block cover recolours it rather than dimming it further.
       #block(inset: (x: 3cm, bottom: 2.5cm), text(fill: on-band)[
         #text(size: typ.small_pt * 1pt)[
-          Tenant #mono(breakable(cover.tenant)) ·
-          Snapshot #mono(breakable(cover.snapshot)) \
-          Collected #cover.collected · Status #cover.status
+          #labels.common.cover.tenant #mono(breakable(cover.tenant)) ·
+          #labels.common.cover.snapshot #mono(breakable(cover.snapshot)) \
+          #labels.common.cover.collected #cover.collected · #labels.common.cover.status #cover.status
         ]
       ])
     ]
@@ -428,76 +409,6 @@
   ]
 }
 
-/// Two-column key/value table used for a resource's settings.
-#let settings-table(settings) = if settings.len() == 0 {
-  block(text(size: typ.small_pt * 1pt, fill: muted, style: "italic")[No settings recorded.])
-} else {
-  block(breakable: true, table(
-    columns: (0.34fr, 0.66fr),
-    inset: lay.table_inset_pt * 1pt,
-    stroke: table-stroke,
-    fill: row-fill,
-    ..settings
-      .enumerate()
-      .map(((i, s)) => (
-        text(size: typ.table_pt * 1pt, weight: "semibold", s.key),
-        text(size: typ.table_pt * 1pt, breakable(s.value)),
-      ))
-      .flatten(),
-  ))
-}
-
-#let callout-list(callouts) = for c in callouts {
-  block(
-    width: 100%,
-    fill: sev(c.severity, "fill"),
-    stroke: (left: 2.5pt + sev(c.severity, "text")),
-    inset: (x: 7pt, y: 5pt),
-    above: 0.4em,
-    below: 0.4em,
-  )[
-    #text(size: typ.table_pt * 1pt, weight: "bold", fill: sev(c.severity, "text"))[
-      #upper(c.severity)
-    ]
-    #h(6pt)
-    #text(size: typ.table_pt * 1pt)[#c.title]
-  ]
-}
-
-/// One resource: name plate, neighbourhood diagram, settings, findings and
-/// related resources. Kept in one place so all three themes stay in step.
-#let resource-detail(detail, diagram-path) = {
-  resource-plate(detail.name)
-  block(text(size: typ.small_pt * 1pt, fill: muted)[
-    #detail.display_type · #detail.subscription_name
-    #if detail.resource_group != none [ · #detail.resource_group]
-    #if detail.location != none [ · #detail.location] \
-    #mono(breakable(detail.arm_id), size: (typ.small_pt - 0.5) * 1pt)
-  ])
-
-  if diagram-path != "" {
-    sub-label("Relationships")
-    // Full width, like every other diagram: the canvas is already only as tall
-    // as a neighbourhood graph needs, so nothing is blown up by filling the
-    // measure. It used to be boxed to a fixed height because the canvas was
-    // snapped to a page fraction and arrived mostly empty.
-    image(diagram-path, width: 100%)
-  }
-
-  sub-label("Settings")
-  settings-table(detail.settings)
-
-  if detail.findings.len() > 0 {
-    sub-label("Findings")
-    callout-list(detail.findings)
-  }
-
-  if detail.related.len() > 0 {
-    sub-label("Related resources")
-    block(text(size: typ.table_pt * 1pt, detail.related.join(" · ")))
-  }
-}
-
 // --------------------------------------------------------------- chrome ----
 
 #let running-header(branding) = context {
@@ -536,7 +447,7 @@
     text(
       size: typ.stat_label_pt * 1pt,
       fill: muted,
-      counter(page).display("1 / 1", both: true),
+      counter(page).display(labels.report.pdf.page_counter, both: true),
     ),
   )
 }
