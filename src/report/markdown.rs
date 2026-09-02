@@ -1,20 +1,49 @@
 use std::path::Path;
 
 use anyhow::Context;
-use minijinja::value::ViaDeserialize;
+use minijinja::value::{Kwargs, ViaDeserialize};
 use minijinja::{Environment, context};
 use serde_json::Value;
 
 use super::{ReportContext, cell_to_string};
+use crate::labels::Labels;
 
 /// Shared environment for markdown and HTML templates, with the custom
-/// filters they rely on.
-pub(crate) fn environment() -> Environment<'static> {
+/// filters they rely on. The empty-table text is captured here because a
+/// filter cannot reach the render context.
+pub(crate) fn environment(labels: &Labels) -> Environment<'static> {
     let mut env = Environment::new();
+    let no_rows = labels.report.markdown.no_rows.clone();
     env.add_filter("md_escape", md_escape);
-    env.add_filter("md_table", md_table);
+    env.add_filter(
+        "md_table",
+        move |rows: ViaDeserialize<Vec<Value>>, columns: ViaDeserialize<Vec<String>>| {
+            md_table(rows, columns, &no_rows)
+        },
+    );
     env.add_filter("slug", slug);
+    env.add_filter("fill", fill_filter);
     env
+}
+
+/// `{{ label | fill(name=value, ...) }}`: the template-side twin of
+/// `labels::fill`, so markdown and HTML share sentences with the print
+/// document instead of restating them.
+fn fill_filter(template: String, kwargs: Kwargs) -> Result<String, minijinja::Error> {
+    let pairs: Vec<(&str, String)> = kwargs
+        .args()
+        .map(|name| {
+            kwargs
+                .get::<minijinja::Value>(name)
+                .map(|value| (name, value.to_string()))
+        })
+        .collect::<Result<_, _>>()?;
+    kwargs.assert_all_used()?;
+    let args: Vec<(&str, &dyn std::fmt::Display)> = pairs
+        .iter()
+        .map(|(name, value)| (*name, value as &dyn std::fmt::Display))
+        .collect();
+    Ok(crate::labels::fill(&template, &args))
 }
 
 fn md_escape(value: &str) -> String {
@@ -28,9 +57,13 @@ pub fn slug(value: &str) -> String {
 }
 
 /// Render rows (JSON objects) as a markdown table with the given columns.
-fn md_table(rows: ViaDeserialize<Vec<Value>>, columns: ViaDeserialize<Vec<String>>) -> String {
+fn md_table(
+    rows: ViaDeserialize<Vec<Value>>,
+    columns: ViaDeserialize<Vec<String>>,
+    no_rows: &str,
+) -> String {
     if rows.is_empty() || columns.is_empty() {
-        return "_No rows._".to_owned();
+        return no_rows.to_owned();
     }
     let mut out = String::new();
     out.push_str(&format!("| {} |\n", columns.join(" | ")));
@@ -49,8 +82,13 @@ fn md_table(rows: ViaDeserialize<Vec<Value>>, columns: ViaDeserialize<Vec<String
 /// subscription.
 /// Render every docs page in memory as (relative path, markdown) pairs.
 /// The markdown writer and the HTML site generator both consume this.
-pub fn render_pages(report: &ReportContext) -> anyhow::Result<Vec<(String, String)>> {
-    let mut env = environment();
+pub fn render_pages(
+    report: &ReportContext,
+    labels: &Labels,
+) -> anyhow::Result<Vec<(String, String)>> {
+    let mut env = environment(labels);
+    let labels = minijinja::Value::from_serialize(labels);
+    let tag_audit = super::governance::TAG_AUDIT;
     env.add_template(
         "index",
         include_str!("../../templates/markdown/index.md.j2"),
@@ -75,39 +113,45 @@ pub fn render_pages(report: &ReportContext) -> anyhow::Result<Vec<(String, Strin
     let mut pages = Vec::new();
     pages.push((
         "index.md".to_owned(),
-        env.get_template("index")?
-            .render(context! { ..minijinja::Value::from_serialize(report) })?,
+        env.get_template("index")?.render(context! {
+            labels,
+            tag_audit,
+            ..minijinja::Value::from_serialize(report)
+        })?,
     ));
     pages.push((
         "findings.md".to_owned(),
-        env.get_template("findings")?
-            .render(context! { ..minijinja::Value::from_serialize(report) })?,
+        env.get_template("findings")?.render(context! {
+            labels,
+            ..minijinja::Value::from_serialize(report)
+        })?,
     ));
     for category in &report.categories {
         pages.push((
             format!("{}.md", category.name),
             env.get_template("category")?
-                .render(context! { category })?,
+                .render(context! { labels, category })?,
         ));
     }
     for sub in &report.subscriptions {
         pages.push((
             format!("subscriptions/{}.md", slug(&sub.display_name)),
-            env.get_template("subscription")?.render(context! { sub })?,
+            env.get_template("subscription")?
+                .render(context! { labels, sub })?,
         ));
     }
     for page in &report.details {
         pages.push((
             format!("{}.md", page.path),
             env.get_template("resource_group")?
-                .render(context! { page })?,
+                .render(context! { labels, page })?,
         ));
     }
     Ok(pages)
 }
 
-pub fn write(report: &ReportContext, out_dir: &Path) -> anyhow::Result<()> {
-    for (relative, content) in render_pages(report)? {
+pub fn write(report: &ReportContext, labels: &Labels, out_dir: &Path) -> anyhow::Result<()> {
+    for (relative, content) in render_pages(report, labels)? {
         let path = out_dir.join(&relative);
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)

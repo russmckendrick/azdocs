@@ -127,7 +127,7 @@ pub fn write(
                 .with_context(|| format!("writing {}", path.display()))?;
         }
     }
-    let pages = render_pages(report)?;
+    let pages = render_pages(report, &branding.labels)?;
     let nav = navigation(&pages);
     for (relative, markdown) in &pages {
         let html_relative = relative.replace(".md", ".html");
@@ -135,7 +135,10 @@ pub fn write(
         let prefix = "../".repeat(depth);
         let mut body = markdown_to_html(&rewrite_links(markdown));
         if relative == "index.md" {
-            body.push_str(&diagram_section(diagrams));
+            body.push_str(&diagram_section(
+                diagrams,
+                &branding.labels.report.html.diagrams,
+            ));
         }
         let title = markdown
             .lines()
@@ -162,7 +165,7 @@ pub fn write(
 
 /// Overview diagrams (estate hierarchy + network topology) embedded on the
 /// index page; the full set lives in `diagrams/` for linking.
-fn diagram_section(diagrams: &[DiagramAsset]) -> String {
+fn diagram_section(diagrams: &[DiagramAsset], heading: &str) -> String {
     let embedded: Vec<&DiagramAsset> = diagrams
         .iter()
         .filter(|asset| {
@@ -177,7 +180,7 @@ fn diagram_section(diagrams: &[DiagramAsset]) -> String {
     if embedded.is_empty() {
         return String::new();
     }
-    let mut out = String::from("<h2>Diagrams</h2>\n");
+    let mut out = format!("<h2>{}</h2>\n", html_escape(heading));
     for asset in embedded {
         let title = html_escape(&asset.title);
         out.push_str(&format!(

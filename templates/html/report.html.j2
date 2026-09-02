@@ -1,3 +1,8 @@
+{%- set col = labels.common.columns -%}
+{%- set gov = labels.common.governance -%}
+{%- set sev = labels.common.severity -%}
+{%- set verdict = labels.common.verdict -%}
+{%- set html = labels.report.html -%}
 <!doctype html>
 <html lang="en">
 <head>
@@ -64,27 +69,27 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 {%- if branding.subtitle or branding.company %}
 <p class="meta">{% if branding.subtitle %}{{ branding.subtitle }}{% endif %}{% if branding.subtitle and branding.company %} · {% endif %}{{ branding.company }}</p>
 {%- endif %}
-<p class="meta">Snapshot <code>{{ snapshot_id }}</code> · collected {{ created_at }} · tenant <code>{{ tenant_id }}</code> · status {{ status }}{% if notes %} · {{ notes }}{% endif %}</p>
+<p class="meta">{{ labels.common.cover.snapshot }} <code>{{ snapshot_id }}</code> · {{ html.collected }} {{ created_at }} · {{ html.tenant }} <code>{{ tenant_id }}</code> · {{ html.status }} {{ status }}{% if notes %} · {{ notes }}{% endif %}</p>
 
 <div class="stats">
-  <div class="stat"><b>{{ totals.subscriptions }}</b><span>subscriptions</span></div>
-  <div class="stat"><b>{{ totals.resource_groups }}</b><span>resource groups</span></div>
-  <div class="stat"><b>{{ totals.resources }}</b><span>resources</span></div>
-  <div class="stat"><b>{{ totals.findings }}</b><span>findings</span></div>
-  <div class="stat"><b>{{ tag_coverage.percent }}%</b><span>tag coverage</span></div>
+  <div class="stat"><b>{{ totals.subscriptions }}</b><span>{{ html.subscriptions }}</span></div>
+  <div class="stat"><b>{{ totals.resource_groups }}</b><span>{{ html.resource_groups }}</span></div>
+  <div class="stat"><b>{{ totals.resources }}</b><span>{{ html.resources }}</span></div>
+  <div class="stat"><b>{{ totals.findings }}</b><span>{{ html.findings }}</span></div>
+  <div class="stat"><b>{{ tag_coverage.percent }}%</b><span>{{ html.tag_coverage }}</span></div>
 </div>
 
-<h2>Findings</h2>
+<h2>{{ labels.report.findings.chapter }}</h2>
 <p>
-<span class="badge high">{{ severity_counts.high }} high</span>
-<span class="badge medium">{{ severity_counts.medium }} medium</span>
-<span class="badge low">{{ severity_counts.low }} low</span>
-<span class="badge info">{{ severity_counts.info }} info</span>
+<span class="badge high">{{ severity_counts.high }} {{ sev.high.name }}</span>
+<span class="badge medium">{{ severity_counts.medium }} {{ sev.medium.name }}</span>
+<span class="badge low">{{ severity_counts.low }} {{ sev.low.name }}</span>
+<span class="badge info">{{ severity_counts.info }} {{ sev.info.name }}</span>
 </p>
 {% if findings %}
-<input class="filter" type="search" placeholder="Filter findings..." oninput="filterTable(this, 'findings-table')">
+<input class="filter" type="search" placeholder="{{ html.filter_placeholder }}" oninput="filterTable(this, 'findings-table')">
 <table id="findings-table">
-<thead><tr><th>Severity</th><th>Title</th><th>Category</th><th>Check</th><th>Resource</th></tr></thead>
+<thead><tr><th>{{ col.severity }}</th><th>{{ col.title }}</th><th>{{ col.category }}</th><th>{{ col.check }}</th><th>{{ col.resource }}</th></tr></thead>
 <tbody>
 {%- for f in findings %}
 <tr><td><span class="badge {{ f.severity }}">{{ f.severity }}</span></td>
@@ -93,39 +98,39 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 {%- endfor %}
 </tbody>
 </table>
-{% else %}<p>No findings. 🎉</p>{% endif %}
+{% else %}<p>{{ html.no_findings }}</p>{% endif %}
 
-<h2>Governance</h2>
+<h2>{{ labels.report.governance.chapter }}</h2>
 <div class="stats">
-  <div class="stat"><b>{{ tag_coverage.percent }}%</b><span>tag coverage</span></div>
-  <div class="stat"><b>{{ governance.distinct_keys }}</b><span>distinct keys</span></div>
-  <div class="stat"><b>{{ governance.non_compliant }}</b><span>non-compliant</span></div>
+  <div class="stat"><b>{{ tag_coverage.percent }}%</b><span>{{ html.tag_coverage }}</span></div>
+  <div class="stat"><b>{{ governance.distinct_keys }}</b><span>{{ html.distinct_keys }}</span></div>
+  <div class="stat"><b>{{ governance.non_compliant }}</b><span>{{ html.non_compliant }}</span></div>
 </div>
 {% if governance.top_keys %}
 <table>
-<thead><tr><th>Tag key</th><th>Resources</th><th>Share of {{ tag_coverage.tagged }} tagged</th></tr></thead>
+<thead><tr><th>{{ col.tag_key }}</th><th>{{ col.resources }}</th><th>{{ html.share_of_tagged | fill(tagged=tag_coverage.tagged) }}</th></tr></thead>
 <tbody>
 {%- for key in governance.top_keys %}
 <tr><td><code>{{ key.key }}</code></td><td>{{ key.count }}</td><td>{{ key.percent }}%</td></tr>
 {%- endfor %}
 </tbody>
 </table>
-{% else %}<p>No tags are stored in this snapshot.</p>{% endif %}
+{% else %}<p>{{ gov.no_tags }}</p>{% endif %}
 {%- if governance.subscriptions %}
 <table>
-<thead><tr><th>Subscription</th><th>Tag coverage</th><th>Status</th></tr></thead>
+<thead><tr><th>{{ col.subscription }}</th><th>{{ col.tag_coverage }}</th><th>{{ col.status }}</th></tr></thead>
 <tbody>
 {%- for sub in governance.subscriptions %}
 <tr><td>{{ sub.display_name }}</td><td>{{ sub.percent }}%</td>
-<td><span class="badge {{ "info" if sub.healthy else "medium" }}">{{ "healthy" if sub.healthy else "below threshold" }}</span></td></tr>
+<td><span class="badge {{ "info" if sub.healthy else "medium" }}">{{ verdict.healthy if sub.healthy else verdict.below_threshold }}</span></td></tr>
 {%- endfor %}
 </tbody>
 </table>
 {%- endif %}
 {% if governance.worst_groups %}
-<p>{{ governance.non_compliant }} resources are missing at least one required tag, recorded by the <code>missing_required_tags</code> audit.</p>
+<p>{{ gov.non_compliant_sentence | fill(count=governance.non_compliant, audit="<code>" ~ tag_audit ~ "</code>") }}</p>
 <table>
-<thead><tr><th>Resource group</th><th>Subscription</th><th>Resources</th><th>Non-compliant</th><th>Missed tags</th></tr></thead>
+<thead><tr><th>{{ col.resource_group }}</th><th>{{ col.subscription }}</th><th>{{ col.resources }}</th><th>{{ col.non_compliant }}</th><th>{{ col.missed_tags }}</th></tr></thead>
 <tbody>
 {%- for group in governance.worst_groups %}
 <tr><td>{{ group.name }}</td><td>{{ group.subscription_name }}</td><td>{{ group.resources }}</td>
@@ -136,9 +141,9 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 </table>
 {%- endif %}
 
-<h2>Resources by type</h2>
+<h2>{{ labels.report.type_index.chapter }}</h2>
 <table>
-<thead><tr><th>Type</th><th>Azure type</th><th>Count</th></tr></thead>
+<thead><tr><th>{{ col.type }}</th><th>{{ col.azure_type }}</th><th>{{ col.count }}</th></tr></thead>
 <tbody>
 {%- for tc in type_counts %}
 <tr><td>{{ tc.display }}</td><td><code>{{ tc.azure_type }}</code></td><td>{{ tc.count }}</td></tr>
@@ -164,14 +169,14 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 {% endfor %}
 {% endfor %}
 
-<h2>Subscriptions</h2>
+<h2>{{ html.subscriptions_heading }}</h2>
 {% for sub in subscriptions %}
-<h3>{{ sub.display_name }} <span class="meta">({{ sub.subscription_id }} · {{ sub.resource_count }} resources)</span></h3>
+<h3>{{ sub.display_name }} <span class="meta">({{ sub.subscription_id }} · {{ sub.resource_count }} {{ html.resources }})</span></h3>
 {% for rg in sub.resource_groups %}
 <details>
 <summary>{{ rg.name }}{% if rg.location %} — {{ rg.location }}{% endif %} ({{ rg.resources | length }})</summary>
 <table>
-<thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Tags</th></tr></thead>
+<thead><tr><th>{{ col.name }}</th><th>{{ col.type }}</th><th>{{ col.location }}</th><th>{{ col.tags }}</th></tr></thead>
 <tbody>
 {%- for r in rg.resources %}
 <tr><td>{{ r.name }}</td><td>{{ r.display_type }}</td><td>{{ r.location or "" }}</td><td>{% if r.tags %}<code>{{ r.tags }}</code>{% endif %}</td></tr>

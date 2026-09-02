@@ -21,7 +21,7 @@ pub fn write(
 
 /// Render the report HTML to a string (write's testable core).
 pub fn render(report: &ReportContext, branding: &BrandingContext) -> anyhow::Result<String> {
-    let mut env = super::markdown::environment();
+    let mut env = super::markdown::environment(&branding.labels);
     env.add_filter("html_cell", html_cell);
     env.add_template(
         "report",
@@ -29,6 +29,8 @@ pub fn render(report: &ReportContext, branding: &BrandingContext) -> anyhow::Res
     )?;
     let html = env.get_template("report")?.render(context! {
         branding => minijinja::Value::from_serialize(branding),
+        labels => minijinja::Value::from_serialize(&branding.labels),
+        tag_audit => super::governance::TAG_AUDIT,
         ..minijinja::Value::from_serialize(report)
     })?;
     Ok(html)

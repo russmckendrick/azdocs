@@ -97,7 +97,7 @@ pub fn run_selected_with_outputs(
         match format {
             ReportFormat::Md => {
                 let out_dir = out_root.join("docs");
-                report::markdown::write(&context, &out_dir)?;
+                report::markdown::write(&context, &branding.labels, &out_dir)?;
                 let out = out_dir.join("index.md");
                 println!("Markdown docs -> {}", out.display());
                 outputs.push(out);
@@ -116,8 +116,8 @@ pub fn run_selected_with_outputs(
             ReportFormat::Csv => {
                 let inventory = out_root.join("inventory.csv");
                 let findings_path = out_root.join("findings.csv");
-                report::csv::write_inventory(&resources, &inventory)?;
-                report::csv::write_findings(&findings, &findings_path)?;
+                report::csv::write_inventory(&resources, &branding.labels, &inventory)?;
+                report::csv::write_findings(&findings, &branding.labels, &findings_path)?;
                 println!(
                     "CSV -> {} + {}",
                     inventory.display(),

@@ -1,25 +1,27 @@
-# Subscription: {{ sub.display_name }}
+{%- set md = labels.report.markdown -%}
+{%- set col = labels.common.columns -%}
+# {{ md.subscription_title | fill(name=sub.display_name) }}
 
-[← index](../index.md)
+[{{ md.back_to_index }}](../index.md)
 
-- **Id**: `{{ sub.subscription_id }}`
+- **{{ md.id }}**: `{{ sub.subscription_id }}`
 {%- if sub.state %}
-- **State**: {{ sub.state }}
+- **{{ md.state }}**: {{ sub.state }}
 {%- endif %}
-- **Resources**: {{ sub.resource_count }}
+- **{{ col.resources }}**: {{ sub.resource_count }}
 
 {% for rg in sub.resource_groups %}
 ## {{ rg.name }}{% if rg.location %} ({{ rg.location }}){% endif %}
 
-[Resource details →](../{{ rg.detail_path }}.md)
+[{{ md.resource_details }}](../{{ rg.detail_path }}.md)
 
 {% if rg.resources -%}
-| Name | Type | Location |
+| {{ col.name }} | {{ col.type }} | {{ col.location }} |
 |---|---|---|
 {%- for r in rg.resources %}
 | {{ r.name | md_escape }} | {{ r.display_type | md_escape }} | {{ r.location or "" }} |
 {%- endfor %}
 {% else -%}
-_No resources._
+{{ md.no_resources }}
 {% endif %}
 {% endfor %}

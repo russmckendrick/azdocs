@@ -1,79 +1,84 @@
-# Azure Estate Report
+{%- set md = labels.report.markdown -%}
+{%- set col = labels.common.columns -%}
+{%- set gov = labels.common.governance -%}
+{%- set sev = labels.common.severity -%}
+{%- set verdict = labels.common.verdict -%}
+# {{ md.title }}
 
-- **Snapshot**: `{{ snapshot_id }}`
-- **Collected**: {{ created_at }}
-- **Tenant**: `{{ tenant_id }}`
-- **Status**: {{ status }}
+- **{{ labels.common.cover.snapshot }}**: `{{ snapshot_id }}`
+- **{{ labels.common.cover.collected }}**: {{ created_at }}
+- **{{ labels.common.cover.tenant }}**: `{{ tenant_id }}`
+- **{{ labels.common.cover.status }}**: {{ status }}
 {%- if notes %}
-- **Notes**: {{ notes }}
+- **{{ labels.common.cover.notes }}**: {{ notes }}
 {%- endif %}
 
-## Summary
+## {{ md.summary }}
 
-| Metric | Count |
+| {{ col.metric }} | {{ col.count }} |
 |---|---:|
-| Subscriptions | {{ totals.subscriptions }} |
-| Resource groups | {{ totals.resource_groups }} |
-| Resources | {{ totals.resources }} |
-| Findings | {{ totals.findings }} |
+| {{ col.subscriptions }} | {{ totals.subscriptions }} |
+| {{ col.resource_groups }} | {{ totals.resource_groups }} |
+| {{ col.resources }} | {{ totals.resources }} |
+| {{ col.findings }} | {{ totals.findings }} |
 
-**Findings by severity**: {{ severity_counts.high }} high · {{ severity_counts.medium }} medium · {{ severity_counts.low }} low · {{ severity_counts.info }} info — see [findings.md](findings.md)
+**{{ md.findings_by_severity }}**: {{ severity_counts.high }} {{ sev.high.name }} · {{ severity_counts.medium }} {{ sev.medium.name }} · {{ severity_counts.low }} {{ sev.low.name }} · {{ severity_counts.info }} {{ sev.info.name }} — {{ md.see }} [findings.md](findings.md)
 
-**Tag coverage**: {{ tag_coverage.percent }}% ({{ tag_coverage.tagged }} tagged, {{ tag_coverage.untagged }} untagged)
+**{{ col.tag_coverage }}**: {{ md.tag_coverage_line | fill(percent=tag_coverage.percent, tagged=tag_coverage.tagged, untagged=tag_coverage.untagged) }}
 
-## Governance
+## {{ labels.report.governance.chapter }}
 {% if governance.top_keys %}
-**Coverage by tag key** — share of the {{ tag_coverage.tagged }} tagged resources carrying each key.
+**{{ gov.coverage_by_key }}** — {{ md.key_share | fill(tagged=tag_coverage.tagged) }}
 
-| Tag key | Resources | Share |
+| {{ col.tag_key }} | {{ col.resources }} | {{ col.share }} |
 |---|---:|---:|
 {%- for key in governance.top_keys %}
 | `{{ key.key | md_escape }}` | {{ key.count }} | {{ key.percent }}% |
 {%- endfor %}
 {% else %}
-No tags are stored in this snapshot.
+{{ gov.no_tags }}
 {% endif %}
 {%- if governance.subscriptions %}
-**Coverage by subscription** — any tag counts here; the required-tag sweep is stricter.
+**{{ gov.coverage_by_subscription }}** — {{ md.subscription_note }}
 
-| Subscription | Coverage | Status |
+| {{ col.subscription }} | {{ col.coverage }} | {{ col.status }} |
 |---|---:|---|
 {%- for sub in governance.subscriptions %}
-| {{ sub.display_name | md_escape }} | {{ sub.percent }}% | {{ "healthy" if sub.healthy else "below threshold" }} |
+| {{ sub.display_name | md_escape }} | {{ sub.percent }}% | {{ verdict.healthy if sub.healthy else verdict.below_threshold }} |
 {%- endfor %}
 {%- endif %}
 {% if governance.worst_groups %}
-**Least compliant resource groups** — {{ governance.non_compliant }} resources are missing at least one required tag, recorded by the `missing_required_tags` audit.
+**{{ gov.least_compliant }}** — {{ gov.non_compliant_sentence | fill(count=governance.non_compliant, audit="`" ~ tag_audit ~ "`") }}
 
-| Resource group | Subscription | Resources | Non-compliant | Missed tags | Status |
+| {{ col.resource_group }} | {{ col.subscription }} | {{ col.resources }} | {{ col.non_compliant }} | {{ col.missed_tags }} | {{ col.status }} |
 |---|---|---:|---:|---|---|
 {%- for group in governance.worst_groups %}
-| {{ group.name | md_escape }} | {{ group.subscription_name | md_escape }} | {{ group.resources }} | {{ group.non_compliant }} | {{ group.missed_tags | join(", ") | md_escape }} | {{ "called out" if group.flagged else "—" }} |
+| {{ group.name | md_escape }} | {{ group.subscription_name | md_escape }} | {{ group.resources }} | {{ group.non_compliant }} | {{ group.missed_tags | join(", ") | md_escape }} | {{ verdict.called_out if group.flagged else verdict.none }} |
 {%- endfor %}
 {%- endif %}
 
-## Resources by type
+## {{ md.resources_by_type }}
 
-| Type | Azure type | Count |
+| {{ col.type }} | {{ col.azure_type }} | {{ col.count }} |
 |---|---|---:|
 {%- for tc in type_counts %}
 | {{ tc.display | md_escape }} | `{{ tc.azure_type }}` | {{ tc.count }} |
 {%- endfor %}
 
-## Resources by location
+## {{ md.resources_by_location }}
 
-| Location | Count |
+| {{ col.location }} | {{ col.count }} |
 |---|---:|
 {%- for lc in location_counts %}
 | {{ lc.display | md_escape }} | {{ lc.count }} |
 {%- endfor %}
 
-## Sections
+## {{ md.sections }}
 
 {% for category in categories -%}
 - [{{ category.name }}]({{ category.name }}.md)
 {% endfor -%}
 - [findings](findings.md)
 {% for sub in subscriptions -%}
-- [subscription: {{ sub.display_name | md_escape }}](subscriptions/{{ sub.display_name | slug }}.md)
+- [{{ md.subscription_link | fill(name=sub.display_name | md_escape) }}](subscriptions/{{ sub.display_name | slug }}.md)
 {% endfor %}

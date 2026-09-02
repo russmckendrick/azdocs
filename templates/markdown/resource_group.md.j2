@@ -1,12 +1,14 @@
+{%- set md = labels.report.markdown -%}
+{%- set col = labels.common.columns -%}
 # {{ page.resource_group }}
 
-[← index](../../index.md) · [subscription: {{ page.subscription_name }}](../../subscriptions/{{ page.subscription_slug }}.md)
+[{{ md.back_to_index }}](../../index.md) · [{{ md.subscription_link | fill(name=page.subscription_name) }}](../../subscriptions/{{ page.subscription_slug }}.md)
 
-- **Subscription**: {{ page.subscription_name }}
+- **{{ col.subscription }}**: {{ page.subscription_name }}
 {%- if page.location %}
-- **Location**: {{ page.location }}
+- **{{ col.location }}**: {{ page.location }}
 {%- endif %}
-- **Resources**: {{ page.resources | length }}
+- **{{ col.resources }}**: {{ page.resources | length }}
 
 {% for r in page.resources %}
 ## {{ r.name }}
@@ -16,14 +18,14 @@
 {% for f in r.findings -%}
 > ⚠️ **{{ f.severity | upper }}** — {{ f.title | md_escape }}
 {% endfor %}
-| Setting | Value |
+| {{ col.setting }} | {{ col.value }} |
 |---|---|
 {%- for s in r.settings %}
 | {{ s.key | md_escape }} | {{ s.value | md_escape }} |
 {%- endfor %}
 
 {% if r.related -%}
-**Related**: {% for rel in r.related %}{{ rel | md_escape }}{% if not loop.last %} · {% endif %}{% endfor %}
+**{{ md.related }}**: {% for rel in r.related %}{{ rel | md_escape }}{% if not loop.last %} · {% endif %}{% endfor %}
 {% endif %}
 `{{ r.arm_id }}`
 {% endfor %}

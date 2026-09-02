@@ -6,6 +6,7 @@ use rust_xlsxwriter::{Color, Format, FormatBorder, Workbook, Worksheet};
 use super::branding::BrandingContext;
 use super::theme::{TableStyle, ThemeTokens};
 use super::{ReportContext, cell_to_string};
+use crate::labels::{Labels, fill};
 use crate::model::Resource;
 
 /// `#rrggbb` from the theme as the packed integer `rust_xlsxwriter` wants.
@@ -44,35 +45,40 @@ pub fn write(
 ) -> anyhow::Result<()> {
     let mut workbook = Workbook::new();
     let tokens = &branding.tokens;
+    let labels = &branding.labels;
+    let words = &labels.report.xlsx;
     let header = header_format(tokens);
 
     summary_sheet(
-        workbook.add_worksheet().set_name("Summary")?,
+        workbook.add_worksheet().set_name(&words.sheet_summary)?,
         report,
         branding,
         &header,
     )?;
     inventory_sheet(
-        workbook.add_worksheet().set_name("Inventory")?,
+        workbook.add_worksheet().set_name(&words.sheet_inventory)?,
         resources,
+        labels,
         &header,
     )?;
     findings_sheet(
-        workbook.add_worksheet().set_name("Findings")?,
+        workbook.add_worksheet().set_name(&words.sheet_findings)?,
         report,
+        labels,
         tokens,
         &header,
     )?;
     governance_sheet(
-        workbook.add_worksheet().set_name("Governance")?,
+        workbook.add_worksheet().set_name(&words.sheet_governance)?,
         report,
+        labels,
         tokens,
         &header,
     )?;
     for category in &report.categories {
         // Suffix avoids case-insensitive collisions with the fixed sheets
         // (e.g. a category literally named "inventory"); names cap at 31 chars.
-        let name: String = format!("{} queries", category.name)
+        let name: String = fill(&words.queries_sheet, &[("category", &category.name)])
             .chars()
             .take(31)
             .collect();
@@ -115,20 +121,42 @@ fn summary_sheet(
     }
     const FIRST_ROW: u32 = 3;
 
+    let labels = &branding.labels;
+    let cover = &labels.common.cover;
+    let columns = &labels.common.columns;
+    let words = &labels.report.xlsx;
     let rows: Vec<(&str, String)> = vec![
-        ("Snapshot", report.snapshot_id.clone()),
-        ("Collected", report.created_at.clone()),
-        ("Tenant", report.tenant_id.clone()),
-        ("Status", report.status.clone()),
-        ("Subscriptions", report.totals.subscriptions.to_string()),
-        ("Resource groups", report.totals.resource_groups.to_string()),
-        ("Resources", report.totals.resources.to_string()),
-        ("Findings", report.totals.findings.to_string()),
-        ("High findings", report.severity_counts.high.to_string()),
-        ("Medium findings", report.severity_counts.medium.to_string()),
-        ("Low findings", report.severity_counts.low.to_string()),
-        ("Info findings", report.severity_counts.info.to_string()),
-        ("Tag coverage %", report.tag_coverage.percent.to_string()),
+        (&cover.snapshot, report.snapshot_id.clone()),
+        (&cover.collected, report.created_at.clone()),
+        (&cover.tenant, report.tenant_id.clone()),
+        (&cover.status, report.status.clone()),
+        (
+            &columns.subscriptions,
+            report.totals.subscriptions.to_string(),
+        ),
+        (
+            &columns.resource_groups,
+            report.totals.resource_groups.to_string(),
+        ),
+        (&columns.resources, report.totals.resources.to_string()),
+        (&columns.findings, report.totals.findings.to_string()),
+        (
+            &words.high_findings,
+            report.severity_counts.high.to_string(),
+        ),
+        (
+            &words.medium_findings,
+            report.severity_counts.medium.to_string(),
+        ),
+        (&words.low_findings, report.severity_counts.low.to_string()),
+        (
+            &words.info_findings,
+            report.severity_counts.info.to_string(),
+        ),
+        (
+            &words.tag_coverage_percent,
+            report.tag_coverage.percent.to_string(),
+        ),
     ];
     for (offset, (label, value)) in rows.iter().enumerate() {
         let row = FIRST_ROW + offset as u32;
@@ -137,8 +165,8 @@ fn summary_sheet(
     }
 
     let types_row = FIRST_ROW + rows.len() as u32 + 2;
-    sheet.write_with_format(types_row, 0, "Type", header)?;
-    sheet.write_with_format(types_row, 1, "Count", header)?;
+    sheet.write_with_format(types_row, 0, columns.r#type.as_str(), header)?;
+    sheet.write_with_format(types_row, 1, columns.count.as_str(), header)?;
     for (offset, tc) in report.type_counts.iter().enumerate() {
         let row = types_row + 1 + offset as u32;
         sheet.write(row, 0, &tc.display)?;
@@ -152,17 +180,19 @@ fn summary_sheet(
 fn inventory_sheet(
     sheet: &mut Worksheet,
     resources: &[Resource],
+    labels: &Labels,
     header: &Format,
 ) -> anyhow::Result<()> {
+    let names = &labels.report.xlsx.inventory_columns;
     let columns = [
-        "name",
-        "type",
-        "kind",
-        "location",
-        "resource group",
-        "subscription",
-        "tags",
-        "id",
+        names.name.as_str(),
+        names.r#type.as_str(),
+        names.kind.as_str(),
+        names.location.as_str(),
+        names.resource_group.as_str(),
+        names.subscription.as_str(),
+        names.tags.as_str(),
+        names.id.as_str(),
     ];
     for (col, name) in columns.iter().enumerate() {
         sheet.write_with_format(0, col as u16, *name, header)?;
@@ -196,6 +226,7 @@ fn inventory_sheet(
 fn findings_sheet(
     sheet: &mut Worksheet,
     report: &ReportContext,
+    labels: &Labels,
     tokens: &ThemeTokens,
     header: &Format,
 ) -> anyhow::Result<()> {
@@ -215,9 +246,16 @@ fn findings_sheet(
                 .set_font_color(color(&colors.text)),
         )
     });
-    for (col, name) in ["severity", "category", "check", "title", "resource"]
-        .iter()
-        .enumerate()
+    let names = &labels.report.xlsx.findings_columns;
+    for (col, name) in [
+        names.severity.as_str(),
+        names.category.as_str(),
+        names.check.as_str(),
+        names.title.as_str(),
+        names.resource.as_str(),
+    ]
+    .iter()
+    .enumerate()
     {
         sheet.write_with_format(0, col as u16, *name, header)?;
     }
@@ -251,10 +289,14 @@ fn findings_sheet(
 fn governance_sheet(
     sheet: &mut Worksheet,
     report: &ReportContext,
+    labels: &Labels,
     tokens: &ThemeTokens,
     header: &Format,
 ) -> anyhow::Result<()> {
     let governance = &report.governance;
+    let columns = &labels.common.columns;
+    let words = &labels.report.xlsx;
+    let verdict = &labels.common.verdict;
     // A flagged group reads as a finding, so it uses the finding palette.
     let flagged = Format::new()
         .set_background_color(color(&tokens.palette.severity.high.fill))
@@ -263,7 +305,11 @@ fn governance_sheet(
     let mut row = table(
         sheet,
         0,
-        &["Tag coverage %", "Distinct keys", "Non-compliant"],
+        &[
+            &words.tag_coverage_percent,
+            &columns.distinct_keys,
+            &columns.non_compliant,
+        ],
         header,
     )?;
     sheet.write(row, 0, report.tag_coverage.percent)?;
@@ -274,7 +320,11 @@ fn governance_sheet(
     row = table(
         sheet,
         row,
-        &["Tag key", "Resources", "Share of tagged %"],
+        &[
+            &columns.tag_key,
+            &columns.resources,
+            &words.share_of_tagged_percent,
+        ],
         header,
     )?;
     for key in &governance.top_keys {
@@ -288,7 +338,11 @@ fn governance_sheet(
     row = table(
         sheet,
         row,
-        &["Subscription", "Tag coverage %", "Status"],
+        &[
+            &columns.subscription,
+            &words.tag_coverage_percent,
+            &columns.status,
+        ],
         header,
     )?;
     for subscription in &governance.subscriptions {
@@ -298,9 +352,9 @@ fn governance_sheet(
             row,
             2,
             if subscription.healthy {
-                "healthy"
+                &verdict.healthy
             } else {
-                "below threshold"
+                &verdict.below_threshold
             },
         )?;
         row += 1;
@@ -311,11 +365,11 @@ fn governance_sheet(
         sheet,
         row,
         &[
-            "Resource group",
-            "Subscription",
-            "Resources",
-            "Non-compliant",
-            "Missed tags",
+            &columns.resource_group,
+            &columns.subscription,
+            &columns.resources,
+            &columns.non_compliant,
+            &columns.missed_tags,
         ],
         header,
     )?;
