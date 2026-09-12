@@ -9,13 +9,13 @@ expression: "drawio::render_for(&graph, DiagramDetail::Full)"
       <root>
         <mxCell id="0"/>
         <mxCell id="1" parent="0"/>
-        <mxCell id="n0" value="Tenant fixture-tenant" style="swimlane;html=1;startSize=28;rounded=1;arcSize=6;fillColor=#FFFFFF;strokeColor=#605E5C;fontSize=13;fontStyle=1;verticalAlign=top;horizontal=1;collapsible=0;whiteSpace=wrap;" parent="1" vertex="1">
+        <mxCell id="n0" value="Tenant fixture-tenant" style="swimlane;html=1;startSize=28;rounded=1;arcSize=6;fillColor=#FFFFFF;strokeColor=#605E5C;fontSize=13;fontStyle=0;verticalAlign=top;horizontal=1;collapsible=0;whiteSpace=wrap;" parent="1" vertex="1">
           <mxGeometry x="0" y="0" width="1400" height="218" as="geometry"/>
         </mxCell>
         <mxCell id="h0" value="" style="image;aspect=fixed;html=1;points=[];movable=0;resizable=0;deletable=0;connectable=0;editable=0;image=img/lib/azure2/general/Management_Groups.svg;" parent="n0" vertex="1">
           <mxGeometry x="8" y="3" width="22.8" height="22" as="geometry"/>
         </mxCell>
-        <mxCell id="n1" value="Development  3 resources" style="swimlane;html=1;startSize=27;rounded=1;arcSize=6;fillColor=#E8F1FA;strokeColor=#0078D4;fontSize=13;fontStyle=1;verticalAlign=top;horizontal=1;collapsible=0;whiteSpace=wrap;" parent="n0" vertex="1">
+        <mxCell id="n1" value="Development  3 resources" style="swimlane;html=1;startSize=27;rounded=1;arcSize=6;fillColor=#E8F1FA;strokeColor=#0078D4;fontSize=13;fontStyle=0;verticalAlign=top;horizontal=1;collapsible=0;whiteSpace=wrap;" parent="n0" vertex="1">
           <mxGeometry x="18" y="45" width="671" height="155" as="geometry"/>
         </mxCell>
         <mxCell id="h1" value="" style="image;aspect=fixed;html=1;points=[];movable=0;resizable=0;deletable=0;connectable=0;editable=0;image=img/lib/azure2/general/Subscriptions.svg;" parent="n1" vertex="1">
@@ -27,7 +27,7 @@ expression: "drawio::render_for(&graph, DiagramDetail::Full)"
         <mxCell id="h2" value="" style="image;aspect=fixed;html=1;points=[];movable=0;resizable=0;deletable=0;connectable=0;editable=0;image=img/lib/azure2/general/Resource_Groups.svg;" parent="n2" vertex="1">
           <mxGeometry x="8" y="34" width="29.7" height="28" as="geometry"/>
         </mxCell>
-        <mxCell id="n3" value="Production  15 resources" style="swimlane;html=1;startSize=27;rounded=1;arcSize=6;fillColor=#E8F1FA;strokeColor=#0078D4;fontSize=13;fontStyle=1;verticalAlign=top;horizontal=1;collapsible=0;whiteSpace=wrap;" parent="n0" vertex="1">
+        <mxCell id="n3" value="Production  15 resources" style="swimlane;html=1;startSize=27;rounded=1;arcSize=6;fillColor=#E8F1FA;strokeColor=#0078D4;fontSize=13;fontStyle=0;verticalAlign=top;horizontal=1;collapsible=0;whiteSpace=wrap;" parent="n0" vertex="1">
           <mxGeometry x="711" y="45" width="671" height="155" as="geometry"/>
         </mxCell>
         <mxCell id="h3" value="" style="image;aspect=fixed;html=1;points=[];movable=0;resizable=0;deletable=0;connectable=0;editable=0;image=img/lib/azure2/general/Subscriptions.svg;" parent="n3" vertex="1">

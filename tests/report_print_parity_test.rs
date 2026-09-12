@@ -1,11 +1,8 @@
 mod common;
 
-use azdocs::labels::Labels;
-
 use std::io::Read;
 
-use azdocs::diagram::DiagramScope;
-use azdocs::diagram::assets::{self, DiagramAsset, DiagramAssetKind};
+use azdocs::diagram::assets::DiagramAsset;
 use azdocs::report::branding::BrandingContext;
 use azdocs::report::{ReportContext, docx, pdf};
 use azdocs::store::Store;
@@ -14,15 +11,10 @@ fn seeded() -> (ReportContext, Vec<DiagramAsset>) {
     let store = Store::open_in_memory().unwrap();
     let id = common::seed_estate(&store);
     let report = ReportContext::build(&store, &id).unwrap();
-    let mut diagrams = assets::build_overviews(
-        &store,
-        &id,
-        &DiagramScope::default(),
-        &Labels::default().diagram,
-    )
-    .unwrap();
-    diagrams
-        .extend(assets::build_resource_diagrams(&store, &id, &Labels::default().diagram).unwrap());
+    let diagrams = azdocs::diagram::assets::build_assessment(
+        &report.analysis,
+        &azdocs::labels::Labels::default(),
+    );
     (report, diagrams)
 }
 
@@ -51,65 +43,47 @@ fn assert_ordered(text: &str, markers: &[&str], format: &str) {
 }
 
 #[test]
-fn native_print_formats_share_ordered_structure_and_overview_scope() {
+fn native_print_formats_share_main_and_reference_content() {
     let (report, diagrams) = seeded();
     let branding = BrandingContext::default();
-
-    let pdf = pdf::render(&report, &branding, &diagrams).unwrap();
-    let docx = docx::render(&report, &branding, &diagrams).unwrap();
-    let pdf_text = pdf_text(&pdf);
-    let docx_xml = document_xml(&docx);
-
+    let main_pdf = pdf_text(&pdf::render(&report, &branding, &diagrams).unwrap());
+    let main_word = document_xml(&docx::render(&report, &branding, &diagrams).unwrap());
+    let w = &branding.labels.report.assessment;
     let markers = [
-        "Executive Summary",
-        "Estate overview",
-        "Findings",
-        "Governance",
-        "Least compliant resource groups",
-        "Resources by type",
-        "Production",
-        "rg-app",
-        "Evidence appendix",
-        "Networking",
+        &w.executive,
+        &w.composition,
+        &w.architecture,
+        &w.profiles,
+        &w.security,
+        &w.governance,
+        &w.actions,
+        &w.coverage,
     ];
-    let pdf_body = &pdf_text[pdf_text
-        .rfind("Executive Summary")
-        .expect("PDF report body")..];
-    let docx_body = &docx_xml[docx_xml
-        .rfind("Executive Summary")
-        .expect("DOCX report body")..];
-    assert_ordered(pdf_body, &markers, "PDF");
-    assert_ordered(docx_body, &markers, "DOCX");
-
-    let pdf_overview_start = pdf_text
-        .rfind("Estate overview")
-        .expect("PDF estate overview");
-    let pdf_overview_end = pdf_overview_start
-        + pdf_text[pdf_overview_start..]
-            .find("Findings")
-            .expect("PDF findings after overview");
-    let docx_overview_start = docx_xml
-        .rfind("Estate overview")
-        .expect("DOCX estate overview");
-    let docx_overview_end = docx_overview_start
-        + docx_xml[docx_overview_start..]
-            .find("Findings")
-            .expect("DOCX findings after overview");
-    let pdf_overview = &pdf_text[pdf_overview_start..pdf_overview_end];
-    let docx_overview = &docx_xml[docx_overview_start..docx_overview_end];
-    for asset in diagrams
-        .iter()
-        .filter(|asset| asset.kind == DiagramAssetKind::ResourceGroup)
-    {
-        assert!(
-            !pdf_overview.contains(&asset.title),
-            "resource-group diagram leaked into PDF overview: {}",
-            asset.title
+    for (text, format) in [(&main_pdf, "PDF"), (&main_word, "DOCX")] {
+        assert_ordered(
+            text,
+            &markers.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+            format,
         );
-        assert!(
-            !docx_overview.contains(&asset.title),
-            "resource-group diagram leaked into DOCX overview: {}",
-            asset.title
-        );
+        assert!(!text.contains("Resources by type"));
+        assert!(!text.contains("Host Pool Type"));
+    }
+    let reference_pdf = pdf_text(&pdf::render_reference(&report, &branding, &[]).unwrap());
+    let reference_word = document_xml(&docx::render_reference(&report, &branding, &[]).unwrap());
+    for text in [&reference_pdf, &reference_word] {
+        for marker in [
+            "Resources by type",
+            "Host Pool Type",
+            "stprodapp01 allows public blob access",
+            "512 characters",
+        ] {
+            assert!(
+                text.contains(marker),
+                "missing reference evidence: {marker}"
+            );
+        }
+        for resource in report.analysis.resources.values() {
+            assert!(text.contains(&resource.name), "{} missing", resource.name);
+        }
     }
 }

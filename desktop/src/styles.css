@@ -4388,3 +4388,9 @@ span.graph-container-label {
     transition: none;
   }
 }
+
+.export-reference-option { display: flex; gap: 12px; align-items: flex-start; margin-block: 20px; cursor: pointer; }
+.export-reference-option input { margin-top: 4px; }
+.export-reference-option span { display: grid; gap: 4px; }
+.export-reference-option strong { font-weight: 500; }
+.export-reference-option small { font-size: 12px; color: var(--muted); }

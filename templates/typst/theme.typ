@@ -4,6 +4,7 @@
 // between. Nothing here knows a theme's name.
 
 #let theme = json(bytes(sys.inputs.theme))
+#let reference-grid = json(bytes(sys.inputs.document)).technical_reference and theme.layout.reference_table_borders
 // Every word this file prints comes from the resolved labels
 // (`sys.inputs.labels`, produced by src/labels); nothing here is English.
 #let labels = json(bytes(sys.inputs.labels))
@@ -45,11 +46,17 @@
 // ARM ids, URLs and resource names have no spaces, so a long one would push a
 // table column past the page edge. Offering a zero-width break after each
 // separator lets them wrap inside the cell instead.
-#let breakable(s) = {
+#let breakable(s, max-span: 12) = {
   let out = ""
+  let span = 0
   for ch in s {
     out += ch
-    if ch == "/" or ch == "-" or ch == "." or ch == "_" { out += "\u{200B}" }
+    span += 1
+    if ch == " " { span = 0 }
+    if ch == "/" or ch == "-" or ch == "." or ch == "_" or span >= max-span {
+      out += "\u{200B}"
+      span = 0
+    }
   }
   out
 }
@@ -62,7 +69,7 @@
   body,
 )
 
-#let display(body, size, weight: "semibold", fill: ink) = text(
+#let display(body, size, weight: "regular", fill: ink) = text(
   font: typ.serif,
   size: size,
   weight: weight,
@@ -73,12 +80,12 @@
 // ---------------------------------------------------------------- tables ----
 
 // Header cell styling per table strategy.
-#let header-cell(label) = {
+#let header-cell(label, max-span: 12) = {
   let content = text(
     size: typ.table_header_pt * 1pt,
     weight: "semibold",
     fill: if lay.table == "solid-header" { on-primary } else { ink },
-    label,
+    breakable(label, max-span: max-span),
   )
   if lay.table == "solid-header" {
     table.cell(fill: primary, content)
@@ -89,7 +96,7 @@
   }
 }
 
-#let table-stroke = if lay.table == "solid-header" {
+#let table-stroke = if reference-grid or lay.table == "solid-header" {
   rule-stroke
 } else {
   // Hairline and banded rule horizontally only; vertical rules add noise to
@@ -108,31 +115,35 @@
   text(size: typ.small_pt * 1pt, fill: muted, style: "italic", body),
 )
 
-#let table-value(value, mono-value: false) = if mono-value {
-  mono(breakable(value), size: typ.table_pt * 1pt)
+#let table-value(value, mono-value: false, max-span: 12) = if mono-value {
+  mono(breakable(value, max-span: max-span), size: typ.table_pt * 1pt)
 } else {
   text(
     size: typ.table_pt * 1pt,
-    breakable(value),
+    breakable(value, max-span: max-span),
   )
 }
 
 /// Render a display-ready semantic table. Labels and JSON value formatting
 /// have already been resolved by PrintDocument, so no report logic lives here.
-#let print-table(_kind, columns, rows) = {
+#let print-table(_kind, columns, rows, links) = {
   if columns.len() == 0 or rows.len() == 0 {
     return empty-state(labels.report.evidence.no_results)
   }
+  // Narrow evidence columns must fit even unspaced property names and enums.
+  let max-span = if columns.len() >= 4 { 1 } else { 12 }
   block(above: 0.25em, below: 0.85em, breakable: true, table(
-    columns: columns.map(_ => auto),
+    columns: columns.map(column => column.weight * 1fr),
     inset: lay.table_inset_pt * 1pt,
     stroke: table-stroke,
     fill: row-fill,
-    table.header(repeat: true, ..columns.map(column => header-cell(column.label))),
+    table.header(repeat: true, ..columns.map(column => header-cell(column.label, max-span: max-span))),
     ..rows
-      .map(row => row.enumerate().map(((index, value)) => {
+      .enumerate().map(((row-index, row)) => row.enumerate().map(((index, value)) => {
         let column = columns.at(index)
-        table-value(value, mono-value: column.mono)
+        let target = links.find(entry => entry.row == row-index and entry.column == index)
+        let content = table-value(value, mono-value: column.mono, max-span: max-span)
+        if target == none { content } else { link(label(target.target), text(fill: accent, content)) }
       }))
       .flatten(),
   ))
@@ -149,9 +160,9 @@
         gutter: 12pt,
         text(
           size: (typ.base_pt - 1) * 1pt,
-          weight: "semibold",
+          weight: "regular",
           fill: primary-dark,
-          item.label,
+          breakable(item.label),
         ),
         if item.mono {
           mono(breakable(item.value), size: (typ.base_pt - 1) * 1pt)
@@ -171,7 +182,9 @@
       .filter(value => value != "")
       .join(" · ")
     block(width: 100%, breakable: false, above: 0.18em, below: 0.5em)[
-      #text(size: typ.base_pt * 1pt, weight: "semibold", fill: ink)[#item.name]
+      #text(size: typ.base_pt * 1pt, weight: "regular", fill: if item.target == none { ink } else { accent })[
+        #if item.target == none { item.name } else { link(label(item.target), item.name) }
+      ]
       #h(8pt)
       #text(size: typ.small_pt * 1pt, fill: muted)[#metadata]
     ]
@@ -182,7 +195,7 @@
 
 #let stat(value, label) = {
   let body = [
-    #display(cell(value), typ.stat_value_pt * 1pt, weight: "semibold", fill: primary-dark) \
+    #display(cell(value), typ.stat_value_pt * 1pt, weight: "regular", fill: primary-dark) \
     #text(size: typ.stat_label_pt * 1pt, fill: muted)[#label]
   ]
   if lay.stat == "card" {
@@ -231,7 +244,7 @@
       #block(inset: (x: 3cm))[
         #if mark-path != "" [#cover-mark(mark-path) #v(0.55cm)]
         #if logo-path != "" [#cover-logo(logo-path) #v(0.8cm)]
-        #display(cover.title, typ.title_pt * 1pt, weight: "semibold", fill: on-band)
+        #display(cover.title, typ.title_pt * 1pt, weight: "regular", fill: on-band)
         #if cover.subtitle != "" [
           \ #v(0.2cm) #text(size: typ.subtitle_pt * 1pt, fill: on-band.transparentize(20%))[#cover.subtitle]
         ]
@@ -256,7 +269,7 @@
       #block(inset: (x: 2.5cm, top: 3cm))[
         #if mark-path != "" [#cover-mark(mark-path) #v(0.55cm)]
         #if logo-path != "" [#cover-logo(logo-path) #v(0.8cm)]
-        #display(cover.title, typ.title_pt * 1pt, weight: "semibold", fill: primary)
+        #display(cover.title, typ.title_pt * 1pt, weight: "regular", fill: primary)
         #if cover.subtitle != "" [
           \ #v(0.2cm) #text(size: typ.subtitle_pt * 1pt, fill: muted)[#cover.subtitle]
         ]
@@ -318,7 +331,7 @@
           if icon-path != "" {
             image(icon-path, width: 30pt, height: 30pt, fit: "contain")
           } else { [] },
-          text(font: typ.serif, size: typ.h1_pt * 1pt, weight: "semibold", fill: primary, it),
+          text(font: typ.serif, size: typ.h1_pt * 1pt, weight: "regular", fill: primary, it),
         ),
         line(length: 100%, stroke: 1.5pt + primary),
       ),
@@ -329,28 +342,13 @@
 
 /// Name plate above each resource's detail, so a reader scanning a long
 /// chapter can find one resource without reading the settings tables.
-#let resource-plate(name) = block(
-  width: 100%,
-  fill: if lay.table == "hairline" { none } else { primary-tint },
-  stroke: (left: 3pt + primary, bottom: rule-stroke),
-  radius: 0pt,
-  inset: (x: 10pt, y: 7pt),
-  above: 1.7em,
-  below: 0.9em,
-  text(
-    size: typ.h3_pt * 1pt,
-    weight: "bold",
-    fill: primary-dark,
-    name,
-  ),
-)
+#let resource-plate(name, icon-path) = block(width: 100%, above: 1.4em, below: 0.5em, sticky: true,
+  grid(columns: (auto, 1fr), align: horizon, gutter: 6pt,
+    if icon-path != "" { image(icon-path, width: typ.h3_pt * 1.2pt, height: typ.h3_pt * 1.2pt, fit: "contain") } else { [] },
+    text(size: typ.h3_pt * 1pt, weight: "regular", fill: ink, breakable(name))))
 
-/// Small labelled rule introducing a sub-block (Settings, Findings, Related).
-#let sub-label(title) = block(width: 100%, above: 1.2em, below: 0.65em)[
-  #text(size: typ.small_pt * 1pt, weight: "semibold", fill: primary-dark, title)
-  #v(0.15em)
-  #line(length: 100%, stroke: rule-stroke)
-]
+#let sub-label(title) = block(width: 100%, above: 0.8em, below: 0.35em, sticky: true,
+  text(size: typ.base_pt * 1pt, weight: "regular", fill: ink, title))
 
 #let callout(severity, title, detail: none) = block(
   width: 100%,
@@ -390,19 +388,19 @@
           gutter: 8pt,
           image(
             icon-path,
-            width: heading-size * 1.4pt,
-            height: heading-size * 1.4pt,
+            width: heading-size * 1pt,
+            height: heading-size * 1pt,
             fit: "contain",
           ),
           text(
             size: heading-size * 1pt,
             font: typ.serif,
-            weight: "semibold",
+            weight: "regular",
             fill: primary-dark,
             it,
           ),
         ),
-        line(length: 100%, stroke: 1pt + primary),
+
       ),
     )
     #heading(level: level, title)
@@ -465,7 +463,7 @@
       width: 100%,
       stroke: (top: 1.5pt + primary, bottom: 1.5pt + primary),
       inset: (y: 16pt),
-      text(font: typ.serif, size: (typ.h1_pt + 10) * 1pt, weight: "semibold", fill: primary, it),
+      text(font: typ.serif, size: (typ.h1_pt + 10) * 1pt, weight: "regular", fill: primary, it),
     )
     #heading(level: 1, title)
   ]
@@ -474,11 +472,6 @@
 } else {
   if break_before { pagebreak(weak: true) }
   heading(level: 1, title)
-  // Themes without a filled table header lean on rules to separate sections.
-  if lay.table != "solid-header" {
-    v(-0.5em)
-    line(length: 100%, stroke: rule-stroke)
-  }
 }
 
 /// Document-wide rules. Applied once by report.typ via a show rule.
@@ -495,17 +488,17 @@
   show heading.where(level: 1): it => block(
     above: 1.8em,
     below: 0.9em,
-    text(font: typ.serif, size: typ.h1_pt * 1pt, weight: "semibold", fill: primary, it),
+    text(font: typ.serif, size: typ.h1_pt * 1pt, weight: "regular", fill: primary, it),
   )
   show heading.where(level: 2): it => block(
     above: 1.5em,
     below: 0.6em,
-    text(font: typ.serif, size: typ.h2_pt * 1pt, weight: "semibold", fill: primary-dark, it),
+    text(font: typ.serif, size: typ.h2_pt * 1pt, weight: "regular", fill: primary-dark, it),
   )
   show heading.where(level: 3): it => block(
     above: 1.2em,
     below: 0.5em,
-    text(font: typ.serif, size: typ.h3_pt * 1pt, weight: "semibold", fill: ink, it),
+    text(font: typ.serif, size: typ.h3_pt * 1pt, weight: "regular", fill: ink, it),
   )
   show link: set text(fill: accent)
 

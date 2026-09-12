@@ -304,7 +304,7 @@ fn style_for_node(
             // width.
             format!(
                 "swimlane;html=1;startSize={band};rounded=1;arcSize=6;\
-                 fillColor={fill};strokeColor={stroke};fontSize={font};fontStyle=1;\
+                 fillColor={fill};strokeColor={stroke};fontSize={font};fontStyle=0;\
                  verticalAlign=top;horizontal=1;collapsible=0;whiteSpace=wrap;"
             )
         }
@@ -507,6 +507,15 @@ fn anchor_style(prefix: &str, (side, along): (route::Side, f64)) -> String {
     )
 }
 
+/// Shared semantic peering colours. An unrecorded state cannot imply failure.
+pub(crate) fn peering_color(label: Option<&str>) -> &'static str {
+    match label.map(str::to_ascii_lowercase).as_deref() {
+        Some("connected") => "#107C10",
+        Some("disconnected" | "initiated") => "#D13438",
+        _ => "#605E5C",
+    }
+}
+
 fn edge_cell(
     writer: &mut Writer<Vec<u8>>,
     routed: &route::EdgeRoute,
@@ -519,7 +528,7 @@ fn edge_cell(
         }
         EdgeStyle::Dashed => {
             "edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;endArrow=none;\
-             startArrow=none;strokeColor=#0078D4;fontSize=10;"
+             startArrow=none;fontSize=10;"
         }
         EdgeStyle::Association => {
             "edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;dashPattern=1 3;\
@@ -527,7 +536,12 @@ fn edge_cell(
         }
     };
     let style = format!(
-        "{base}{}{}",
+        "{base}{}{}{}",
+        if edge.style == EdgeStyle::Dashed {
+            format!("strokeColor={};", peering_color(edge.label.as_deref()))
+        } else {
+            String::new()
+        },
         anchor_style("exit", routed.source_anchor),
         anchor_style("entry", routed.target_anchor)
     );

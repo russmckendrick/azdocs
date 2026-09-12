@@ -27,16 +27,13 @@ fn writes_every_theme_in_every_format() {
     let store = Store::open_in_memory().unwrap();
     let snapshot = common::seed_estate(&store);
     let context = ReportContext::build(&store, &snapshot).unwrap();
-    let mut diagrams = assets::build_overviews(
+    let diagrams = assets::build_overviews(
         &store,
         &snapshot,
         &DiagramScope::default(),
         &Labels::default().diagram,
     )
     .unwrap();
-    diagrams.extend(
-        assets::build_resource_diagrams(&store, &snapshot, &Labels::default().diagram).unwrap(),
-    );
     let resources = store.resources(&snapshot).unwrap();
     let findings = store.findings(&snapshot).unwrap();
 
@@ -58,8 +55,19 @@ fn writes_every_theme_in_every_format() {
         )
         .unwrap();
 
-        report::pdf::write(&context, &branding, &diagrams, &out.join("report.pdf")).unwrap();
-        report::docx::write(&context, &branding, &diagrams, &out.join("report.docx")).unwrap();
+        let assessment = assets::build_assessment(&context.analysis, &branding.labels);
+        report::pdf::write(&context, &branding, &assessment, &out.join("report.pdf")).unwrap();
+        report::docx::write(&context, &branding, &assessment, &out.join("report.docx")).unwrap();
+        std::fs::write(
+            out.join("technical-reference.pdf"),
+            report::pdf::render_reference(&context, &branding, &diagrams).unwrap(),
+        )
+        .unwrap();
+        std::fs::write(
+            out.join("technical-reference.docx"),
+            report::docx::render_reference(&context, &branding, &diagrams).unwrap(),
+        )
+        .unwrap();
         report::html::write(&context, &branding, &out.join("report.html")).unwrap();
         report::site::write(&context, &branding, &diagrams, &out.join("docs-html")).unwrap();
         report::xlsx::write(&context, &branding, &resources, &out.join("azdocs.xlsx")).unwrap();

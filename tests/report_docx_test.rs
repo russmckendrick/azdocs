@@ -1,12 +1,9 @@
 mod common;
 
-use azdocs::labels::Labels;
-
 use std::io::Read;
 
 use azdocs::config::BrandingConfig;
-use azdocs::diagram::DiagramScope;
-use azdocs::diagram::assets::{self, DiagramAsset};
+use azdocs::diagram::assets::DiagramAsset;
 use azdocs::report::branding::BrandingContext;
 use azdocs::report::theme::{CoverStyle, TableStyle};
 use azdocs::report::{ReportContext, docx};
@@ -16,16 +13,49 @@ fn seeded() -> (ReportContext, Vec<DiagramAsset>) {
     let store = Store::open_in_memory().unwrap();
     let id = common::seed_estate(&store);
     let report = ReportContext::build(&store, &id).unwrap();
-    let mut diagrams = assets::build_overviews(
-        &store,
-        &id,
-        &DiagramScope::default(),
-        &Labels::default().diagram,
-    )
-    .unwrap();
-    diagrams
-        .extend(assets::build_resource_diagrams(&store, &id, &Labels::default().diagram).unwrap());
+    let diagrams = azdocs::diagram::assets::build_assessment(
+        &report.analysis,
+        &azdocs::labels::Labels::default(),
+    );
     (report, diagrams)
+}
+
+#[test]
+fn docx_reference_links_duplicate_names_by_id_and_resolves_every_bookmark() {
+    let (mut report, _) = seeded();
+    // Deliberately remove name uniqueness and vary the display ID casing.
+    for section in &mut report.resource_types {
+        for resource in &mut section.resources {
+            resource.name = "same-name".into();
+            resource.arm_id = resource.arm_id.to_uppercase();
+        }
+    }
+    for resource in report.analysis.resources.values_mut() {
+        resource.name = "same-name".into();
+    }
+    let bytes = docx::render_reference(&report, &BrandingContext::default(), &[]).unwrap();
+    let xml = archive_entry(&bytes, "word/document.xml");
+    let first_detail = xml.find("w:name=\"resource_").unwrap();
+    let index = &xml[..first_detail];
+    assert_eq!(
+        index.matches("w:anchor=\"resource_").count(),
+        report.analysis.resources.len()
+    );
+    for i in 0..report.analysis.resources.len() {
+        assert!(index.contains(&format!("w:anchor=\"resource_{i}\"")));
+        assert_eq!(xml.matches(&format!("w:name=\"resource_{i}\"")).count(), 1);
+    }
+    assert!(
+        xml[first_detail..].contains("w:anchor=\"resource_"),
+        "relationship and occurrence links"
+    );
+    for part in xml.split("w:anchor=\"").skip(1) {
+        let target = part.split('"').next().unwrap();
+        assert!(
+            xml.contains(&format!("w:name=\"{target}\"")),
+            "unresolved bookmark {target}"
+        );
+    }
 }
 
 fn themed(theme: &str) -> BrandingContext {
@@ -91,8 +121,11 @@ fn docx_document_contains_headings_findings_and_severity_shading() {
 
     let document = archive_entry(&bytes, "word/document.xml");
     assert!(document.contains("Azure Estate Report"), "cover title");
-    assert!(document.contains("Executive Summary"), "summary heading");
-    assert!(document.contains("Findings"), "findings heading");
+    assert!(document.contains("Executive assessment"), "summary heading");
+    assert!(
+        document.contains("Security and data protection"),
+        "findings heading"
+    );
     assert!(
         document.contains("stprodapp01 allows public blob access"),
         "findings row"
@@ -150,6 +183,10 @@ fn docx_requests_a_field_refresh_for_toc_page_numbers() {
         "the cached TOC must be marked stale"
     );
     assert!(document.contains("PAGEREF"), "TOC page-reference fields");
+    assert!(
+        !document.contains(r#"w:pos="80000""#),
+        "contents page-number tabs must fit the printable column"
+    );
 
     let settings = archive_entry(&bytes, "word/settings.xml");
     assert!(
@@ -192,11 +229,11 @@ fn docx_sets_fonts_page_geometry_and_fixed_table_widths() {
 
     let styles = archive_entry(&bytes, "word/styles.xml");
     assert!(
-        styles.contains(r#"<w:rFonts w:ascii="Aptos""#),
+        styles.contains(r#"<w:rFonts w:ascii="Arial""#),
         "document default font must be set, or Word falls back to Times New Roman"
     );
     assert!(
-        styles.contains(r#"<w:rFonts w:ascii="Georgia""#),
+        styles.contains(r#"<w:rFonts w:ascii="Charter""#),
         "Field Report headings use the serif display face"
     );
     assert!(styles.contains("w:outlineLvl"), "heading outline levels");
@@ -224,16 +261,9 @@ fn docx_embeds_resource_icons_and_diagrams() {
 
     let document = archive_entry(&bytes, "word/document.xml");
     assert!(document.contains("<w:drawing>"), "embedded images");
-    assert!(document.contains("Relationships"), "per-resource diagram");
-    assert!(
-        document.contains("Settings"),
-        "per-resource settings section"
-    );
-    assert!(
-        document.contains("Host Pool Type"),
-        "flattened resource property"
-    );
-
+    assert!(document.contains("Architecture and dependencies"));
+    assert!(document.contains("Configuration comparisons"));
+    assert!(!document.contains("Resources by type"));
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(&bytes)).unwrap();
     let images = (0..archive.len())
         .filter(|i| {
@@ -254,7 +284,7 @@ fn docx_embeds_resource_icons_and_diagrams() {
 fn docx_type_heading_centres_its_icon_and_keeps_the_level_two_heading_style() {
     let (report, diagrams) = seeded();
 
-    let bytes = docx::render(&report, &BrandingContext::default(), &diagrams).unwrap();
+    let bytes = docx::render_reference(&report, &BrandingContext::default(), &diagrams).unwrap();
 
     let document = archive_entry(&bytes, "word/document.xml");
     let heading_table = document
@@ -293,7 +323,7 @@ fn docx_field_report_uses_plain_headings_and_a_running_header() {
 
     let document = archive_entry(&bytes, "word/document.xml");
     assert!(
-        !document.contains("<w:numPr>"),
+        !document.contains("<w:numId w:val=\"42\""),
         "Field Report headings are names, not chapter numbers"
     );
     let header = archive_entry(&bytes, "word/header1.xml");
@@ -309,74 +339,66 @@ fn docx_field_report_uses_plain_headings_and_a_running_header() {
 }
 
 #[test]
-fn docx_keeps_headings_and_resource_callouts_intact_across_page_breaks() {
+fn docx_keeps_headings_figures_and_subheadings_with_their_content() {
     let (report, diagrams) = seeded();
-
     let bytes = docx::render(&report, &BrandingContext::default(), &diagrams).unwrap();
-
     let document = archive_entry(&bytes, "word/document.xml");
-    let overview = document
-        .rfind("Estate overview")
-        .expect("overview chapter heading");
-    let paragraph_start = document[..overview]
-        .rfind("<w:p ")
-        .expect("overview heading paragraph start");
-    let paragraph_end = overview
-        + document[overview..]
-            .find("</w:p>")
-            .expect("overview heading paragraph end");
-    assert!(
-        document[paragraph_start..paragraph_end].contains("<w:keepNext />"),
-        "a chapter heading must stay with the first block that follows it"
-    );
-
-    let finding = document
-        .rfind("asp-dev is missing tags: env")
-        .expect("resource finding callout");
-    let callout_start = document[..finding]
-        .rfind("<w:p ")
-        .expect("callout paragraph start");
-    let callout_end = finding
-        + document[finding..]
-            .find("</w:p>")
-            .expect("callout paragraph end");
-    assert!(
-        document[callout_start..callout_end].contains("<w:keepLines />"),
-        "a tinted resource callout must not tear across pages"
-    );
-    assert!(
-        document[callout_start..callout_end].contains("<w:pBdr>"),
-        "a resource callout uses a paragraph border rather than a table row"
-    );
+    for text in ["Architecture and dependencies", "What was observed"] {
+        let at = document.rfind(text).unwrap();
+        let start = document[..at].rfind("<w:p ").unwrap();
+        assert!(document[start..at].contains("<w:keepNext />"));
+    }
+    assert!(document.contains("w:bookmarkStart"));
+    assert!(document.contains("w:anchor=\"issue_"));
 }
 
 #[test]
-fn docx_resource_settings_render_as_flowing_facts() {
+fn docx_reference_settings_use_smaller_bordered_tables_and_resource_icons() {
     let (report, diagrams) = seeded();
 
-    let bytes = docx::render(&report, &BrandingContext::default(), &diagrams).unwrap();
+    let bytes = docx::render_reference(&report, &BrandingContext::default(), &diagrams).unwrap();
 
     let document = archive_entry(&bytes, "word/document.xml");
     let setting = document
         .rfind("Allow Blob Public Access")
         .expect("flattened storage setting");
-    let paragraph_start = document[..setting]
-        .rfind("<w:p ")
-        .expect("setting paragraph start");
-    let paragraph_end = setting
+    let table_start = document[..setting]
+        .rfind("<w:tbl>")
+        .expect("setting table start");
+    let table_end = setting
         + document[setting..]
-            .find("</w:p>")
-            .expect("setting paragraph end");
-    let paragraph = &document[paragraph_start..paragraph_end];
-    assert!(paragraph.contains("<w:tabs>"), "fact label/value tab stop");
+            .find("</w:tbl>")
+            .expect("setting table end");
+    let table = &document[table_start..table_end];
     assert!(
-        paragraph.contains("w:hanging="),
-        "wrapped values align under the value"
+        table.contains("<w:insideV w:val=\"single\""),
+        "vertical cell borders"
     );
     assert!(
-        !paragraph.contains("<w:tc>"),
-        "resource settings are paragraphs, not table cells"
+        table.contains("<w:insideH w:val=\"single\""),
+        "horizontal cell borders"
     );
+    assert!(
+        table.contains("<w:sz w:val=\"18\""),
+        "9 point reference table text"
+    );
+    let name = document.rfind("stprodapp01").unwrap();
+    // Find the resource plate itself, which includes its icon in the same paragraph.
+    assert!(
+        document[..name]
+            .split("</w:p>")
+            .any(|p| p.contains("<w:drawing>") && p.contains("stprodapp01"))
+    );
+}
+
+#[test]
+fn docx_evidence_examples_use_native_bullets() {
+    let (report, diagrams) = seeded();
+    let bytes = docx::render(&report, &BrandingContext::default(), &diagrams).unwrap();
+    let document = archive_entry(&bytes, "word/document.xml");
+    assert!(document.contains("<w:numId w:val=\"43\""));
+    let numbering = archive_entry(&bytes, "word/numbering.xml");
+    assert!(numbering.contains("w:val=\"bullet\""));
 }
 
 #[test]
@@ -424,45 +446,24 @@ fn docx_implements_band_editorial_and_printable_block_covers() {
 }
 
 #[test]
-fn docx_estate_overview_contains_only_captioned_overviews() {
+fn docx_comparison_headers_repeat_and_heading_weights_are_regular() {
     let (report, diagrams) = seeded();
-
     let bytes = docx::render(&report, &BrandingContext::default(), &diagrams).unwrap();
-
     let document = archive_entry(&bytes, "word/document.xml");
-    let overview_start = document.rfind("Estate overview").expect("overview chapter");
-    let findings_start = overview_start
-        + document[overview_start..]
-            .find("Findings")
-            .expect("findings chapter after overview");
-    let overview = &document[overview_start..findings_start];
-    for asset in diagrams.iter().filter(|asset| {
-        matches!(
-            asset.kind,
-            azdocs::diagram::assets::DiagramAssetKind::Hierarchy
-                | azdocs::diagram::assets::DiagramAssetKind::Network
-        )
-    }) {
-        assert!(
-            overview.contains(&asset.title),
-            "overview caption: {}",
-            asset.title
-        );
+    for row in document.split("<w:tr>").skip(1) {
+        let row = row.split("</w:tr>").next().unwrap();
+        if row.contains("AzdocsTableHeader") {
+            assert!(row.contains("<w:tblHeader/>"));
+        }
     }
-    for asset in diagrams
-        .iter()
-        .filter(|asset| asset.kind == azdocs::diagram::assets::DiagramAssetKind::ResourceGroup)
-    {
-        assert!(
-            !overview.contains(&asset.title),
-            "resource-group diagram leaked into overview: {}",
-            asset.title
-        );
+    let styles = archive_entry(&bytes, "word/styles.xml");
+    for level in 1..=3 {
+        let at = styles
+            .find(&format!("w:styleId=\"Heading{level}\""))
+            .unwrap();
+        let style = styles[at..].split("</w:style>").next().unwrap();
+        assert!(!style.contains("<w:b />"));
     }
-    assert!(
-        overview.contains(r#"w:pStyle w:val="Caption""#),
-        "overview labels are captions below the images"
-    );
 }
 
 /// User-authored themes can still choose another table strategy, so the closed

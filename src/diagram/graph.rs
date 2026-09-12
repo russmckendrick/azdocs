@@ -1,3 +1,5 @@
+pub(crate) mod assessment;
+
 use std::collections::HashMap;
 
 use crate::error::StoreError;

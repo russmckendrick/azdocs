@@ -217,7 +217,7 @@ export type CollectResult = { snapshotId: string, status: string, queriesRun: nu
 
 export type CollectionEvent = { "event": "phase", "data": { message: string, } } | { "event": "complete", "data": { snapshotId: string, } } | { "event": "failed", "data": { message: string, } };
 
-export type ExportRequest = { snapshotId: string, destination: string, exportKind: ExportKind, formats: Array<string>, diagramType?: string | null, subscriptionId?: string | null, resourceGroup?: string | null, };
+export type ExportRequest = { includeReference?: boolean | null, snapshotId: string, destination: string, exportKind: ExportKind, formats: Array<string>, diagramType?: string | null, subscriptionId?: string | null, resourceGroup?: string | null, };
 
 export type ExportResult = { destination: string, outputs: Array<string>, };
 

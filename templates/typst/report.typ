@@ -53,7 +53,14 @@
 }
 
 #let render-block(item) = {
-  if item.kind == "chapter" {
+  if item.kind == "section" {
+    if item.break_before { pagebreak(weak: true) }
+    [#heading(level: item.level, item.title)#label(item.id)]
+  } else if item.kind == "cross_reference" {
+    block(below: 0.6em, text(size: typ.small_pt * 1pt, link(label(item.target), item.title)))
+  } else if item.kind == "chart" {
+    figure(image("/charts/" + item.slug + ".svg", width: 100%), caption: text(size: typ.small_pt * 1pt, item.caption))
+  } else if item.kind == "chapter" {
     chapter(
       item.title,
       break_before: item.break_before,
@@ -80,19 +87,21 @@
         render-runs(item.runs),
       ),
     )
+  } else if item.kind == "bullet_list" {
+    text(size: typ.small_pt * 1pt, fill: muted, list(..item.items.map(value => [#value])))
   } else if item.kind == "statistics" {
     block(
       below: 0.9em,
       stat-row(item.items.map(entry => (entry.value, entry.label))),
     )
   } else if item.kind == "table" {
-    print-table(item.style, item.columns, item.rows)
+    print-table(item.style, item.columns, item.rows, item.links)
   } else if item.kind == "facts" {
     fact-list(item.items)
   } else if item.kind == "resource_index" {
     resource-index(item.items)
   } else if item.kind == "resource_plate" {
-    resource-plate(item.name)
+    [#resource-plate(item.name, icons.at(item.icon, default: ""))#label(item.id)]
   } else if item.kind == "sub_label" {
     sub-label(item.title)
   } else if item.kind == "callout" {

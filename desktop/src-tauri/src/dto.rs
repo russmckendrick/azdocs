@@ -789,6 +789,7 @@ pub enum CollectionEvent {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[ts(rename = "ExportRequest", optional_fields = nullable)]
 pub struct ExportRequestDto {
+    pub include_reference: Option<bool>,
     pub snapshot_id: String,
     pub destination: String,
     #[ts(type = "ExportKind")]

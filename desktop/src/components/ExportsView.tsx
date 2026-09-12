@@ -36,6 +36,7 @@ function relativeOutput(result: ExportResult, output: string) {
 
 export function ExportsView({ estate }: { estate: EstateSnapshot }) {
   const [presetId, setPresetId] = useState<ExportPresetId>("field-report");
+  const [includeReference, setIncludeReference] = useState(false);
   const [destination, setDestination] = useState("");
   const words = useLabels().desktop.exports;
   const [running, setRunning] = useState(false);
@@ -90,6 +91,7 @@ export function ExportsView({ estate }: { estate: EstateSnapshot }) {
         exportKind: preset.exportKind,
         formats: preset.formats,
         diagramType: preset.diagramType,
+        includeReference: preset.formats.some((format) => format === "pdf" || format === "docx") && includeReference,
       }, handleEvent);
       setResult(next);
     } catch (caught) {
@@ -151,6 +153,13 @@ export function ExportsView({ estate }: { estate: EstateSnapshot }) {
               })}
             </fieldset>
 
+            {preset.formats.some((format) => format === "pdf" || format === "docx") && (
+              <label className="export-reference-option">
+                <input type="checkbox" checked={includeReference} disabled={running}
+                  onChange={(event) => { setIncludeReference(event.target.checked); invalidateRun(); }} />
+                <span><strong>{words.include_reference}</strong><small>{words.reference_detail}</small></span>
+              </label>
+            )}
             <p className="export-advanced-note">{words.advanced_note}</p>
           </section>
         </div>

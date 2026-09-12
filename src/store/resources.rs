@@ -179,6 +179,14 @@ impl Store {
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
+    /// Stored queries may outlive or replace their query-pack definition.
+    pub fn query_result_names(&self, snapshot_id: &str) -> Result<Vec<String>, StoreError> {
+        let mut statement = self.conn().prepare("SELECT DISTINCT query_name FROM query_results WHERE snapshot_id = ?1 ORDER BY query_name")?;
+        Ok(statement
+            .query_map([snapshot_id], |row| row.get(0))?
+            .collect::<Result<Vec<_>, _>>()?)
+    }
+
     pub fn query_results(
         &self,
         snapshot_id: &str,

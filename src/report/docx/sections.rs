@@ -4,9 +4,10 @@ use std::collections::HashMap;
 
 use docx_rs::{
     AlignmentType, BorderType, BreakType, Docx, FieldCharType, Footer, Header, HeightRule,
-    InstrNUMPAGES, InstrPAGE, InstrText, LineSpacing, LineSpacingType, Paragraph, Pic, Run,
-    Shading, ShdType, Table, TableBorder, TableBorderPosition, TableBorders, TableCell,
-    TableCellMargins, TableLayoutType, TableRow, VAlignType, WidthType,
+    IndentLevel, InstrNUMPAGES, InstrPAGE, InstrText, LineSpacing, LineSpacingType, NumberingId,
+    Paragraph, Pic, Run, Shading, ShdType, SpecialIndentType, Table, TableBorder,
+    TableBorderPosition, TableBorders, TableCell, TableCellMargins, TableLayoutType, TableRow,
+    VAlignType, WidthType,
 };
 
 use super::style::{self, Ctx, half_points, hex, pt_to_emu, twips_to_emu};
@@ -340,8 +341,49 @@ pub fn render(mut docx: Docx, ctx: &Ctx, blocks: &[Block<'_>], assets: &[Diagram
         .collect();
     let mut first_chapter = true;
 
-    for block in blocks {
+    for (block_index, block) in blocks.iter().enumerate() {
         match block {
+            Block::Section {
+                level,
+                title,
+                id,
+                break_before,
+            } => {
+                let paragraph = style::heading(ctx, usize::from(*level), title)
+                    .page_break_before(*break_before)
+                    .add_bookmark_start(block_index + 1000, id)
+                    .add_bookmark_end(block_index + 1000);
+                docx = docx.add_paragraph(paragraph);
+            }
+            Block::CrossReference { target, title } => {
+                let hyperlink = docx_rs::Hyperlink::new(target, docx_rs::HyperlinkType::Anchor)
+                    .add_run(
+                        Run::new()
+                            .add_text(style::wrappable(title))
+                            .fonts(ctx.sans())
+                            .size(half_points(ctx.tokens.typography.small_pt))
+                            .color(hex(&ctx.tokens.palette.accent)),
+                    );
+                docx = docx.add_paragraph(
+                    Paragraph::new()
+                        .add_hyperlink(hyperlink)
+                        .line_spacing(LineSpacing::new().after(140)),
+                );
+            }
+            Block::Chart { slug, svg, caption } => {
+                let asset = DiagramAsset {
+                    slug: slug.clone(),
+                    svg: svg.clone(),
+                    title: String::new(),
+                    kind: crate::diagram::assets::DiagramAssetKind::Network,
+                    resource_id: None,
+                    group_key: None,
+                };
+                if let Some(run) = diagram_run(ctx, &asset) {
+                    docx = docx.add_paragraph(Paragraph::new().keep_next(true).add_run(run));
+                    docx = docx.add_paragraph(style::caption(ctx, caption));
+                }
+            }
             Block::Chapter {
                 title,
                 break_before,
@@ -365,6 +407,23 @@ pub fn render(mut docx: Docx, ctx: &Ctx, blocks: &[Block<'_>], assets: &[Diagram
             Block::Paragraph { style, runs } => {
                 docx = docx.add_paragraph(rich_paragraph(ctx, *style, runs));
             }
+            Block::BulletList { items } => {
+                for item in items {
+                    docx = docx.add_paragraph(
+                        rich_paragraph(
+                            ctx,
+                            ParagraphStyle::Muted,
+                            &[crate::report::document::normal(item.as_ref())],
+                        )
+                        .numbering(
+                            NumberingId::new(style::BULLET_NUMBERING_ID),
+                            IndentLevel::new(0),
+                        )
+                        .indent(Some(280), Some(SpecialIndentType::Hanging(160)), None, None)
+                        .keep_lines(true),
+                    );
+                }
+            }
             Block::Statistics { items } => {
                 let stats: Vec<(String, String)> = items
                     .iter()
@@ -376,6 +435,7 @@ pub fn render(mut docx: Docx, ctx: &Ctx, blocks: &[Block<'_>], assets: &[Diagram
                 style: table_kind,
                 columns,
                 rows,
+                links,
             } => {
                 let headers: Vec<String> = columns
                     .iter()
@@ -391,9 +451,17 @@ pub fn render(mut docx: Docx, ctx: &Ctx, blocks: &[Block<'_>], assets: &[Diagram
                     .filter_map(|(index, column)| column.mono.then_some(index))
                     .collect();
                 docx = match table_kind {
-                    TableKind::Data => {
-                        docx.add_table(style::data_table(ctx, &headers, &body, &mono_columns))
-                    }
+                    TableKind::Data => docx.add_table(style::data_table(
+                        ctx,
+                        &headers,
+                        &body,
+                        &mono_columns,
+                        &columns
+                            .iter()
+                            .map(|column| column.weight)
+                            .collect::<Vec<_>>(),
+                        links,
+                    )),
                 };
             }
             Block::Facts { items } => {
@@ -406,8 +474,12 @@ pub fn render(mut docx: Docx, ctx: &Ctx, blocks: &[Block<'_>], assets: &[Diagram
                     docx = docx.add_paragraph(paragraph);
                 }
             }
-            Block::ResourcePlate { name } => {
-                docx = docx.add_paragraph(style::resource_plate(ctx, name));
+            Block::ResourcePlate { id, name, icon } => {
+                docx = docx.add_paragraph(
+                    style::resource_plate(ctx, name, icon_run(ctx, icon, 3))
+                        .add_bookmark_start(block_index + 1000, id)
+                        .add_bookmark_end(block_index + 1000),
+                );
             }
             Block::SubLabel { title } => {
                 docx = docx.add_paragraph(style::sub_label(ctx, title));
@@ -428,6 +500,7 @@ pub fn render(mut docx: Docx, ctx: &Ctx, blocks: &[Block<'_>], assets: &[Diagram
                     docx = docx.add_paragraph(
                         Paragraph::new()
                             .align(AlignmentType::Center)
+                            .keep_next(caption.is_some())
                             .line_spacing(LineSpacing::new().after(100))
                             .add_run(run),
                     );
@@ -474,7 +547,11 @@ fn rich_paragraph(ctx: &Ctx, paragraph_style: ParagraphStyle, runs: &[TextRun<'_
     };
     let mut paragraph = Paragraph::new().line_spacing(
         LineSpacing::new()
-            .line((ctx.tokens.typography.line_height * 240.0).round() as i32)
+            // Word's automatic multiplier includes the font's extra leading.
+            // Use the theme's point-based baseline distance, allowing Word to
+            // expand a line for taller glyphs rather than clipping them.
+            .line_rule(LineSpacingType::AtLeast)
+            .line((size * ctx.tokens.typography.line_height * 20.0).round() as i32)
             .after(after),
     );
     for text_run in runs {
@@ -491,19 +568,7 @@ fn rich_paragraph(ctx: &Ctx, paragraph_style: ParagraphStyle, runs: &[TextRun<'_
             }));
         run = match text_run.style {
             TextStyle::Normal => run.fonts(ctx.sans()),
-            TextStyle::Strong => run.bold().fonts(ctx.sans()),
             TextStyle::Mono => run.fonts(ctx.mono()),
-            TextStyle::Severity => {
-                let colors = text_run
-                    .severity
-                    .as_deref()
-                    .and_then(|severity| ctx.tokens.palette.severity.level(severity));
-                run.bold()
-                    .color(hex(
-                        colors.map_or(&ctx.tokens.palette.ink, |colors| &colors.text)
-                    ))
-                    .fonts(ctx.sans())
-            }
         };
         paragraph = paragraph.add_run(run);
     }
@@ -578,10 +643,10 @@ fn icon_run(ctx: &Ctx, azure_type: &str, level: usize) -> Option<Run> {
     let svg = String::from_utf8(crate::diagram::icons::svg_bytes(azure_type)).ok()?;
     let png = crate::diagram::png::from_svg(&svg, crate::diagram::png::DEFAULT_SCALE).ok()?;
     image::load_from_memory(&png).ok()?;
-    let heading_size = if level == 1 {
-        ctx.tokens.typography.h1_pt
-    } else {
-        ctx.tokens.typography.h2_pt
+    let heading_size = match level {
+        1 => ctx.tokens.typography.h1_pt,
+        2 => ctx.tokens.typography.h2_pt,
+        _ => ctx.tokens.typography.h3_pt,
     };
     let side = pt_to_emu(heading_size * style::ICON_SCALE);
     Some(Run::new().add_image(Pic::new(&png).size(side, side)))

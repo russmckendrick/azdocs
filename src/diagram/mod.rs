@@ -8,5 +8,6 @@ pub mod page;
 pub mod png;
 pub mod route;
 pub mod svg;
+mod text;
 
 pub use graph::{DiagramScope, EstateGraph, NamedGraph};

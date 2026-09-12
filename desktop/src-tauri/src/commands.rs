@@ -354,6 +354,7 @@ fn export_reports(
         Config::load_with_source(None).map_err(|error| AppError::Config(error.to_string()))?;
     let config_dir = source.as_deref().and_then(Path::parent);
     let args = ReportArgs {
+        include_reference: request.include_reference.unwrap_or(false),
         snapshot: request.snapshot_id,
         format: formats[0],
         theme: None,

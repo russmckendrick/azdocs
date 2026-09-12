@@ -159,6 +159,10 @@ pub struct ReportArgs {
     #[arg(long, value_enum, default_value_t = ReportFormat::Md)]
     pub format: ReportFormat,
 
+    /// Also generate the complete technical reference for PDF and Word
+    #[arg(long, default_value_t = false)]
+    pub include_reference: bool,
+
     /// Theme for styled reports (overrides [branding] theme)
     #[arg(long, value_name = "NAME")]
     pub theme: Option<String>,

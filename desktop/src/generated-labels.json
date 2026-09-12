@@ -583,6 +583,8 @@
       "loaded": "{visible} of {total} loaded"
     },
     "exports": {
+      "include_reference": "Include technical reference",
+      "reference_detail": "Add a separate document with every resource, finding occurrence and collected query result.",
       "title": "Exports",
       "description": "Produce a hand-off-ready artifact from the active stored snapshot. Generation stays offline.",
       "source_aria": "Export source",
@@ -631,13 +633,13 @@
         "field-report": {
           "label": "Field Report",
           "action": "Field Report",
-          "detail": "Print-ready estate review with findings, governance and diagrams.",
-          "includes": "Best for review packs, sign-off and long-term filing."
+          "detail": "Architecture, recurring-check assessments and prioritised review actions.",
+          "includes": "Optional technical reference contains the full inventory and evidence."
         },
         "word-report": {
           "label": "Word Report",
           "action": "Word Report",
-          "detail": "The same evidence and structure in an editable document.",
+          "detail": "The same estate assessment and focused diagrams in editable Word format.",
           "includes": "Best when the report needs commentary or local editing."
         }
       }

@@ -14,7 +14,7 @@ use docx_rs::{
 };
 
 use crate::report::branding::BrandingContext;
-use crate::report::document::{Fact, ResourceIndexItem};
+use crate::report::document::{Fact, ResourceIndexItem, TableLink};
 use crate::report::theme::{TableStyle, ThemeTokens};
 
 /// Twips (twentieths of a point) per inch — the unit Word measures pages in.
@@ -94,6 +94,7 @@ fn length_twips(value: &str) -> Option<u32> {
 /// Everything a section needs to render itself: the palette and type scale,
 /// plus the text width tables and images must fit inside.
 pub struct Ctx<'a> {
+    pub table_grid: bool,
     pub tokens: &'a ThemeTokens,
     /// The resolved wording, so cover metadata and every other word the
     /// renderer writes itself comes from the same file as the document body.
@@ -167,7 +168,22 @@ pub fn document(branding: &BrandingContext) -> (Docx, u32, u32) {
         // The cover gets no header or footer of its own.
         .title_pg();
 
-    let docx = heading_styles(docx, tokens);
+    let docx = heading_styles(docx, tokens).add_style(
+        Style::new("AzdocsTableHeader", StyleType::Paragraph)
+            .name("Table header")
+            .based_on("Normal"),
+    );
+    let docx = docx
+        .add_abstract_numbering(
+            AbstractNumbering::new(BULLET_NUMBERING_ID).add_level(Level::new(
+                0,
+                Start::new(1),
+                NumberFormat::new("bullet"),
+                LevelText::new("•"),
+                LevelJc::new("left"),
+            )),
+        )
+        .add_numbering(Numbering::new(BULLET_NUMBERING_ID, BULLET_NUMBERING_ID));
     let docx = if tokens.layout.heading_numbering {
         heading_numbering(docx)
     } else {
@@ -177,6 +193,7 @@ pub fn document(branding: &BrandingContext) -> (Docx, u32, u32) {
 }
 
 const HEADING_NUMBERING_ID: usize = 42;
+pub const BULLET_NUMBERING_ID: usize = 43;
 
 fn heading_numbering(docx: Docx) -> Docx {
     let numbering = AbstractNumbering::new(HEADING_NUMBERING_ID)
@@ -236,7 +253,6 @@ fn heading_styles(docx: Docx, tokens: &ThemeTokens) -> Docx {
                 .outline_lvl(index)
                 .q_format(true)
                 .size(half_points(*size))
-                .bold()
                 .color(hex(color))
                 .fonts(RunFonts::new().ascii(family).hi_ansi(family).cs(family))
                 .line_spacing(
@@ -244,6 +260,21 @@ fn heading_styles(docx: Docx, tokens: &ThemeTokens) -> Docx {
                         .before([380, 280, 220][index])
                         .after([200, 150, 110][index]),
                 ),
+        );
+    }
+    for level in 1..=2 {
+        docx = docx.add_style(
+            Style::new(format!("ToC{level}"), StyleType::Paragraph)
+                .name(format!("toc {level}"))
+                .based_on("Normal")
+                .next("Normal")
+                .size(half_points(typography.table_pt))
+                .fonts(
+                    RunFonts::new()
+                        .ascii(&typography.docx_sans)
+                        .hi_ansi(&typography.docx_sans),
+                )
+                .line_spacing(LineSpacing::new().line(252).before(0).after(40)),
         );
     }
     docx.add_style(
@@ -343,10 +374,16 @@ pub fn divider(ctx: &Ctx, title: &str) -> Table {
 /// spaces give it somewhere to break.
 pub fn wrappable(value: &str) -> String {
     let mut out = String::with_capacity(value.len());
+    let mut span = 0;
     for ch in value.chars() {
         out.push(ch);
-        if matches!(ch, '/' | '-' | '.' | '_') {
+        span += 1;
+        if ch.is_whitespace() {
+            span = 0;
+        }
+        if matches!(ch, '/' | '-' | '.' | '_') || span >= 12 {
             out.push('\u{200B}');
+            span = 0;
         }
     }
     out
@@ -363,7 +400,11 @@ fn borders(ctx: &Ctx) -> TableBorders {
             .size(size)
             .color(color.clone())
     };
-    match ctx.tokens.layout.table {
+    match if ctx.table_grid {
+        TableStyle::SolidHeader
+    } else {
+        ctx.tokens.layout.table
+    } {
         TableStyle::SolidHeader => TableBorders::with_empty()
             .set(edge(TableBorderPosition::Top))
             .set(edge(TableBorderPosition::Bottom))
@@ -382,26 +423,11 @@ fn borders(ctx: &Ctx) -> TableBorders {
 
 /// Distribute the text width across columns by how much content each holds.
 /// Equal shares would starve a `name` column next to a one-word `location`.
-fn column_widths(headers: &[String], rows: &[Vec<String>], usable: u32) -> Vec<u32> {
-    let weights: Vec<f32> = headers
-        .iter()
-        .enumerate()
-        .map(|(index, header)| {
-            let longest = rows
-                .iter()
-                .filter_map(|row| row.get(index))
-                .map(|value| value.chars().count())
-                .max()
-                .unwrap_or(0);
-            // Clamped so one enormous value cannot collapse every other column.
-            longest.max(header.chars().count()).clamp(8, 60) as f32
-        })
-        .collect();
-
-    let total: f32 = weights.iter().sum();
+fn column_widths(weights: &[u32], usable: u32) -> Vec<u32> {
+    let total = weights.iter().sum::<u32>().max(1) as f32;
     let mut widths: Vec<u32> = weights
         .iter()
-        .map(|w| ((w / total) * usable as f32).round() as u32)
+        .map(|w| ((*w as f32 / total) * usable as f32).round() as u32)
         .collect();
     // The grid must sum to exactly the text width or Word re-derives it, so
     // the last column absorbs the rounding remainder.
@@ -429,14 +455,17 @@ fn header_cell(ctx: &Ctx, label: &str, width: u32) -> TableCell {
         .width(width as usize, WidthType::Dxa)
         .vertical_align(VAlignType::Center)
         .add_paragraph(
-            Paragraph::new().add_run(
-                Run::new()
-                    .add_text(label)
-                    .size(half_points(tokens.typography.table_header_pt))
-                    .bold()
-                    .color(color)
-                    .fonts(ctx.sans()),
-            ),
+            Paragraph::new()
+                .style("AzdocsTableHeader")
+                .line_spacing(LineSpacing::new().line(252).before(0).after(0))
+                .add_run(
+                    Run::new()
+                        .add_text(label)
+                        .size(half_points(tokens.typography.table_header_pt))
+                        .bold()
+                        .color(color)
+                        .fonts(ctx.sans()),
+                ),
         );
     if let Some(fill) = fill {
         cell = cell.shading(Shading::new().shd_type(ShdType::Clear).fill(fill));
@@ -444,7 +473,14 @@ fn header_cell(ctx: &Ctx, label: &str, width: u32) -> TableCell {
     cell
 }
 
-fn body_cell(ctx: &Ctx, value: &str, width: u32, zebra: bool, mono: bool) -> TableCell {
+fn body_cell(
+    ctx: &Ctx,
+    value: &str,
+    width: u32,
+    zebra: bool,
+    mono: bool,
+    target: Option<&str>,
+) -> TableCell {
     let tokens = ctx.tokens;
     let mut run = Run::new()
         .add_text(wrappable(value))
@@ -454,9 +490,18 @@ fn body_cell(ctx: &Ctx, value: &str, width: u32, zebra: bool, mono: bool) -> Tab
     } else {
         run.fonts(ctx.sans())
     };
+    let paragraph = Paragraph::new().line_spacing(LineSpacing::new().line(252).before(0).after(0));
+    let paragraph = if let Some(target) = target {
+        paragraph.add_hyperlink(
+            docx_rs::Hyperlink::new(target, docx_rs::HyperlinkType::Anchor)
+                .add_run(run.color(hex(&tokens.palette.accent))),
+        )
+    } else {
+        paragraph.add_run(run)
+    };
     let mut cell = TableCell::new()
         .width(width as usize, WidthType::Dxa)
-        .add_paragraph(Paragraph::new().add_run(run));
+        .add_paragraph(paragraph);
     if zebra {
         cell = cell.shading(
             Shading::new()
@@ -470,9 +515,7 @@ fn body_cell(ctx: &Ctx, value: &str, width: u32, zebra: bool, mono: bool) -> Tab
 /// Shared table shell: fixed layout, an explicit grid summing to the text
 /// width, and optional zebra striping.
 ///
-/// Header rows do not repeat across page breaks: docx-rs 0.4 has no `tblHeader`
-/// support, so the best available is `cant_split`, which at least keeps the
-/// header from being torn in half. The PDF does repeat its headers.
+/// Header repetition is injected as OOXML after docx-rs serialises the table.
 fn shell(ctx: &Ctx, widths: &[u32], rows: Vec<TableRow>) -> Table {
     let inset = (ctx.tokens.layout.table_inset_pt * TWIPS_PER_POINT).round() as usize;
     Table::new(rows)
@@ -480,7 +523,7 @@ fn shell(ctx: &Ctx, widths: &[u32], rows: Vec<TableRow>) -> Table {
         .width(ctx.usable_twips as usize, WidthType::Dxa)
         .set_grid(widths.iter().map(|w| *w as usize).collect())
         .set_borders(borders(ctx))
-        .margins(TableCellMargins::new().margin(inset, inset, inset, inset))
+        .margins(TableCellMargins::new().margin(inset / 2, inset, inset / 2, inset))
 }
 
 /// A data table. `mono_columns` names columns rendered in the monospace face
@@ -490,8 +533,10 @@ pub fn data_table(
     headers: &[String],
     rows: &[Vec<String>],
     mono_columns: &[usize],
+    weights: &[u32],
+    links: &[TableLink],
 ) -> Table {
-    let widths = column_widths(headers, rows, ctx.usable_twips);
+    let widths = column_widths(weights, ctx.usable_twips);
     let zebra = ctx.tokens.layout.zebra_rows;
 
     let mut table_rows = vec![
@@ -514,6 +559,10 @@ pub fn data_table(
                         widths[i],
                         zebra && index % 2 == 1,
                         mono_columns.contains(&i),
+                        links
+                            .iter()
+                            .find(|link| link.row == index && link.column == i)
+                            .map(|link| link.target.as_str()),
                     )
                 })
                 .collect(),
@@ -522,7 +571,7 @@ pub fn data_table(
     shell(ctx, &widths, table_rows)
 }
 
-/// Heading with an Azure type icon beside it and a rule below.
+/// Heading with a modest Azure type icon beside it.
 ///
 /// A borderless two-cell table rather than an inline image, because Word sits
 /// an inline image on the text baseline and docx-rs exposes no `w:position` to
@@ -570,76 +619,45 @@ pub fn icon_heading(ctx: &Ctx, level: usize, icon: Option<Run>, display: &str) -
         .layout(TableLayoutType::Fixed)
         .width(ctx.usable_twips as usize, WidthType::Dxa)
         .set_grid(widths.iter().map(|w| *w as usize).collect())
-        .set_borders(
-            TableBorders::with_empty().set(
-                TableBorder::new(TableBorderPosition::Bottom)
-                    .border_type(BorderType::Single)
-                    .size(eighths(1.5))
-                    .color(hex(&ctx.tokens.palette.primary)),
-            ),
-        )
+        .set_borders(TableBorders::with_empty())
         // No left inset, so the icon lines up with the page's text margin.
         .margins(TableCellMargins::new().margin(0, 0, 60, 0))
 }
 
 /// Icon size relative to the level-1 heading, shared by the PDF and DOCX.
-pub const ICON_SCALE: f32 = 1.4;
+pub const ICON_SCALE: f32 = 1.0;
 
 /// Name plate above each resource's detail. A paragraph band keeps the scan
 /// marker without turning every resource into another table.
-pub fn resource_plate(ctx: &Ctx, name: &str) -> Paragraph {
-    let tokens = ctx.tokens;
-    let hairline = matches!(tokens.layout.table, TableStyle::Hairline);
-    let borders = ParagraphBorders::with_empty()
-        .set(
-            ParagraphBorder::new(ParagraphBorderPosition::Left)
-                .val(BorderType::Single)
-                .size(eighths(3.0))
-                .space(4)
-                .color(hex(&tokens.palette.primary)),
-        )
-        .set(
-            ParagraphBorder::new(ParagraphBorderPosition::Bottom)
-                .val(BorderType::Single)
-                .size(eighths(tokens.layout.rule_pt))
-                .color(hex(&tokens.palette.rule)),
-        );
+pub fn resource_plate(ctx: &Ctx, name: &str, icon: Option<Run>) -> Paragraph {
     let mut paragraph = Paragraph::new()
         .keep_next(true)
         .keep_lines(true)
-        .indent(Some(160), None, Some(160), None)
-        .line_spacing(LineSpacing::new().before(360).after(150))
-        .set_borders(borders)
-        .add_run(
-            Run::new()
-                .add_text(name)
-                .size(half_points(tokens.typography.h3_pt))
-                .bold()
-                .color(hex(&tokens.palette.primary_dark))
-                .fonts(ctx.sans()),
-        );
-    if !hairline {
-        paragraph.property = paragraph.property.shading(
-            Shading::new()
-                .shd_type(ShdType::Clear)
-                .fill(hex(&tokens.palette.primary_tint)),
-        );
+        .line_spacing(LineSpacing::new().before(240).after(100));
+    if let Some(icon) = icon {
+        paragraph = paragraph.add_run(icon).add_run(Run::new().add_text("  "));
     }
-    paragraph
+    paragraph.add_run(
+        Run::new()
+            .add_text(wrappable(name))
+            .size(half_points(ctx.tokens.typography.h3_pt))
+            .fonts(ctx.sans()),
+    )
 }
 
 /// Small labelled rule introducing a sub-block (Settings, Findings, Related).
 pub fn sub_label(ctx: &Ctx, title: &str) -> Paragraph {
     Paragraph::new()
+        .keep_next(true)
+        .keep_lines(true)
         .add_run(
             Run::new()
                 .add_text(title)
-                .size(half_points(ctx.tokens.typography.small_pt))
-                .bold()
+                .size(half_points(ctx.tokens.typography.base_pt))
                 .color(hex(&ctx.tokens.palette.primary_dark))
                 .fonts(ctx.sans()),
         )
-        .line_spacing(LineSpacing::new().before(260).after(100))
+        .line_spacing(LineSpacing::new().before(120).after(40))
 }
 
 /// Definition-list paragraphs for settings and compact evidence. Hanging
@@ -672,7 +690,6 @@ pub fn fact_list(ctx: &Ctx, items: &[Fact<'_>]) -> Vec<Paragraph> {
                     Run::new()
                         .add_text(item.label.as_ref())
                         .size(half_points(fact_pt))
-                        .bold()
                         .color(hex(&ctx.tokens.palette.primary_dark))
                         .fonts(ctx.sans()),
                 )
@@ -697,17 +714,25 @@ pub fn resource_index(ctx: &Ctx, items: &[ResourceIndexItem<'_>]) -> Vec<Paragra
             .filter(|value| !value.is_empty())
             .collect::<Vec<_>>()
             .join(" · ");
-            let mut paragraph = Paragraph::new()
+            let run = Run::new()
+                .add_text(item.name.as_ref())
+                .size(half_points(ctx.tokens.typography.base_pt))
+                .color(hex(if item.target.is_some() {
+                    &ctx.tokens.palette.accent
+                } else {
+                    &ctx.tokens.palette.ink
+                }))
+                .fonts(ctx.sans());
+            let paragraph = Paragraph::new()
                 .keep_lines(true)
-                .line_spacing(LineSpacing::new().before(30).after(110))
-                .add_run(
-                    Run::new()
-                        .add_text(item.name.as_ref())
-                        .size(half_points(ctx.tokens.typography.base_pt))
-                        .bold()
-                        .color(hex(&ctx.tokens.palette.ink))
-                        .fonts(ctx.serif()),
-                );
+                .line_spacing(LineSpacing::new().before(30).after(110));
+            let mut paragraph = if let Some(target) = &item.target {
+                paragraph.add_hyperlink(
+                    docx_rs::Hyperlink::new(target, docx_rs::HyperlinkType::Anchor).add_run(run),
+                )
+            } else {
+                paragraph.add_run(run)
+            };
             if !context.is_empty() {
                 paragraph = paragraph.add_run(
                     Run::new()
@@ -776,7 +801,6 @@ pub fn stat_row(ctx: &Ctx, stats: &[(String, String)]) -> Vec<Paragraph> {
                     Run::new()
                         .add_text(value)
                         .size(half_points(ctx.tokens.typography.stat_value_pt))
-                        .bold()
                         .color(hex(&ctx.tokens.palette.primary_dark))
                         .fonts(ctx.serif()),
                 )
@@ -891,14 +915,7 @@ mod tests {
 
     #[test]
     fn unit_column_widths_sum_to_the_text_width() {
-        let headers = vec!["name".to_owned(), "id".to_owned(), "loc".to_owned()];
-        let rows = vec![vec![
-            "a-very-long-resource-name-here".to_owned(),
-            "x".to_owned(),
-            "uksouth".to_owned(),
-        ]];
-
-        let widths = column_widths(&headers, &rows, 9000);
+        let widths = column_widths(&[30, 10, 10], 9000);
 
         assert_eq!(widths.iter().sum::<u32>(), 9000);
         assert!(widths[0] > widths[1], "wider content should win more space");
@@ -906,7 +923,7 @@ mod tests {
 
     #[test]
     fn unit_column_widths_handle_a_single_column() {
-        let widths = column_widths(&["only".to_owned()], &[], 9000);
+        let widths = column_widths(&[10], 9000);
 
         assert_eq!(widths, vec![9000]);
     }

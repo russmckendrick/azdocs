@@ -65,35 +65,32 @@ pub fn run_selected_with_outputs(
     let resources = store.resources(&snapshot_id)?;
     let findings = store.findings(&snapshot_id)?;
 
-    // HTML (docs site), PDF and DOCX all embed the prerendered diagram assets;
-    // build them once.
-    let mut diagrams = if formats.iter().any(|f| {
-        matches!(
-            f,
-            ReportFormat::Html | ReportFormat::Pdf | ReportFormat::Docx
-        )
-    }) {
+    let print_selected = formats
+        .iter()
+        .any(|f| matches!(f, ReportFormat::Pdf | ReportFormat::Docx));
+    let scope = crate::diagram::DiagramScope::default();
+    let diagrams = if formats.contains(&ReportFormat::Html) {
         crate::diagram::assets::build_overviews(
             store,
             &snapshot_id,
-            &crate::diagram::DiagramScope::default(),
+            &scope,
+            &branding.labels.diagram,
+        )?
+    } else if print_selected && args.include_reference {
+        crate::diagram::assets::build_group_summaries(
+            store,
+            &snapshot_id,
+            &scope,
             &branding.labels.diagram,
         )?
     } else {
         Vec::new()
     };
-    // Per-resource neighbourhood diagrams are only consumed by the print
-    // formats, and cost a layout each, so the HTML-only path skips them.
-    if formats
-        .iter()
-        .any(|f| matches!(f, ReportFormat::Pdf | ReportFormat::Docx))
-    {
-        diagrams.extend(crate::diagram::assets::build_resource_diagrams(
-            store,
-            &snapshot_id,
-            &branding.labels.diagram,
-        )?);
-    }
+    let assessment_diagrams = if print_selected {
+        crate::diagram::assets::build_assessment(&context.analysis, &branding.labels)
+    } else {
+        Vec::new()
+    };
 
     let words = &branding.labels.cli.report;
     let mut outputs = Vec::new();
@@ -149,15 +146,33 @@ pub fn run_selected_with_outputs(
             }
             ReportFormat::Pdf => {
                 let out = out_root.join("report.pdf");
-                report::pdf::write(&context, &branding, &diagrams, &out)?;
+                report::pdf::write(&context, &branding, &assessment_diagrams, &out)?;
                 println!("{}", fill(&words.pdf_written, &[("path", &out.display())]));
                 outputs.push(out);
+                if args.include_reference {
+                    let out = out_root.join("technical-reference.pdf");
+                    std::fs::write(
+                        &out,
+                        report::pdf::render_reference(&context, &branding, &diagrams)?,
+                    )?;
+                    println!("{}", fill(&words.pdf_written, &[("path", &out.display())]));
+                    outputs.push(out);
+                }
             }
             ReportFormat::Docx => {
                 let out = out_root.join("report.docx");
-                report::docx::write(&context, &branding, &diagrams, &out)?;
+                report::docx::write(&context, &branding, &assessment_diagrams, &out)?;
                 println!("{}", fill(&words.docx_written, &[("path", &out.display())]));
                 outputs.push(out);
+                if args.include_reference {
+                    let out = out_root.join("technical-reference.docx");
+                    std::fs::write(
+                        &out,
+                        report::docx::render_reference(&context, &branding, &diagrams)?,
+                    )?;
+                    println!("{}", fill(&words.docx_written, &[("path", &out.display())]));
+                    outputs.push(out);
+                }
             }
             ReportFormat::All => unreachable!("expanded above"),
         }

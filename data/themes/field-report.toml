@@ -36,16 +36,18 @@ text = "$primary"
 fill = "lighten($primary, 0.9)"
 
 [typography]
+pdf_use_docx_fonts = true
 serif = "IBM Plex Serif"
 sans = "IBM Plex Sans"
 mono = "IBM Plex Mono"
-docx_serif = "Georgia"
-docx_sans = "Aptos"
-docx_mono = "Aptos Mono"
+docx_serif = "Charter"
+docx_sans = "Arial"
+docx_mono = "Courier New"
 base_pt = 11.0
+reference_scale = 0.9
 small_pt = 9.0
-table_pt = 9.0
-table_header_pt = 9.0
+table_pt = 10.0
+table_header_pt = 10.0
 title_pt = 30.0
 subtitle_pt = 13.0
 h1_pt = 20.0
@@ -53,9 +55,11 @@ h2_pt = 15.0
 h3_pt = 12.0
 stat_value_pt = 22.0
 stat_label_pt = 9.0
-line_height = 1.5
+line_height = 1.35
 
 [layout]
+reference_table_borders = true
+reference_table_inset_pt = 3.0
 cover = "editorial"
 table = "hairline"
 stat = "bare"

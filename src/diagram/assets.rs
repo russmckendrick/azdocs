@@ -50,6 +50,29 @@ pub const MAX_RESOURCE_DIAGRAMS: usize = 250;
 /// than the report it belongs to. Exceeding it is logged, never silent.
 pub const MAX_GROUP_DIAGRAMS: usize = 60;
 
+/// Selected report figures use the same graph, page, layout, route, icon and
+/// SVG pipeline as the other diagram exports. Selection never draws geometry.
+pub fn build_assessment(
+    analysis: &crate::report::analysis::ReportAnalysis,
+    labels: &crate::labels::Labels,
+) -> Vec<DiagramAsset> {
+    super::graph::assessment::build(analysis, labels)
+        .into_iter()
+        .map(|named| DiagramAsset {
+            svg: svg::render_for(&named.graph, DiagramDetail::Summary, &labels.diagram),
+            kind: if named.group_key.is_some() {
+                DiagramAssetKind::ResourceGroup
+            } else {
+                DiagramAssetKind::Network
+            },
+            slug: named.slug,
+            title: named.sheet_name,
+            resource_id: None,
+            group_key: named.group_key,
+        })
+        .collect()
+}
+
 /// Build the overview diagrams for a snapshot, rendered to SVG. Empty graphs
 /// (e.g. the network view of a VNet-less estate) are omitted.
 pub fn build_overviews(
@@ -77,6 +100,19 @@ pub fn build_overviews(
     let network = EstateGraph::network(store, snapshot_id, scope, labels)?;
     push("network", DiagramAssetKind::Network, &network);
 
+    assets.extend(build_group_summaries(store, snapshot_id, scope, labels)?);
+    Ok(assets)
+}
+
+/// Reference-only exports need group figures, without the unused estate
+/// hierarchy and network overview rendered for the HTML site.
+pub fn build_group_summaries(
+    store: &Store,
+    snapshot_id: &str,
+    scope: &DiagramScope,
+    labels: &DiagramLabels,
+) -> Result<Vec<DiagramAsset>, DiagramError> {
+    let mut assets = Vec::new();
     // One summarised diagram per resource group. The estate-wide view cannot
     // show 294 resources on a page at any readable size, but a group at a time
     // can — with its resources aggregated by type, which is what keeps each

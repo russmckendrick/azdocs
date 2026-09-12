@@ -1,5 +1,5 @@
-//! PDF report via an embedded Typst compiler: no external binaries, fonts
-//! embedded from `data/fonts`, and byte-deterministic output (the document
+//! PDF report via an embedded Typst compiler: no external binaries, preloaded
+//! installed fonts with bundled fallbacks, and byte-deterministic output (the document
 //! date comes from the snapshot, not the wall clock).
 
 use std::collections::BTreeMap;
@@ -67,7 +67,26 @@ pub fn render_with_warnings(
     diagrams: &[DiagramAsset],
 ) -> anyhow::Result<(Vec<u8>, Vec<String>)> {
     let document = PrintDocument::build(report, branding, diagrams);
-    let world = ReportWorld::new(&document, branding, diagrams)?;
+    render_document(&document, branding, diagrams)
+}
+
+/// Render the optional companion without duplicating the main assessment.
+pub fn render_reference(
+    report: &ReportContext,
+    branding: &BrandingContext,
+    diagrams: &[DiagramAsset],
+) -> anyhow::Result<Vec<u8>> {
+    let document = PrintDocument::reference(report, branding, diagrams);
+    Ok(render_document(&document, branding, diagrams)?.0)
+}
+
+fn render_document(
+    document: &PrintDocument<'_>,
+    branding: &BrandingContext,
+    diagrams: &[DiagramAsset],
+) -> anyhow::Result<(Vec<u8>, Vec<String>)> {
+    let render_branding = document.render_branding(branding);
+    let world = ReportWorld::new(document, &render_branding, diagrams)?;
     let Warned { output, warnings } = typst::compile::<PagedDocument>(&world);
     let document = output.map_err(|diags| diagnostics_error("compiling PDF report", &diags))?;
     let options = PdfOptions {
@@ -129,10 +148,6 @@ impl ReportWorld {
             Value::Str(serde_json::to_string(branding)?.into()),
         );
         inputs.insert(
-            "theme".into(),
-            Value::Str(serde_json::to_string(&branding.tokens)?.into()),
-        );
-        inputs.insert(
             "icons".into(),
             Value::Str(serde_json::to_string(&icons)?.into()),
         );
@@ -142,6 +157,12 @@ impl ReportWorld {
         );
 
         let mut files = BTreeMap::new();
+        for block in &document.blocks {
+            if let super::document::Block::Chart { slug, svg, .. } = block {
+                let id = FileId::new(None, VirtualPath::new(format!("/charts/{slug}.svg")));
+                files.insert(id, Bytes::new(svg.clone().into_bytes()));
+            }
+        }
         for asset in diagrams {
             let id = FileId::new(
                 None,
@@ -208,6 +229,9 @@ impl ReportWorld {
         for data in &branding.extra_fonts {
             fonts.extend(Font::iter(Bytes::new(data.clone())));
         }
+        for data in &branding.system_fonts {
+            fonts.extend(Font::iter(Bytes::new(data.clone())));
+        }
         for data in typst_assets::fonts() {
             for font in Font::iter(Bytes::new(data)) {
                 if FALLBACK_FAMILIES.contains(&font.info().family.as_str()) {
@@ -216,6 +240,26 @@ impl ReportWorld {
             }
         }
         let book = FontBook::from_fonts(&fonts);
+        let mut tokens = branding.tokens.clone();
+        if tokens.typography.pdf_use_docx_fonts {
+            let typ = &mut tokens.typography;
+            for (working, requested) in [
+                (&mut typ.serif, &typ.docx_serif),
+                (&mut typ.sans, &typ.docx_sans),
+                (&mut typ.mono, &typ.docx_mono),
+            ] {
+                if fonts
+                    .iter()
+                    .any(|font| font.info().family.eq_ignore_ascii_case(requested))
+                {
+                    working.clone_from(requested);
+                }
+            }
+        }
+        inputs.insert(
+            "theme".into(),
+            Value::Str(serde_json::to_string(&tokens)?.into()),
+        );
 
         // Both the `datetime.today()` value and the PDF creation timestamp
         // come from the snapshot so rendering is reproducible byte-for-byte.

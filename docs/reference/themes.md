@@ -79,12 +79,14 @@ text = "#a4262c"
 fill = "#f8cecc"
 
 [typography]
+reference_scale = 0.9     # working text in the technical reference; 8pt floor
 serif      = "IBM Plex Serif" # display face for covers, headings and figures
 sans       = "IBM Plex Sans"  # working face for PDF + HTML (see Fonts below)
 mono       = "IBM Plex Mono"
-docx_serif = "Georgia"        # Word resolves these on the reader's machine
-docx_sans  = "Aptos"
-docx_mono  = "Aptos Mono"
+pdf_use_docx_fonts = true     # use installed Word families in PDF, with bundled fallbacks
+docx_serif = "Charter"        # Word resolves these on the reader's machine
+docx_sans  = "Arial"
+docx_mono  = "Courier New"
 base_pt = 11.0
 small_pt = 9.0
 table_pt = 9.0
@@ -99,6 +101,8 @@ stat_label_pt = 9.0
 line_height = 1.45
 
 [layout]
+reference_table_borders = true  # full table grid in the technical reference
+reference_table_inset_pt = 3.0  # compact cell padding in that document
 cover = "editorial"       # band | editorial | block
 table = "hairline"        # solid-header | hairline | banded
 stat  = "bare"            # card | outline | bare
@@ -131,9 +135,18 @@ implements all of the variants; a theme picks one.
 
 ## Fonts
 
-The PDF sets its own type: [IBM Plex](https://github.com/IBM/plex) Serif, Sans
-and Mono are bundled under the SIL Open Font License 1.1. Serif provides the
-Field Report's display hierarchy; Sans and Mono remain the working faces.
+Field Report uses Charter Regular for headings, Arial for body text and tables,
+and Courier New for identifiers in both native print formats.
+`pdf_use_docx_fonts = true` makes the PDF prefer the theme's `docx_*` families.
+Branding resolution loads only those installed families, offline, in a stable
+order; the PDF embeds the faces it uses. No operating-system font files are
+redistributed with azdocs.
+
+Where a requested family is unavailable, PDF falls back to the corresponding
+`serif`/`sans`/`mono` theme family. [IBM Plex](https://github.com/IBM/plex) Serif,
+Sans and Mono are bundled under the SIL Open Font License 1.1. A fixed snapshot,
+theme and font files produce deterministic PDF bytes; changing installed fonts
+can change pagination. Set `pdf_use_docx_fonts = false` for bundled-only type.
 
 To use a different typeface in the PDF, point `[branding] font_dir` at a
 directory of `.ttf`/`.otf` files and name the family:
@@ -147,11 +160,11 @@ mono_family = "Acme Mono"
 
 **DOCX is different.** OOXML names a font and resolves it on the reader's
 machine, and azdocs cannot embed fonts into a `.docx`, so naming a typeface
-nobody has installed lands back at a Word default. The shipped theme uses
-`docx_serif = "Georgia"`, `docx_sans = "Aptos"`, and
-`docx_mono = "Aptos Mono"`. Older Office installs substitute their configured
-document defaults. If your organisation deploys its own typeface, override
-those three keys in a user theme.
+nobody has installed lands back at a Word default. Charter is installed on
+macOS; other machines need that face installed for identical headings.
+If your organisation deploys its own typeface, override the three `docx_*`
+keys in a user theme. Explicit `font_family`/`mono_family` branding overrides
+disable matching so custom PDF font selections still take precedence.
 
 ## Native renderer differences
 
@@ -164,9 +177,8 @@ roles. Their layout engines still have unavoidable differences:
 - The PDF block cover can fill the physical sheet. DOCX represents the same
   strategy as a reversed colour block over the printable area because Word
   does not expose a true full-bleed page background here.
-- PDF tables repeat their header on later pages. The current DOCX library has
-  no repeating-header support, so Word keeps the header row intact but does
-  not repeat it.
+- PDF and Word comparison tables repeat their headers. The DOCX emitter adds
+  `w:tblHeader` to header rows in the packaged OOXML.
 - Page breaks and total page counts may consequently differ; content,
   hierarchy, labels, captions and diagram selection do not.
 

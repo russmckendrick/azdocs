@@ -24,6 +24,25 @@ azdocs report  --format pdf        # summarised, page-width canvases
 azdocs diagram --type resource-groups --format svg   # full detail
 ```
 
+## Assessment figures use the shared pipeline
+
+The default PDF/Word assessment selects focused relationship figures rather
+than an exhaustive estate hierarchy. `graph/assessment.rs` creates
+`EstateGraph`s, and `assets.rs` sends them through the same `page`, `layout`,
+`route`, `text`, `icons`, `svg` and `png` components used elsewhere. Report composition
+must never draw its own cards, positions, paths, colours or text wrapping.
+
+Studies select up to two connection types, ranked by cross-group links and then
+connection count. All links in selected types are retained, grouped by destination
+and split at the node budget. A figure follows the sources feeding one destination
+so crossing lines cannot imply an unrecorded junction.
+Figures fold known NIC/disk/child attachments
+with explicit counts, retain named external group frames, and split large
+connection sets. Counts describe all resources represented by an aggregate,
+not a claim that every member has every drawn connection. Captions and adjacent
+evidence tables explain the scope. The optional technical reference retains
+full resource-group diagrams and the complete registers.
+
 ## Page sizing
 
 A summary diagram is **exactly the width of the text column** — 680px, the
@@ -37,6 +56,8 @@ The width sets the scale, so every diagram in a report downscales by the same
 instead — every diagram came out a shrunken block adrift in white space.
 `PageFraction` survives to name the share a canvas claims (`data-page-fraction`
 on the drawing); it no longer imposes it.
+
+A label must reach the shared fitter intact; do not truncate it first.
 
 The title band is a `Full`-export affair. In a report the section heading above
 and the figure caption below already name the diagram, so `Summary` drops it
@@ -87,7 +108,7 @@ for a container the centre sits *inside* the box, so a VNet peering erupted
 from the middle of a subnet and crossed the icons on its way out.
 
 - **Containment edges are not drawn.** Nesting already says it.
-- Edges leave from a **boundary anchor**. The four opposite side-pairs are
+- Edges leave from a **boundary anchor**. The four opposite and four matching side-pairs are
   scored and the one running through the **fewest boxes** wins, ties going to
   the pair geometry suggests. Two tiles in one row are "side by side", so the
   direct line was drawn straight through whatever sat between them; leaving
@@ -101,12 +122,13 @@ from the middle of a subnet and crossed the icons on its way out.
 - Several edges meeting one box **fan out** along that side rather than piling
   onto the midpoint, turning a fan into a bus.
 - Mid-segments **snap to an 8px lane grid** and deconflict, so parallel trunks
-  stack.
+  stack. A lane adjustment is rejected if it would enter a box; narrow gaps
+  keep bends between their boundaries even when shorter than the preferred escape.
 - Corners are rounded 8px — what draw.io's own `rounded=1` draws, so the SVG
   and the `.drawio` agree.
-- Labels sit on the **longest segment**, not the straight-line midpoint, which
-  for a routed edge is frequently nowhere near the connector, and are lifted
-  clear of any label already placed nearby.
+- Labels prefer long horizontal segments, with positions scored against fitted node
+  text, glyphs, container borders, heading bands and other labels. They stay in connector space rather than being
+  shifted blindly into a nearby box.
 
 There is deliberately **no path search**. Every step above is closed-form — a
 fixed set of candidates scored against the boxes — because routing is paid once
@@ -151,7 +173,8 @@ Tiles beyond `MAX_TILES` (11) collapse into a single
 | Not in a VNet | `#D97706` / `#B45309` | Border / label |
 | Resource group | `#8A8886` | Dashed border |
 | Peering connected | `#107C10` | Edge |
-| Peering disconnected | `#D13438` | Edge |
+| Peering disconnected / initiated | `#D13438` | Edge |
+| Peering state unavailable | `#605E5C` | Neutral edge; no inferred failure |
 | Text primary | `#323130` | Labels |
 | Text secondary | `#605E5C` | Sublabels, CIDRs |
 

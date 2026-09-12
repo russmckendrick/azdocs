@@ -391,7 +391,9 @@ export function mockExportOutputs(request: ExportRequest) {
       if (format === "html") return [`${root}/report.html`, `${root}/docs-html/index.html`];
       if (format === "csv") return [`${root}/inventory.csv`, `${root}/findings.csv`];
       if (format === "xlsx") return [`${root}/azdocs.xlsx`];
-      return [`${root}/report.${format}`];
+      return request.includeReference && (format === "pdf" || format === "docx")
+        ? [`${root}/report.${format}`, `${root}/technical-reference.${format}`]
+        : [`${root}/report.${format}`];
     });
   }
 

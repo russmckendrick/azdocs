@@ -1,3 +1,4 @@
+pub mod analysis;
 pub mod branding;
 pub mod csv;
 pub mod details;
@@ -34,6 +35,8 @@ pub use governance::{
 /// for direct serialization into templates.
 #[derive(Debug, Serialize)]
 pub struct ReportContext {
+    #[serde(skip)]
+    pub analysis: analysis::ReportAnalysis,
     pub snapshot_id: String,
     pub created_at: String,
     pub tenant_id: String,
@@ -396,7 +399,22 @@ impl ReportContext {
                 .then_with(|| a.display.cmp(&b.display))
         });
 
+        let mut analysis = analysis::ReportAnalysis::build(
+            &resources,
+            &subscriptions,
+            &resource_groups,
+            &findings,
+            &edges,
+            store.query_runs(snapshot_id)?,
+        );
+        for name in store.query_result_names(snapshot_id)? {
+            analysis
+                .recorded_queries
+                .insert(name.clone(), store.query_results(snapshot_id, &name)?);
+        }
+
         Ok(Self {
+            analysis,
             snapshot_id: snapshot.id.clone(),
             created_at: snapshot.created_at.to_rfc3339(),
             tenant_id: snapshot.tenant_id.clone(),

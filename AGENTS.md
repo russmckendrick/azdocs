@@ -115,9 +115,10 @@ anywhere on a theme's name.** User overrides live in
 - `docs/reference/labels.md` documents the sibling pattern for wording.
 - Anything drawn on top of a brand colour must go through `readable_on`, or a
   pale `primary_color` produces white-on-white.
-- The PDF's type is vendored (`data/fonts`, IBM Plex, OFL). DOCX cannot embed
-  fonts, so themes carry separate `docx_sans`/`docx_mono` names that Word can
-  resolve locally — do not point those at the vendored family.
+- Field Report's PDF and Word use Charter / Arial / Courier New. The theme's
+  `pdf_use_docx_fonts` prefers installed `docx_*` faces, loaded offline during
+  branding resolution. Missing PDF faces fall back to the bundled IBM Plex
+  families (`data/fonts`, OFL). DOCX names fonts and cannot embed them.
 
 ## Labels are data
 
@@ -142,12 +143,25 @@ clap `///` help, thiserror messages, `[branding] title`/`footer`.
 
 ## Report structure
 
-The PDF and DOCX are laid out the way Azure is: **subscription → resource
-group → resource**, driven by `ReportContext.details` (the same shape Markdown
-and the HTML site already used). A group's summarised diagram heads its own
-section rather than sitting in the Diagrams chapter. A **Resources by type**
-index precedes the body so a compliance sweep over one type still works — that
-is what `resource_types` is for now; it is an index, not the spine.
+The default PDF and DOCX are assessments: executive observations, composition,
+architecture, subscription profiles and selected group studies, recurring-check
+explanations, governance/operational evidence, review actions and collection
+coverage. `ReportContext.analysis` owns grouping, historical evidence and study
+selection; `report/assessment.rs` composes both through `PrintDocument`.
+
+`--include-reference` additionally writes `technical-reference.pdf`/`.docx`.
+The reference owns the full type register, subscription → group → resource
+body, complete finding occurrence register and stored query evidence. Its
+column/value reductions must be explicit. Do not restore exhaustive inventory
+to the main report or interpret missing evidence as a passed control.
+
+**Use the shared diagram libraries.** `diagram/graph/assessment.rs` only selects
+and aggregates `EstateGraph`s. `diagram/assets.rs` renders them using the same
+`page`, `layout`, `route`, `icons`, `svg` and `png` pipeline as existing diagrams.
+No report-specific SVG renderer, geometry, connector router, palette, text
+wrapper or substitute card system. Correct shared components and their tests
+when a figure fails the standards. Split complex graphs; never shrink labels to
+make an inventory picture fit. Generate only the assets used by selected exports.
 
 ## Diagram detail levels
 
@@ -296,8 +310,8 @@ shared ports, name-only grids or indiscriminate Fit all.
   (category sheets are suffixed `" queries"` for this reason).
 - typst/typst-pdf/typst-assets are pinned to the same minor (0.13); the World
   impl in `report/pdf.rs` derives today()/timestamps from the snapshot so PDF
-  bytes stay deterministic. The document face is vendored in `data/fonts`
-  (typst-assets ships no proportional sans); its two families stay loaded
+  bytes stay deterministic for a fixed snapshot, theme and font files.
+  Bundled fallback faces live in `data/fonts`; typst-assets' two families stay loaded
   behind it purely as a glyph fallback, and font-book insertion order is
   load-bearing.
 - resvg and usvg are lockstep-released — always bump them together.

@@ -9,19 +9,19 @@ expression: "drawio::render_for(&graph, DiagramDetail::Full)"
       <root>
         <mxCell id="0"/>
         <mxCell id="1" parent="0"/>
-        <mxCell id="n0" value="vnet-app  10.1.0.0/16" style="swimlane;html=1;startSize=28;rounded=1;arcSize=6;fillColor=#EFF6FC;strokeColor=#0078D4;fontSize=13;fontStyle=1;verticalAlign=top;horizontal=1;collapsible=0;whiteSpace=wrap;" parent="1" vertex="1">
+        <mxCell id="n0" value="vnet-app  10.1.0.0/16" style="swimlane;html=1;startSize=28;rounded=1;arcSize=6;fillColor=#EFF6FC;strokeColor=#0078D4;fontSize=13;fontStyle=0;verticalAlign=top;horizontal=1;collapsible=0;whiteSpace=wrap;" parent="1" vertex="1">
           <mxGeometry x="0" y="0" width="450.7" height="234" as="geometry"/>
         </mxCell>
         <mxCell id="h0" value="" style="image;aspect=fixed;html=1;points=[];movable=0;resizable=0;deletable=0;connectable=0;editable=0;image=img/lib/azure2/networking/Virtual_Networks.svg;" parent="n0" vertex="1">
           <mxGeometry x="8" y="3" width="36.7" height="22" as="geometry"/>
         </mxCell>
-        <mxCell id="n1" value="app  10.1.0.0/24" style="swimlane;html=1;startSize=27;rounded=1;arcSize=6;fillColor=#FFFFFF;strokeColor=#8A8886;fontSize=13;fontStyle=1;verticalAlign=top;horizontal=1;collapsible=0;whiteSpace=wrap;" parent="n0" vertex="1">
+        <mxCell id="n1" value="app  10.1.0.0/24" style="swimlane;html=1;startSize=27;rounded=1;arcSize=6;fillColor=#FFFFFF;strokeColor=#8A8886;fontSize=13;fontStyle=0;verticalAlign=top;horizontal=1;collapsible=0;whiteSpace=wrap;" parent="n0" vertex="1">
           <mxGeometry x="18" y="45" width="414.7" height="171" as="geometry"/>
         </mxCell>
         <mxCell id="h1" value="" style="image;aspect=fixed;html=1;points=[];movable=0;resizable=0;deletable=0;connectable=0;editable=0;image=img/lib/azure2/networking/Subnet.svg;" parent="n1" vertex="1">
           <mxGeometry x="8" y="3" width="33.4" height="20" as="geometry"/>
         </mxCell>
-        <mxCell id="n2" value="vnet-hub  10.0.0.0/16" style="swimlane;html=1;startSize=28;rounded=1;arcSize=6;fillColor=#EFF6FC;strokeColor=#0078D4;fontSize=13;fontStyle=1;verticalAlign=top;horizontal=1;collapsible=0;whiteSpace=wrap;" parent="1" vertex="1">
+        <mxCell id="n2" value="vnet-hub  10.0.0.0/16" style="swimlane;html=1;startSize=28;rounded=1;arcSize=6;fillColor=#EFF6FC;strokeColor=#0078D4;fontSize=13;fontStyle=0;verticalAlign=top;horizontal=1;collapsible=0;whiteSpace=wrap;" parent="1" vertex="1">
           <mxGeometry x="474.7" y="0" width="450.7" height="94" as="geometry"/>
         </mxCell>
         <mxCell id="h2" value="" style="image;aspect=fixed;html=1;points=[];movable=0;resizable=0;deletable=0;connectable=0;editable=0;image=img/lib/azure2/networking/Virtual_Networks.svg;" parent="n2" vertex="1">
@@ -51,19 +51,19 @@ expression: "drawio::render_for(&graph, DiagramDetail::Full)"
         <mxCell id="n8" value="nsg-app&lt;br&gt;NSG" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;whiteSpace=wrap;labelWidth=152;image=img/lib/azure2/networking/Network_Security_Groups.svg;" parent="n9" vertex="1">
           <mxGeometry x="310.3" y="49" width="48" height="48" as="geometry"/>
         </mxCell>
-        <mxCell id="n9" value="Connected services  NSGs &amp; private-link targets" style="swimlane;html=1;startSize=28;rounded=1;arcSize=6;fillColor=#F3F2F1;strokeColor=#8A8886;fontSize=13;fontStyle=1;verticalAlign=top;horizontal=1;collapsible=0;whiteSpace=wrap;" parent="1" vertex="1">
+        <mxCell id="n9" value="Connected services  NSGs &amp; private-link targets" style="swimlane;html=1;startSize=28;rounded=1;arcSize=6;fillColor=#F3F2F1;strokeColor=#8A8886;fontSize=13;fontStyle=0;verticalAlign=top;horizontal=1;collapsible=0;whiteSpace=wrap;" parent="1" vertex="1">
           <mxGeometry x="949.3" y="0" width="450.7" height="175" as="geometry"/>
         </mxCell>
         <mxCell id="h9" value="" style="image;aspect=fixed;html=1;points=[];movable=0;resizable=0;deletable=0;connectable=0;editable=0;image=img/lib/azure2/general/Resource_Groups.svg;" parent="n9" vertex="1">
           <mxGeometry x="8" y="3" width="23.3" height="22" as="geometry"/>
         </mxCell>
-        <mxCell id="e0" value="private link" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;dashPattern=1 3;endArrow=open;strokeColor=#8A8886;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" parent="1" source="n5" target="n7" edge="1">
+        <mxCell id="e0" value="private link" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;dashPattern=1 3;endArrow=open;strokeColor=#8A8886;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="n5" target="n7" edge="1">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-        <mxCell id="e1" value="Connected" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;endArrow=none;startArrow=none;strokeColor=#0078D4;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="n0" target="n2" edge="1">
+        <mxCell id="e1" value="Connected" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;endArrow=none;startArrow=none;fontSize=10;strokeColor=#107C10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="n0" target="n2" edge="1">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
-        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;dashPattern=1 3;endArrow=open;strokeColor=#8A8886;fontSize=10;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="n8" target="n4" edge="1">
+        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;dashPattern=1 3;endArrow=open;strokeColor=#8A8886;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="n8" target="n4" edge="1">
           <mxGeometry relative="1" as="geometry"/>
         </mxCell>
         <mxCell id="mark" value="azdocs" style="image;aspect=fixed;html=1;points=[];movable=0;resizable=0;deletable=0;connectable=0;editable=0;labelPosition=right;align=left;verticalLabelPosition=middle;verticalAlign=middle;spacingLeft=6;fontSize=12;fontStyle=1;fontColor=#0754BD;image=data:image/svg+xml,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHJvbGU9ImltZyIgdmlld0JveD0iMCAwIDUxMiA1MTIiIHdpZHRoPSIyMDQ4IiBoZWlnaHQ9IjIwNDgiPgogIDx0aXRsZT5hemRvY3MgbWFyayBwcmltYXJ5PC90aXRsZT4KICA8ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9Im1hcmstYmx1ZSIgeDE9IjAuMTgiIHkxPSIwIiB4Mj0iMC43MiIgeTI9IjEiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiMxNjhmZTUiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIwLjUyIiBzdG9wLWNvbG9yPSIjMGI4NGRjIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzAwNzhkNCIvPgogICAgPC9saW5lYXJHcmFkaWVudD48L2RlZnM+CjxnPgogICAgPHBhdGggZD0iTTIzMiA1OCBDMjQyIDM4IDI3MCAzOCAyODAgNTggTDQ4MCA0MTQKICAgICAgQzQ5NSA0NDEgNDc2IDQ3MiA0NDQgNDcyIEg2OCBDMzYgNDcyIDE3IDQ0MSAzMiA0MTQgWiIKICAgICAgZmlsbD0idXJsKCNtYXJrLWJsdWUpIi8+CiAgICA8ZyBmaWxsPSIjZmZmZmZmIiBzdHJva2U9IiNmZmZmZmYiPgogICAgICA8cGF0aCBkPSJNMjU2IDE5OCBWMzMwIEwxNTYgMzgyIE0yNTYgMzMwIEwzNTYgMzgyIgogICAgICAgIGZpbGw9Im5vbmUiIHN0cm9rZS13aWR0aD0iMjYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgogICAgICA8Y2lyY2xlIGN4PSIyNTYiIGN5PSIxOTgiIHI9IjQwIiBzdHJva2U9Im5vbmUiLz4KICAgICAgPGNpcmNsZSBjeD0iMTU2IiBjeT0iMzgyIiByPSI0MCIgc3Ryb2tlPSJub25lIi8+CiAgICAgIDxjaXJjbGUgY3g9IjM1NiIgY3k9IjM4MiIgcj0iNDAiIHN0cm9rZT0ibm9uZSIvPgogICAgPC9nPgogIDwvZz4KPC9zdmc+Cg==" parent="1" vertex="1">

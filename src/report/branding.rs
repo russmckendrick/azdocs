@@ -47,6 +47,10 @@ pub struct BrandingContext {
     /// book. Bytes only — the PDF emitter reads them, nothing serializes them.
     #[serde(skip)]
     pub extra_fonts: Vec<Vec<u8>>,
+    /// Only the requested installed print families; never serialized or
+    /// downloaded. Loading here keeps native emitters independent of disk.
+    #[serde(skip)]
+    pub system_fonts: Vec<Vec<u8>>,
 }
 
 impl Default for BrandingContext {
@@ -84,12 +88,24 @@ impl BrandingContext {
         if !config.mono_family.is_empty() {
             tokens.typography.mono = config.mono_family.clone();
         }
+        if !config.font_family.is_empty() || !config.mono_family.is_empty() {
+            tokens.typography.pdf_use_docx_fonts = false;
+        }
 
         let labels = crate::labels::resolve(config)?;
 
         let extra_fonts = match &config.font_dir {
             Some(path) => load_fonts(path, config_dir)?,
             None => Vec::new(),
+        };
+        let system_fonts = if tokens.typography.pdf_use_docx_fonts {
+            installed_print_fonts(&[
+                &tokens.typography.docx_serif,
+                &tokens.typography.docx_sans,
+                &tokens.typography.docx_mono,
+            ])
+        } else {
+            Vec::new()
         };
 
         Ok(Self {
@@ -105,8 +121,34 @@ impl BrandingContext {
             tokens,
             labels,
             extra_fonts,
+            system_fonts,
         })
     }
+}
+
+fn installed_print_fonts(families: &[&str]) -> Vec<Vec<u8>> {
+    static DATABASE: std::sync::OnceLock<usvg::fontdb::Database> = std::sync::OnceLock::new();
+    let database = DATABASE.get_or_init(|| {
+        let mut db = usvg::fontdb::Database::new();
+        db.load_system_fonts();
+        db
+    });
+    let mut fonts: Vec<_> = database
+        .faces()
+        .filter(|face| {
+            face.families.iter().any(|(name, _)| {
+                families
+                    .iter()
+                    .any(|family| name.eq_ignore_ascii_case(family))
+            })
+        })
+        .filter_map(|face| database.with_face_data(face.id, |data, _| data.to_vec()))
+        .collect();
+    // Font discovery order varies by OS. Sort the bytes and deduplicate font
+    // collections, which fontdb exposes once per contained face.
+    fonts.sort();
+    fonts.dedup();
+    fonts
 }
 
 fn validate_color(field: &'static str, value: &str) -> Result<(), ConfigError> {

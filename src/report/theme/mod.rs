@@ -85,6 +85,8 @@ pub struct SeverityColors {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Typography {
+    /// Prefer the Word families in PDF when those faces are installed.
+    pub pdf_use_docx_fonts: bool,
     /// Display family used by covers, headings and prominent figures.
     pub serif: String,
     /// Working families used by the PDF and HTML; they must be loadable by the
@@ -108,11 +110,15 @@ pub struct Typography {
     pub stat_value_pt: f32,
     pub stat_label_pt: f32,
     pub line_height: f32,
+    /// Working text scale for the optional technical reference.
+    pub reference_scale: f32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Layout {
+    pub reference_table_borders: bool,
+    pub reference_table_inset_pt: f32,
     pub cover: CoverStyle,
     pub table: TableStyle,
     pub stat: StatStyle,
@@ -232,6 +238,7 @@ impl Default for Typography {
             serif: "IBM Plex Serif".to_owned(),
             sans: "IBM Plex Sans".to_owned(),
             mono: "IBM Plex Mono".to_owned(),
+            pdf_use_docx_fonts: false,
             docx_serif: "Georgia".to_owned(),
             docx_sans: "Aptos".to_owned(),
             docx_mono: "Aptos Mono".to_owned(),
@@ -247,6 +254,7 @@ impl Default for Typography {
             stat_value_pt: 22.0,
             stat_label_pt: 9.0,
             line_height: 1.45,
+            reference_scale: 0.9,
         }
     }
 }
@@ -254,6 +262,8 @@ impl Default for Typography {
 impl Default for Layout {
     fn default() -> Self {
         Self {
+            reference_table_borders: true,
+            reference_table_inset_pt: 3.0,
             cover: CoverStyle::Editorial,
             table: TableStyle::Hairline,
             stat: StatStyle::Bare,

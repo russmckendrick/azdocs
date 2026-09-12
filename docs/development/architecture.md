@@ -98,9 +98,19 @@ TOML, user overrides from the config dir, no branch on a name in Rust.
 emitters both consume it. Report emitters share one `ReportContext`. The two
 native print formats go one step further: `report/document.rs` turns that data,
 branding and diagram bundle into an ordered `PrintDocument`, then the Typst and
-OOXML backends render the same exhaustive block stream. Content, hierarchy,
+OOXML backends render the same semantic block stream. Content, hierarchy,
 labels, captions and asset placement therefore have one edit point; only
-native layout mechanics remain renderer-specific.
+native layout mechanics remain renderer-specific. `report/analysis.rs` groups
+stored findings without losing occurrences or severities, resolves typed
+relationships and selects distinct group studies. The main assessment and the
+optional technical reference have separate compositions in
+`report/assessment.rs`. Non-print report content is unchanged.
+
+**Report selection is not a rendering engine.** `diagram/graph/assessment.rs`
+selects and aggregates connection-focused `EstateGraph`s. `diagram/assets.rs`
+renders them through the established `page`, `layout`, `route`, `icons`, `svg`
+and `png` modules. Fix geometry and label fitting there, never in PDF/DOCX or a
+parallel SVG/card renderer.
 
 **A judgement is computed once, and travels as a verdict.** Tag governance is
 the worked example: `report/governance.rs` holds `HEALTHY_TAG_COVERAGE_PERCENT`
