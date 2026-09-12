@@ -66,14 +66,14 @@ fn native_print_formats_share_main_and_reference_content() {
             format,
         );
         assert!(!text.contains("Resources by type"));
-        assert!(!text.contains("Host Pool Type"));
+        assert!(!text.contains("hostPoolType"));
     }
     let reference_pdf = pdf_text(&pdf::render_reference(&report, &branding, &[]).unwrap());
     let reference_word = document_xml(&docx::render_reference(&report, &branding, &[]).unwrap());
     for text in [&reference_pdf, &reference_word] {
         for marker in [
             "Resources by type",
-            "Host Pool Type",
+            "hostPoolType",
             "stprodapp01 allows public blob access",
             "512 characters",
         ] {

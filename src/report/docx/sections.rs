@@ -370,6 +370,15 @@ pub fn render(mut docx: Docx, ctx: &Ctx, blocks: &[Block<'_>], assets: &[Diagram
                         .line_spacing(LineSpacing::new().after(140)),
                 );
             }
+            Block::ExternalLink { title, url } => {
+                docx = docx.add_paragraph(external_link_paragraph(ctx, url, Some(title)));
+            }
+            Block::Metadata {
+                groups,
+                keep_together,
+            } => {
+                docx = docx.add_table(style::metadata_table(ctx, groups, *keep_together));
+            }
             Block::Chart { slug, svg, caption } => {
                 let asset = DiagramAsset {
                     slug: slug.clone(),
@@ -433,6 +442,7 @@ pub fn render(mut docx: Docx, ctx: &Ctx, blocks: &[Block<'_>], assets: &[Diagram
             }
             Block::Table {
                 style: table_kind,
+                keep_together,
                 columns,
                 rows,
                 links,
@@ -461,6 +471,7 @@ pub fn render(mut docx: Docx, ctx: &Ctx, blocks: &[Block<'_>], assets: &[Diagram
                             .map(|column| column.weight)
                             .collect::<Vec<_>>(),
                         links,
+                        *keep_together,
                     )),
                 };
             }
@@ -474,9 +485,14 @@ pub fn render(mut docx: Docx, ctx: &Ctx, blocks: &[Block<'_>], assets: &[Diagram
                     docx = docx.add_paragraph(paragraph);
                 }
             }
-            Block::ResourcePlate { id, name, icon } => {
+            Block::ResourcePlate {
+                id,
+                name,
+                icon,
+                subtitle,
+            } => {
                 docx = docx.add_paragraph(
-                    style::resource_plate(ctx, name, icon_run(ctx, icon, 3))
+                    style::resource_plate(ctx, name, subtitle, icon_run(ctx, icon, 3))
                         .add_bookmark_start(block_index + 1000, id)
                         .add_bookmark_end(block_index + 1000),
                 );
@@ -490,6 +506,25 @@ pub fn render(mut docx: Docx, ctx: &Ctx, blocks: &[Block<'_>], assets: &[Diagram
                 detail,
             } => {
                 docx = docx.add_paragraph(style::callout(ctx, severity, title, detail.as_deref()));
+            }
+            Block::RasterImage { png, caption, .. } => {
+                let Ok(decoded) = image::load_from_memory(png) else {
+                    tracing::warn!("skipping corrupt website image");
+                    continue;
+                };
+                let target_width = twips_to_emu(ctx.usable_twips);
+                let target_height = (f64::from(target_width) * f64::from(decoded.height())
+                    / f64::from(decoded.width()))
+                .round() as u32;
+                docx = docx.add_paragraph(
+                    Paragraph::new()
+                        .align(AlignmentType::Center)
+                        .keep_next(true)
+                        .add_run(
+                            Run::new().add_image(Pic::new(png).size(target_width, target_height)),
+                        ),
+                );
+                docx = docx.add_paragraph(style::caption(ctx, caption).align(AlignmentType::Left));
             }
             Block::Diagram { slug, caption } => {
                 let Some(asset) = assets_by_slug.get(slug.as_ref()) else {
@@ -513,8 +548,60 @@ pub fn render(mut docx: Docx, ctx: &Ctx, blocks: &[Block<'_>], assets: &[Diagram
                 docx = docx.add_paragraph(style::empty_state(ctx, text));
             }
         }
+        // Word merges adjacent tables unless a paragraph separates them.
+        // Keep each website's evidence visibly distinct, as it is in the PDF.
+        if matches!(block, Block::Table { .. } | Block::Metadata { .. })
+            && blocks
+                .get(block_index + 1)
+                .is_some_and(|next| matches!(next, Block::Table { .. } | Block::Metadata { .. }))
+        {
+            docx = docx.add_paragraph(
+                Paragraph::new().line_spacing(
+                    LineSpacing::new()
+                        .before(0)
+                        .after(140)
+                        .line_rule(LineSpacingType::Exact)
+                        .line(1),
+                ),
+            );
+        }
     }
     docx
+}
+
+fn external_link_paragraph(ctx: &Ctx, url: &str, title: Option<&str>) -> Paragraph {
+    let size = ctx.tokens.typography.small_pt;
+    let mut paragraph = Paragraph::new().keep_lines(true).line_spacing(
+        LineSpacing::new()
+            .before(100)
+            .after(140)
+            .line_rule(LineSpacingType::AtLeast)
+            .line((size * ctx.tokens.typography.line_height * 20.0).round() as i32),
+    );
+    if let Some(title) = title {
+        paragraph = paragraph.add_run(
+            Run::new()
+                .add_text(title)
+                .add_tab()
+                .bold()
+                .fonts(ctx.sans())
+                .size(half_points(size))
+                .color(hex(&ctx.tokens.palette.muted)),
+        );
+    }
+    paragraph
+        .add_tab(
+            docx_rs::Tab::new()
+                .val(docx_rs::TabValueType::Left)
+                .pos(1520),
+        )
+        .indent(
+            Some(1520),
+            Some(SpecialIndentType::Hanging(1520)),
+            None,
+            None,
+        )
+        .add_hyperlink(style::external_link(ctx, url, url, size))
 }
 
 fn render_chapter(
@@ -542,8 +629,8 @@ fn rich_paragraph(ctx: &Ctx, paragraph_style: ParagraphStyle, runs: &[TextRun<'_
         ParagraphStyle::Muted => ctx.tokens.typography.small_pt,
     };
     let after = match paragraph_style {
-        ParagraphStyle::Body => (ctx.tokens.typography.base_pt * 13.0).round() as u32,
-        ParagraphStyle::Muted => (ctx.tokens.typography.small_pt * 10.0).round() as u32,
+        ParagraphStyle::Body => 180,
+        ParagraphStyle::Muted => 140,
     };
     let mut paragraph = Paragraph::new().line_spacing(
         LineSpacing::new()

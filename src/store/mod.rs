@@ -3,6 +3,7 @@ mod findings;
 mod resources;
 mod schema;
 mod snapshots;
+mod websites;
 
 pub use snapshots::{SnapshotCounts, SnapshotDiff};
 

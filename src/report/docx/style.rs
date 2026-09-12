@@ -14,7 +14,7 @@ use docx_rs::{
 };
 
 use crate::report::branding::BrandingContext;
-use crate::report::document::{Fact, ResourceIndexItem, TableLink};
+use crate::report::document::{Fact, MetadataGroup, ResourceIndexItem, TableLink};
 use crate::report::theme::{TableStyle, ThemeTokens};
 
 /// Twips (twentieths of a point) per inch — the unit Word measures pages in.
@@ -457,6 +457,7 @@ fn header_cell(ctx: &Ctx, label: &str, width: u32) -> TableCell {
         .add_paragraph(
             Paragraph::new()
                 .style("AzdocsTableHeader")
+                .keep_next(true)
                 .line_spacing(LineSpacing::new().line(252).before(0).after(0))
                 .add_run(
                     Run::new()
@@ -473,13 +474,34 @@ fn header_cell(ctx: &Ctx, label: &str, width: u32) -> TableCell {
     cell
 }
 
+/// One proportional, icon-marked link treatment for tables and source notes.
+pub fn external_link(ctx: &Ctx, url: &str, display: &str, size: f32) -> docx_rs::Hyperlink {
+    let mut link = docx_rs::Hyperlink::new(url, docx_rs::HyperlinkType::External);
+    if let Ok(png) = crate::diagram::png::from_svg_transparent(
+        &crate::report::document::external_link_svg(&ctx.tokens.palette.accent),
+        2.0,
+    ) {
+        link = link.add_run(
+            Run::new().add_image(docx_rs::Pic::new(&png).size(pt_to_emu(size), pt_to_emu(size))),
+        );
+    }
+    link.add_run(
+        Run::new()
+            .add_text(format!("  {}", wrappable(display)))
+            .fonts(ctx.sans())
+            .size(half_points(size))
+            .color(hex(&ctx.tokens.palette.accent)),
+    )
+}
+
 fn body_cell(
     ctx: &Ctx,
     value: &str,
     width: u32,
     zebra: bool,
     mono: bool,
-    target: Option<&str>,
+    target: Option<&TableLink>,
+    keep_next: bool,
 ) -> TableCell {
     let tokens = ctx.tokens;
     let mut run = Run::new()
@@ -490,12 +512,27 @@ fn body_cell(
     } else {
         run.fonts(ctx.sans())
     };
-    let paragraph = Paragraph::new().line_spacing(LineSpacing::new().line(252).before(0).after(0));
+    let paragraph = Paragraph::new()
+        .keep_next(keep_next)
+        .line_spacing(LineSpacing::new().line(252).before(0).after(0));
     let paragraph = if let Some(target) = target {
-        paragraph.add_hyperlink(
-            docx_rs::Hyperlink::new(target, docx_rs::HyperlinkType::Anchor)
-                .add_run(run.color(hex(&tokens.palette.accent))),
-        )
+        let paragraph = if target.external {
+            let inset = ((tokens.typography.table_pt + 5.0) * TWIPS_PER_POINT).round() as i32;
+            paragraph.indent(
+                Some(inset),
+                Some(SpecialIndentType::Hanging(inset)),
+                None,
+                None,
+            )
+        } else {
+            paragraph
+        };
+        paragraph.add_hyperlink(if target.external {
+            external_link(ctx, &target.target, value, tokens.typography.table_pt)
+        } else {
+            docx_rs::Hyperlink::new(&target.target, docx_rs::HyperlinkType::Anchor)
+                .add_run(run.color(hex(&tokens.palette.accent)))
+        })
     } else {
         paragraph.add_run(run)
     };
@@ -535,6 +572,7 @@ pub fn data_table(
     mono_columns: &[usize],
     weights: &[u32],
     links: &[TableLink],
+    keep_together: bool,
 ) -> Table {
     let widths = column_widths(weights, ctx.usable_twips);
     let zebra = ctx.tokens.layout.zebra_rows;
@@ -561,14 +599,66 @@ pub fn data_table(
                         mono_columns.contains(&i),
                         links
                             .iter()
-                            .find(|link| link.row == index && link.column == i)
-                            .map(|link| link.target.as_str()),
+                            .find(|link| link.row == index && link.column == i),
+                        keep_together && index + 1 < rows.len(),
                     )
                 })
                 .collect(),
         ));
     }
     shell(ctx, &widths, table_rows)
+}
+
+/// Group headings share one full-width grid with their metadata fields.
+pub fn metadata_table(ctx: &Ctx, groups: &[MetadataGroup], keep_together: bool) -> Table {
+    let widths = column_widths(&[1, 2], ctx.usable_twips);
+    let mut rows = Vec::new();
+    for (group_index, group) in groups.iter().enumerate() {
+        rows.push(
+            TableRow::new(vec![
+                TableCell::new()
+                    .grid_span(2)
+                    .width(ctx.usable_twips as usize, WidthType::Dxa)
+                    .add_paragraph(
+                        Paragraph::new()
+                            .keep_next(true)
+                            .keep_lines(true)
+                            .line_spacing(LineSpacing::new().before(60).after(60))
+                            .add_run(
+                                Run::new()
+                                    .add_text(wrappable(&group.title))
+                                    .bold()
+                                    .fonts(ctx.sans())
+                                    .size(half_points(ctx.tokens.typography.table_header_pt)),
+                            ),
+                    ),
+            ])
+            .cant_split(),
+        );
+        for (index, row) in group.rows.iter().enumerate() {
+            let keep_next =
+                keep_together && (group_index + 1 < groups.len() || index + 1 < group.rows.len());
+            rows.push(TableRow::new(
+                (0..2)
+                    .map(|column| {
+                        body_cell(
+                            ctx,
+                            &row[column],
+                            widths[column],
+                            false,
+                            false,
+                            group
+                                .links
+                                .iter()
+                                .find(|link| link.row == index && link.column == column),
+                            keep_next,
+                        )
+                    })
+                    .collect(),
+            ));
+        }
+    }
+    shell(ctx, &widths, rows)
 }
 
 /// Heading with a modest Azure type icon beside it.
@@ -629,7 +719,7 @@ pub const ICON_SCALE: f32 = 1.0;
 
 /// Name plate above each resource's detail. A paragraph band keeps the scan
 /// marker without turning every resource into another table.
-pub fn resource_plate(ctx: &Ctx, name: &str, icon: Option<Run>) -> Paragraph {
+pub fn resource_plate(ctx: &Ctx, name: &str, subtitle: &str, icon: Option<Run>) -> Paragraph {
     let mut paragraph = Paragraph::new()
         .keep_next(true)
         .keep_lines(true)
@@ -637,12 +727,21 @@ pub fn resource_plate(ctx: &Ctx, name: &str, icon: Option<Run>) -> Paragraph {
     if let Some(icon) = icon {
         paragraph = paragraph.add_run(icon).add_run(Run::new().add_text("  "));
     }
-    paragraph.add_run(
-        Run::new()
-            .add_text(wrappable(name))
-            .size(half_points(ctx.tokens.typography.h3_pt))
-            .fonts(ctx.sans()),
-    )
+    paragraph
+        .add_run(
+            Run::new()
+                .add_text(wrappable(name))
+                .size(half_points(ctx.tokens.typography.h3_pt))
+                .fonts(ctx.sans()),
+        )
+        .add_run(
+            Run::new()
+                .add_break(BreakType::TextWrapping)
+                .add_text(subtitle)
+                .size(half_points(ctx.tokens.typography.small_pt))
+                .fonts(ctx.sans())
+                .color(hex(&ctx.tokens.palette.muted)),
+        )
 }
 
 /// Small labelled rule introducing a sub-block (Settings, Findings, Related).
@@ -653,11 +752,12 @@ pub fn sub_label(ctx: &Ctx, title: &str) -> Paragraph {
         .add_run(
             Run::new()
                 .add_text(title)
+                .bold()
                 .size(half_points(ctx.tokens.typography.base_pt))
                 .color(hex(&ctx.tokens.palette.primary_dark))
                 .fonts(ctx.sans()),
         )
-        .line_spacing(LineSpacing::new().before(120).after(40))
+        .line_spacing(LineSpacing::new().before(220).after(100))
 }
 
 /// Definition-list paragraphs for settings and compact evidence. Hanging

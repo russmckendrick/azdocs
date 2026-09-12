@@ -358,10 +358,10 @@ fn docx_reference_settings_use_smaller_bordered_tables_and_resource_icons() {
 
     let bytes = docx::render_reference(&report, &BrandingContext::default(), &diagrams).unwrap();
 
-    let document = archive_entry(&bytes, "word/document.xml");
+    let document = archive_entry(&bytes, "word/document.xml").replace('\u{200b}', "");
     let setting = document
-        .rfind("Allow Blob Public Access")
-        .expect("flattened storage setting");
+        .rfind("allowBlobPublicAccess")
+        .expect("stored storage setting");
     let table_start = document[..setting]
         .rfind("<w:tbl>")
         .expect("setting table start");

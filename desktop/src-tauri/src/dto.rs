@@ -766,6 +766,7 @@ pub struct CollectResultDto {
     pub queries_run: usize,
     pub queries_failed: usize,
     pub rows_ingested: u64,
+    pub screenshots: Option<WebsiteBatchResult>,
 }
 
 #[derive(Clone, Debug, Serialize, TS)]
@@ -780,9 +781,102 @@ pub struct CollectResultDto {
 )]
 #[ts(optional_fields = nullable)]
 pub enum CollectionEvent {
+    Stage { stage: CollectionStage },
+    Queries { progress: CollectionQueryProgress },
     Phase { message: String },
     Complete { snapshot_id: String },
     Failed { message: String },
+    Screenshots { progress: WebsiteProgress },
+}
+
+#[derive(Clone, Debug, Serialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum CollectionStage {
+    Inventory,
+    Discovery,
+    Capture,
+}
+
+#[derive(Clone, Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(optional_fields = nullable)]
+pub struct CollectionQueryProgress {
+    pub completed: usize,
+    pub total: usize,
+    pub rows: u64,
+    pub failed: usize,
+    pub latest_query: Option<String>,
+}
+
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(optional_fields = nullable)]
+pub struct WebsiteState {
+    pub endpoints: Vec<WebsiteEndpointDto>,
+    pub captures: Vec<WebsiteCaptureDto>,
+    pub evidence_errors: Vec<String>,
+}
+
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename = "WebsiteEndpoint", optional_fields = nullable)]
+pub struct WebsiteEndpointDto {
+    pub resource_id: String,
+    pub resource_name: String,
+    pub source: String,
+    pub hostname: Option<String>,
+    pub url: Option<String>,
+    #[ts(
+        type = "'ready' | 'disabled' | 'wildcard' | 'missing_hostname' | 'invalid_hostname' | 'missing_evidence'"
+    )]
+    pub status: String,
+}
+
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename = "WebsiteCapture", optional_fields = nullable)]
+pub struct WebsiteCaptureDto {
+    pub url: String,
+    pub final_url: Option<String>,
+    pub captured_at: Option<String>,
+    pub attempted_at: String,
+    #[ts(type = "'running' | 'captured' | 'failed' | 'cancelled' | 'interrupted'")]
+    pub status: String,
+    pub error: Option<String>,
+    pub renderer: Option<String>,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
+}
+
+#[derive(Debug, serde::Deserialize, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WebsiteCaptureRequest {
+    pub snapshot_id: String,
+    pub urls: Vec<String>,
+    pub retry_only: bool,
+}
+
+#[derive(Debug, Clone, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(optional_fields = nullable)]
+pub struct WebsiteProgress {
+    pub completed: usize,
+    pub total: usize,
+    pub url: Option<String>,
+    pub captured: usize,
+    pub failed: usize,
+    pub cancelled: bool,
+}
+
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(optional_fields = nullable)]
+pub struct WebsiteBatchResult {
+    pub captured: usize,
+    pub failed: usize,
+    pub skipped: usize,
+    pub cancelled: bool,
+    pub error: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, TS)]

@@ -277,3 +277,32 @@ fn estate_resources() -> Vec<Value> {
         }),
     ]
 }
+
+/// Optional saved evidence for screenshot export tests. The source is entirely
+/// local and deliberately simple so embedded PNG bytes stay deterministic.
+#[allow(dead_code)]
+pub fn seed_website_evidence(store: &Store, snapshot: &str) -> Vec<u8> {
+    let mut image = image::RgbImage::from_pixel(1440, 900, image::Rgb([238, 243, 245]));
+    for y in 0..120 {
+        for x in 0..1440 {
+            image.put_pixel(x, y, image::Rgb([23, 41, 54]));
+        }
+    }
+    let mut bytes = std::io::Cursor::new(Vec::new());
+    image.write_to(&mut bytes, image::ImageFormat::Png).unwrap();
+    let png = bytes.into_inner();
+    let url = "https://web-dev.azurewebsites.net/";
+    store
+        .save_website_capture(
+            snapshot,
+            url,
+            &azdocs::model::websites::CapturedWebsite {
+                final_url: url.into(),
+                captured_at: "2026-09-12T10:00:00Z".into(),
+                renderer: "fixture".into(),
+                png: png.clone(),
+            },
+        )
+        .unwrap();
+    png
+}

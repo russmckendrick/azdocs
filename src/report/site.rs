@@ -128,6 +128,7 @@ pub fn write(
         }
     }
     let pages = render_pages(report, &branding.labels)?;
+    report.websites.write_assets(out_dir)?;
     let nav = navigation(&pages);
     for (relative, markdown) in &pages {
         let html_relative = relative.replace(".md", ".html");
@@ -139,6 +140,23 @@ pub fn write(
                 diagrams,
                 &branding.labels.report.html.diagrams,
             ));
+            body.push_str(&report.websites.html(&branding.labels, None, Some(&prefix)));
+        }
+        if let Some(group) = report
+            .details
+            .iter()
+            .find(|group| format!("{}.md", group.path) == *relative)
+        {
+            let ids = group
+                .resources
+                .iter()
+                .map(|r| crate::model::normalize_arm_id(&r.arm_id))
+                .collect();
+            body.push_str(
+                &report
+                    .websites
+                    .html(&branding.labels, Some(&ids), Some(&prefix)),
+            );
         }
         let title = markdown
             .lines()
@@ -192,7 +210,7 @@ fn diagram_section(diagrams: &[DiagramAsset], heading: &str) -> String {
     out
 }
 
-fn html_escape(value: &str) -> String {
+pub(crate) fn html_escape(value: &str) -> String {
     value
         .replace('&', "&amp;")
         .replace('<', "&lt;")

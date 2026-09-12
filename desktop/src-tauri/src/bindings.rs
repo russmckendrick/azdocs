@@ -87,7 +87,15 @@ pub fn generated_typescript() -> String {
 
     decl::<CollectRequestDto>(&mut out, &cfg);
     decl::<CollectResultDto>(&mut out, &cfg);
+    decl::<CollectionStage>(&mut out, &cfg);
+    decl::<CollectionQueryProgress>(&mut out, &cfg);
     decl::<CollectionEvent>(&mut out, &cfg);
+    decl::<WebsiteState>(&mut out, &cfg);
+    decl::<WebsiteEndpointDto>(&mut out, &cfg);
+    decl::<WebsiteCaptureDto>(&mut out, &cfg);
+    decl::<WebsiteCaptureRequest>(&mut out, &cfg);
+    decl::<WebsiteProgress>(&mut out, &cfg);
+    decl::<WebsiteBatchResult>(&mut out, &cfg);
     decl::<ExportRequestDto>(&mut out, &cfg);
     decl::<ExportResultDto>(&mut out, &cfg);
     decl::<ExportEvent>(&mut out, &cfg);

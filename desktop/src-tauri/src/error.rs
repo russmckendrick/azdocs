@@ -2,6 +2,8 @@ use serde::Serialize;
 
 #[derive(Debug, thiserror::Error)]
 pub enum AppError {
+    #[error("website capture error: {0}")]
+    Capture(String),
     #[error("database path is not a file: {0}")]
     InvalidDatabase(String),
     #[error("application state is unavailable: {0}")]

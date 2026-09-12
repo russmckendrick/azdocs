@@ -187,7 +187,8 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 {% endfor %}
 {% endfor %}
 
-<p class="meta">{{ branding.footer }}</p>
+{% if website_evidence %}{{ website_evidence | safe }}
+{% endif %}<p class="meta">{{ branding.footer }}</p>
 <script>
 function filterTable(input, id) {
   const needle = input.value.toLowerCase();

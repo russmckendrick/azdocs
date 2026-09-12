@@ -1,3 +1,4 @@
+import { WebsiteScreenshots } from "./WebsiteScreenshots";
 import { useEffect, useRef } from "react";
 import {
   AlertTriangle,
@@ -127,6 +128,7 @@ export function ResourceDetailView({
 
       <div ref={scrollRef} className="resource-record-scroll">
         <div className="resource-record-evidence">
+          <WebsiteScreenshots resourceId={resource.id} snapshotId={estate.id} />
           <section className="resource-record-section">
             <div className="resource-record-section-heading">
               <div><h2>{words.findings_title}</h2><p>{words.findings_detail}</p></div>

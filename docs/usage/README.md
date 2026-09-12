@@ -21,4 +21,6 @@ flowchart LR
    [diagrams](diagrams.md), or [browse](tui.md) interactively
 5. [Diff snapshots](snapshots.md) over time, extend the [query pack](queries.md), wire it into [CI](ci.md)
 
+Capture [website screenshots](website-screenshots.md) from the desktop and include them in offline exports.
+
 Stuck? See [troubleshooting](troubleshooting.md).

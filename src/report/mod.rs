@@ -9,6 +9,7 @@ pub mod markdown;
 pub mod pdf;
 pub mod site;
 pub mod theme;
+pub mod websites;
 pub mod xlsx;
 
 mod document;
@@ -35,6 +36,8 @@ pub use governance::{
 /// for direct serialization into templates.
 #[derive(Debug, Serialize)]
 pub struct ReportContext {
+    #[serde(skip)]
+    pub websites: websites::WebsiteReport,
     #[serde(skip)]
     pub analysis: analysis::ReportAnalysis,
     pub snapshot_id: String,
@@ -162,6 +165,19 @@ pub struct ResourceTypeSection {
 
 impl ReportContext {
     pub fn build(store: &Store, snapshot_id: &str) -> Result<Self, StoreError> {
+        Self::build_with_website_images(store, snapshot_id, true)
+    }
+
+    /// Desktop metadata never reads screenshot blobs; previews load on demand.
+    pub fn build_for_desktop(store: &Store, snapshot_id: &str) -> Result<Self, StoreError> {
+        Self::build_with_website_images(store, snapshot_id, false)
+    }
+
+    fn build_with_website_images(
+        store: &Store,
+        snapshot_id: &str,
+        include_images: bool,
+    ) -> Result<Self, StoreError> {
         let snapshot = store.get_snapshot(snapshot_id)?;
         let subscriptions = store.subscriptions(snapshot_id)?;
         let resource_groups = store.resource_groups(snapshot_id)?;
@@ -414,6 +430,7 @@ impl ReportContext {
         }
 
         Ok(Self {
+            websites: websites::WebsiteReport::build(store, snapshot_id, include_images)?,
             analysis,
             snapshot_id: snapshot.id.clone(),
             created_at: snapshot.created_at.to_rfc3339(),

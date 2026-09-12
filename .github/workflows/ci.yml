@@ -7,6 +7,10 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  # Large report dependencies exhausted the Linux runner during cache cleanup.
+  # Keep CI artifacts small; local development still includes full debug info.
+  CARGO_PROFILE_DEV_DEBUG: "0"
+  CARGO_PROFILE_TEST_DEBUG: "0"
 
 jobs:
   test:
@@ -22,6 +26,8 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: v1-rust-no-debuginfo
       # --all covers every workspace member; the desktop crate is checked here
       # so the Tauri job does not need to reinstall a toolchain to format it.
       - name: Format
@@ -30,10 +36,19 @@ jobs:
         run: cargo clippy --all-targets --locked -- -D warnings
       - name: Test
         run: cargo test --locked
+      - name: Report Linux disk usage before cache cleanup
+        if: always() && runner.os == 'Linux'
+        run: |
+          df -h .
+          if [ -d target ]; then du -sh target; fi
 
   desktop:
-    name: Desktop (Linux)
-    runs-on: ubuntu-latest
+    name: Desktop (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -48,12 +63,14 @@ jobs:
           cache: pnpm
           cache-dependency-path: desktop/pnpm-lock.yaml
       - name: Install Tauri system dependencies
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-      # Single workspace root since desktop/src-tauri joined the workspace, so
-      # this shares a cache and a lockfile with the job above.
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xvfb
+      # Both jobs use the workspace lockfile; each keeps its own build cache.
       - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: v1-rust-no-debuginfo
       - name: Install frontend dependencies
         working-directory: desktop
         run: pnpm install --frozen-lockfile
@@ -77,10 +94,28 @@ jobs:
       # desktop/src/generated-labels.json from data/labels/en.toml.
       - name: Test desktop backend
         run: cargo test -p azdocs-desktop --locked
+      - name: Native screenshot smoke test (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a cargo run -p azdocs-desktop --locked --example website_capture_smoke
+      - name: Native screenshot smoke test (macOS / Windows)
+        if: runner.os != 'Linux'
+        run: cargo run -p azdocs-desktop --locked --example website_capture_smoke
+      - name: Upload native capture evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: website-capture-${{ matrix.os }}
+          path: output/website-smoke/
       - name: Check generated TypeScript is current
+        shell: bash
         run: |
           if ! git diff --exit-code -- desktop/src/generated.ts desktop/src/generated-labels.json; then
             echo "::error::desktop/src/generated.ts or generated-labels.json is stale."
             echo "Run 'cargo test -p azdocs-desktop' and commit the result."
             exit 1
           fi
+      - name: Report Linux disk usage before cache cleanup
+        if: always() && runner.os == 'Linux'
+        run: |
+          df -h .
+          if [ -d target ]; then du -sh target; fi

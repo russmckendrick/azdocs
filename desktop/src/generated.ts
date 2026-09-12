@@ -213,9 +213,25 @@ hiddenByFilter: number, totalLinks: number, drawnLinks: number, };
 
 export type CollectRequest = { subscriptions: Array<string>, notes?: string | null, };
 
-export type CollectResult = { snapshotId: string, status: string, queriesRun: number, queriesFailed: number, rowsIngested: number, };
+export type CollectResult = { snapshotId: string, status: string, queriesRun: number, queriesFailed: number, rowsIngested: number, screenshots?: WebsiteBatchResult | null, };
 
-export type CollectionEvent = { "event": "phase", "data": { message: string, } } | { "event": "complete", "data": { snapshotId: string, } } | { "event": "failed", "data": { message: string, } };
+export type CollectionStage = "inventory" | "discovery" | "capture";
+
+export type CollectionQueryProgress = { completed: number, total: number, rows: number, failed: number, latestQuery?: string | null, };
+
+export type CollectionEvent = { "event": "stage", "data": { stage: CollectionStage, } } | { "event": "queries", "data": { progress: CollectionQueryProgress, } } | { "event": "phase", "data": { message: string, } } | { "event": "complete", "data": { snapshotId: string, } } | { "event": "failed", "data": { message: string, } } | { "event": "screenshots", "data": { progress: WebsiteProgress, } };
+
+export type WebsiteState = { endpoints: Array<WebsiteEndpoint>, captures: Array<WebsiteCapture>, evidenceErrors: Array<string>, };
+
+export type WebsiteEndpoint = { resourceId: string, resourceName: string, source: string, hostname?: string | null, url?: string | null, status: 'ready' | 'disabled' | 'wildcard' | 'missing_hostname' | 'invalid_hostname' | 'missing_evidence', };
+
+export type WebsiteCapture = { url: string, finalUrl?: string | null, capturedAt?: string | null, attemptedAt: string, status: 'running' | 'captured' | 'failed' | 'cancelled' | 'interrupted', error?: string | null, renderer?: string | null, width?: number | null, height?: number | null, };
+
+export type WebsiteCaptureRequest = { snapshotId: string, urls: Array<string>, retryOnly: boolean, };
+
+export type WebsiteProgress = { completed: number, total: number, url?: string | null, captured: number, failed: number, cancelled: boolean, };
+
+export type WebsiteBatchResult = { captured: number, failed: number, skipped: number, cancelled: boolean, error?: string | null, };
 
 export type ExportRequest = { includeReference?: boolean | null, snapshotId: string, destination: string, exportKind: ExportKind, formats: Array<string>, diagramType?: string | null, subscriptionId?: string | null, resourceGroup?: string | null, };
 

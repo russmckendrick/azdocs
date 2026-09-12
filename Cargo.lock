@@ -309,6 +309,15 @@ name = "azdocs-desktop"
 version = "0.1.0"
 dependencies = [
  "azdocs",
+ "base64 0.22.1",
+ "block2",
+ "cairo-rs",
+ "chrono",
+ "image",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
+ "objc2-web-kit",
  "serde",
  "serde_json",
  "tauri",
@@ -317,6 +326,9 @@ dependencies = [
  "thiserror 2.0.20",
  "tokio",
  "ts-rs",
+ "webkit2gtk",
+ "webview2-com",
+ "windows",
 ]
 
 [[package]]

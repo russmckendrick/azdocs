@@ -55,7 +55,7 @@ h2_pt = 15.0
 h3_pt = 12.0
 stat_value_pt = 22.0
 stat_label_pt = 9.0
-line_height = 1.35
+line_height = 1.45
 
 [layout]
 reference_table_borders = true

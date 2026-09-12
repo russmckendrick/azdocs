@@ -1,6 +1,7 @@
 pub mod audit;
 pub mod extractors;
 pub mod ingest;
+pub mod websites;
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -43,6 +44,25 @@ pub async fn run<P: TokenProvider + 'static>(
     store: &Store,
     client: Arc<ArgClient<P>>,
     request: CollectRequest,
+) -> anyhow::Result<CollectSummary> {
+    run_with_progress(store, client, request, |_| {}).await
+}
+
+#[derive(Debug, Clone)]
+pub struct CollectProgress {
+    pub completed: usize,
+    pub total: usize,
+    pub rows: u64,
+    pub failed: usize,
+    pub latest_query: Option<String>,
+}
+
+/// Emits progress only after a query's evidence and outcome have been stored.
+pub async fn run_with_progress<P: TokenProvider + 'static>(
+    store: &Store,
+    client: Arc<ArgClient<P>>,
+    request: CollectRequest,
+    on_progress: impl Fn(CollectProgress),
 ) -> anyhow::Result<CollectSummary> {
     let CollectRequest {
         tenant_id,
@@ -92,6 +112,14 @@ pub async fn run<P: TokenProvider + 'static>(
     }
     drop(sender);
 
+    on_progress(CollectProgress {
+        completed: 0,
+        total,
+        rows: 0,
+        failed: 0,
+        latest_query: None,
+    });
+    let mut completed = 0;
     let mut queries_failed = 0;
     let mut rows_ingested: u64 = 0;
     while let Some((def, result, duration_ms)) = receiver.recv().await {
@@ -126,6 +154,14 @@ pub async fn run<P: TokenProvider + 'static>(
         };
         store.record_query_run(&snapshot.id, &run_record)?;
         progress.inc(1);
+        completed += 1;
+        on_progress(CollectProgress {
+            completed,
+            total,
+            rows: rows_ingested,
+            failed: queries_failed,
+            latest_query: Some(def.description.clone()),
+        });
     }
     progress.finish_and_clear();
 

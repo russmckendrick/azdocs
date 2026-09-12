@@ -188,7 +188,7 @@ mod end_to_end {
 
     use azdocs::arg::ArgClient;
     use azdocs::auth::StaticTokenProvider;
-    use azdocs::collect::{CollectRequest, run};
+    use azdocs::collect::{CollectRequest, run_with_progress};
     use serde_json::json;
     use wiremock::matchers::method;
     use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -225,7 +225,8 @@ mod end_to_end {
         let pack = azdocs::querypack::QueryPack::builtin().unwrap();
         let queries = vec![pack.get("all_resources").unwrap().clone()];
 
-        let summary = run(
+        let updates = std::sync::Mutex::new(Vec::new());
+        let summary = run_with_progress(
             &store,
             client,
             CollectRequest {
@@ -237,10 +238,21 @@ mod end_to_end {
                 required_tags: vec!["env".into()],
                 quiet: true,
             },
+            |progress| updates.lock().unwrap().push(progress),
         )
         .await
         .unwrap();
 
+        let updates = updates.into_inner().unwrap();
+        assert_eq!(
+            (updates[0].completed, updates[0].total, updates[0].rows),
+            (0, 1, 0)
+        );
+        assert_eq!(
+            (updates[1].completed, updates[1].rows, updates[1].failed),
+            (1, summary.rows_ingested, summary.queries_failed)
+        );
+        assert!(updates[1].latest_query.is_some());
         let edges = store.edges(&summary.snapshot_id).unwrap();
         let findings = store.findings(&summary.snapshot_id).unwrap();
         assert_eq!(

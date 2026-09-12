@@ -22,6 +22,36 @@ use azdocs::report::{self, ReportContext};
 use azdocs::store::Store;
 
 #[test]
+#[ignore = "writes PDF fixtures for typography review; run with --ignored"]
+fn writes_print_typography_previews() {
+    let store = Store::open_in_memory().unwrap();
+    let snapshot = common::seed_estate(&store);
+    common::seed_website_evidence(&store, &snapshot);
+    store.save_website_capture(&snapshot, "https://web-dev.azurewebsites.net/", &azdocs::model::websites::CapturedWebsite {
+        final_url: format!("https://login.example.com/00000000-0000-0000-0000-000000000000/oauth2/v2.0/authorize?client_id=fixture&redirect_uri=https%3A%2F%2Fweb-dev.azurewebsites.net%2F&nonce={}", "x".repeat(400)),
+        captured_at: "2026-09-12T17:49:25.940770+00:00".into(),
+        renderer: "fixture".into(),
+        png: include_bytes!("../desktop/src/fixtures/website.png").to_vec(),
+    }).unwrap();
+    let mut context = ReportContext::build(&store, &snapshot).unwrap();
+    let mut missing = context.websites.endpoints[0].clone();
+    missing.url = Some("https://orange-stone-089140003.7.azurestaticapps.net/".into());
+    missing.hostname = Some("orange-stone-089140003.7.azurestaticapps.net".into());
+    context.websites.endpoints.push(missing);
+    let branding = BrandingContext::default();
+    let diagrams = assets::build_assessment(&context.analysis, &branding.labels);
+    let out = PathBuf::from("output/pdf");
+    std::fs::create_dir_all(&out).unwrap();
+    report::pdf::write(&context, &branding, &diagrams, &out.join("report.pdf")).unwrap();
+    std::fs::write(
+        out.join("technical-reference.pdf"),
+        report::pdf::render_reference(&context, &branding, &[]).unwrap(),
+    )
+    .unwrap();
+    println!("Print typography previews: {}", out.display());
+}
+
+#[test]
 #[ignore = "writes files for manual review; run with --ignored"]
 fn writes_every_theme_in_every_format() {
     let store = Store::open_in_memory().unwrap();

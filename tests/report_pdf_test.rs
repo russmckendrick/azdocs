@@ -142,7 +142,7 @@ fn pdf_main_omits_resource_register_and_reference_retains_it() {
     let reference = pdf::render_reference(&report, &branding, &[]).unwrap();
     let (_, text) = extract_all_text(&reference);
     assert!(text.contains("Resources by type"));
-    assert!(text.contains("Host Pool Type"));
+    assert!(text.contains("hostPoolType"));
     assert!(text.contains("Finding occurrence register"));
 }
 

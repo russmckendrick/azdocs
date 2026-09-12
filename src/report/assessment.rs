@@ -28,6 +28,7 @@ fn table<'a>(blocks: &mut Vec<Block<'a>>, columns: &[&str], rows: Vec<Vec<String
         let weights = table_weights(columns, &rows);
         blocks.push(Block::Table {
             style: TableKind::Data,
+            keep_together: false,
             links: Vec::new(),
             columns: columns
                 .iter()
@@ -857,6 +858,7 @@ fn study<'a>(
                 row: observations.len(),
                 column: 0,
                 target: issue_id(index),
+                external: false,
             });
             observations.push(vec![
                 issue_title(w, issue).to_owned(),
@@ -1192,7 +1194,14 @@ fn issues<'a>(
             ),
         );
         if !g.source.is_empty() {
-            note(blocks, g.source.as_str());
+            if g.source.starts_with("https://") || g.source.starts_with("http://") {
+                blocks.push(Block::ExternalLink {
+                    title: Cow::Borrowed(&w.source),
+                    url: Cow::Borrowed(&g.source),
+                });
+            } else {
+                note(blocks, g.source.as_str());
+            }
         }
     }
 }
@@ -1433,6 +1442,7 @@ fn actions<'a>(
                 row,
                 column: 0,
                 target: issue_id(row),
+                external: false,
             })
             .collect();
     }
@@ -1553,26 +1563,20 @@ pub(super) fn reference<'a>(
                     id: resource_anchor(report, &resource.id).unwrap_or_default(),
                     name: Cow::Borrowed(&resource.name),
                     icon: Cow::Borrowed(&resource.azure_type),
+                    subtitle: Cow::Borrowed(azure_types::display_name(&resource.azure_type)),
                 });
-                note(blocks, azure_types::display_name(&resource.azure_type));
-                blocks.push(Block::Paragraph {
-                    style: ParagraphStyle::Muted,
-                    runs: vec![mono(resource.display_id.as_str())],
-                });
-                let detail = crate::report::details::resource_detail(resource, name, &[], &[]);
-                blocks.push(Block::Facts {
-                    items: detail
-                        .settings
-                        .into_iter()
-                        .map(|s| fact(s.key, s.value, false))
-                        .collect(),
-                });
+                super::metadata::identity(resource, name, labels, blocks);
+                report.websites.print_blocks(&resource.id, labels, blocks);
+                super::metadata::configuration(resource, labels, blocks);
                 let related: Vec<_> = report
                     .analysis
                     .relationships
                     .iter()
                     .filter(|r| r.source == resource.id || r.target == resource.id)
                     .collect();
+                if !related.is_empty() {
+                    sub_label(blocks, &w.reference_relationships);
+                }
                 table(
                     blocks,
                     &[&w.source, &w.relationship, &w.target],
@@ -1597,28 +1601,10 @@ pub(super) fn reference<'a>(
                                     row,
                                     column,
                                     target,
+                                    external: false,
                                 });
                             }
                         }
-                    }
-                }
-                sub_label(blocks, &w.reference_properties);
-                for (label, value) in [
-                    (labels.common.columns.tags.as_str(), &resource.tags),
-                    (w.replication.as_str(), &resource.sku),
-                    (w.identity_type.as_str(), &resource.identity),
-                    (w.reference_properties.as_str(), &resource.properties),
-                ] {
-                    if let Some(value) = value {
-                        json_facts(
-                            blocks,
-                            if label == w.reference_properties {
-                                ""
-                            } else {
-                                label
-                            },
-                            value,
-                        );
                     }
                 }
             }
@@ -1673,7 +1659,7 @@ pub(super) fn reference<'a>(
                 .map(|row| {
                     selected
                         .iter()
-                        .map(|key| crate::model::truncate(&cell_to_string(row.get(*key)), 512))
+                        .map(|key| print_evidence_value(row.get(*key)))
                         .collect()
                 })
                 .collect(),
@@ -1696,7 +1682,7 @@ fn json_facts<'a>(blocks: &mut Vec<Block<'a>>, prefix: &str, value: &serde_json:
             }
             _ => items.push(fact(
                 prefix.to_owned(),
-                crate::model::truncate(&cell_to_string(Some(value)), 512),
+                print_evidence_value(Some(value)),
                 false,
             )),
         }
@@ -1704,4 +1690,14 @@ fn json_facts<'a>(blocks: &mut Vec<Block<'a>>, prefix: &str, value: &serde_json:
     let mut items = Vec::new();
     flatten(prefix, value, &mut items);
     blocks.push(Block::Facts { items });
+}
+
+// Long URLs remain complete even inside stored JSON/query evidence.
+fn print_evidence_value(value: Option<&serde_json::Value>) -> String {
+    let text = cell_to_string(value);
+    if text.contains("https://") || text.contains("http://") {
+        text
+    } else {
+        crate::model::truncate(&text, 512)
+    }
 }

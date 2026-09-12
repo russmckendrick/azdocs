@@ -68,11 +68,21 @@ Links use normalized ARM IDs, so duplicate names remain distinct. Main-report ev
 examples use bullet points; the explanatory sections retain the assessment's
 regular body type.
 
+Each resource starts with an identity table, kept with its name and service type.
+Configuration uses a single aligned table with section rows for tags, SKU,
+managed identity and resource properties. Nested objects and array entries keep
+their own groups instead of repeating long JSON paths on every row. ARM IDs used
+as object keys appear in the wider value column. Empty containers, explicit nulls
+and complete property values are retained.
+
+Website screenshots form a gallery followed by a separate capture-details table for each website.
+External links show their complete URLs and wrap within the table cells.
+
 The companion retains a full resource register, subscription → resource group →
 resource detail, every finding occurrence and stored query evidence, including
-queries no longer present in the current pack. Print tables omit ARM ID columns
-and use at most six columns. Long property/query values are shortened to 512
-characters; compact setting summaries use at most 24 fields. Each reduction is
+queries no longer present in the current pack. Print query tables omit ARM ID columns
+and use at most six columns. Non-URL query and finding-evidence values may be shortened to 512
+characters. Resource metadata and URLs are shown in full. Each reduction is
 identified in the reference. The snapshot database retains full stored values;
 CSV, XLSX and HTML exports provide full values for their included fields and
 queries.

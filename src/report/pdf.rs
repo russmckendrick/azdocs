@@ -157,7 +157,17 @@ impl ReportWorld {
         );
 
         let mut files = BTreeMap::new();
+        files.insert(
+            FileId::new(None, VirtualPath::new("/external-link.svg")),
+            Bytes::new(
+                super::document::external_link_svg(&branding.tokens.palette.accent).into_bytes(),
+            ),
+        );
         for block in &document.blocks {
+            if let super::document::Block::RasterImage { slug, png, .. } = block {
+                let id = FileId::new(None, VirtualPath::new(format!("/websites/{slug}.png")));
+                files.insert(id, Bytes::new(png.to_vec()));
+            }
             if let super::document::Block::Chart { slug, svg, .. } = block {
                 let id = FileId::new(None, VirtualPath::new(format!("/charts/{slug}.svg")));
                 files.insert(id, Bytes::new(svg.clone().into_bytes()));

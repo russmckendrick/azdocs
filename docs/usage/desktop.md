@@ -18,6 +18,8 @@ It does not maintain a second inventory and it does not query Azure while you
 browse: resource details, findings, relationships, history, and comparisons
 all come from the selected local snapshot.
 
+Website endpoints also have [saved screenshots](website-screenshots.md), captured automatically after desktop collection or on request. Browsing saved images stays offline.
+
 ## Run from a source checkout
 
 Node.js, Rust, and the [Tauri v2 platform prerequisites](https://v2.tauri.app/start/prerequisites/)

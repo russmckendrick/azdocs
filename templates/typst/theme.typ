@@ -69,6 +69,14 @@
   body,
 )
 
+#let external-link(url, display-url, size: typ.small_pt * 1pt) = link(url, grid(
+  columns: (auto, 1fr),
+  column-gutter: 4pt,
+  align: top,
+  image("/external-link.svg", width: size),
+  text(font: typ.sans, size: size, style: "normal", fill: accent, breakable(display-url)),
+))
+
 #let display(body, size, weight: "regular", fill: ink) = text(
   font: typ.serif,
   size: size,
@@ -126,13 +134,13 @@
 
 /// Render a display-ready semantic table. Labels and JSON value formatting
 /// have already been resolved by PrintDocument, so no report logic lives here.
-#let print-table(_kind, columns, rows, links) = {
+#let print-table(_kind, columns, rows, links, keep-together: false) = {
   if columns.len() == 0 or rows.len() == 0 {
     return empty-state(labels.report.evidence.no_results)
   }
   // Narrow evidence columns must fit even unspaced property names and enums.
   let max-span = if columns.len() >= 4 { 1 } else { 12 }
-  block(above: 0.25em, below: 0.85em, breakable: true, table(
+  block(above: 0.25em, below: 0.85em, breakable: not keep-together, table(
     columns: columns.map(column => column.weight * 1fr),
     inset: lay.table_inset_pt * 1pt,
     stroke: table-stroke,
@@ -143,7 +151,9 @@
         let column = columns.at(index)
         let target = links.find(entry => entry.row == row-index and entry.column == index)
         let content = table-value(value, mono-value: column.mono, max-span: max-span)
-        if target == none { content } else { link(label(target.target), text(fill: accent, content)) }
+        if target == none { content }
+        else if target.external { external-link(target.target, value, size: typ.table_pt * 1pt) }
+        else { link(label(target.target), text(fill: accent, content)) }
       }))
       .flatten(),
   ))
@@ -173,6 +183,23 @@
     ]
   }
 ]
+
+// One column grid for the whole metadata section. Group names occupy a full
+// row, so nested paths are never squeezed beside a one-word value.
+#let metadata-table(groups, keep-together: false) = block(above: 0.25em, below: 0.85em, breakable: not keep-together, table(
+  columns: (1fr, 2fr), inset: lay.table_inset_pt * 1pt,
+  stroke: table-stroke,
+  ..groups.map(group => (
+    table.cell(colspan: 2, inset: (x: lay.table_inset_pt * 1pt, y: 5pt),
+      text(font: typ.sans, size: typ.table_header_pt * 1pt, weight: "semibold", fill: ink, breakable(group.title))),
+    ..group.rows.enumerate().map(((row-index, row)) => (
+      table-value(row.first()),
+      if group.links.any(entry => entry.row == row-index) {
+        external-link(row.last(), row.last(), size: typ.table_pt * 1pt)
+      } else { table-value(row.last()) },
+    )).flatten(),
+  )).flatten(),
+))
 
 /// A flowing resource index: the resource name leads, with its Azure context
 /// kept on the same visual line where space permits.
@@ -342,13 +369,15 @@
 
 /// Name plate above each resource's detail, so a reader scanning a long
 /// chapter can find one resource without reading the settings tables.
-#let resource-plate(name, icon-path) = block(width: 100%, above: 1.4em, below: 0.5em, sticky: true,
+#let resource-plate(name, subtitle, icon-path) = block(width: 100%, above: 1.4em, below: 0.5em, sticky: true,
   grid(columns: (auto, 1fr), align: horizon, gutter: 6pt,
     if icon-path != "" { image(icon-path, width: typ.h3_pt * 1.2pt, height: typ.h3_pt * 1.2pt, fit: "contain") } else { [] },
-    text(size: typ.h3_pt * 1pt, weight: "regular", fill: ink, breakable(name))))
+    stack(spacing: 3pt,
+      text(size: typ.h3_pt * 1pt, weight: "regular", fill: ink, breakable(name)),
+      text(size: typ.small_pt * 1pt, fill: muted, subtitle))))
 
-#let sub-label(title) = block(width: 100%, above: 0.8em, below: 0.35em, sticky: true,
-  text(size: typ.base_pt * 1pt, weight: "regular", fill: ink, title))
+#let sub-label(title) = block(width: 100%, above: 11pt, below: 5pt, sticky: true,
+  text(font: typ.sans, size: typ.base_pt * 1pt, weight: "semibold", fill: ink, title))
 
 #let callout(severity, title, detail: none) = block(
   width: 100%,
@@ -501,6 +530,8 @@
     text(font: typ.serif, size: typ.h3_pt * 1pt, weight: "regular", fill: ink, it),
   )
   show link: set text(fill: accent)
+  set figure(numbering: none, gap: 8pt)
+  show figure.caption: set align(left)
 
   body
 }

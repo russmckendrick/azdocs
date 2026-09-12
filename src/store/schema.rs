@@ -113,6 +113,36 @@ const MIGRATIONS: &[&str] = &[
     DROP INDEX IF EXISTS idx_resources_type;
     DROP INDEX IF EXISTS idx_edges_target;
     ",
+    // 3: Portable website evidence. Capture outcomes do not change audit status.
+    "
+    CREATE TABLE website_endpoints (
+        snapshot_id TEXT NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
+        ordinal INTEGER NOT NULL,
+        endpoint TEXT NOT NULL,
+        PRIMARY KEY(snapshot_id, ordinal)
+    );
+    CREATE TABLE website_evidence (
+        snapshot_id TEXT NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
+        resource_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        evidence TEXT NOT NULL,
+        PRIMARY KEY(snapshot_id, resource_id, kind)
+    );
+    CREATE TABLE website_captures (
+        snapshot_id TEXT NOT NULL REFERENCES snapshots(id) ON DELETE CASCADE,
+        url TEXT NOT NULL,
+        final_url TEXT,
+        captured_at TEXT,
+        attempted_at TEXT NOT NULL,
+        status TEXT NOT NULL,
+        error TEXT,
+        renderer TEXT,
+        width INTEGER,
+        height INTEGER,
+        png BLOB,
+        PRIMARY KEY(snapshot_id, url)
+    );
+    ",
 ];
 
 pub fn migrate(conn: &Connection) -> Result<(), StoreError> {
@@ -154,6 +184,31 @@ fn current_version(conn: &Connection) -> Result<usize, StoreError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn website_migration_preserves_existing_snapshots() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(MIGRATIONS[0]).unwrap();
+        conn.execute_batch(MIGRATIONS[1]).unwrap();
+        conn.execute("INSERT INTO meta VALUES ('schema_version','2')", [])
+            .unwrap();
+        conn.execute(
+            "INSERT INTO snapshots VALUES ('older','2026-01-01','tenant','test','complete',NULL)",
+            [],
+        )
+        .unwrap();
+        migrate(&conn).unwrap();
+        assert_eq!(
+            conn.query_row("SELECT status FROM snapshots WHERE id='older'", [], |row| {
+                row.get::<_, String>(0)
+            })
+            .unwrap(),
+            "complete"
+        );
+        conn.execute("INSERT INTO website_endpoints VALUES ('older',0,'{}')", [])
+            .unwrap();
+        assert_eq!(current_version(&conn).unwrap(), MIGRATIONS.len());
+    }
 
     #[test]
     fn migrate_is_idempotent() {

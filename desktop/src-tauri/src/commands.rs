@@ -23,7 +23,7 @@ use crate::error::AppError;
 use crate::labels::AppLabels;
 use crate::topology::{self, TopologyGraphDto, TopologyRequest};
 
-fn database_path(state: &State<'_, AppState>) -> Result<PathBuf, AppError> {
+pub(crate) fn database_path(state: &State<'_, AppState>) -> Result<PathBuf, AppError> {
     state
         .database_path
         .read()
@@ -110,10 +110,16 @@ pub fn bootstrap(state: State<'_, AppState>) -> Result<AppBootstrap, AppError> {
 
 #[tauri::command]
 pub fn open_database(path: String, state: State<'_, AppState>) -> Result<AppBootstrap, AppError> {
+    if state.captures.is_active() {
+        return Err(AppError::Capture(
+            "Cannot switch database while capture or collection is running".into(),
+        ));
+    }
     let path = PathBuf::from(&path);
     if !path.is_file() {
         return Err(AppError::InvalidDatabase(path.display().to_string()));
     }
+    Store::open(&path)?.recover_website_captures()?;
     let bootstrap = bootstrap_for(&path, &state.labels)?;
     set_database_path(&state, path)?;
     Ok(bootstrap)
@@ -149,7 +155,7 @@ pub fn load_snapshot(
 ) -> Result<EstateSnapshot, AppError> {
     let store = Store::open(&database_path(&state)?)?;
     let snapshot_id = store.resolve_snapshot(snapshot_id.as_deref().unwrap_or("latest"))?;
-    let context = ReportContext::build(&store, &snapshot_id)?;
+    let context = ReportContext::build_for_desktop(&store, &snapshot_id)?;
     let subscriptions = store.subscriptions(&snapshot_id)?;
     let resource_groups = store.resource_groups(&snapshot_id)?;
     let resources = store.resources(&snapshot_id)?;
@@ -211,11 +217,16 @@ pub fn topology_graph(
 
 #[tauri::command]
 pub async fn collect_snapshot(
+    app: tauri::AppHandle,
     request: CollectRequestDto,
     on_event: Channel<CollectionEvent>,
     state: State<'_, AppState>,
 ) -> Result<CollectResultDto, AppError> {
+    let lease = state.captures.begin()?;
     let path = database_path(&state)?;
+    let capture_path = path.clone();
+    let capture_channel = on_event.clone();
+    let completion_channel = on_event.clone();
     let labels = Arc::clone(&state.labels);
     let failure_channel = on_event.clone();
     let result: Result<CollectResultDto, AppError> =
@@ -225,6 +236,9 @@ pub async fn collect_snapshot(
                 .build()
                 .map_err(|error| AppError::Collection(error.to_string()))?;
             runtime.block_on(async move {
+                let _ = on_event.send(CollectionEvent::Stage {
+                    stage: crate::dto::CollectionStage::Inventory,
+                });
                 let phases = &labels.desktop.backend.phases;
                 let _ = on_event.send(CollectionEvent::Phase {
                     message: phases.loading_pack.clone(),
@@ -249,7 +263,7 @@ pub async fn collect_snapshot(
                 } else {
                     request.subscriptions
                 };
-                let summary = azdocs::collect::run(
+                let summary = azdocs::collect::run_with_progress(
                     &store,
                     client,
                     CollectRequest {
@@ -258,27 +272,117 @@ pub async fn collect_snapshot(
                         subscriptions,
                         concurrency: config.collect.concurrency,
                         notes: request.notes,
-                        required_tags: config.audit.required_tags,
+                        required_tags: config.audit.required_tags.clone(),
                         quiet: true,
+                    },
+                    |progress| {
+                        let _ = on_event.send(CollectionEvent::Queries {
+                            progress: crate::dto::CollectionQueryProgress {
+                                completed: progress.completed,
+                                total: progress.total,
+                                rows: progress.rows,
+                                failed: progress.failed,
+                                latest_query: progress.latest_query,
+                            },
+                        });
                     },
                 )
                 .await
                 .map_err(|error| AppError::Collection(error.to_string()))?;
-                let _ = on_event.send(CollectionEvent::Complete {
-                    snapshot_id: summary.snapshot_id.clone(),
-                });
+                let mut discovery_error = None;
+                if summary.status != azdocs::model::SnapshotStatus::Failed {
+                    let _ = on_event.send(CollectionEvent::Stage {
+                        stage: crate::dto::CollectionStage::Discovery,
+                    });
+                    let discovery = async {
+                        let resources = store.resources(&summary.snapshot_id)?;
+                        let _ = on_event.send(CollectionEvent::Phase {
+                            message: labels.common.websites.discovering.clone(),
+                        });
+                        let provider = azdocs::commands::token_provider(&config)
+                            .map_err(|e| AppError::Config(e.to_string()))?;
+                        let evidence = azdocs::collect::websites::WebsiteManagement::new(provider)
+                            .map_err(|e| AppError::Collection(e.to_string()))?
+                            .enrich(&resources)
+                            .await;
+                        let endpoints = azdocs::collect::websites::discover(&resources, &evidence);
+                        store.save_website_inventory(
+                            &summary.snapshot_id,
+                            &endpoints,
+                            &evidence,
+                        )?;
+                        Ok::<(), AppError>(())
+                    }
+                    .await;
+                    discovery_error = discovery.err().map(|e| e.to_string());
+                }
                 Ok(CollectResultDto {
                     snapshot_id: summary.snapshot_id,
                     status: summary.status.as_str().to_owned(),
                     queries_run: summary.queries_run,
                     queries_failed: summary.queries_failed,
                     rows_ingested: summary.rows_ingested,
+                    screenshots: discovery_error.map(|error| crate::dto::WebsiteBatchResult {
+                        captured: 0,
+                        failed: 0,
+                        skipped: 0,
+                        cancelled: false,
+                        error: Some(error),
+                    }),
                 })
             })
         })
         .await
         .map_err(|error| AppError::Collection(error.to_string()))?;
 
+    let mut result = result;
+    if let Ok(summary) = &mut result {
+        if summary.status != "failed" {
+            let _ = capture_channel.send(CollectionEvent::Stage {
+                stage: crate::dto::CollectionStage::Capture,
+            });
+            let request = crate::dto::WebsiteCaptureRequest {
+                snapshot_id: summary.snapshot_id.clone(),
+                urls: vec![],
+                retry_only: false,
+            };
+            let discovery_error = summary.screenshots.take().and_then(|s| s.error);
+            summary.screenshots = Some(
+                match crate::capture::run(
+                    &app,
+                    &capture_path,
+                    request,
+                    &lease,
+                    &state.labels.common.websites.capture_window,
+                    |progress| {
+                        let _ = capture_channel.send(CollectionEvent::Screenshots { progress });
+                    },
+                )
+                .await
+                {
+                    Ok(mut result) => {
+                        if let Some(discovery_error) = discovery_error {
+                            result.error = Some(match result.error {
+                                Some(error) => format!("{discovery_error}; {error}"),
+                                None => discovery_error,
+                            });
+                        }
+                        result
+                    }
+                    Err(error) => crate::dto::WebsiteBatchResult {
+                        captured: 0,
+                        failed: 0,
+                        skipped: 0,
+                        cancelled: false,
+                        error: Some(error.to_string()),
+                    },
+                },
+            );
+        }
+        let _ = completion_channel.send(CollectionEvent::Complete {
+            snapshot_id: summary.snapshot_id.clone(),
+        });
+    }
     if let Err(error) = &result {
         let _ = failure_channel.send(CollectionEvent::Failed {
             message: error.to_string(),

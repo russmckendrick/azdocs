@@ -1,3 +1,6 @@
+import { WebsiteContext, useWebsiteCapture } from "./website-capture";
+import { collectionFeedback } from "./collection-feedback";
+import { CollectionDialog } from "./components/CollectionDialog";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import {
   AlertTriangle,
@@ -114,12 +117,17 @@ export default function App() {
   const [error, setError] = useState<string>();
   const [collectionMessage, setCollectionMessage] = useState<string>();
   const [collecting, setCollecting] = useState(false);
+  const [collectionOpen, setCollectionOpen] = useState(false);
+  const [collectionError, setCollectionError] = useState<string>();
+  const [feedback, updateFeedback] = useReducer(collectionFeedback, undefined);
+  const [screenshotPhase, setScreenshotPhase] = useState(false);
+  const websites = useWebsiteCapture(estate?.id, collecting);
   const [themePreference, setThemePreference] = useState<ThemePreference>(readThemePreference);
   const [systemDark, setSystemDark] = useState(
     () => window.matchMedia("(prefers-color-scheme: dark)").matches,
   );
   const searchRef = useRef<HTMLInputElement>(null);
-  const { desktop: { nav, shell } } = useLabels();
+  const { common: { websites: websiteWords }, desktop: { nav, shell } } = useLabels();
   const view = navigation.section;
   const resourceRecordId = navigation.surface.kind === "resource"
     ? navigation.surface.resourceId
@@ -267,29 +275,53 @@ export default function App() {
   }
 
   async function handleCollect() {
-    if (collecting) return;
+    if (websites.blocked) return;
+    let active = true;
     setCollecting(true);
+    updateFeedback({ type: "start", at: Date.now() });
+    setScreenshotPhase(false);
+    setCollectionError(undefined);
     setError(undefined);
     setCollectionMessage(shell.preparing_collection);
     try {
       const result = await collectEstate((event: CollectionEvent) => {
+        if (!active) return;
+        updateFeedback({ type: "event", event });
+        if (event.event === "screenshots") {
+          setScreenshotPhase(true);
+          setCollectionMessage(fill(websiteWords.progress, { completed: event.data.progress.completed, total: event.data.progress.total, url: event.data.progress.url ?? "" }));
+        }
         if (event.event === "phase") setCollectionMessage(event.data.message);
         if (event.event === "complete") setCollectionMessage(shell.snapshot_stored);
         if (event.event === "failed") setCollectionMessage(event.data.message);
       });
+      updateFeedback({ type: "finish", at: Date.now(), result });
       const nextBootstrap = await getBootstrap();
       installLabels(nextBootstrap.labels);
       setBootstrap(nextBootstrap);
       await loadSnapshot(result.snapshotId);
       setCollectionMessage(
-        fill(shell.collected, { rows: result.rowsIngested.toLocaleString(), status: result.status }),
+        [
+          fill(shell.collected, { rows: result.rowsIngested.toLocaleString(), status: result.status }),
+          result.screenshots
+            ? (result.screenshots.error ?? (result.screenshots.cancelled
+              ? websiteWords.cancelled
+              : fill(websiteWords.complete, {
+                  captured: result.screenshots.captured,
+                  failed: result.screenshots.failed,
+                  skipped: result.screenshots.skipped,
+                })))
+            : "",
+        ].filter(Boolean).join(" "),
       );
-      window.setTimeout(() => setCollectionMessage(undefined), 4800);
     } catch (caught) {
-      setError(errorMessage(caught));
+      updateFeedback({ type: "fail", at: Date.now() });
+      setCollectionError(errorMessage(caught));
       setCollectionMessage(undefined);
     } finally {
+      active = false;
       setCollecting(false);
+      setScreenshotPhase(false);
     }
   }
 
@@ -318,6 +350,7 @@ export default function App() {
   }, []);
 
   return (
+    <WebsiteContext.Provider value={websites}>
     <div className="app-shell">
       <header className="masthead">
         <div className="brand">
@@ -333,7 +366,7 @@ export default function App() {
           <select
             value={estate?.id ?? ""}
             onChange={(event) => void loadSnapshot(event.target.value)}
-            disabled={!bootstrap?.snapshots.length || loading}
+            disabled={!bootstrap?.snapshots.length || loading || websites.blocked}
             aria-label={shell.snapshot_picker}
           >
             {bootstrap?.snapshots.map((snapshot) => (
@@ -389,20 +422,21 @@ export default function App() {
           ) : null}
         </div>
         <div className="masthead-actions">
-          <button className="quiet-button" onClick={handleDatabase} title={bootstrap?.databasePath}>
+          <button className="quiet-button" disabled={websites.blocked} onClick={handleDatabase} title={bootstrap?.databasePath}>
             <FolderSearch2 size={15} />
             {shell.open_data}
           </button>
           <button
             className="collect-button"
-            onClick={() => void handleCollect()}
-            disabled={collecting || !bootstrap?.hasCredentials}
+            onClick={() => setCollectionOpen(true)}
+            aria-haspopup="dialog"
+            disabled={!bootstrap}
             title={bootstrap?.hasCredentials
-              ? shell.collect_hint
+              ? `${shell.collect_hint} ${websiteWords.collect_note}`
               : fill(shell.configure_credentials, { path: bootstrap?.configPath ?? "azdocs.toml" })}
           >
-            {collecting ? <LoaderCircle className="spin" size={15} /> : <RefreshCw size={15} />}
-            {collecting ? shell.collecting : shell.collect}
+            {collecting || websites.busy ? <LoaderCircle className="spin" size={15} /> : <RefreshCw size={15} />}
+            {collecting ? shell.collecting : websites.busy ? websiteWords.states.running : shell.collect}
           </button>
         </div>
       </header>
@@ -439,11 +473,11 @@ export default function App() {
         </nav>
 
         <main className={view === "topology" ? "workspace workspace-topology" : "workspace"}>
-          {collectionMessage ? (
+          {collecting && !collectionOpen && collectionMessage ? (
             <div className="collection-strip" role="status">
               <LoaderCircle className={collecting ? "spin" : ""} size={15} />
               <span>{collectionMessage}</span>
-              <small>{shell.source_note}</small>
+              <button className="quiet-button" onClick={() => setCollectionOpen(true)}>{websiteWords.show_collection}</button>
             </div>
           ) : null}
           {error ? (
@@ -458,7 +492,7 @@ export default function App() {
           {!loading && !estate && !error && view !== "settings" ? (
             <EmptyWorkspace
               canCollect={Boolean(bootstrap?.hasCredentials)}
-              onCollect={() => void handleCollect()}
+              onCollect={() => setCollectionOpen(true)}
               onOpen={handleDatabase}
             />
           ) : null}
@@ -567,7 +601,14 @@ export default function App() {
               ? fill(shell.status_export_ready, { id: estate.id })
             : shell.status_no_selection}</span>
       </footer>
+      <CollectionDialog open={collectionOpen} collecting={collecting} autoCapturing={screenshotPhase}
+        canCollect={Boolean(bootstrap?.hasCredentials)}
+        credentialsHint={fill(shell.configure_credentials, { path: bootstrap?.configPath ?? "azdocs.toml" })}
+        snapshotLabel={estate ? fill(shell.snapshot_option, { date: dayMonthTime(estate.createdAt), count: estate.resources.length }) : undefined}
+        message={collectionMessage} error={collectionError} feedback={feedback}
+        onClose={() => setCollectionOpen(false)} onCollect={() => void handleCollect()} />
     </div>
+    </WebsiteContext.Provider>
   );
 }
 

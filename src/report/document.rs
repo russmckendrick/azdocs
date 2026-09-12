@@ -1,5 +1,7 @@
 #[path = "assessment.rs"]
 mod assessment;
+#[path = "metadata.rs"]
+mod metadata;
 
 use std::borrow::Cow;
 
@@ -33,6 +35,20 @@ pub(crate) struct Cover<'a> {
 #[derive(Debug, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub(crate) enum Block<'a> {
+    RasterImage {
+        slug: String,
+        #[serde(skip)]
+        png: &'a [u8],
+        caption: Cow<'a, str>,
+    },
+    ExternalLink {
+        title: Cow<'a, str>,
+        url: Cow<'a, str>,
+    },
+    Metadata {
+        groups: Vec<MetadataGroup>,
+        keep_together: bool,
+    },
     Section {
         level: u8,
         title: Cow<'a, str>,
@@ -70,6 +86,7 @@ pub(crate) enum Block<'a> {
     },
     Table {
         style: TableKind,
+        keep_together: bool,
         columns: Vec<TableColumn<'a>>,
         rows: Vec<Vec<Cow<'a, str>>>,
         links: Vec<TableLink>,
@@ -84,6 +101,7 @@ pub(crate) enum Block<'a> {
         id: String,
         name: Cow<'a, str>,
         icon: Cow<'a, str>,
+        subtitle: Cow<'a, str>,
     },
     SubLabel {
         title: Cow<'a, str>,
@@ -100,6 +118,12 @@ pub(crate) enum Block<'a> {
     EmptyState {
         text: Cow<'a, str>,
     },
+}
+
+pub(super) fn external_link_svg(color: &str) -> String {
+    format!(
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M10 14 21 3"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg>"#
+    )
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -151,6 +175,14 @@ pub(crate) struct TableLink {
     pub row: usize,
     pub column: usize,
     pub target: String,
+    pub external: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub(crate) struct MetadataGroup {
+    pub title: String,
+    pub rows: Vec<Vec<String>>,
+    pub links: Vec<TableLink>,
 }
 
 /// Short, collision-free bookmarks within the selected snapshot. Identity is
@@ -244,6 +276,7 @@ impl<'a> PrintDocument<'a> {
                     .collect();
                 *block = Block::Table {
                     style: TableKind::Data,
+                    keep_together: false,
                     links: Vec::new(),
                     columns: headers
                         .into_iter()
@@ -389,14 +422,6 @@ pub(super) fn normal<'a>(text: impl Into<Cow<'a, str>>) -> TextRun<'a> {
     TextRun {
         text: text.into(),
         style: TextStyle::Normal,
-        severity: None,
-    }
-}
-
-fn mono<'a>(text: impl Into<Cow<'a, str>>) -> TextRun<'a> {
-    TextRun {
-        text: text.into(),
-        style: TextStyle::Mono,
         severity: None,
     }
 }

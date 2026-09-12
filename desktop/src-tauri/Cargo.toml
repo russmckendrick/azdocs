@@ -26,3 +26,21 @@ tokio = { workspace = true }
 # rather than being silently ignored — so the warning is noise on every
 # `tauri dev` rebuild, not a signal.
 ts-rs = { version = "12.0.1", features = ["serde-json-impl", "no-serde-warnings"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
+base64 = "0.22"
+chrono = "0.4"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+block2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSObject", "NSError", "NSString", "NSData", "NSDictionary", "NSURL", "NSURLRequest"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSImage", "NSBitmapImageRep", "NSImageRep"] }
+objc2-web-kit = { version = "0.3", default-features = false, features = ["std", "block2", "objc2-app-kit", "WKWebView", "WKSnapshotConfiguration", "WKNavigationDelegate", "WKNavigationAction", "WKNavigationResponse", "WKNavigation", "WKUIDelegate", "WKFrameInfo", "WKSecurityOrigin"] }
+
+[target.'cfg(target_os = "windows")'.dependencies]
+webview2-com = "0.38"
+windows = { version = "0.61", features = ["Win32_System_Com", "Win32_UI_Shell"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+webkit2gtk = { version = "2.0", features = ["v2_40"] }
+cairo-rs = { version = "0.18", features = ["png"] }

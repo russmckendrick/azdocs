@@ -201,6 +201,11 @@ mod tests {
     /// Every placeholder the code fills. A `{cnt}` typo in the built-in file
     /// fails here rather than printing itself.
     const KNOWN_PLACEHOLDERS: &[&str] = &[
+        "time",
+        "url",
+        "captured",
+        "completed",
+        "skipped",
         "a",
         "added",
         "audit",
