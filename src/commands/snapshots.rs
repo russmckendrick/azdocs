@@ -152,6 +152,7 @@ fn prune(
     yes: bool,
     words: &SnapshotsLabels,
 ) -> anyhow::Result<()> {
+    store.require_tenant()?;
     if keep.is_none() && older_than.is_none() {
         bail!("pass --keep <n> and/or --older-than <days>");
     }

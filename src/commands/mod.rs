@@ -1,5 +1,6 @@
 pub mod check;
 pub mod collect;
+pub mod config;
 pub mod diagram;
 pub mod init;
 pub mod query;

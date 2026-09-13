@@ -24,3 +24,5 @@ flowchart LR
 Capture [website screenshots](website-screenshots.md) from the desktop and include them in offline exports.
 
 Stuck? See [troubleshooting](troubleshooting.md).
+
+See [permission diagnostics](permissions.md) for connection tests and the limits of read-only RBAC evidence.

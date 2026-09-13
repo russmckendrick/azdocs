@@ -1,5 +1,4 @@
 use crate::{AppState, commands::database_path, dto::*, error::AppError};
-use azdocs::store::Store;
 use base64::Engine as _;
 use tauri::{State, ipc::Channel};
 use tauri_plugin_dialog::DialogExt;
@@ -9,7 +8,7 @@ pub fn website_state(
     snapshot_id: String,
     state: State<'_, AppState>,
 ) -> Result<WebsiteState, AppError> {
-    let store = Store::open(&database_path(&state)?)?;
+    let store = crate::commands::open_store(&state)?;
     let id = store.resolve_snapshot(&snapshot_id)?;
     Ok(WebsiteState {
         endpoints: store
@@ -53,7 +52,7 @@ pub fn website_image(
     url: String,
     state: State<'_, AppState>,
 ) -> Result<Option<String>, AppError> {
-    let store = Store::open(&database_path(&state)?)?;
+    let store = crate::commands::open_store(&state)?;
     let id = store.resolve_snapshot(&snapshot_id)?;
     Ok(store.website_png(&id, &url)?.map(|bytes| {
         format!(
@@ -72,12 +71,17 @@ pub async fn capture_websites(
 ) -> Result<WebsiteBatchResult, AppError> {
     let lease = state.captures.begin()?;
     let path = database_path(&state)?;
+    crate::commands::open_store(&state)?.resolve_snapshot(&request.snapshot_id)?;
     crate::capture::run(
         &app,
         &path,
         request,
         &lease,
-        &state.labels.common.websites.capture_window,
+        &crate::settings::session(&state)?
+            .labels
+            .common
+            .websites
+            .capture_window,
         |progress| {
             let _ = on_event.send(progress);
         },
@@ -98,13 +102,18 @@ pub async fn save_website_image(
     state: State<'_, AppState>,
 ) -> Result<bool, AppError> {
     let bytes = {
-        let store = Store::open(&database_path(&state)?)?;
+        let store = crate::commands::open_store(&state)?;
         let id = store.resolve_snapshot(&snapshot_id)?;
         store.website_png(&id, &url)?.ok_or_else(|| {
             AppError::Capture(crate::capture::CaptureError::NoSavedImage.to_string())
         })?
     };
-    let title = state.labels.common.websites.save.clone();
+    let title = crate::settings::session(&state)?
+        .labels
+        .common
+        .websites
+        .save
+        .clone();
     let (tx, rx) = tokio::sync::oneshot::channel();
     app.dialog()
         .file()

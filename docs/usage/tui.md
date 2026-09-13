@@ -22,6 +22,10 @@ stateDiagram-v2
   pretty-printed properties JSON
 - **Findings** — severity-ordered; `Enter` jumps to the affected resource
 
+Use `--tenant <reference-or-tenant-id>` to select the estate. Explicit snapshot
+IDs remain usable offline without credentials; a supplied tenant selection
+enforces ownership. See [tenant history](snapshots.md#tenant-isolation).
+
 ## Keys
 
 | Key | Action |

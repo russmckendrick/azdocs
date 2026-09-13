@@ -2,6 +2,10 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+pub mod document;
+pub mod secrets;
+pub use document::{ConfigDocument, SettingsValues, TenantProfile};
+
 use crate::error::ConfigError;
 
 pub const ENV_TENANT_ID: &str = "AZDOCS_TENANT_ID";
@@ -18,15 +22,17 @@ pub struct Config {
     pub branding: BrandingConfig,
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Default, Clone, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct AuthConfig {
     pub tenant_id: Option<String>,
     pub client_id: Option<String>,
     pub client_secret: Option<String>,
+    pub secret_ref: Option<String>,
+    pub secret_env: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(default, deny_unknown_fields)]
 pub struct CollectConfig {
     /// Subscription ids to collect; empty means all visible to the credential.
@@ -43,13 +49,13 @@ impl Default for CollectConfig {
     }
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(default, deny_unknown_fields)]
 pub struct AuditConfig {
     pub required_tags: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(default, deny_unknown_fields)]
 pub struct StorageConfig {
     pub db_path: PathBuf,
@@ -66,7 +72,7 @@ impl Default for StorageConfig {
 /// Look and feel of the exported reports (HTML, PDF, DOCX). The defaults
 /// reproduce the unbranded output exactly; every field can be overridden in
 /// `[branding]`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(default, deny_unknown_fields)]
 pub struct BrandingConfig {
     /// Organisation name shown on covers and footers; empty hides it.
@@ -145,7 +151,7 @@ pub fn default_config_path() -> PathBuf {
 }
 
 /// Credentials with all required values present, ready for token acquisition.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Credentials {
     pub tenant_id: String,
     pub client_id: String,
@@ -165,29 +171,12 @@ impl Config {
     pub fn load_with_source(
         explicit: Option<&Path>,
     ) -> Result<(Self, Option<PathBuf>), ConfigError> {
-        let (mut config, source) = match explicit {
-            Some(path) => (Self::from_file(path)?, Some(path.to_path_buf())),
-            None => {
-                let candidates = Self::default_paths();
-                match candidates.iter().find(|p| p.exists()) {
-                    Some(path) => (Self::from_file(path)?, Some(path.clone())),
-                    None => (Self::default(), None),
-                }
-            }
-        };
-        config.apply_env_overrides();
-        Ok((config, source))
+        let document = ConfigDocument::load(explicit)?;
+        Ok((document.resolve(None)?, document.source.clone()))
     }
 
     pub fn from_file(path: &Path) -> Result<Self, ConfigError> {
-        let raw = std::fs::read_to_string(path).map_err(|source| ConfigError::Read {
-            path: path.to_path_buf(),
-            source,
-        })?;
-        toml::from_str(&raw).map_err(|source| ConfigError::Parse {
-            path: path.to_path_buf(),
-            source: Box::new(source),
-        })
+        ConfigDocument::load(Some(path))?.resolve(None)
     }
 
     pub fn default_paths() -> Vec<PathBuf> {
@@ -218,25 +207,62 @@ impl Config {
             .auth
             .tenant_id
             .clone()
+            .filter(|s| !s.trim().is_empty())
             .ok_or(ConfigError::MissingValue("auth.tenant_id", ENV_TENANT_ID))?;
         let client_id = self
             .auth
             .client_id
             .clone()
+            .filter(|s| !s.trim().is_empty())
             .ok_or(ConfigError::MissingValue("auth.client_id", ENV_CLIENT_ID))?;
-        let client_secret = self
-            .auth
-            .client_secret
-            .clone()
-            .ok_or(ConfigError::MissingValue(
-                "auth.client_secret",
-                ENV_CLIENT_SECRET,
-            ))?;
+        let client_secret = match (&self.auth.secret_ref, &self.auth.secret_env) {
+            (Some(reference), _) => {
+                secrets::SecretStore::get(&secrets::NativeSecretStore, reference)?
+            }
+            (_, Some(variable)) => std::env::var(variable)
+                .ok()
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| {
+                    ConfigError::Invalid(format!(
+                        "secret environment variable `{variable}` is not set"
+                    ))
+                })?,
+            _ => self
+                .auth
+                .client_secret
+                .clone()
+                .filter(|s| !s.is_empty())
+                .ok_or(ConfigError::MissingValue(
+                    "auth.client_secret",
+                    ENV_CLIENT_SECRET,
+                ))?,
+        };
         Ok(Credentials {
             tenant_id,
             client_id,
             client_secret,
         })
+    }
+}
+
+impl std::fmt::Debug for AuthConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AuthConfig")
+            .field("tenant_id", &self.tenant_id)
+            .field("client_id", &self.client_id)
+            .field("client_secret", &"[redacted]")
+            .field("secret_ref", &self.secret_ref)
+            .field("secret_env", &self.secret_env)
+            .finish()
+    }
+}
+impl std::fmt::Debug for Credentials {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Credentials")
+            .field("tenant_id", &self.tenant_id)
+            .field("client_id", &self.client_id)
+            .field("client_secret", &"[redacted]")
+            .finish()
     }
 }
 

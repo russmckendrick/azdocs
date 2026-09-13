@@ -1,5 +1,6 @@
 import type {
   CollectionEvent,
+  ConnectionCheck,
   CollectionQueryProgress,
   CollectionStage,
   CollectResult,
@@ -13,8 +14,10 @@ export type CollectionFeedback = {
   queries?: CollectionQueryProgress;
   screenshots?: WebsiteProgress;
   result?: CollectResult;
+  permissions?: ConnectionCheck;
 };
 export type FeedbackAction =
+  | { type: "reset" }
   | { type: "start"; at: number }
   | { type: "event"; event: CollectionEvent }
   | { type: "finish"; at: number; result: CollectResult }
@@ -24,6 +27,7 @@ export function collectionFeedback(
   state: CollectionFeedback | undefined,
   action: FeedbackAction,
 ): CollectionFeedback | undefined {
+  if (action.type === "reset") return undefined;
   if (action.type === "start")
     return { startedAt: action.at, stage: "inventory" };
   if (!state) return state;
@@ -38,6 +42,8 @@ export function collectionFeedback(
     return { ...state, stage: "failed", endedAt: action.at };
   if (state.endedAt !== undefined) return state;
   const event = action.event;
+  if (event.event === "permissions")
+    return { ...state, permissions: event.data.check };
   if (event.event === "stage") return { ...state, stage: event.data.stage };
   if (event.event === "queries")
     return { ...state, queries: event.data.progress };

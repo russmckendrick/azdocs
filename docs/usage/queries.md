@@ -1,5 +1,8 @@
 # Queries
 
+Live query execution accepts `--tenant <reference>` and repeats the shared
+[permission preflight](permissions.md). Stored query evidence remains offline.
+
 ## Ad-hoc queries
 
 Run any KQL against Resource Graph without storing anything:

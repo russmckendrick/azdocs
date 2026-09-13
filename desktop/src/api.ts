@@ -307,3 +307,82 @@ export async function exportSnapshot(
   channel.onmessage = onUpdate;
   return invoke<ExportResult>("export_snapshot", { request, onEvent: channel });
 }
+
+export async function getSettings(): Promise<
+  import("./types").SettingsDocumentDto
+> {
+  if (!PREVIEW || isTauri) return invoke("settings_load");
+  return structuredClone((await import("./settings-preview")).previewSettings);
+}
+export async function saveSettings(
+  request: import("./types").SettingsSaveRequest,
+): Promise<AppBootstrap> {
+  if (!PREVIEW || isTauri) return invoke("settings_save", { request });
+  return (await import("./settings-preview")).savePreview(request.values);
+}
+export async function testSettings(
+  request: import("./types").SettingsTestRequest,
+): Promise<import("./types").SettingsTestResult> {
+  if (!PREVIEW || isTauri) return invoke("settings_test", { request });
+  await pause(600);
+  return {
+    check: structuredClone((await import("./settings-preview")).previewCheck),
+    secretToken: null,
+  };
+}
+export async function selectTenant(tenantId: string): Promise<AppBootstrap> {
+  if (!PREVIEW || isTauri) return invoke("select_tenant", { tenantId });
+  return (await import("./settings-preview")).selectPreviewTenant(tenantId);
+}
+export async function loadSettingsConfig(
+  choose = false,
+): Promise<AppBootstrap | undefined> {
+  const words = labels().desktop.settings.editor;
+  let path: string | null = null;
+  if (choose && (!PREVIEW || isTauri)) {
+    const picked = await open({
+      title: words.choose_file,
+      multiple: false,
+      filters: [{ name: words.toml_filter, extensions: ["toml"] }],
+    });
+    if (typeof picked !== "string") return undefined;
+    path = picked;
+  }
+  if (!PREVIEW || isTauri) return invoke("settings_load_config", { path });
+  return (await import("./mock-data")).mockBootstrap;
+}
+export async function migrateSettings(
+  reference: string,
+  name: string,
+): Promise<AppBootstrap> {
+  return invoke("settings_migrate", { reference, name });
+}
+export async function exportSettings(): Promise<boolean> {
+  if (!PREVIEW || isTauri) return invoke("settings_export");
+  const values = (await getSettings()).values;
+  const url = URL.createObjectURL(
+    new Blob([JSON.stringify(values, null, 2)], { type: "application/json" }),
+  );
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "azdocs-settings-redacted.json";
+  link.click();
+  URL.revokeObjectURL(url);
+  return true;
+}
+export async function chooseBrandingPath(
+  directory = false,
+): Promise<string | undefined> {
+  if (PREVIEW && !isTauri) return undefined;
+  const selected = await open({
+    title: labels().desktop.settings.editor.choose_branding_file,
+    directory,
+    multiple: false,
+  });
+  return typeof selected === "string" ? selected : undefined;
+}
+
+export async function discardSettingsSecrets(tokens: string[]): Promise<void> {
+  if ((!PREVIEW || isTauri) && tokens.length)
+    await invoke("settings_discard_secrets", { tokens });
+}

@@ -330,8 +330,9 @@ shared ports, name-only grids or indiscriminate Fit all.
 
 - Config/db live in platform dirs (`directories::ProjectDirs` — on macOS
   `~/Library/Application Support/azdocs/`); overridable with `--config`/`--db`.
-- All exports default under `./output/` (gitignored). `azdocs.toml` contains a
-  client secret — it and `azdocs.db` must never be committed.
+- All exports default under `./output/` (gitignored). `azdocs.toml` uses native secret references or explicit environment references;
+  legacy files and protected migration backups may contain plaintext secrets.
+  Local configs, backups and `azdocs.db` must never be committed.
 - User query overrides: `<config dir>/azdocs/queries.d/*.toml`, merged over
   built-ins by name; user themes: `<config dir>/azdocs/themes/*.toml`, merged
   by file stem.

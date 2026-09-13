@@ -39,7 +39,8 @@ generated from the stored snapshot, never live Azure.
 | Page | Covers |
 |---|---|
 | [Installation](usage/installation.md) | Binaries, cargo install, shell completions |
-| [Configuration](usage/configuration.md) | Service principal setup, config file, env vars |
+| [Configuration](usage/configuration.md) | Named tenants, shared defaults, native secrets, migration and environment references |
+| [Permission diagnostics](usage/permissions.md) | Connection tests, RBAC verdicts and coverage limits |
 | [Collecting](usage/collecting.md) | Running the query pack, scoping, throttling |
 | [Reports](usage/reports.md) | Markdown, HTML, CSV, XLSX outputs |
 | [Diagrams](usage/diagrams.md) | draw.io and Mermaid diagram types |

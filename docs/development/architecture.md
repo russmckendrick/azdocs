@@ -52,8 +52,8 @@ flowchart LR
 | Path | Purpose |
 |---|---|
 | `src/cli.rs` | The whole clap surface — the contract for every command |
-| `src/config.rs` | TOML config, platform paths, env overrides (`deny_unknown_fields`) |
-| `src/auth/` | `TokenProvider` trait + OAuth2 client-credentials flow, cached single-flight refresh |
+| `src/config.rs`, `src/config/` | Resolved runtime settings, versioned editable documents, inheritance, atomic conflict-checked TOML edits and native secret-store abstraction (`deny_unknown_fields`) |
+| `src/auth/` | `TokenProvider`, cached OAuth2 credentials flow and shared advisory Azure RBAC diagnostics |
 | `src/arg/` | ARG client: `$skipToken` pagination, 429 backoff, quota-header pacing |
 | `src/querypack/` | `QueryDef` TOML model; built-ins embedded, user `queries.d/` merged by name |
 | `src/labels/` | Every user-facing string, typed from `data/labels/en.toml`; user files deep-merged by name |
@@ -64,7 +64,7 @@ flowchart LR
 | `src/diagram/` | `EstateGraph` builders (incl. per-VNet/per-RG fan-out) → `page` (A4 fractions, density rungs) → `layout` (measure/justify) → `route` (orthogonal connectors) → mermaid / drawio (single + workbook) / svg / png emitters |
 | `src/tui/` | ratatui browse; `App` is a pure state machine, `ui.rs` renders it |
 | `desktop/src-tauri/` | Thin Tauri v2 boundary; opens the shared `Store` per command and maps core models to serialisable DTOs. `topology.rs` builds the explorer's view-ready relationship graphs (estate lanes, group drill-in with folding, ×N aggregation and cross-group ghost stubs, bounded-depth neighbourhoods) with honest drawn/folded/aggregated counts |
-| `desktop/src/` | React/TypeScript estate explorer and lazy-loaded Cytoscape.js relationship canvas; `topology-layout.ts` owns deterministic zones/cameras, `topology-presentation.ts` owns synthetic boundary ports and DOM label placement, and `CytoscapeResourceGraph.tsx` coordinates paint and interaction. No direct file, database, credential, or Azure access. See [Desktop map](desktop-relationships.md). |
+| `desktop/src/` | React/TypeScript estate explorer and lazy-loaded Cytoscape.js relationship canvas; `topology-layout.ts` owns deterministic zones/cameras, `topology-presentation.ts` owns synthetic boundary ports and DOM label placement, and `CytoscapeResourceGraph.tsx` coordinates paint and interaction. No direct file, database, credential-store or Azure access; new secret entry is a write-only Rust command input. See [Desktop map](desktop-relationships.md). |
 
 ## Design decisions
 
@@ -83,7 +83,7 @@ resource — child types link to the ARM parent their id nests under, and
 API calls, retroactive on old snapshots, and each extractor is a pure
 `fn(&Resource) -> Vec<Edge>`.
 
-**Auth is ~80 hand-rolled lines on purpose.** The client-credentials flow is
+**Auth stays hand-rolled behind `TokenProvider`.** The client-credentials flow is
 one POST. `azure_identity` was rejected for API churn and unneeded surface.
 The `TokenProvider` trait (static dispatch) keeps it swappable and testable.
 
@@ -124,3 +124,44 @@ happens to say today. `ReportContext.governance` renders the print and Markdown
 Governance chapter; `EstateSnapshot.governance` renders the explorer's
 workspace. Both receive `healthy` and `flagged` booleans, not the thresholds —
 sending the numbers is what let the frontend keep its own copy of the rule.
+
+## Tenant configuration boundary
+
+```mermaid
+flowchart LR
+    settings[Desktop Settings / config CLI] --> doc[ConfigDocument: editable values + revision]
+    doc --> resolved[Config: selected tenant + inherited defaults]
+    resolved -->|online only| secret[SecretStore: native store / explicit env reference]
+    secret --> provider[TokenProvider]
+    provider --> diagnostic[Shared ARM permission diagnostic]
+    resolved --> store[Store: central tenant filter]
+    store --> offline[ReportContext / diagrams / TUI / desktop DTOs]
+```
+
+`SettingsValues` is secret-free and sparse override structs preserve absent vs
+explicit-empty list semantics. `ConfigDocument` owns raw comments and legacy
+secrets, does not implement Debug, and sanitises parse errors. Runtime resolution
+never reads the secret store. Only live operations resolve credentials.
+`SecretStore` is injectable in tests; the native implementation uses keyring v1.
+Config writes stage and verify new secret entries, lock/recheck file revisions,
+write a protected backup, and atomically replace TOML. Failed writes roll back
+new entries. Previous entries remain usable by backups and copied configs.
+
+Rust-generated DTOs return redacted settings, summaries, validation errors and
+connection diagnostics. Existing secrets and tokens never go to the webview.
+The frontend can submit a newly typed secret once; it clears the field after
+submission. Draft tests may return an opaque token for a Rust-only secret held
+for at most 15 minutes. Identity/source changes, discard and context switching
+invalidate pending secrets. No new credential is written to TOML, logs or DTOs.
+
+`Store::with_tenant` owns filtering for history, latest, comparison and deletion.
+Cross-tenant comparisons are rejected even when explicit IDs are supplied.
+Snapshot rows remain unchanged; profile references are not historical keys.
+Reporting resolves branding against the snapshot's tenant profile and defaults
+when that profile is absent. All SQL remains under `src/store/`.
+
+The desktop's `Session` holds config path, tenant ID, DB path and resolved labels.
+Collection/capture acquire the context lease and clone operation context before
+starting; exports clone their context. Frontend generation guards reject stale
+snapshot and draft-test results. Config/tenant preferences persist locally and
+are distinct from the editable TOML and application appearance preference.

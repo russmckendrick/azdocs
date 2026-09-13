@@ -21,7 +21,113 @@ import type {
   Labels,
 } from "./labels";
 
-export type AppBootstrap = { databasePath: string, configPath: string, configFound: boolean, hasCredentials: boolean, requiredTags: Array<string>, snapshots: Array<SnapshotSummary>, latestSnapshotId?: string | null, 
+export type SettingsValues = { schema_version: number, default_tenant?: string | null, tenants: { [key in string]: TenantProfile }, collect: CollectConfig, audit: AuditConfig, storage: StorageConfig, branding: BrandingConfig, };
+
+export type TenantProfile = { name: string, tenant_id: string, client_id: string, secret_ref?: string | null, secret_env?: string | null, collect: CollectOverrides, audit: AuditOverrides, branding: BrandingOverrides, };
+
+export type CollectOverrides = { subscriptions?: Array<string> | null, concurrency?: number | null, };
+
+export type AuditOverrides = { required_tags?: Array<string> | null, };
+
+export type BrandingOverrides = { company?: string | null, title?: string | null, subtitle?: string | null, primary_color?: string | null, accent_color?: string | null, logo?: string | null, page_size?: string | null, margin?: string | null, footer?: string | null, theme?: string | null, labels?: string | null, font_family?: string | null, mono_family?: string | null, font_dir?: string | null, };
+
+export type CollectConfig = {
+/**
+ * Subscription ids to collect; empty means all visible to the credential.
+ */
+subscriptions: Array<string>, concurrency: number, };
+
+export type AuditConfig = { required_tags: Array<string>, };
+
+export type StorageConfig = { db_path: string, };
+
+export type BrandingConfig = {
+/**
+ * Organisation name shown on covers and footers; empty hides it.
+ */
+company: string,
+/**
+ * Report title (cover page, HTML `<h1>`).
+ */
+title: string,
+/**
+ * Optional subtitle under the title; empty hides it.
+ */
+subtitle: string,
+/**
+ * Main brand color as `#rrggbb` (headings, links, badges).
+ */
+primary_color: string,
+/**
+ * Secondary color as `#rrggbb` (dark-mode links, rules, highlights).
+ */
+accent_color: string,
+/**
+ * Path to a logo image (.png/.jpg/.jpeg/.gif/.svg), relative paths are
+ * resolved against the config file's directory.
+ */
+logo: string | null,
+/**
+ * PDF paper size (a Typst paper name, e.g. "a4" or "us-letter").
+ */
+page_size: string,
+/**
+ * PDF page margin (a Typst length, e.g. "2cm" or "1in").
+ */
+margin: string,
+/**
+ * Footer text on every report page.
+ */
+footer: string,
+/**
+ * Document theme: a file stem from `data/themes/` or from
+ * `<config dir>/azdocs/themes/`. An unknown name lists the valid ones.
+ */
+theme: string,
+/**
+ * Wording set: a file stem from `data/labels/` or from
+ * `<config dir>/azdocs/labels/`. An unknown name lists the valid ones.
+ */
+labels: string,
+/**
+ * Overrides the theme's `typography.sans` for the PDF and HTML; the
+ * family must be vendored or supplied via `font_dir`. Empty keeps it.
+ */
+font_family: string,
+/**
+ * Overrides the theme's `typography.mono`; empty keeps it.
+ */
+mono_family: string,
+/**
+ * Directory of extra `.ttf`/`.otf` faces loaded into the PDF font book,
+ * so a corporate typeface can be used without vendoring it. Relative
+ * paths resolve against this config file's directory.
+ */
+font_dir: string | null, };
+
+export type TenantSummary = { reference: string, name: string, tenantId: string, configured: boolean, };
+
+export type SettingsDocumentDto = { path: string, revision: string, values?: SettingsValues | null, legacy: boolean, legacyTenantId?: string | null, legacyClientId?: string | null, error?: string | null, check?: ConnectionCheck | null, };
+
+export type SettingsSaveRequest = { revision: string, values: SettingsValues, newSecrets: { [key in string]: string }, secretTokens: { [key in string]: string }, };
+
+export type SettingsTestResult = { check: ConnectionCheck, secretToken?: string | null, };
+
+export type SettingsTestRequest = { reference: string, values: SettingsValues, newSecret: string | null, secretToken: string | null, };
+
+export type ConnectionCheck = { checkedAt: string, subscriptions: Array<VisibleSubscription>, inaccessibleSubscriptions: Array<string>, verdict: PermissionVerdict, grants: Array<PermissionGrant>, issues: Array<AccessIssue>, };
+
+export type VisibleSubscription = { id: string, name: string, };
+
+export type PermissionGrant = { scope: string, role: string, roleId: string, verdict: PermissionVerdict, actions: Array<string>, };
+
+export type PermissionVerdict = "read_only" | "broader_grants" | "unable_to_verify";
+
+export type AccessIssue = { kind: AccessIssueKind, scope: string, };
+
+export type AccessIssueKind = "identity_unavailable" | "no_subscriptions" | "assignment_read_failed" | "definition_read_failed" | "conditional_grant" | "unsupported_permissions" | "no_assignments" | "inaccessible_subscription";
+
+export type AppBootstrap = { tenants: Array<TenantSummary>, activeTenantId?: string | null, configError?: string | null, databasePath: string, configPath: string, configFound: boolean, hasCredentials: boolean, requiredTags: Array<string>, snapshots: Array<SnapshotSummary>, latestSnapshotId?: string | null,
 /**
  * Every word the frontend shows, already resolved against the user's
  * overrides. Typed in TypeScript from `generated-labels.json`.
@@ -32,11 +138,11 @@ export type SnapshotSummary = { id: string, createdAt: string, tenantId: string,
 
 export type SnapshotComparison = { baseSnapshotId: string, targetSnapshotId: string, added: Array<string>, removed: Array<string>, changed: Array<string>, };
 
-export type EstateSnapshot = { id: string, createdAt: string, tenantId: string, status: SnapshotStatus, notes?: string | null, totals: Totals, tagCoverage: TagCoverage, severityCounts: SeverityCounts, azureMetadata: AzureMetadata, governance: Governance, subscriptions: Array<Subscription>, resourceGroups: Array<ResourceGroup>, 
+export type EstateSnapshot = { id: string, createdAt: string, tenantId: string, status: SnapshotStatus, notes?: string | null, totals: Totals, tagCoverage: TagCoverage, severityCounts: SeverityCounts, azureMetadata: AzureMetadata, governance: Governance, subscriptions: Array<Subscription>, resourceGroups: Array<ResourceGroup>,
 /**
  * Every group the relationship map can open, synthetic ones included.
  */
-resourceGroupSummaries: Array<ResourceGroupSummary>, resources: Array<Resource>, resourceTypes: Array<ResourceType>, locations: Array<NameCount>, findings: Array<Finding>, edges: Array<Edge>, queryRuns: Array<QueryRun>, 
+resourceGroupSummaries: Array<ResourceGroupSummary>, resources: Array<Resource>, resourceTypes: Array<ResourceType>, locations: Array<NameCount>, findings: Array<Finding>, edges: Array<Edge>, queryRuns: Array<QueryRun>,
 /**
  * Already interpreted and labelled in Rust; the frontend only renders cells.
  */
@@ -50,49 +156,49 @@ export type SeverityCounts = { high: number, medium: number, low: number, info: 
 
 export type AzureMetadata = { locations: { [key in string]: string }, kinds: { [key in string]: string }, };
 
-export type Governance = { 
+export type Governance = {
 /**
  * How many distinct tag keys the estate uses.
  */
-distinctKeys: number, 
+distinctKeys: number,
 /**
  * The most-used keys, busiest first.
  */
-topKeys: Array<TagKeyCoverage>, 
+topKeys: Array<TagKeyCoverage>,
 /**
  * Coverage per subscription that holds resources, by name.
  */
-subscriptions: Array<SubscriptionCoverage>, 
+subscriptions: Array<SubscriptionCoverage>,
 /**
  * Resources missing at least one required tag.
  */
-nonCompliant: number, 
+nonCompliant: number,
 /**
  * The groups holding most of them, worst first.
  */
 worstGroups: Array<GroupCompliance>, };
 
-export type TagKeyCoverage = { key: string, count: number, 
+export type TagKeyCoverage = { key: string, count: number,
 /**
  * Share of the *tagged* resources carrying this key.
  */
 percent: number, };
 
-export type SubscriptionCoverage = { subscriptionId: string, displayName: string, percent: number, 
+export type SubscriptionCoverage = { subscriptionId: string, displayName: string, percent: number,
 /**
  * Already judged against the healthy-coverage threshold.
  */
 healthy: boolean, };
 
-export type GroupCompliance = { name: string, subscriptionName: string, 
+export type GroupCompliance = { name: string, subscriptionName: string,
 /**
  * Every resource in the group, not just the offenders.
  */
-resources: number, nonCompliant: number, 
+resources: number, nonCompliant: number,
 /**
  * Which required tags were missed anywhere in the group, sorted.
  */
-missedTags: Array<string>, 
+missedTags: Array<string>,
 /**
  * Already judged against the flagged-share threshold.
  */
@@ -102,11 +208,11 @@ export type Subscription = { id: string, displayName: string, state?: string | n
 
 export type ResourceGroup = { id: string, name: string, subscriptionId: string, location?: string | null, tags?: Record<string, unknown>, };
 
-export type ResourceGroupSummary = { id: string, name: string, subscriptionId: string, 
+export type ResourceGroupSummary = { id: string, name: string, subscriptionId: string,
 /**
  * Resolved here so the UI never has to join against the subscription list.
  */
-subscriptionName: string, resourceCount: number, findingCount: number, 
+subscriptionName: string, resourceCount: number, findingCount: number,
 /**
  * Resource ids in this group, ordered by name then id.
  */
@@ -134,21 +240,21 @@ export type QueryRows = { queryName: string, columns: Array<string>, rows: Array
 
 export type TopologyRequest = { snapshotId?: string | null, mode: TopologyMode, scope: TopologyScope, };
 
-export type TopologyMode = { "kind": "estate", 
+export type TopologyMode = { "kind": "estate",
 /**
  * Subscription ids the user has expanded; empty means "auto".
  */
-expandedSubscriptions: Array<string>, } | { "kind": "group", groupId: string, } | { "kind": "neighbourhood", resourceId: string, depth: number, 
+expandedSubscriptions: Array<string>, } | { "kind": "group", groupId: string, } | { "kind": "neighbourhood", resourceId: string, depth: number,
 /**
  * Edge-kind classes to include; empty means all.
  */
 kindClasses: Array<string>, };
 
-export type TopologyScope = { 
+export type TopologyScope = {
 /**
  * Subscription ids to include; empty means all.
  */
-subscriptions: Array<string>, 
+subscriptions: Array<string>,
 /**
  * Azure types to include; empty means all.
  */
@@ -158,31 +264,31 @@ export type TopologyGraph = { level: TopologyLevel, lanes: Array<TopologyLane>, 
 
 export type TopologyLane = { subscriptionId: string, name: string, expanded: boolean, groupCount: number, resourceCount: number, findingCount: number, };
 
-export type TopologyNode = { id: string, 
+export type TopologyNode = { id: string,
 /**
  * resource | resource-group | subscription | vnet | subnet | aggregate
  */
-kind: TopologyNodeKind, name: string, subtitle: string, azureType?: string | null, 
+kind: TopologyNodeKind, name: string, subtitle: string, azureType?: string | null,
 /**
  * Subscription id this node belongs to (estate mode lanes).
  */
-lane?: string | null, 
+lane?: string | null,
 /**
  * Containment: a subnet's vnet, a placed resource's subnet.
  */
-parentId?: string | null, 
+parentId?: string | null,
 /**
  * core | unconnected — which shelf the group view lays the node in.
  */
-zone?: TopologyZone, 
+zone?: TopologyZone,
 /**
  * BFS distance from the subject in neighbourhood mode.
  */
-hop?: number | null, 
+hop?: number | null,
 /**
  * Members folded or aggregated into this node (resource ids).
  */
-memberIds: Array<string>, count: number, findingCount: number, resourceId?: string | null, groupId?: string | null, 
+memberIds: Array<string>, count: number, findingCount: number, resourceId?: string | null, groupId?: string | null,
 /**
  * Resource groups rolled into an estate-level "unconnected groups" tile.
  * Empty on every other node; `member_ids` still lists their resources.
@@ -193,27 +299,27 @@ export type TopologyLink = { sourceId: string, targetId: string, label: string, 
 
 export type KindClassCount = { class: string, count: number, };
 
-export type TopologyCounts = { 
+export type TopologyCounts = {
 /**
  * Resources (or groups, at estate level) in scope.
  */
-total: number, 
+total: number,
 /**
  * Drawn as their own node.
  */
-drawn: number, 
+drawn: number,
 /**
  * Folded into a host node (NIC into VM, child into parent).
  */
-folded: number, 
+folded: number,
 /**
  * Rolled into ×N aggregate tiles or collapsed lanes.
  */
-aggregated: number, 
+aggregated: number,
 /**
  * Neighbours in other groups drawn as ghost stubs (group view only).
  */
-external: number, 
+external: number,
 /**
  * Excluded by the request's filters (never silently — always counted).
  */
@@ -227,7 +333,7 @@ export type CollectionStage = "inventory" | "discovery" | "capture";
 
 export type CollectionQueryProgress = { completed: number, total: number, rows: number, failed: number, latestQuery?: string | null, };
 
-export type CollectionEvent = { "event": "stage", "data": { stage: CollectionStage, } } | { "event": "queries", "data": { progress: CollectionQueryProgress, } } | { "event": "phase", "data": { message: string, } } | { "event": "complete", "data": { snapshotId: string, } } | { "event": "failed", "data": { message: string, } } | { "event": "screenshots", "data": { progress: WebsiteProgress, } };
+export type CollectionEvent = { "event": "permissions", "data": { check: ConnectionCheck, } } | { "event": "stage", "data": { stage: CollectionStage, } } | { "event": "queries", "data": { progress: CollectionQueryProgress, } } | { "event": "phase", "data": { message: string, } } | { "event": "complete", "data": { snapshotId: string, } } | { "event": "failed", "data": { message: string, } } | { "event": "screenshots", "data": { progress: WebsiteProgress, } };
 
 export type WebsiteState = { endpoints: Array<WebsiteEndpoint>, captures: Array<WebsiteCapture>, evidenceErrors: Array<string>, };
 

@@ -23,6 +23,14 @@ pub struct SnapshotDiff {
 }
 
 impl Store {
+    pub fn tenant_ids(&self) -> Result<Vec<String>, StoreError> {
+        Ok(self
+            .conn()
+            .prepare("SELECT DISTINCT lower(tenant_id) FROM snapshots ORDER BY lower(tenant_id)")?
+            .query_map([], |row| row.get(0))?
+            .collect::<Result<_, _>>()?)
+    }
+
     pub fn create_snapshot(
         &self,
         tenant_id: &str,
@@ -67,8 +75,8 @@ impl Store {
         self.conn()
             .query_row(
                 "SELECT id, created_at, tenant_id, tool_version, status, notes
-                 FROM snapshots WHERE id = ?1",
-                [snapshot_id],
+                 FROM snapshots WHERE id = ?1 AND (?2 IS NULL OR lower(tenant_id) = ?2)",
+                params![snapshot_id, self.tenant_id],
                 snapshot_from_row,
             )
             .map_err(|err| match err {
@@ -85,9 +93,9 @@ impl Store {
                     (SELECT COUNT(*) FROM subscriptions WHERE snapshot_id = s.id),
                     (SELECT COUNT(*) FROM resources WHERE snapshot_id = s.id),
                     (SELECT COUNT(*) FROM findings WHERE snapshot_id = s.id)
-             FROM snapshots s ORDER BY s.created_at DESC",
+             FROM snapshots s WHERE (?1 IS NULL OR lower(s.tenant_id) = ?1) ORDER BY s.created_at DESC, s.id DESC",
         )?;
-        let rows = statement.query_map([], |row| {
+        let rows = statement.query_map([self.tenant_id.as_deref()], |row| {
             Ok(SnapshotCounts {
                 snapshot: snapshot_from_row(row)?,
                 subscriptions: row.get::<_, i64>(6)? as u64,
@@ -99,6 +107,7 @@ impl Store {
     }
 
     pub fn delete_snapshot(&self, snapshot_id: &str) -> Result<(), StoreError> {
+        self.get_snapshot(snapshot_id)?;
         self.conn()
             .execute("DELETE FROM snapshots WHERE id = ?1", [snapshot_id])?;
         Ok(())
@@ -107,6 +116,11 @@ impl Store {
     /// Compare resources between two snapshots. `changed` compares the full
     /// properties JSON text.
     pub fn diff_snapshots(&self, a: &str, b: &str) -> Result<SnapshotDiff, StoreError> {
+        let left = self.get_snapshot(a)?;
+        let right = self.get_snapshot(b)?;
+        if !left.tenant_id.eq_ignore_ascii_case(&right.tenant_id) {
+            return Err(StoreError::CrossTenantComparison);
+        }
         let mut diff = SnapshotDiff::default();
         let mut statement = self.conn().prepare(
             "SELECT COALESCE(ra.id, rb.id),

@@ -2,6 +2,12 @@ use std::path::PathBuf;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
+    #[error("{0}")]
+    Invalid(String),
+    #[error("credential store: {0}")]
+    Secret(String),
+    #[error("configuration changed on disk; reload before saving")]
+    Conflict,
     #[error("no config file found (tried: {})", paths_tried.iter().map(|p| p.display().to_string()).collect::<Vec<_>>().join(", "))]
     NotFound { paths_tried: Vec<PathBuf> },
     #[error("failed to read config file {path}: {source}")]
@@ -12,7 +18,7 @@ pub enum ConfigError {
     #[error("failed to parse config file {path}: {source}")]
     Parse {
         path: PathBuf,
-        source: Box<toml::de::Error>,
+        source: Box<ConfigParseError>,
     },
     #[error("missing required config value `{0}` (set it in azdocs.toml or via {1})")]
     MissingValue(&'static str, &'static str),
@@ -104,6 +110,10 @@ pub enum ArgError {
 
 #[derive(Debug, thiserror::Error)]
 pub enum StoreError {
+    #[error("this database contains multiple tenants; select one with --tenant")]
+    TenantSelectionRequired,
+    #[error("cannot compare snapshots from different tenants")]
+    CrossTenantComparison,
     #[error("invalid stored evidence metadata: {0}")]
     Json(#[from] serde_json::Error),
     #[error("database error: {0}")]
@@ -146,4 +156,27 @@ pub enum QueryPackError {
         path: String,
         source: std::io::Error,
     },
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("invalid TOML or unknown field at line {line}, column {column}")]
+pub struct ConfigParseError {
+    pub line: usize,
+    pub column: usize,
+}
+impl ConfigParseError {
+    pub fn new(error: &toml::de::Error, input: &str) -> Self {
+        let offset = error
+            .span()
+            .map(|span| span.start)
+            .unwrap_or(0)
+            .min(input.len());
+        let prefix = &input.as_bytes()[..offset];
+        let line = prefix.iter().filter(|b| **b == b'\n').count() + 1;
+        let column = prefix
+            .iter()
+            .rposition(|b| *b == b'\n')
+            .map_or(offset + 1, |last| offset - last);
+        Self { line, column }
+    }
 }

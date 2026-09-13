@@ -37,6 +37,7 @@ docx-rs = "0.4"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif"] }
 include_dir = "0.7.4"
 indicatif = "0.18.6"
+keyring = { version = "4.2.0", default-features = false, features = ["v1"] }
 minijinja = { version = "2.24.0", features = ["loader"] }
 pulldown-cmark = { version = "0.13.4", default-features = false, features = ["html"] }
 quick-xml = "0.41.0"
@@ -51,6 +52,9 @@ sha2 = "0.10.9"
 thiserror = { workspace = true }
 tokio = { workspace = true }
 toml = "1.1.4"
+toml_edit = "0.25"
+tempfile = "3.27.0"
+ts-rs = { version = "12.0.1", features = ["serde-json-impl", "no-serde-warnings"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 typst = "0.13"
@@ -59,10 +63,12 @@ typst-pdf = "0.13"
 usvg = "0.47"
 uuid = { version = "1.24.1", features = ["v4"] }
 
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security_Authorization"] }
+
 [dev-dependencies]
 insta = { version = "1.48.0", features = ["json", "yaml", "filters"] }
 lopdf = "0.44.0"
-tempfile = "3.27.0"
 wiremock = "0.6.5"
 zip = "4"
 

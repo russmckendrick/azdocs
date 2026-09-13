@@ -3,6 +3,7 @@ import { RefreshCw, X } from "lucide-react";
 import { useLabels } from "../labels";
 import { useWebsites } from "../website-capture";
 import type { CollectionFeedback } from "../collection-feedback";
+import { PermissionStatus } from "./PermissionStatus";
 import { CollectionProgress } from "./CollectionProgress";
 import { WebsiteCaptureControls } from "./WebsiteScreenshots";
 
@@ -61,6 +62,9 @@ export function CollectionDialog(props: Props) {
         {props.feedback ? (
           <CollectionProgress feedback={props.feedback} />
         ) : null}
+        {props.feedback?.permissions && (
+          <PermissionStatus check={props.feedback.permissions} />
+        )}
         {!props.canCollect ? <p>{props.credentialsHint}</p> : null}
         {props.message ? (
           <p className="collection-dialog-status" role="status">

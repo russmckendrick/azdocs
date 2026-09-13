@@ -67,7 +67,8 @@ impl ClientCredentialsProvider {
         let response = self.http.post(&self.token_url).form(&params).send().await?;
         let status = response.status();
         if !status.is_success() {
-            let detail = summarize_token_error(&response.text().await.unwrap_or_default());
+            let detail = summarize_token_error(&response.text().await.unwrap_or_default())
+                .replace(&self.credentials.client_secret, "[redacted]");
             return Err(AuthError::Rejected {
                 status: status.as_u16(),
                 detail,

@@ -305,8 +305,8 @@ with Retry and Revert actions and an `aria-live` announcement.
 
 - **Primary button**: ink block, paper text — inverts with the mode.
 - **Quiet button**: surface fill, strong hairline border.
-- **Active tab**: 2px accent underline (tabs are the one place the accent
-  underlines; navigation never does).
+- **Active tab**: 2px accent underline for evidence tabs. Settings area and
+  panel navigation uses the quiet evidence fill, as described below.
 - **Tag chip**: mono on evidence fill; a **missing** required tag is a dashed
   coral outline.
 - **Summary capsule**: a short, read-only label/value pair for orientation
@@ -322,3 +322,36 @@ with Retry and Revert actions and an `aria-live` announcement.
   category colours only for categorical identity. Overview adds a history line
   and a severity donut with named, counted legend controls. Captions and scope
   notes explain the evidence without numbering.
+
+## Settings layout
+
+Settings uses the Field Report tokens and a restrained tenant list beside a
+bounded editor. Top-level areas are Tenants, Shared defaults and Application.
+Tenant Connection, Collection & audit and Report branding are separate panels;
+selecting a tenant here changes the editor, while the masthead selector changes
+the active estate. Identity and credentials share columns when the tenant
+editor has at least 720px of width and stack below that. At a window width of
+760px or less, the tenant list moves above the editor. Advanced typography and
+document geometry stay expandable. Fields carry explicit labels and inherited
+or overridden states; validation identifies invalid fields. All control text
+remains at least 11px.
+
+The form owns vertical scrolling inside the app workspace. Save/Discard lives
+outside that scroll container so neither viewport height nor long branding
+forms can hide it. Changing area, panel or tenant resets the form to its top.
+Selection uses the quiet evidence fill. At smaller desktop widths, fields
+reflow and masthead tenant and snapshot selectors shrink to preserve actions.
+
+Connection test progress and results use a native `dialog` with the shared
+dashboard modal treatment. The heading names the test and tenant; the body
+scrolls while the heading and close controls remain accessible. Native focus
+containment and Escape dismissal keep interaction in the dialog, and closing
+returns focus to the test control when it is enabled. The form retains a short
+status and a link to reopen the results. Application's System, Light and Dark
+labels are centred in equal-width buttons within a compact, content-sized
+control; the selected choice uses the quiet evidence fill and exposes its
+pressed state.
+
+The implementation is in
+[`SettingsView.tsx`](../../desktop/src/components/SettingsView.tsx) and
+[`SettingsConnectionDialog.tsx`](../../desktop/src/components/SettingsConnectionDialog.tsx).

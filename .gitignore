@@ -3,6 +3,9 @@
 
 # Local credentials and collected data — never commit these
 azdocs.toml
+*.toml.backup-*
+*.toml.lock
+desktop-preferences.json
 azdocs.db
 azdocs.db-shm
 azdocs.db-wal

@@ -17,6 +17,7 @@ use crate::error::StoreError;
 /// nothing outside this module touches SQL.
 pub struct Store {
     conn: Connection,
+    tenant_id: Option<String>,
 }
 
 impl Store {
@@ -28,43 +29,52 @@ impl Store {
         }
         let conn = Connection::open(path)?;
         schema::migrate(&conn)?;
-        Ok(Self { conn })
+        Ok(Self {
+            conn,
+            tenant_id: None,
+        })
     }
 
     pub fn open_in_memory() -> Result<Self, StoreError> {
         let conn = Connection::open_in_memory()?;
         schema::migrate(&conn)?;
-        Ok(Self { conn })
+        Ok(Self {
+            conn,
+            tenant_id: None,
+        })
     }
 
     pub(crate) fn conn(&self) -> &Connection {
         &self.conn
     }
 
-    /// Resolve "latest" or a (possibly abbreviated) snapshot id to a full id.
+    pub fn with_tenant(mut self, tenant_id: Option<&str>) -> Self {
+        self.tenant_id = tenant_id.map(str::to_ascii_lowercase);
+        self
+    }
+
+    pub fn require_tenant(&self) -> Result<(), StoreError> {
+        if self.tenant_id.is_none() && self.tenant_ids()?.len() > 1 {
+            return Err(StoreError::TenantSelectionRequired);
+        }
+        Ok(())
+    }
+
+    /// Resolve references within the selected tenant. Implicit latest is never cross-tenant.
     pub fn resolve_snapshot(&self, reference: &str) -> Result<String, StoreError> {
         if reference == "latest" {
-            return self
-                .conn
-                .query_row(
-                    "SELECT id FROM snapshots WHERE status != 'running'
-                     ORDER BY created_at DESC LIMIT 1",
-                    [],
-                    |row| row.get(0),
-                )
-                .map_err(|err| match err {
-                    rusqlite::Error::QueryReturnedNoRows => StoreError::NoSnapshots,
-                    other => other.into(),
-                });
+            self.require_tenant()?;
+            return self.conn.query_row(
+                "SELECT id FROM snapshots WHERE status != 'running' AND (?1 IS NULL OR lower(tenant_id) = ?1) ORDER BY created_at DESC, id DESC LIMIT 1",
+                [self.tenant_id.as_deref()], |row| row.get(0),
+            ).map_err(|err| match err { rusqlite::Error::QueryReturnedNoRows => StoreError::NoSnapshots, other => other.into() });
         }
-        let matched: Vec<String> = self
-            .conn
-            .prepare("SELECT id FROM snapshots WHERE id LIKE ?1 || '%'")?
-            .query_map([reference], |row| row.get(0))?
-            .collect::<Result<_, _>>()?;
+        let matched: Vec<String> = self.conn.prepare(
+            "SELECT id FROM snapshots WHERE id LIKE ?1 || '%' AND (?2 IS NULL OR lower(tenant_id) = ?2) ORDER BY id"
+        )?.query_map(rusqlite::params![reference,self.tenant_id], |row| row.get(0))?.collect::<Result<_,_>>()?;
         match matched.as_slice() {
             [id] => Ok(id.clone()),
-            [] => Err(StoreError::SnapshotNotFound(reference.to_owned())),
+            [] => Err(StoreError::SnapshotNotFound(reference.into())),
             _ => Err(StoreError::SnapshotNotFound(format!(
                 "{reference} (ambiguous, matches {} snapshots)",
                 matched.len()

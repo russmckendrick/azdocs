@@ -35,3 +35,25 @@ Azure Resource Graph exposes control-plane configuration only:
 
 The audit is therefore a **configuration** audit — and read-only by
 construction.
+
+## Configuration and Settings
+
+- **Multiple tenants, no selection:** choose a tenant in the toolbar or pass
+  `--tenant <reference-or-id>`. Set a default in Settings for CLI commands.
+- **Configuration changed outside the app:** discard the stale draft, reload
+  from disk and reapply edits. Saves intentionally refuse revision conflicts.
+- **Credential store unavailable/locked:** unlock Keychain, Credential Manager
+  or Secret Service. On a headless machine, use a profile's explicit `secret_env`.
+  No plaintext fallback is attempted.
+- **Unable to verify permissions:** open the diagnostic details for missing
+  identity, inaccessible scopes, unreadable definitions or unsupported patterns.
+  The result does not mean read-only access was proved. See [permission checks](permissions.md).
+- **Invalid TOML:** Settings remains accessible and provides the file path and a
+  sanitised error. Repair the file or load another configuration, then reload.
+- **History disappears after changing tenant:** snapshots are filtered by tenant.
+  Select the former tenant (including unconfigured tenant IDs) to browse them.
+- **A tested secret expired before saving:** draft secret tokens expire after
+  15 minutes. Re-enter and test or save the secret again.
+- **Settings cannot scroll or Save is off-screen:** current Settings has a
+  bounded scroll area and a separate action bar. Reload/rebuild the desktop
+  frontend if an older development bundle remains open.

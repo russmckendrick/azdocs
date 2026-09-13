@@ -7,6 +7,7 @@ mod dto;
 mod error;
 mod groups;
 mod labels;
+mod settings;
 pub mod topology;
 mod websites;
 pub use dto::WebsiteCaptureRequest;
@@ -20,18 +21,19 @@ use tauri::Manager as _;
 use crate::labels::AppLabels;
 
 pub struct AppState {
-    database_path: RwLock<PathBuf>,
+    session: RwLock<settings::Session>,
+    pending_secrets: std::sync::Mutex<std::collections::BTreeMap<String, settings::PendingSecret>>,
+    checks: Arc<RwLock<std::collections::BTreeMap<String, settings::SavedCheck>>>,
     captures: capture::CaptureControl,
-    /// Resolved once at startup; editing an override file needs a restart.
-    labels: Arc<AppLabels>,
 }
 
 impl AppState {
     fn new(database_path: PathBuf, labels: Arc<AppLabels>) -> Self {
         Self {
-            database_path: RwLock::new(database_path),
+            session: RwLock::new(settings::Session::initial(database_path, labels)),
+            pending_secrets: std::sync::Mutex::new(std::collections::BTreeMap::new()),
+            checks: Arc::new(RwLock::new(std::collections::BTreeMap::new())),
             captures: capture::CaptureControl::default(),
-            labels,
         }
     }
 }
@@ -70,6 +72,14 @@ pub fn run() {
             let handler: Box<dyn Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send + Sync> =
                 Box::new(tauri::generate_handler![
                     commands::bootstrap,
+                    settings::settings_load,
+                    settings::settings_load_config,
+                    settings::select_tenant,
+                    settings::settings_save,
+                    settings::settings_migrate,
+                    settings::settings_test,
+                    settings::settings_export,
+                    settings::settings_discard_secrets,
                     commands::open_database,
                     commands::load_snapshot,
                     commands::topology_graph,

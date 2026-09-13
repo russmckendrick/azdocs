@@ -13,9 +13,13 @@ sequenceDiagram
     participant C as collect
     participant E as Entra ID
     participant A as Resource Graph
+    participant R as ARM RBAC
     participant S as SQLite
 
     C->>E: client-credentials token
+    C->>A: discover visible subscriptions
+    C->>R: inspect principal assignments and role definitions
+    R-->>C: advisory permission verdict
     loop 41 queries, bounded concurrency
         C->>A: KQL query
         A-->>C: rows (paginated via $skipToken)
@@ -25,6 +29,11 @@ sequenceDiagram
     C->>S: derive relationship edges from properties JSON
     C->>S: required-tags audit findings
 ```
+
+Choose a profile with `--tenant acme`. Collection performs the shared
+[permission preflight](permissions.md) before live execution. Authentication
+failures stop collection; broader-grant or incomplete-coverage warnings are
+advisory. Each snapshot belongs to the selected tenant in the shared database.
 
 ## Scoping and tuning
 

@@ -1,4 +1,5 @@
 mod client_credentials;
+pub mod diagnostics;
 
 pub use client_credentials::ClientCredentialsProvider;
 
@@ -19,5 +20,11 @@ pub struct StaticTokenProvider(pub String);
 impl TokenProvider for StaticTokenProvider {
     async fn token(&self) -> Result<String, AuthError> {
         Ok(self.0.clone())
+    }
+}
+
+impl<P: TokenProvider> TokenProvider for &P {
+    async fn token(&self) -> Result<String, AuthError> {
+        (*self).token().await
     }
 }

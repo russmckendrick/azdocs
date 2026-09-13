@@ -116,35 +116,83 @@ pnpm run tauri build
 The global search shortcut is `Cmd+K` on macOS or `Ctrl+K` on Windows and
 Linux. Every resource pane and navigation action is keyboard reachable.
 
-## Data and credentials
+## Settings
 
-The app initially uses `storage.db_path` from the normal azdocs configuration.
-**Open data** can switch to another existing `.db`, `.sqlite`, or `.sqlite3`
-file for the current session. The chosen database is opened by Rust; the
-webview never receives a file-system permission.
+Settings stays available before the first collection and with missing or invalid
+configuration. To start, add a tenant, enter its directory and application IDs,
+choose a secret source, test the connection and save. **Collect snapshot** then
+collects the active tenant. Invalid fields and failures appear inside Settings;
+parse errors omit source lines that could contain secrets.
 
-**Collect snapshot** invokes the existing client-credentials and Azure
-Resource Graph pipeline. Credentials remain in the config/environment on the
-Rust side and are never sent through Tauri IPC. If credentials are not fully
-configured, the button is disabled and its tooltip points at the resolved
-configuration path.
+- **Tenants:** search profiles, add or rename one, choose the CLI default, or
+  remove its profile while retaining history. **Connection** groups identity
+  and credentials; **Collection & audit** edits subscription scope, concurrency
+  and required tags; **Report branding** edits report identity, colours and
+  paths. Typography and document geometry expand under advanced settings.
+- **Shared defaults:** edit collection, audit and branding values inherited by
+  tenants. Tenant fields show **Inherited** or **Overridden**. Clear an override
+  to reset it; an explicit empty list replaces the shared list.
+- **Application:** choose System/Light/Dark appearance, edit the shared database
+  path, load or reload the active config and export redacted diagnostics.
 
-The collector is the only networked path:
+The form scrolls inside the workspace. **Save changes / Discard changes** stays
+visible beneath it, including in smaller windows. Unsaved configuration blocks
+estate switching and closing the window; save or discard before leaving. Theme
+preference is immediate and local. Changing a profile in the editor does not
+switch the active estate.
+
+**Test connection** uses the current draft without saving it. It opens a modal with
+authentication, visible and inaccessible subscriptions, RBAC permission
+warnings and check time. Close with Escape or **Close connection test**; the
+form retains a compact status and **View test results** reopens the details.
+Editing the draft invalidates the result. A submitted
+password field is cleared; after a successful draft test, Rust can hold the new
+secret temporarily behind an opaque token for up to 15 minutes so Save does not
+require re-entry. Discarding, leaving Settings or switching identity clears it.
+Stored secrets are never displayed. See [Permission diagnostics](permissions.md).
+
+## Data, tenant context and credentials
+
+The app remembers the selected configuration and tenant locally. The toolbar's
+**Tenant** selector resets search, navigation and snapshot selection. History,
+latest selection and comparisons stay inside that tenant. Tenants whose profile
+was removed remain browsable by ID. No history is deleted by profile edits.
+
+`storage.db_path` selects the shared database. **Open data** or **Application →
+Open another…** opens an existing database for the session. Saving a new path
+checks and opens that location; an unusable database leaves the previous
+configuration intact. Relative paths resolve beside the config file. Files are
+not moved. Rust owns database and file access; the webview has no general
+filesystem permission.
+
+**Export redacted diagnostics** includes the config path and revision, editable
+values, active tenant, database path and the latest applicable collection
+permission check. It also works with a missing or invalid config, recording a
+sanitised error instead of the file contents. External config edits invalidate
+the saved check. Draft connection-test results belong only to that draft.
+
+New client secret entry is write-only from the webview into Rust. Existing
+secrets, OAuth tokens and credential-store reads never cross back to the
+frontend. Native storage uses Keychain, Windows Credential Manager or Secret
+Service; headless profiles may explicitly name an environment variable. Store
+errors do not fall back to plaintext. See [Configuration](configuration.md).
 
 ```mermaid
 flowchart LR
-    ui[Tauri webview] -->|typed command| rust[Rust desktop boundary]
-    rust --> config[azdocs config + credentials]
-    rust --> collect[existing collect pipeline]
-    collect -->|read-only| arg[Azure Resource Graph]
-    collect --> db[(shared SQLite database)]
-    db -->|typed snapshot DTO| rust
-    rust --> ui
+    ui[Settings webview] -->|draft / write-only new secret| rust[Rust desktop boundary]
+    rust --> document[Versioned TOML document]
+    rust --> vault[OS credential store / explicit environment reference]
+    rust -->|online test or collection| azure[Azure authentication + ARG + ARM]
+    rust --> db[(Shared SQLite, tenant-filtered)]
+    db -->|offline snapshot DTO| ui
+    rust -->|redacted diagnostics| ui
 ```
 
-All other desktop commands open the selected database for one request and
-return serialisable snapshot data. The SQLite connection is not shared across
-webview commands.
+Collection and website capture lock context switching and capture immutable
+config, tenant and database context when they start. Export captures its own
+context and remains offline. Late frontend responses are ignored after a
+snapshot or tenant switch. Settings tests and live preflight are read-only
+network paths; browsing stored evidence and downstream reporting are offline.
 
 ## Offline exports
 
@@ -158,7 +206,7 @@ sent to Rust only for the duration of the export. The webview receives progress
 and a sorted manifest of completed files, but it never receives general file
 system access. Existing configuration still supplies report branding, custom
 themes, logos, fonts and labels. The app's own wording comes from the same
-`[branding] labels` set, resolved once at startup — see
+`[branding] labels` set, resolved for the active tenant — see
 [reference/labels.md](../reference/labels.md).
 
 Reports compose shared diagram assets once even when several formats are
@@ -172,6 +220,8 @@ contact Azure.
 `pnpm run dev` opens the web interface without Tauri. In that mode the app uses
 the canonical fixture-shaped illustrative estate and labels the toolbar
 **Illustrative workspace**. This is for responsive and visual development;
-only a Tauri window reads real databases or collects Azure data.
+only a Tauri window reads real databases or collects Azure data. Settings uses
+illustrative profiles and mock connection results in browser preview; credential
+entry and native file pickers are unavailable.
 
 Next: [Snapshots](snapshots.md)

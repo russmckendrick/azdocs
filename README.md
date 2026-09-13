@@ -67,31 +67,36 @@ pnpm run tauri dev
 dir; `--config` overrides):
 
 ```toml
-[auth]
-tenant_id = "..."
-client_id = "..."
-client_secret = "..."   # optional here; AZDOCS_CLIENT_SECRET overrides
+schema_version = 2
+default_tenant = "acme"
 
-[collect]
-subscriptions = []       # empty = all visible to the credential
-concurrency = 4
+[tenants.acme]
+name = "Acme"
+tenant_id = "11111111-1111-4111-8111-111111111111"
+client_id = "22222222-2222-4222-8222-222222222222"
+secret_env = "AZDOCS_ACME_SECRET"
 
 [audit]
 required_tags = ["environment", "owner"]
-
-[storage]
-db_path = "azdocs.db"
 ```
 
-Environment overrides: `AZDOCS_TENANT_ID`, `AZDOCS_CLIENT_ID`,
-`AZDOCS_CLIENT_SECRET`.
+The desktop **Settings** editor manages named tenants, shared defaults,
+branding and application preferences. New secrets use the OS credential store;
+headless profiles can reference environment variables explicitly. Legacy
+`[auth]` files and environment-only operation remain supported. Use Settings
+or `azdocs config migrate` to migrate a legacy file with a protected backup.
+
+Choose a tenant with `--tenant acme` or the desktop toolbar. One shared SQLite
+database keeps each tenant's history isolated. [Configuration](docs/usage/configuration.md)
+covers inheritance, selection, secret storage and migration.
 
 ## Commands
 
 | Command | Purpose |
 |---|---|
 | `azdocs init` | Write the config file interactively |
-| `azdocs check` | Validate config, token, and Resource Graph access |
+| `azdocs check` | Test authentication, subscriptions and advisory RBAC permissions |
+| `azdocs config show / validate / migrate / set-secret` | Inspect, validate, migrate or update secure configuration |
 | `azdocs collect` | Run the query pack into a new snapshot |
 | `azdocs snapshots list/show/diff/prune` | Manage stored snapshots |
 | `azdocs report --format md\|html\|csv\|xlsx\|pdf\|docx\|all` | Export reports |
@@ -124,8 +129,10 @@ Multi-page ARG results require a deterministic sort — end custom queries with
 
 ## What Resource Graph can't see
 
-RBAC role assignments, most data-plane configuration, and activity logs are
-not exposed through ARG; the audit covers control-plane configuration only.
+Inventory auditing covers control-plane configuration. Live preflight also
+inspects Azure RBAC assignments and role definitions through ARM; its
+[permission verdict](docs/usage/permissions.md) is scoped evidence, not a
+tenant-wide effective-access certification.
 
 ## Development
 

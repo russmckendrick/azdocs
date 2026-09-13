@@ -57,6 +57,10 @@ flowchart LR
     nsg -.- snet_shared
 ```
 
+Use `--tenant <reference-or-tenant-id>` to select the estate. Explicit snapshot
+IDs remain usable offline without credentials; a supplied tenant selection
+enforces ownership. See [tenant history](snapshots.md#tenant-isolation).
+
 ## Formats
 
 - **`.drawio`** — editable in [draw.io](https://app.diagrams.net) or the

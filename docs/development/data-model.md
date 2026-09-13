@@ -109,3 +109,18 @@ Two serde behaviours this encodes, both of which had already produced bugs:
   snake_case while every sibling field is camelCase.
 - `Option<T>` serialises to `null`, not an absent key, so the generated type is
   `field?: T | null`.
+
+## Shared database, tenant-scoped access
+
+Tenant profiles do not add tables or rewrite historical snapshots. The existing
+`snapshots.tenant_id` owns each estate; profile references and display names are
+editable configuration, not historical keys. `Store::with_tenant` centralises
+filtering for history, latest, ownership checks, previous comparisons and
+pruning. Cross-tenant comparisons fail in Rust even for explicit snapshot IDs.
+An unscoped mixed-tenant store requires selection for implicit history/latest
+operations. `tenant_ids` enumerates stored tenants so deleted profiles remain
+browsable. Profile removal never calls snapshot deletion.
+
+Generated configuration DTOs contain `SettingsValues`, sparse overrides, tenant
+summaries and connection diagnostics. Secret values are input-only command
+parameters; legacy plaintext and native credential reads have no response DTO.

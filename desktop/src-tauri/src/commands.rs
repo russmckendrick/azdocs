@@ -24,48 +24,102 @@ use crate::labels::AppLabels;
 use crate::topology::{self, TopologyGraphDto, TopologyRequest};
 
 pub(crate) fn database_path(state: &State<'_, AppState>) -> Result<PathBuf, AppError> {
-    state
-        .database_path
-        .read()
-        .map(|path| path.clone())
-        .map_err(|error| AppError::State(error.to_string()))
+    Ok(crate::settings::session(state)?.database_path)
 }
 
-fn set_database_path(state: &State<'_, AppState>, path: PathBuf) -> Result<(), AppError> {
-    let mut current = state
-        .database_path
-        .write()
-        .map_err(|error| AppError::State(error.to_string()))?;
-    *current = path;
-    Ok(())
+pub(crate) fn open_store(state: &State<'_, AppState>) -> Result<Store, AppError> {
+    let session = crate::settings::session(state)?;
+    Ok(Store::open(&session.database_path)?.with_tenant(session.tenant_id.as_deref()))
 }
 
-fn bootstrap_for(path: &Path, labels: &AppLabels) -> Result<AppBootstrap, AppError> {
-    let store = Store::open(path)?;
-    let snapshots: Vec<SnapshotSummary> = store
-        .list_snapshots()?
-        .into_iter()
-        .map(Into::into)
-        .collect();
-    let latest_snapshot_id = snapshots.first().map(|snapshot| snapshot.id.clone());
-    let (config, source) =
-        Config::load_with_source(None).map_err(|error| AppError::Config(error.to_string()))?;
-    let has_credentials = config.credentials().is_ok();
-    let config_path = source
-        .clone()
-        .unwrap_or_else(default_config_path)
-        .display()
-        .to_string();
-
+pub(crate) fn bootstrap_for(session: &crate::settings::Session) -> Result<AppBootstrap, AppError> {
+    let document = session.document();
+    let config_error = document.as_ref().err().map(ToString::to_string);
+    let config = document
+        .as_ref()
+        .ok()
+        .and_then(|d| d.resolve(session.tenant_id.as_deref()).ok());
+    let source = document
+        .as_ref()
+        .ok()
+        .and_then(|d| d.source.clone())
+        .or(session.config_path.clone());
+    let store = Store::open(&session.database_path)?;
+    let mut tenants: Vec<crate::settings::TenantSummary> = document
+        .as_ref()
+        .ok()
+        .map(|d| {
+            d.values
+                .tenants
+                .iter()
+                .map(|(reference, p)| crate::settings::TenantSummary {
+                    reference: reference.clone(),
+                    name: p.name.clone(),
+                    tenant_id: p.tenant_id.to_ascii_lowercase(),
+                    configured: true,
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    if tenants.is_empty()
+        && let Some(id) = config.as_ref().and_then(|c| c.auth.tenant_id.clone())
+    {
+        tenants.push(crate::settings::TenantSummary {
+            reference: id.clone(),
+            name: id.clone(),
+            tenant_id: id,
+            configured: true,
+        });
+    }
+    for id in store.tenant_ids()? {
+        if !tenants.iter().any(|p| p.tenant_id == id) {
+            tenants.push(crate::settings::TenantSummary {
+                reference: id.clone(),
+                name: id.clone(),
+                tenant_id: id,
+                configured: false,
+            });
+        }
+    }
+    tenants.sort_by(|a, b| (&a.name, &a.tenant_id).cmp(&(&b.name, &b.tenant_id)));
+    let store = store.with_tenant(session.tenant_id.as_deref());
+    let snapshots: Vec<SnapshotSummary> = if session.tenant_id.is_some() {
+        store
+            .list_snapshots()?
+            .into_iter()
+            .map(Into::into)
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let latest_snapshot_id = if session.tenant_id.is_some() {
+        store.resolve_snapshot("latest").ok()
+    } else {
+        None
+    };
+    let has_credentials = config.as_ref().is_some_and(|c| {
+        c.auth.tenant_id.is_some()
+            && c.auth.client_id.is_some()
+            && (c.auth.secret_ref.is_some()
+                || c.auth.secret_env.is_some()
+                || c.auth.client_secret.is_some())
+    });
     Ok(AppBootstrap {
-        database_path: path.display().to_string(),
-        config_path,
+        tenants,
+        active_tenant_id: session.tenant_id.clone(),
+        config_error,
+        database_path: session.database_path.display().to_string(),
+        config_path: source
+            .as_deref()
+            .unwrap_or(&default_config_path())
+            .display()
+            .to_string(),
         config_found: source.is_some(),
         has_credentials,
-        required_tags: config.audit.required_tags.clone(),
+        required_tags: config.map(|c| c.audit.required_tags).unwrap_or_default(),
         snapshots,
         latest_snapshot_id,
-        labels: labels.clone(),
+        labels: (*session.labels).clone(),
     })
 }
 
@@ -93,7 +147,7 @@ pub fn query_rows(
     query_name: String,
     state: State<'_, AppState>,
 ) -> Result<QueryRowsDto, AppError> {
-    let store = Store::open(&database_path(&state)?)?;
+    let store = open_store(&state)?;
     let snapshot_id = store.resolve_snapshot(snapshot_id.as_deref().unwrap_or("latest"))?;
     let rows = store.query_results(&snapshot_id, &query_name)?;
     Ok(QueryRowsDto {
@@ -105,23 +159,30 @@ pub fn query_rows(
 
 #[tauri::command]
 pub fn bootstrap(state: State<'_, AppState>) -> Result<AppBootstrap, AppError> {
-    bootstrap_for(&database_path(&state)?, &state.labels)
+    bootstrap_for(&crate::settings::session(&state)?)
 }
 
 #[tauri::command]
 pub fn open_database(path: String, state: State<'_, AppState>) -> Result<AppBootstrap, AppError> {
-    if state.captures.is_active() {
-        return Err(AppError::Capture(
-            "Cannot switch database while capture or collection is running".into(),
-        ));
-    }
-    let path = PathBuf::from(&path);
+    let _lease = state.captures.begin()?;
+    let path = PathBuf::from(path);
     if !path.is_file() {
         return Err(AppError::InvalidDatabase(path.display().to_string()));
     }
-    Store::open(&path)?.recover_website_captures()?;
-    let bootstrap = bootstrap_for(&path, &state.labels)?;
-    set_database_path(&state, path)?;
+    let store = Store::open(&path)?;
+    store.recover_website_captures()?;
+    let mut next = crate::settings::session(&state)?;
+    next.database_path = path;
+    let ids = store.tenant_ids()?;
+    if !next.tenant_id.as_ref().is_some_and(|id| ids.contains(id)) {
+        next.tenant_id = if ids.len() == 1 {
+            ids.first().cloned()
+        } else {
+            None
+        };
+    }
+    let bootstrap = bootstrap_for(&next)?;
+    crate::settings::install(&state, next)?;
     Ok(bootstrap)
 }
 
@@ -144,7 +205,7 @@ pub fn compare_snapshots(
     target_snapshot_id: String,
     state: State<'_, AppState>,
 ) -> Result<SnapshotComparison, AppError> {
-    let store = Store::open(&database_path(&state)?)?;
+    let store = open_store(&state)?;
     comparison(&store, base_snapshot_id, target_snapshot_id)
 }
 
@@ -153,7 +214,7 @@ pub fn load_snapshot(
     snapshot_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<EstateSnapshot, AppError> {
-    let store = Store::open(&database_path(&state)?)?;
+    let store = open_store(&state)?;
     let snapshot_id = store.resolve_snapshot(snapshot_id.as_deref().unwrap_or("latest"))?;
     let context = ReportContext::build_for_desktop(&store, &snapshot_id)?;
     let subscriptions = store.subscriptions(&snapshot_id)?;
@@ -173,7 +234,7 @@ pub fn load_snapshot(
 
     let evidence_summaries = context
         .posture
-        .tables_with_words(&state.labels.posture)
+        .tables_with_words(&crate::settings::session(&state)?.labels.posture)
         .into_iter()
         .map(Into::into)
         .collect();
@@ -186,7 +247,10 @@ pub fn load_snapshot(
         edges,
         query_runs,
         previous_diff,
-        &state.labels.common.subscription_scope,
+        &crate::settings::session(&state)?
+            .labels
+            .common
+            .subscription_scope,
     );
     estate.evidence_summaries = evidence_summaries;
     Ok(estate)
@@ -197,7 +261,7 @@ pub fn topology_graph(
     request: TopologyRequest,
     state: State<'_, AppState>,
 ) -> Result<TopologyGraphDto, AppError> {
-    let store = Store::open(&database_path(&state)?)?;
+    let store = open_store(&state)?;
     let snapshot_id = store.resolve_snapshot(request.snapshot_id.as_deref().unwrap_or("latest"))?;
     let subscriptions = store.subscriptions(&snapshot_id)?;
     let resource_groups = store.resource_groups(&snapshot_id)?;
@@ -218,7 +282,7 @@ pub fn topology_graph(
             resources: &resources,
             edges: &edges,
             finding_counts: &finding_counts,
-            labels: &state.labels,
+            labels: &crate::settings::session(&state)?.labels,
         },
     ))
 }
@@ -235,8 +299,15 @@ pub async fn collect_snapshot(
     let capture_path = path.clone();
     let capture_channel = on_event.clone();
     let completion_channel = on_event.clone();
-    let labels = Arc::clone(&state.labels);
+    let session = crate::settings::session(&state)?;
+    let labels = Arc::clone(&session.labels);
     let failure_channel = on_event.clone();
+    let document = session.document()?;
+    let revision = document.revision.clone();
+    let config = document
+        .resolve(session.tenant_id.as_deref())
+        .map_err(crate::settings::config_error)?;
+    let checks = Arc::clone(&state.checks);
     let result: Result<CollectResultDto, AppError> =
         tauri::async_runtime::spawn_blocking(move || {
             let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -251,8 +322,6 @@ pub async fn collect_snapshot(
                 let _ = on_event.send(CollectionEvent::Phase {
                     message: phases.loading_pack.clone(),
                 });
-                let config =
-                    Config::load(None).map_err(|error| AppError::Config(error.to_string()))?;
                 let credentials = config
                     .credentials()
                     .map_err(|error| AppError::Config(error.to_string()))?;
@@ -264,13 +333,30 @@ pub async fn collect_snapshot(
                 });
                 let provider = azdocs::commands::token_provider(&config)
                     .map_err(|error| AppError::Collection(error.to_string()))?;
-                let client = Arc::new(ArgClient::new(azdocs::commands::http_client(), provider));
-                let store = Store::open(&path)?;
                 let subscriptions = if request.subscriptions.is_empty() {
                     config.collect.subscriptions.clone()
                 } else {
                     request.subscriptions
                 };
+                let check = azdocs::auth::diagnostics::inspect(
+                    azdocs::commands::http_client(),
+                    &provider,
+                    &subscriptions,
+                )
+                .await
+                .map_err(|e| AppError::Collection(e.to_string()))?;
+                if let Ok(mut saved) = checks.write() {
+                    saved.insert(
+                        credentials.tenant_id.to_ascii_lowercase(),
+                        crate::settings::SavedCheck {
+                            revision: revision.clone(),
+                            check: check.clone(),
+                        },
+                    );
+                }
+                let _ = on_event.send(CollectionEvent::Permissions { check });
+                let client = Arc::new(ArgClient::new(azdocs::commands::http_client(), provider));
+                let store = Store::open(&path)?;
                 let summary = azdocs::collect::run_with_progress(
                     &store,
                     client,
@@ -361,7 +447,11 @@ pub async fn collect_snapshot(
                     &capture_path,
                     request,
                     &lease,
-                    &state.labels.common.websites.capture_window,
+                    &crate::settings::session(&state)?
+                        .labels
+                        .common
+                        .websites
+                        .capture_window,
                     |progress| {
                         let _ = capture_channel.send(CollectionEvent::Screenshots { progress });
                     },
@@ -442,6 +532,8 @@ fn export_reports(
     store: &Store,
     on_event: &Channel<ExportEvent>,
     labels: &AppLabels,
+    config: &Config,
+    config_dir: Option<&Path>,
 ) -> Result<Vec<PathBuf>, AppError> {
     let mut formats = Vec::new();
     for value in &request.formats {
@@ -462,9 +554,6 @@ fn export_reports(
             &[("count", &formats.len())],
         ),
     });
-    let (config, source) =
-        Config::load_with_source(None).map_err(|error| AppError::Config(error.to_string()))?;
-    let config_dir = source.as_deref().and_then(Path::parent);
     let args = ReportArgs {
         include_reference: request.include_reference.unwrap_or(false),
         snapshot: request.snapshot_id,
@@ -473,7 +562,7 @@ fn export_reports(
         out: Some(destination.to_path_buf()),
     };
     azdocs::commands::report::run_selected_with_progress(
-        &config,
+        config,
         config_dir,
         store,
         &args,
@@ -497,6 +586,7 @@ fn export_diagrams(
     store: &Store,
     on_event: &Channel<ExportEvent>,
     labels: &AppLabels,
+    config: &Config,
 ) -> Result<Vec<PathBuf>, AppError> {
     let errors = &labels.desktop.backend.errors;
     let kind = request
@@ -524,10 +614,8 @@ fn export_diagrams(
     // The diagram command prints through the CLI labels, so the desktop
     // resolves the same set the report path does: the config's choice, with
     // the built-ins when the config cannot be read.
-    let cli_labels = Config::load(None)
-        .ok()
-        .and_then(|config| azdocs::labels::resolve(&config.branding).ok())
-        .unwrap_or_default();
+    let cli_labels =
+        azdocs::labels::resolve(&config.branding).map_err(|e| AppError::Config(e.to_string()))?;
     let mut outputs = Vec::new();
     for format in formats {
         let _ = on_event.send(ExportEvent::Phase {
@@ -565,8 +653,12 @@ pub async fn export_snapshot(
     on_event: Channel<ExportEvent>,
     state: State<'_, AppState>,
 ) -> Result<ExportResultDto, AppError> {
-    let database = database_path(&state)?;
-    let labels = Arc::clone(&state.labels);
+    let session = crate::settings::session(&state)?;
+    let database = session.database_path.clone();
+    let labels = Arc::clone(&session.labels);
+    let document = session.document().or_else(|_| {
+        azdocs::config::ConfigDocument::parse("", None).map_err(crate::settings::config_error)
+    })?;
     let failure_channel = on_event.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
         let errors = &labels.desktop.backend.errors;
@@ -580,12 +672,25 @@ pub async fn export_snapshot(
                 &[("path", &destination.display())],
             )));
         }
-        let store = Store::open(&database)?;
-        store.resolve_snapshot(&request.snapshot_id)?;
+        let store = Store::open(&database)?.with_tenant(session.tenant_id.as_deref());
+        let id = store.resolve_snapshot(&request.snapshot_id)?;
+        let config = document
+            .for_snapshot(&store.get_snapshot(&id)?.tenant_id)
+            .map_err(crate::settings::config_error)?;
         let export_kind = request.export_kind.clone();
         let mut outputs = match export_kind.as_str() {
-            "reports" => export_reports(request, &destination, &store, &on_event, &labels)?,
-            "diagrams" => export_diagrams(request, &destination, &store, &on_event, &labels)?,
+            "reports" => export_reports(
+                request,
+                &destination,
+                &store,
+                &on_event,
+                &labels,
+                &config,
+                document.source.as_deref().and_then(Path::parent),
+            )?,
+            "diagrams" => {
+                export_diagrams(request, &destination, &store, &on_event, &labels, &config)?
+            }
             other => {
                 return Err(AppError::Export(fill(
                     &errors.unsupported_kind,

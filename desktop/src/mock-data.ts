@@ -227,6 +227,10 @@ const resourceTypes: ResourceType[] = Object.entries(
   .sort((a, b) => b.count - a.count || a.displayName.localeCompare(b.displayName));
 
 export const mockBootstrap: AppBootstrap = {
+  tenants: [
+    { reference: "contoso", name: "Contoso", tenantId: "11111111-1111-4111-8111-111111111111", configured: true },
+    { reference: "northwind", name: "Northwind Traders", tenantId: "44444444-4444-4444-8444-444444444444", configured: true },
+  ], activeTenantId: "11111111-1111-4111-8111-111111111111", configError: null,
   labels: DEFAULT_LABELS,
   databasePath: "/Users/demo/Library/Application Support/azdocs/azdocs.db",
   configPath: "/Users/demo/Library/Application Support/azdocs/azdocs.toml",
@@ -235,9 +239,9 @@ export const mockBootstrap: AppBootstrap = {
   requiredTags: ["env", "owner"],
   latestSnapshotId: "a7f21f53-2026",
   snapshots: [
-    { id: "a7f21f53-2026", createdAt: "2026-08-23T09:42:00Z", tenantId: "tenant-golden", status: "complete", notes: "Weekly estate review", subscriptions: 2, resources: 15, findings: 4 },
-    { id: "9d12c813-2026", createdAt: "2026-08-16T09:40:00Z", tenantId: "tenant-golden", status: "complete", notes: "Before platform release", subscriptions: 2, resources: 14, findings: 5 },
-    { id: "7b42e150-2026", createdAt: "2026-08-09T09:39:00Z", tenantId: "tenant-golden", status: "partial", notes: "One monitoring query failed", subscriptions: 2, resources: 14, findings: 5 },
+    { id: "a7f21f53-2026", createdAt: "2026-08-23T09:42:00Z", tenantId: "11111111-1111-4111-8111-111111111111", status: "complete", notes: "Weekly estate review", subscriptions: 2, resources: 15, findings: 4 },
+    { id: "9d12c813-2026", createdAt: "2026-08-16T09:40:00Z", tenantId: "11111111-1111-4111-8111-111111111111", status: "complete", notes: "Before platform release", subscriptions: 2, resources: 14, findings: 5 },
+    { id: "7b42e150-2026", createdAt: "2026-08-09T09:39:00Z", tenantId: "11111111-1111-4111-8111-111111111111", status: "partial", notes: "One monitoring query failed", subscriptions: 2, resources: 14, findings: 5 },
   ],
 };
 
@@ -294,7 +298,7 @@ export function mockQueryRows(queryName: string): QueryRows {
 export const mockEstate: EstateSnapshot = {
   id: "a7f21f53-2026",
   createdAt: "2026-08-23T09:42:00Z",
-  tenantId: "tenant-golden",
+  tenantId: "11111111-1111-4111-8111-111111111111",
   status: "complete",
   notes: "Weekly estate review",
   totals: { subscriptions: 2, resourceGroups: 3, resources: resources.length, findings: findings.length },

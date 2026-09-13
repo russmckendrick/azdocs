@@ -60,9 +60,15 @@ changes what azdocs *is*:
 - **Nothing is silently dropped.** Where a view cannot draw everything — a
   crowded map, a capped diagram set — it states the arithmetic.
   `drawn + folded + aggregated == total`, and truncation is logged.
-- **Credentials never reach the webview.** The desktop's frontend has no
-  Azure access, no filesystem access and no database handle; it renders DTOs
-  the Rust side produced.
+- **Stored credentials never reach the webview.** Settings supports write-only
+  entry of a new client secret into Rust; the field is cleared after submission.
+  Rust owns OS credential storage and environment resolution. Returned settings,
+  diagnostics and logs exclude secrets and OAuth tokens. Offline work never
+  unlocks the credential store.
+- **One active tenant, shared storage.** Named profiles share defaults and one
+  SQLite database. Tenant ID isolates history and comparisons. Selecting a
+  profile for editing does not switch the active estate; removing it keeps
+  snapshot history available offline.
 
 ## Extending it is usually data, not code
 

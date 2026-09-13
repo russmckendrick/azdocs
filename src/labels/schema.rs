@@ -40,6 +40,7 @@ pub struct Labels {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CommonLabels {
+    pub access: AccessLabels,
     pub websites: WebsiteLabels,
     pub subscription_scope: String,
     /// How a count and its noun are joined: `{count} {noun}`.
@@ -450,6 +451,7 @@ pub struct CliDiagramLabels {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct InitLabels {
+    pub default_name: String,
     pub tenant_prompt: String,
     pub client_prompt: String,
     pub secret_prompt: String,
@@ -925,6 +927,7 @@ pub struct DesktopInventoryLabels {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DesktopSettingsLabels {
+    pub editor: std::collections::BTreeMap<String, String>,
     pub title: String,
     pub description: String,
     pub appearance: String,
@@ -1495,4 +1498,14 @@ pub struct PostureLabels {
 pub struct PostureDatasetLabels {
     pub title: String,
     pub note: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AccessLabels {
+    pub title: String,
+    pub detail: String,
+    pub checked: String,
+    pub verdicts: std::collections::BTreeMap<String, String>,
+    pub reasons: std::collections::BTreeMap<String, String>,
 }

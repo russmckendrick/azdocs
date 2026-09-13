@@ -64,33 +64,37 @@ pub fn run(
         config.auth.client_secret = Some(client_secret).filter(|s| !s.is_empty());
     }
 
-    let rendered = toml::to_string_pretty(&config).context("serializing config")?;
-    if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
-        std::fs::create_dir_all(parent)
-            .with_context(|| format!("creating {}", parent.display()))?;
+    let mut values = crate::config::SettingsValues {
+        default_tenant: Some("default".into()),
+        ..Default::default()
+    };
+    values.tenants.insert(
+        "default".into(),
+        crate::config::TenantProfile {
+            name: words.default_name.clone(),
+            tenant_id: config.auth.tenant_id.clone().unwrap_or_default(),
+            client_id: config.auth.client_id.clone().unwrap_or_default(),
+            secret_env: Some(ENV_CLIENT_SECRET.into()),
+            ..crate::config::TenantProfile::default()
+        },
+    );
+    let mut secrets = std::collections::BTreeMap::new();
+    if !non_interactive && let Some(secret) = config.auth.client_secret {
+        secrets.insert("default".into(), secret);
     }
-    std::fs::write(path, rendered).with_context(|| format!("writing {}", path.display()))?;
-    restrict_permissions(path)?;
-
+    let document = crate::config::ConfigDocument::parse("", Some(path.into()))?;
+    let revision =
+        crate::config::document::revision(&crate::config::document::read_optional(path)?);
+    document.save(
+        path,
+        &revision,
+        values,
+        &secrets,
+        true,
+        &crate::config::secrets::NativeSecretStore,
+    )?;
     println!("{}", fill(&words.wrote, &[("path", &path.display())]));
-    if config.auth.client_secret.is_some() {
-        println!(
-            "{}",
-            fill(&words.plaintext_note, &[("env", &ENV_CLIENT_SECRET)])
-        );
-    }
+
     println!("{}", words.next_step);
-    Ok(())
-}
-
-#[cfg(unix)]
-fn restrict_permissions(path: &Path) -> anyhow::Result<()> {
-    use std::os::unix::fs::PermissionsExt;
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
-        .with_context(|| format!("setting permissions on {}", path.display()))
-}
-
-#[cfg(not(unix))]
-fn restrict_permissions(_path: &Path) -> anyhow::Result<()> {
     Ok(())
 }

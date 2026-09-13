@@ -24,6 +24,10 @@ pub struct Cli {
     #[arg(long, global = true, value_name = "PATH")]
     pub db: Option<PathBuf>,
 
+    /// Tenant reference or tenant UUID; required when selection is ambiguous
+    #[arg(long, global = true, value_name = "REFERENCE")]
+    pub tenant: Option<String>,
+
     /// Increase log verbosity (-v info, -vv debug)
     #[arg(short, long, global = true, action = ArgAction::Count)]
     pub verbose: u8,
@@ -50,6 +54,10 @@ pub enum Command {
 
     /// Validate config, acquire a token, and run a probe query
     Check,
+
+    /// Inspect, validate, migrate or update configuration securely
+    #[command(subcommand)]
+    Config(ConfigCommand),
 
     /// Run the query pack and store the results as a new snapshot
     Collect(CollectArgs),
@@ -351,4 +359,25 @@ mod tests {
 
         assert_eq!(args.theme.as_deref(), Some("field-report"));
     }
+}
+
+#[derive(Debug, Subcommand)]
+pub enum ConfigCommand {
+    /// Show redacted settings and the resolved tenant values
+    Show,
+    /// Validate configuration without acquiring Azure credentials
+    Validate,
+    /// Migrate legacy credentials to a named tenant and the OS credential store
+    Migrate {
+        #[arg(long, default_value = "default")]
+        reference: String,
+        #[arg(long, default_value = "Default tenant")]
+        name: String,
+    },
+    /// Replace a tenant secret in the OS credential store (never pass it as an argument)
+    SetSecret {
+        /// Read a secret from stdin instead of an interactive password prompt
+        #[arg(long)]
+        stdin: bool,
+    },
 }

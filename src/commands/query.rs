@@ -22,12 +22,14 @@ pub async fn run(
 ) -> anyhow::Result<()> {
     let (kql, authorization_scope) = resolve_query(query)?;
     let provider = super::token_provider(config)?;
-    let client = ArgClient::new(super::http_client(), provider);
     let scope = if subscriptions.is_empty() {
         &config.collect.subscriptions
     } else {
         subscriptions
     };
+    let check = crate::auth::diagnostics::inspect(super::http_client(), &provider, scope).await?;
+    super::check::print_permissions(&check, labels);
+    let client = ArgClient::new(super::http_client(), provider);
     let outcome = client
         .query_all_with_scope(&kql, scope, authorization_scope)
         .await

@@ -17,6 +17,10 @@ Everything lands under `./output/` by default:
 | `pdf` | `output/report.pdf` | Print-ready document — see below |
 | `docx` | `output/report.docx` | The same document, editable in Word |
 
+Use `--tenant <reference-or-tenant-id>` to select the estate. Explicit snapshot
+IDs remain usable offline without credentials; a supplied tenant selection
+enforces ownership. See [tenant history](snapshots.md#tenant-isolation).
+
 ## The PDF and DOCX
 
 The default export is an assessment: architecture, recurring findings, selected

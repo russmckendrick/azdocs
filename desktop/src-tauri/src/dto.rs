@@ -11,6 +11,9 @@ use ts_rs::TS;
 #[serde(rename_all = "camelCase")]
 #[ts(optional_fields = nullable)]
 pub struct AppBootstrap {
+    pub tenants: Vec<crate::settings::TenantSummary>,
+    pub active_tenant_id: Option<String>,
+    pub config_error: Option<String>,
     pub database_path: String,
     pub config_path: String,
     pub config_found: bool,
@@ -846,12 +849,27 @@ pub struct CollectResultDto {
 )]
 #[ts(optional_fields = nullable)]
 pub enum CollectionEvent {
-    Stage { stage: CollectionStage },
-    Queries { progress: CollectionQueryProgress },
-    Phase { message: String },
-    Complete { snapshot_id: String },
-    Failed { message: String },
-    Screenshots { progress: WebsiteProgress },
+    Permissions {
+        check: azdocs::auth::diagnostics::ConnectionCheck,
+    },
+    Stage {
+        stage: CollectionStage,
+    },
+    Queries {
+        progress: CollectionQueryProgress,
+    },
+    Phase {
+        message: String,
+    },
+    Complete {
+        snapshot_id: String,
+    },
+    Failed {
+        message: String,
+    },
+    Screenshots {
+        progress: WebsiteProgress,
+    },
 }
 
 #[derive(Clone, Debug, Serialize, TS)]

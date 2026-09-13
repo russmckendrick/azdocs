@@ -36,7 +36,12 @@ const MANUAL_IMPORTS: &[(&str, &str)] = &[
 
 /// Push one type's declaration, exported.
 fn decl<T: TS>(out: &mut String, cfg: &Config) {
-    let _ = writeln!(out, "export {}\n", T::decl(cfg));
+    let declaration = T::decl(cfg)
+        .lines()
+        .map(str::trim_end)
+        .collect::<Vec<_>>()
+        .join("\n");
+    let _ = writeln!(out, "export {declaration}\n");
 }
 
 /// The full contents of `desktop/src/generated.ts`.
@@ -51,6 +56,30 @@ pub fn generated_typescript() -> String {
     use crate::dto::*;
     use crate::topology::*;
 
+    use crate::settings::*;
+    use azdocs::auth::diagnostics::*;
+    use azdocs::config::document::*;
+    use azdocs::config::{AuditConfig, BrandingConfig, CollectConfig, StorageConfig};
+    decl::<SettingsValues>(&mut out, &cfg);
+    decl::<TenantProfile>(&mut out, &cfg);
+    decl::<CollectOverrides>(&mut out, &cfg);
+    decl::<AuditOverrides>(&mut out, &cfg);
+    decl::<BrandingOverrides>(&mut out, &cfg);
+    decl::<CollectConfig>(&mut out, &cfg);
+    decl::<AuditConfig>(&mut out, &cfg);
+    decl::<StorageConfig>(&mut out, &cfg);
+    decl::<BrandingConfig>(&mut out, &cfg);
+    decl::<TenantSummary>(&mut out, &cfg);
+    decl::<SettingsDocumentDto>(&mut out, &cfg);
+    decl::<SettingsSaveRequest>(&mut out, &cfg);
+    decl::<SettingsTestResult>(&mut out, &cfg);
+    decl::<SettingsTestRequest>(&mut out, &cfg);
+    decl::<ConnectionCheck>(&mut out, &cfg);
+    decl::<VisibleSubscription>(&mut out, &cfg);
+    decl::<PermissionGrant>(&mut out, &cfg);
+    decl::<PermissionVerdict>(&mut out, &cfg);
+    decl::<AccessIssue>(&mut out, &cfg);
+    decl::<AccessIssueKind>(&mut out, &cfg);
     decl::<AppBootstrap>(&mut out, &cfg);
     decl::<SnapshotSummary>(&mut out, &cfg);
     decl::<SnapshotComparison>(&mut out, &cfg);

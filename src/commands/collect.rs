@@ -38,6 +38,9 @@ pub async fn run(
     let concurrency = args.concurrency.unwrap_or(config.collect.concurrency);
 
     let provider = super::token_provider(config)?;
+    let check =
+        crate::auth::diagnostics::inspect(super::http_client(), &provider, &subscriptions).await?;
+    super::check::print_permissions(&check, labels);
     let client = Arc::new(ArgClient::new(super::http_client(), provider));
 
     let scope = if subscriptions.is_empty() {

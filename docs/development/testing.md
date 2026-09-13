@@ -68,3 +68,36 @@ git diff tests/snapshots/    # the diff IS the review
 - Sort every output collection (by name, then id).
 - Volatile values (snapshot uuids, timestamps) are normalised by insta filters
   in the test setup — extend the filters rather than embedding volatility.
+
+## Configuration and tenant regression tests
+
+- `tests/configuration_test.rs`: comment preservation, external revision conflicts,
+  migration/backups, rollback on secret failures, redaction, inheritance and paths.
+- `tests/tenant_store_test.rs`: mixed-tenant latest/history/deletion, explicit
+  offline snapshot IDs and cross-tenant comparison rejection.
+- `tests/permission_diagnostics_test.rs`: mocked Reader/custom roles, mixed grants,
+  per-block exclusions, data-plane grants, inherited/group/narrower scopes,
+  conditions, pagination, partial failures, throttling and authentication errors.
+- `desktop/src/settings-model.test.ts`: profile editing and sparse override rules.
+- `desktop/src-tauri/src/settings.rs`: bootstrap/settings/export redaction,
+  missing and invalid config recovery, check revision invalidation and database
+  selection failures that preserve the previous config and history.
+- `tests/credential_store_test.rs`: ignored by default; writes, verifies and
+  deletes an isolated UUID entry in the native store. It never uses user secrets.
+
+```sh
+cargo test --test credential_store_test -- --ignored
+```
+
+Run native storage smoke tests on each supported OS with an unlocked native
+store. Linux needs a session D-Bus and Secret Service (for example GNOME Keyring).
+CI exercises these separately from the offline suite.
+
+Settings review covers 1440×900 and 980×680, light and dark modes, first-run and
+invalid-file states, draft testing, inherited/empty overrides, Save/Discard,
+keyboard focus and scrolling all the way to advanced branding fields. The
+header and action bar must remain reachable and no real secret may be captured.
+
+Run `cargo fmt --all --check`, workspace Clippy with warnings denied, workspace
+tests, frontend lint/typecheck/Vitest, and the generated-contract checks. Config
+changes should not change report goldens unless report content was intended.
