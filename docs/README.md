@@ -1,36 +1,24 @@
 # azdocs documentation
 
-azdocs audits an Azure estate with a read-only service principal, stores
-point-in-time snapshots in SQLite, and exports reports and diagrams entirely
-offline.
+azdocs collects accessible Azure configuration and service evidence into local
+SQLite snapshots. The CLI, terminal browser and desktop share the same Rust
+core; reports, diagrams and stored-evidence exploration work offline.
 
 ```mermaid
 flowchart LR
-    subgraph Azure
-        ARG[Azure Resource Graph]
-    end
-    subgraph azdocs
-        collect[azdocs collect]
-        db[(SQLite<br/>snapshots)]
-        report[azdocs report]
-        diagram[azdocs diagram]
-        browse[azdocs browse]
-        desktop["Desktop explorer<br/>(Tauri app, not a CLI verb)"]
-    end
-    ARG -->|114 KQL queries<br/>read-only| collect
-    collect --> db
-    db --> report
-    db --> diagram
-    db --> browse
-    db --> desktop
-    report --> docs_out[Markdown · HTML · CSV · XLSX]
-    diagram --> diag_out[draw.io · Mermaid]
-    browse --> tui[Interactive TUI]
-    desktop --> gui[Resource explorer · topology · findings]
+    azure[Entra authentication · ARG · ARM] --> collect[CLI or desktop collection]
+    collect --> db[(SQLite snapshots)]
+    sites[Website endpoints] --> capture[Desktop website capture]
+    collect --> capture
+    capture --> db
+    db --> report[Markdown · HTML/site · CSV · XLSX · PDF · DOCX]
+    db --> diagram[draw.io · Mermaid · SVG · PNG]
+    db --> browse[TUI and desktop exploration]
 ```
 
-Everything right of the database works offline — reports and diagrams are
-generated from the stored snapshot, never live Azure.
+Connection tests, collection and screenshot capture/refresh need network access.
+Reports and diagrams read saved evidence only; they do not contact Azure or
+websites. Scope and permissions limit what can be collected.
 
 ## Guides
 
@@ -38,14 +26,15 @@ generated from the stored snapshot, never live Azure.
 
 | Page | Covers |
 |---|---|
-| [Installation](usage/installation.md) | Binaries, cargo install, shell completions |
+| [Installation](usage/installation.md) | Source installation, CLI archives, desktop prerequisites and shell completions |
 | [Configuration](usage/configuration.md) | Named tenants, shared defaults, native secrets, migration and environment references |
 | [Permission diagnostics](usage/permissions.md) | Connection tests, RBAC verdicts and coverage limits |
 | [Collecting](usage/collecting.md) | Running the query pack, scoping, throttling |
-| [Reports](usage/reports.md) | Markdown, HTML, CSV, XLSX outputs |
-| [Diagrams](usage/diagrams.md) | draw.io and Mermaid diagram types |
+| [Reports](usage/reports.md) | Assessments, technical references, Markdown, HTML/site, CSV and XLSX |
+| [Diagrams](usage/diagrams.md) | draw.io, Mermaid, SVG/PNG, scopes and workbooks |
 | [The TUI](usage/tui.md) | Browsing snapshots interactively |
 | [Desktop explorer](usage/desktop.md) | Tauri app, estate navigation, findings, topology |
+| [Website screenshots](usage/website-screenshots.md) | Capture, refresh, saved evidence and offline exports |
 | [Snapshots](usage/snapshots.md) | Listing, diffing, pruning |
 | [Queries](usage/queries.md) | Ad-hoc KQL and custom query packs |
 | [CI](usage/ci.md) | Running azdocs in pipelines |
@@ -57,6 +46,7 @@ generated from the stored snapshot, never live Azure.
 |---|---|
 | [Architecture](development/architecture.md) | Modules, data flow, design decisions |
 | [Desktop map](development/desktop-relationships.md) | Map layout, multi-port routing, label layering and regression contract |
+| [Website screenshot pipeline](development/website-screenshots.md) | Native capture, isolation and platform smoke tests |
 | [Data model](development/data-model.md) | SQLite schema and migrations |
 | [Azure display metadata](development/azure-metadata.md) | Friendly Azure values and the reproducible refresh workflow |
 | [Testing](development/testing.md) | Test layers, fixtures, golden files |
@@ -67,7 +57,9 @@ generated from the stored snapshot, never live Azure.
 
 | Page | Covers |
 |---|---|
-| [Query pack](reference/queries.md) | All 114 built-in queries and findings |
+| [Query pack](reference/queries.md) | Built-in queries, findings and Rust-side audits |
+| [Operational evidence](reference/operational-evidence.md) | Sources, retention, scope, coverage and interpretation |
+| [Labels](reference/labels.md) | User wording, placeholders and partial overrides |
 | [Themes](reference/themes.md) | Document theme files: palette expressions, type scale, layout strategies |
 | [Diagram standards](reference/diagrams.md) | Detail levels, A4 page fractions, density rungs, connector routing |
 | [Desktop design language](reference/design.md) | Desktop tokens, typography, Overview dashboard and evidence workspace rules |
@@ -80,3 +72,10 @@ generated from the stored snapshot, never live Azure.
 | [Asset index](marks/README.md) | azdocs mark, icon, lockup and background SVGs |
 | [Usage guide](marks/USAGE.md) | Clear space, sizing, colour, placement and export rules |
 | [Prompts and design record](marks/PROMPTS.md) | Concept prompts, selected direction and redraw invariants |
+
+## Project policies
+
+- [Contributing](../CONTRIBUTING.md)
+- [Security and private vulnerability reporting](../SECURITY.md)
+- [MIT licence](../LICENSE)
+- [Third-party notices](../THIRD_PARTY_NOTICES.md) and [licence material](licenses/README.md)

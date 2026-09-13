@@ -13,6 +13,17 @@ env:
   CARGO_PROFILE_TEST_DEBUG: "0"
 
 jobs:
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python3 docs/development/tools/check_docs.py
+      - run: python3 docs/reference/tools/build_design_sheet.py --check
+
   test:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}

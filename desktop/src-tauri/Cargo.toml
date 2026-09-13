@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "Desktop explorer for azdocs Azure estate snapshots"
 authors = ["azdocs contributors"]
 edition = "2024"
+license = "MIT"
+repository = "https://github.com/russmckendrick/azdocs"
+readme = "../../README.md"
 
 [lib]
 name = "azdocs_desktop_lib"

@@ -19,7 +19,7 @@ own document system.
 Built-in themes live in `data/themes/` and are embedded in the binary. Drop
 files into `<config dir>/azdocs/themes/` to add your own or replace a built-in
 of the same name — the same drop-in pattern as
-[`queries.d/`](queries.md#user-queries). An unknown theme name is an error
+[`queries.d/`](../usage/queries.md#custom-queries). An unknown theme name is an error
 that lists the names that do exist.
 
 | Theme | Look |

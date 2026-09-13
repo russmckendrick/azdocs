@@ -1,8 +1,8 @@
 # Testing
 
 ```sh
-cargo test                          # the CLI crate — no network required
-cargo test --workspace              # CLI + desktop backend (what CI runs)
+cargo test --locked                 # CLI crate; HTTP tests use local mocks
+cargo test --workspace --locked     # both Rust packages (CI tests them in separate jobs)
 cargo test -p azdocs-desktop        # desktop topology, DTO and command helpers
 cargo test --test collect_test      # one integration suite
 cargo insta review                  # accept intended golden changes
@@ -24,7 +24,7 @@ flowchart TD
     end
     subgraph golden["Golden files (insta)"]
         report_t[report pages]
-        diagram_t[mermaid + drawio]
+        diagram_t[mermaid + drawio + SVG/PNG]
     end
     tui_t[TUI TestBackend buffers]
 ```
@@ -36,7 +36,7 @@ flowchart TD
 | Edge extractors | Pure-function tests incl. adversarial inputs (nulls, mixed-case ids, cross-sub peerings) | `src/collect/extractors.rs` |
 | Reports/diagrams | insta goldens from the fixture estate | `tests/report_golden_test.rs`, `tests/diagram_golden_test.rs` |
 | draw.io XML | Structural re-parse: well-formed, unique ids, resolving refs | `tests/diagram_golden_test.rs` |
-| Diagram geometry | Every canvas lands on a page fraction; every connector segment is axis-aligned; routes are deterministic | `src/diagram/svg.rs`, `src/diagram/route.rs`, `src/diagram/page.rs` |
+| Diagram geometry | Summary canvases obey the page-width/height budget; every connector segment is axis-aligned; routes are deterministic | `src/diagram/svg.rs`, `src/diagram/route.rs`, `src/diagram/page.rs` |
 | TUI | `TestBackend` buffer snapshots + key-event sequences | `tests/tui_test.rs` |
 | Desktop topology | Pure-function tests over a synthetic 1,000-resource estate: drawn + folded + aggregated always equals total, deterministic output, fan-out folding, scope filters counted | `desktop/src-tauri/src/topology.rs` |
 | Desktop relationship UI | Vitest at 1440/1060/800px: deterministic zones, rail alignment, directional neighbourhoods, camera targets, spatial navigation, per-edge boundary ports, taxi channels, label placement, trace priority, and retained-error state | `desktop/src/components/topology-layout.test.ts`, `desktop/src/components/topology-presentation.test.ts`, `desktop/src/components/topology-view-state.test.ts` |
@@ -101,3 +101,29 @@ header and action bar must remain reachable and no real secret may be captured.
 Run `cargo fmt --all --check`, workspace Clippy with warnings denied, workspace
 tests, frontend lint/typecheck/Vitest, and the generated-contract checks. Config
 changes should not change report goldens unless report content was intended.
+
+## Documentation and generated files
+
+Python 3.11+ is required for the documentation checker. From the repository root:
+
+```sh
+python3 docs/development/tools/check_docs.py
+python3 docs/reference/tools/build_design_sheet.py --check
+```
+
+The checker validates local Markdown/HTML links and anchors, parses TOML examples,
+and compares the query catalogue's names, counts and category chart with the
+actual TOML pack. It is offline; it does not claim external URLs or live KQL were
+tested. CI runs both documentation checks on Linux.
+
+The desktop backend tests regenerate both `desktop/src/generated.ts` and
+`desktop/src/generated-labels.json`. After a contract or label change, run:
+
+```sh
+cargo test -p azdocs-desktop --locked
+git diff -- desktop/src/generated.ts desktop/src/generated-labels.json
+```
+
+Review and commit intended generated changes. CI uses `git diff --exit-code`
+after generation to detect missing updates. For a documentation-only change,
+these files should remain unchanged.

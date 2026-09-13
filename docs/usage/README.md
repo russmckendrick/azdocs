@@ -1,6 +1,6 @@
 # Usage
 
-The five-minute path from nothing to a documented estate:
+The path from installation to a documented estate:
 
 ```mermaid
 flowchart LR

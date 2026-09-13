@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>azdocs CLI dependency licences</title>
+<style>body{max-width:80ch;margin:3rem auto;padding:0 1rem;font:16px/1.55 system-ui,sans-serif}pre{white-space:pre-wrap;overflow-wrap:anywhere}section{margin-top:3rem}h1,h2{line-height:1.2}</style>
+<h1>azdocs CLI dependency licences</h1>
+<p>Generated from the locked Rust dependency graph for the supported CLI targets.
+Build dependencies may also appear. Bundled fonts, Azure artwork and adapted
+queries are described separately in THIRD_PARTY_NOTICES.md.</p>
+{{#each licenses}}
+<section>
+<h2>{{name}}</h2>
+<ul>{{#each used_by}}<li><a href="https://crates.io/crates/{{crate.name}}/{{crate.version}}">{{crate.name}} {{crate.version}}</a> · <a href="https://crates.io/api/v1/crates/{{crate.name}}/{{crate.version}}/download">source archive</a>{{#if crate.repository}} · <a href="{{crate.repository}}">source repository</a>{{/if}}</li>{{/each}}</ul>
+<pre>{{text}}</pre>
+</section>
+{{/each}}
+</html>

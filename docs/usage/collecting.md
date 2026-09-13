@@ -4,9 +4,9 @@
 azdocs collect
 ```
 
-Runs the full query pack (41 queries — see the
-[query reference](../reference/queries.md)) and stores the results as a new
-snapshot:
+Runs the selected query pack, including user overrides, and stores the results
+as a new snapshot. With no filters, every loaded query runs; see the
+[query reference](../reference/queries.md) for the built-in catalogue:
 
 ```mermaid
 sequenceDiagram
@@ -20,7 +20,7 @@ sequenceDiagram
     C->>A: discover visible subscriptions
     C->>R: inspect principal assignments and role definitions
     R-->>C: advisory permission verdict
-    loop 41 queries, bounded concurrency
+    loop selected queries, bounded concurrency
         C->>A: KQL query
         A-->>C: rows (paginated via $skipToken)
         C->>S: ingest rows
@@ -30,10 +30,15 @@ sequenceDiagram
     C->>S: required-tags audit findings
 ```
 
-Choose a profile with `--tenant acme`. Collection performs the shared
+Choose a configured profile with `--tenant <reference>`. Collection performs the shared
 [permission preflight](permissions.md) before live execution. Authentication
 failures stop collection; broader-grant or incomplete-coverage warnings are
 advisory. Each snapshot belongs to the selected tenant in the shared database.
+
+Desktop collection then discovers website endpoints, supplements Front Door
+evidence through ARM, and captures website screenshots. This stage has separate
+progress and outcomes; the CLI does not capture websites. See
+[Website screenshots](website-screenshots.md).
 
 ## Scoping and tuning
 
@@ -45,6 +50,12 @@ azdocs collect --skip-queries orphaned_resources
 azdocs collect --concurrency 2                 # gentler on ARG quota
 azdocs collect --notes "pre-migration baseline"
 ```
+
+Filters apply to the query pack; they do not automatically add dependency
+queries. For example, omitting `all_resources` leaves the typed resource inventory
+empty and limits derived relationships, required-tag checks and resource views.
+Omitting `subscriptions` or `resource_groups` also reduces stored scope metadata.
+For a full estate report, collect the complete pack.
 
 ## Snapshot status
 
@@ -62,6 +73,7 @@ Per-query results (row counts, durations, errors) are recorded — inspect with
 Resource Graph allows short bursts, then throttles. azdocs paces itself from
 the quota headers ARG returns and honours `Retry-After` on 429s, so
 `ARG throttled (429); backing off` warnings during collect are normal — the
-run only degrades to `partial` if a query exhausts all retries.
+throttled query fails if it exhausts its retries. Other query errors can also
+produce a partial snapshot; if every selected query fails, the snapshot is failed.
 
 Next: [Reports](reports.md)

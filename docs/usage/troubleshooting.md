@@ -3,14 +3,16 @@
 ## Common errors
 
 **`AADSTS7000215: Invalid client secret`** — wrong or expired secret. Service
-principal secrets expire:
-
-```sh
-az ad sp credential reset --id <appId>
-```
+principal secrets expire. Create a replacement through your normal Entra
+credential-rotation process, update the named profile with
+`azdocs --tenant <reference> config set-secret` or update its environment secret,
+then test the connection. Retire the old credential after all consumers have
+switched. A credential reset can affect other clients using the same app.
 
 **`azdocs check` shows fewer subscriptions than expected** — the service
-principal lacks the Reader role on the missing subscriptions.
+principal may lack access to those subscriptions, the wrong tenant may be
+selected, or the configured subscription list may exclude them. Check the
+selected identity, scope and permission diagnostic details.
 
 **`ARG throttled (429); backing off` during collect** — normal on larger
 tenants; azdocs paces from quota headers and retries automatically. Lower
@@ -25,16 +27,25 @@ Run `azdocs collect` first.
 
 ## Limitations
 
-Azure Resource Graph exposes control-plane configuration only:
+The pack collects accessible control-plane configuration and service evidence:
 
-- No RBAC role assignments, no Entra ID objects
-- No data-plane state (blob contents, secrets, SQL logins)
-- No cost/billing data, no activity logs
-- Some types' `properties` are partial versus a direct ARM `GET` (ARG serves
-  a cached projection)
+- RBAC assignments and role definitions are available through ARG, but the
+  stored inventory is not a resolved effective-access graph or an Entra object
+  directory. Live ARM permission diagnostics have their own
+  [coverage limits](permissions.md#evidence-and-limits).
+- Blob contents, Key Vault secret values, database contents and data-plane
+  access checks are outside the collection scope.
+- Advisor recommendations contain estimated savings, not billed costs or
+  measured utilisation. Resource changes are a retained subset of control-plane
+  events, not a complete activity log.
+- Some resource properties are partial or delayed compared with a direct ARM
+  `GET`. Service configuration, permissions and retention can leave evidence
+  empty or missing. A successful empty query is not a passed control.
+- Desktop website images show what an isolated webview could render at capture
+  time. A login or error page is not proof of application health.
 
-The audit is therefore a **configuration** audit — and read-only by
-construction.
+See [Operational evidence](../reference/operational-evidence.md) and
+[Website screenshots](website-screenshots.md) for source-specific limits.
 
 ## Configuration and Settings
 

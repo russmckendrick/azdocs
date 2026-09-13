@@ -35,8 +35,10 @@ azdocs snapshots diff e4fb3710 latest --format json   # machine-readable
 ```
 
 Resources are compared by ARM id: **added**, **removed**, or **changed**
-(the properties JSON differs). The JSON format is designed for CI drift
-detection — see [CI](ci.md).
+(the stored properties JSON text differs). Tags and other top-level resource
+fields are separate columns, so changes confined to those fields do not appear
+as `changed`. This is a resource-properties comparison, not a complete audit
+of every stored field or finding. See [CI](ci.md) for retaining a baseline.
 
 ## Pruning
 

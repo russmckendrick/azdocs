@@ -5,7 +5,7 @@ Live query execution accepts `--tenant <reference>` and repeats the shared
 
 ## Ad-hoc queries
 
-Run any KQL against Resource Graph without storing anything:
+Run an ARG-supported KQL query and print its result without creating a snapshot:
 
 ```sh
 azdocs query list                        # full pack + your custom queries
@@ -19,8 +19,8 @@ azdocs query run subnets --format csv > subnets.csv
 ## Custom queries
 
 Drop TOML files into the user queries directory (`azdocs query list` prints
-the exact path). Same-named files **override** built-ins; new names join the
-pack and run on every `collect`.
+the exact path). Definitions with the same TOML `name` **override** built-ins, regardless of
+filename; new names join the pack and run on an unfiltered `collect`.
 
 ```toml
 name = "expensive_vm_sizes"          # snake_case, unique
@@ -46,7 +46,10 @@ resources
   row from its target resource. A missing/empty configured field leaves the
   finding at estate/scope level; it never falls back to the evidence ID.
 - End with `| order by id asc` (or another deterministic sort) — multi-page
-  results paginate via `$skipToken`, which needs stable ordering.
+  results paginate via `$skipToken`, which needs stable ordering. Avoid
+  `take`/`limit`/`sample` when all rows are required, and retain scalar output
+  columns; sorting alone does not make every query pageable. Truncated results
+  without a continuation token are an error.
 - Never name a projected column `count` — it's a KQL reserved word and ARG
   rejects it with HTTP 400.
 

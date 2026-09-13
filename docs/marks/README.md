@@ -79,10 +79,12 @@ same asset inventory and palette in a machine-readable form.
 The desktop masthead, browser favicons and Tauri packaging derive from these
 production SVGs.
 
-Rebuild the SVG sources, then regenerate their production PNG companions:
+The vector generator requires Python 3 and `fonttools` (`python3 -m pip install
+fonttools` in your development environment). From the repository root, rebuild
+the SVG sources and regenerate their production PNG companions:
 
 ```sh
-/opt/homebrew/Caskroom/miniconda/base/bin/python3 docs/marks/tools/build_vector_assets.py
+python3 docs/marks/tools/build_vector_assets.py
 AZDOCS_MARK_PREVIEW_DIR=docs/marks/png AZDOCS_MARK_PREVIEW_SCALE=1 \
   cargo test --test marks_assets_test
 ```

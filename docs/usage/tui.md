@@ -1,6 +1,6 @@
 # The TUI
 
-```sh
+```text
 azdocs browse [--snapshot <id|latest>]
 ```
 

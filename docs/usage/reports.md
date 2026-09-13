@@ -1,6 +1,6 @@
 # Reports
 
-```sh
+```text
 azdocs report --format md|html|csv|xlsx|pdf|docx|all [--include-reference] [--theme <name>] [--snapshot <id|latest>] [--out <dir>]
 ```
 
@@ -145,8 +145,8 @@ output/docs/
 The **detail pages** are the deep end: one section per resource with settings
 flattened from its properties, warning callouts for findings on that resource,
 and related-resource links derived from the relationship edges. The Markdown
-and HTML docs tree keeps its tabular settings presentation; the print formats
-use the flowing definition-list treatment described above.
+and HTML docs tree keep their tabular settings presentation; the print technical
+reference uses selected, labelled operational settings in bordered tables.
 
 ## The HTML report
 

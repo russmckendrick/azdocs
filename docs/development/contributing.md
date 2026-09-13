@@ -1,5 +1,9 @@
 # Contributing
 
+See the root [contribution guide](../../CONTRIBUTING.md) for issue reports,
+licensing and handling sensitive evidence. The [development index](README.md)
+lists setup and validation commands.
+
 ## Recipes
 
 ### Add a query to the pack
@@ -7,9 +11,13 @@
 1. Create `queries/<category>/<name>.toml` — schema and KQL rules in
    [usage/queries.md](../usage/queries.md#custom-queries) (deterministic
    `order by`, no column named `count`).
-2. `cargo build` embeds it; `azdocs query list` should show it.
-3. Test live: `azdocs query run <name>`.
-4. A new category automatically becomes a report section and an XLSX sheet.
+2. `cargo run --locked -- query list` compiles the current pack and should show it.
+3. Test live with authorised credentials: `cargo run --locked -- query run <name>`.
+   Add mocked or fixture tests for interpretation and ingestion as appropriate.
+4. A new category becomes an inventory evidence section and an XLSX query sheet.
+   Update the [query reference](../reference/queries.md), its counts and source
+   notes. Custom checks use generic assessment guidance unless the shared
+   assessment analysis explicitly supports them.
 
 ### Add an edge kind
 
@@ -76,10 +84,11 @@ never hardcode a palette.
 
 ### Change the PDF/DOCX report
 
-Edit the composition once in `src/report/document.rs`. Its `PrintDocument`
-builder owns the cover metadata, TOC depth, chapter order, shared labels,
-display-ready fact and table values, icon references, captions and diagram
-placement.
+Edit chapter composition in `src/report/assessment.rs`: `build` creates the
+main assessment and `reference` creates the optional technical companion.
+`src/report/document.rs` defines their shared `PrintDocument` and block types,
+cover metadata and supporting builders. `src/report/metadata.rs` selects
+reference settings from `data/reference_fields.toml`.
 The Typst and DOCX backends are exhaustive renderers of those blocks and must
 not reconstruct report-specific loops or lookup maps.
 
@@ -132,5 +141,5 @@ ones. Cascade-delete new tables from `snapshots`.
 | comfy-table 8 | `load_style(...)`, not `load_preset(...)` |
 | ratatui 0.30 | `ratatui::init()`/`restore()`; crossterm at `ratatui::crossterm`; `TestBackend` in `ratatui::backend` |
 | serde_json | `preserve_order` feature is load-bearing (column order everywhere) |
-| rusqlite | stays `bundled` — that's what keeps the binary dependency-free |
+| rusqlite | stays `bundled` — no separately installed SQLite library is needed |
 | rust_xlsxwriter | Excel sheet names: case-insensitive, 31-char cap — category sheets are suffixed `" queries"` to avoid colliding with `Inventory` |

@@ -3,8 +3,9 @@
 Labels are data. Every user-facing string azdocs prints, draws or exports —
 report chapter titles, table headers, empty-state sentences, diagram legends,
 CLI progress lines, TUI pane titles and the desktop app's copy — lives in
-`data/labels/en.toml`, embedded in the binary. Code never carries an English
-literal; it names a key.
+`data/labels/en.toml`, embedded in the binary. Report and interface code names keys instead of embedding English copy.
+Clap help, typed error messages and configurable report titles/footers are
+explicit exceptions.
 
 ```toml
 # azdocs.toml
@@ -14,7 +15,7 @@ labels = "en"
 
 `en` is the default and the only set shipped. Drop files into
 `<config dir>/azdocs/labels/` to change wording — the same drop-in pattern as
-[themes](themes.md) and [`queries.d/`](queries.md#user-queries).
+[themes](themes.md) and [`queries.d/`](../usage/queries.md#custom-queries).
 
 ## Overriding wording
 
@@ -42,10 +43,11 @@ A file named after a set that is not built in (say `fr.toml`) is merged over
 handful of keys and grow. `[branding] labels` naming a set that exists nowhere
 is an error that lists the names that do.
 
-The CLI treats a broken override as an error. The desktop app has no screen
-on which to explain a failed start, so it logs the error, falls back to the
-built-ins, and keeps going; run `azdocs check` to see the error properly. The
-desktop reads its labels once at startup: edit an override, restart the app.
+The CLI treats a broken override as an error. The desktop logs the failure and
+falls back to built-in wording so the application remains usable.
+`azdocs check` reports a broken selected label pack before authenticating. The desktop resolves labels for the active tenant and reloads them when its
+configuration is refreshed. After editing an override, reload the configuration
+in Settings or restart the app.
 
 ## Placeholders and plurals
 

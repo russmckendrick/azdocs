@@ -48,9 +48,10 @@ To fail when the checked-in file differs from Microsoft's current table:
 cargo run --example update_azure_locations -- --check
 ```
 
-The regular Cargo and desktop builds never fetch the network. Keeping refresh
-separate makes builds reproducible, preserves the project's offline test
-contract, and leaves source changes visible for review. Microsoft's
+Regular builds do not refresh Azure metadata. Cargo and pnpm may still need
+network access to obtain dependencies that are not cached locally. Keeping
+metadata refresh separate preserves the offline runtime/test contract and
+leaves source changes visible for review. Microsoft's
 authenticated [List Locations REST API][list-locations] is subscription-aware;
 it is useful for runtime discovery but is not a stable input to a general build.
 

@@ -55,8 +55,9 @@ shows the light and dark swatches without maintaining another palette here.
 
 Fixed order, never cycled — the top slots of the app's Rust
 `category_color()` set. Charts fold the tail into *Other*; type dots
-elsewhere may use the full set. Both mode palettes are CVD-validated against
-their surfaces; only the storage slot changes in dark.
+elsewhere may use the full set. Check both mode palettes against their surfaces
+and with colour-vision deficiency simulation when changing them; labels must
+retain the meaning without colour. Only the storage slot changes in dark.
 
 | Token | Category |
 |---|---|
@@ -79,8 +80,9 @@ referenced by open findings carry a dagger (†) in every table.
 
 ## Type
 
-IBM Plex throughout — the same family the PDF vendors, so app and report are
-one product family. Serif Regular/SemiBold is bundled with the frontend
+The desktop uses IBM Plex throughout. PDF bundles Plex as its fallback; Field
+Report prefers installed Charter, Arial and Courier New for print, as described
+in [Fonts](themes.md#fonts). Serif Regular/SemiBold is bundled with the frontend
 (`desktop/src/assets/fonts/`, OFL); Sans and Mono are served from the shared
 `data/fonts/` directory.
 
@@ -263,7 +265,7 @@ services aligned with the network core. Semantic zoom removes secondary copy
 before primary labels and finally uses icon/count overview tiles; it never
 scales text below 11px.
 
-Pointer hover, keyboard focus, and the selected neighbourhood subject trace an
+Keyboard focus, pointer hover, and the selected neighbourhood subject trace an
 incident route in that priority order. Active connectors use deterministic
 orthogonal channels and boundary anchor slots; unrelated graph content recedes
 without disappearing. Every logical link owns an invisible source and target

@@ -1,6 +1,6 @@
 # Diagrams
 
-```sh
+```text
 azdocs diagram --type hierarchy|resources|network|vnets|resource-groups|workbook \
     [--format drawio|mermaid|both|svg|png|all] \
     [--subscription <id>] [--resource-group <name>] [--out <path>]
@@ -16,10 +16,11 @@ azdocs diagram --type hierarchy|resources|network|vnets|resource-groups|workbook
 | `workbook` | A single multi-sheet `.drawio` file: network topology, VNet peerings, then every per-VNet and per-RG sheet |
 
 Diagrams exported here are drawn at **full detail** — every resource gets its
-own icon and name, on whatever canvas the content needs. The same graphs
+own icon and name, using a natural 1400px working width. The same graphs
 embedded in a report are **summarised** instead: resources aggregated by type
-(`Storage Account ×13`) and the canvas snapped to a quarter, third, half or
-full A4 portrait page, so they stay readable in print. See
+(`Storage Account ×13`) at a fixed A4 text-column width. Height follows the
+content within the page budget; the page-fraction label describes that height
+rather than adding padding to reach a fixed fraction. See
 [Diagram standards](../reference/diagrams.md) for the full contract.
 
 `hierarchy`, `resources`, and `network` write one file
@@ -29,9 +30,9 @@ under `output/diagrams/vnets/` and `output/diagrams/resource-groups/`
 `output/azdocs-workbook.drawio` — or, for `svg`/`png`, one file per sheet under
 `output/diagrams/workbook/`, since a raster cannot hold multiple sheets.
 
-The desktop's Exports workspace writes the same layout under the directory you
-pick, because both go through one function
-(`commands::diagram::default_output_path`).
+The desktop's Draw.io Diagram Workbook uses the same workbook output name under
+the directory you choose. Other diagram types and image formats are available
+through the CLI.
 
 A `network` diagram is shaped like this (this is actual azdocs Mermaid output
 style — GitHub renders it natively):
@@ -65,8 +66,9 @@ enforces ownership. See [tenant history](snapshots.md#tenant-isolation).
 
 - **`.drawio`** — editable in [draw.io](https://app.diagrams.net) or the
   VS Code draw.io extension. Uses the azure2 icon set, swimlane containers,
-  and automatic edge routing. The only format the multi-sheet `workbook`
-  type supports (with `--format all` it also rasterises each sheet).
+  and orthogonal boundary-anchored connectors. This is the workbook format
+  that keeps all sheets in one editable file. SVG/PNG workbook exports write
+  a separate image per sheet.
 - **`.mmd`** — Mermaid text. Paste into any GitHub markdown file, wiki, or
   docs site and it renders. Not available for `workbook` — use `vnets` /
   `resource-groups` for per-scope Mermaid.

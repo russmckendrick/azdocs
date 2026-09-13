@@ -18,6 +18,10 @@ tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "time", "
 name = "azdocs"
 version = "0.1.0"
 edition = "2024"
+description = "Audit, explore and document Azure estates from local SQLite snapshots"
+license = "MIT"
+repository = "https://github.com/russmckendrick/azdocs"
+readme = "README.md"
 
 [dependencies]
 anyhow = "1.0.104"

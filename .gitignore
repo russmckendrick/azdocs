@@ -1,7 +1,11 @@
 # Build artifacts
 /target
+__pycache__/
 
 # Local credentials and collected data — never commit these
+.env
+.env.*
+!.env.example
 azdocs.toml
 *.toml.backup-*
 *.toml.lock

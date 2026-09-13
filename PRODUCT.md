@@ -5,16 +5,18 @@ What azdocs is for, and the constraints that shape it. Architecture lives in
 
 ## The problem
 
-An Azure estate is only legible through the portal, one blade at a time, and
-only while you are connected to it. Answering "what is in this subscription,
-what talks to what, and what is misconfigured" means clicking through it — and
-the answer cannot be filed, diffed, or handed to someone else.
+Understanding an unfamiliar Azure estate often means moving between portal
+blades, queries and service-specific tools. Engineers need a durable account of
+what was visible, how resources were connected and which findings need review,
+so they can compare collections and share the evidence offline.
 
 ## What azdocs does
 
 One read-only collection through Azure Resource Graph becomes a durable local
-SQLite snapshot. Everything after that — exploring, auditing, tracing
-relationships, diagrams, reports — runs against the stored snapshot, offline.
+SQLite snapshot. Exploring saved evidence, tracing relationships and exporting
+diagrams and reports all run against that snapshot offline. Desktop collection
+can also capture website images; collecting or refreshing that evidence needs
+network access.
 
 That single decision is the product. It makes the output reproducible, makes it
 diffable against last month's collection, and means the tool needs nothing more
@@ -36,7 +38,7 @@ evidence behind it.
 
 | | |
 |---|---|
-| **CLI** (`azdocs`) | Collect, report, diagram, and a terminal browser. Scriptable, CI-friendly, static binaries. |
+| **CLI** (`azdocs`) | Collect, report, diagram, and a terminal browser. Scriptable, CI-friendly, one CLI executable per platform. |
 | **Desktop** (Tauri) | Interactive exploration of the same snapshot: estate explorer, the estate map, findings, history, exports. |
 
 Neither is a subset of the other, and both read the same SQLite database
@@ -52,11 +54,13 @@ changes what azdocs *is*:
 - **Collection is read-only.** A service principal with Reader, and no write
   path to Azure anywhere in the codebase.
 - **Everything downstream of collection is offline.** Reports, diagrams, the
-  TUI and the desktop read only from SQLite. This is what makes output
+  TUI and desktop exploration read stored evidence from SQLite. Connection tests,
+  new collection and explicit website capture/refresh are online actions. This is what makes output
   reproducible and golden-testable, and what lets the tool run somewhere the
   tenant is not reachable.
-- **Output is deterministic.** The same snapshot renders byte-identically. A
-  diff between two reports is a diff between two estates, never noise.
+- **Output is deterministic.** Stable ordering and snapshot-derived dates make exports reproducible for a
+  fixed application version, configuration, theme, labels and font files.
+  Changing these inputs can change an export without a new Azure collection.
 - **Nothing is silently dropped.** Where a view cannot draw everything — a
   crowded map, a capped diagram set — it states the arithmetic.
   `drawn + folded + aggregated == total`, and truncation is logged.
@@ -89,10 +93,13 @@ was collected and when; do not imply live state; do not decorate.
 
 ## Accessibility
 
-Complete keyboard operation, visible focus, WCAG 2.2 AA contrast, honoured
+The design targets complete keyboard operation, visible focus, WCAG 2.2 AA
+contrast, honoured
 reduced-motion preferences, semantic controls, and layouts that survive text
 scaling and narrow windows. Colour never carries meaning alone — severity is
-always accompanied by its word.
+always accompanied by its word. Automated checks do not establish complete
+accessibility conformance; keyboard, text scaling and assistive-technology
+acceptance need review on the actual desktop platforms.
 
 ## What azdocs does not claim
 

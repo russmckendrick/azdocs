@@ -174,7 +174,7 @@ make an inventory picture fit. Generate only the assets used by selected exports
 The two consumers of a diagram want opposite things, and one flag
 (`page::DiagramDetail`) settles it. `Summary` — the report path
 (`diagram/assets.rs` → pdf/docx/html) — aggregates resources by type into
-`×N` tiles and snaps the canvas to a page fraction. `Full` — the
+`×N` tiles at a fixed page width, with content-driven height capped by the page budget. `Full` — the
 `azdocs diagram` CLI — draws every resource on a natural 1400px-wide canvas.
 Adding a consumer means picking a level, not adding a branch.
 

@@ -40,8 +40,8 @@ Figures fold known NIC/disk/child attachments
 with explicit counts, retain named external group frames, and split large
 connection sets. Counts describe all resources represented by an aggregate,
 not a claim that every member has every drawn connection. Captions and adjacent
-evidence tables explain the scope. The optional technical reference retains
-full resource-group diagrams and the complete registers.
+evidence tables explain the scope. The optional technical reference includes
+resource-group summary diagrams, subject to the caps below, and complete registers.
 
 ## Page sizing
 
@@ -188,7 +188,7 @@ diagram is not captioned with boundaries it does not use.
 ## Icons
 
 Official Azure service icons, embedded as base64 data URIs so an SVG needs no
-external assets. Icon selection is data: `data/icons.toml`, with the display
+external assets. Icon selection is data: `data/icon_mapping.toml`, with the display
 names in `data/display_names.toml`. Adding a resource type is a TOML edit,
 never Rust. See [Queries](queries.md) for the same pattern applied to the query
 pack.

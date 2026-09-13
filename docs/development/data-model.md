@@ -12,6 +12,9 @@ erDiagram
     snapshots ||--o{ findings : has
     snapshots ||--o{ query_runs : has
     snapshots ||--o{ query_results : has
+    snapshots ||--o{ website_endpoints : has
+    snapshots ||--o{ website_evidence : has
+    snapshots ||--o{ website_captures : has
 
     snapshots {
         text id PK "uuid"
@@ -21,6 +24,7 @@ erDiagram
         text notes
     }
     resources {
+        text snapshot_id PK,FK
         text id PK "lowercased ARM id"
         text display_id "original casing"
         text name
@@ -76,6 +80,19 @@ erDiagram
 - **Snapshot diff** is one `FULL OUTER JOIN` over `resources` between two
   snapshot ids (`store/snapshots.rs`): added / removed / changed (properties
   text differs).
+
+Website tables were added by migration 3: `website_endpoints` stores ordered
+endpoint associations as JSON, `website_evidence` stores management responses by
+resource and evidence kind, and `website_captures` stores PNG bytes plus URL,
+renderer, dimensions, successful capture fields and the latest attempt outcome.
+Their keys include `snapshot_id`; shared URLs deduplicate within a snapshot.
+See [Website screenshot pipeline](website-screenshots.md).
+
+The diagram above summarises the core fields rather than listing every column.
+Resource identity is the composite `(snapshot_id, id)`, so an ARM resource can
+appear in many snapshots. `changed` compares the stored `properties` JSON text;
+it does not currently report a tag-only, location-only or SKU-only change stored
+outside that JSON as changed.
 
 ## Migrations
 

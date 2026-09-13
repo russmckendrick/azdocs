@@ -22,26 +22,24 @@ Website endpoints also have [saved screenshots](website-screenshots.md), capture
 
 ## Run from a source checkout
 
-Node.js, Rust, and the [Tauri v2 platform prerequisites](https://v2.tauri.app/start/prerequisites/)
+Node.js 22.12+ (22.x), pnpm 10, current stable Rust, and the [Tauri v2 platform prerequisites](https://v2.tauri.app/start/prerequisites/)
 for your operating system are required.
 
 ```sh
 cd desktop
-pnpm install
+pnpm install --frozen-lockfile
 pnpm run tauri dev
 ```
 
-Build web assets without opening a native window:
+From the same `desktop/` directory, build web assets without opening a native window:
 
 ```sh
-cd desktop
 pnpm run build
 ```
 
 Create a platform installer or application bundle:
 
 ```sh
-cd desktop
 pnpm run tauri build
 ```
 
@@ -209,15 +207,16 @@ themes, logos, fonts and labels. The app's own wording comes from the same
 `[branding] labels` set, resolved for the active tenant — see
 [reference/labels.md](../reference/labels.md).
 
-Reports compose shared diagram assets once even when several formats are
-selected. Per-VNet and per-resource-group diagrams fan out beneath the chosen
-directory, while the workbook writes an editable `.drawio` file or one SVG/PNG
-per sheet. Every export reads only the selected SQLite snapshot and does not
+Reports compose shared diagram assets once even when several report formats
+are selected. The desktop diagram deliverable is the editable `.drawio`
+workbook. CLI users can additionally request per-VNet/per-group diagrams and
+SVG/PNG files per workbook sheet. Every export reads only the selected SQLite snapshot and does not
 contact Azure.
 
 ## Browser preview
 
-`pnpm run dev` opens the web interface without Tauri. In that mode the app uses
+`pnpm run dev` starts the web development server without Tauri. Open the local
+URL printed by Vite (normally `http://127.0.0.1:1420`) in a browser. In that mode the app uses
 the canonical fixture-shaped illustrative estate and labels the toolbar
 **Illustrative workspace**. This is for responsive and visual development;
 only a Tauri window reads real databases or collects Azure data. Settings uses

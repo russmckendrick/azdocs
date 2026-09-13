@@ -111,8 +111,7 @@ pie title Query pack by category
 
 ## Cost, policy, resilience and Defender evidence
 
-The pack includes 60 inventory queries and 28 finding queries. The checks below
-are curated adaptations of Microsoft sources, reviewed on 2026-09-13. They use
+The checks below are curated adaptations of Microsoft sources, reviewed on 2026-09-13. They use
 ARG only; collection stores the evidence in SQLite and every export remains
 offline. No billing connector, FinOps Hub deployment or remediation permission
 is required.
@@ -140,7 +139,7 @@ is required.
 
 ### Sources and adaptations
 
-- [FinOps Resource Graph recommendation files](https://github.com/microsoft/finops-toolkit/tree/dev/src/templates/finops-hub/modules/Microsoft.FinOpsHubs/Recommendations/queries): Advisor cost and six waste checks. The unrelated [`src/queries` catalog](https://github.com/microsoft/finops-toolkit/blob/dev/src/queries/INDEX.md) queries FinOps Hub cost datasets and is not imported.
+- [FinOps Resource Graph recommendation files](https://github.com/microsoft/finops-toolkit/tree/dev/src/templates/finops-hub/modules/Microsoft.FinOpsHubs/Recommendations/queries): Advisor cost and the configuration-based waste checks. The unrelated [`src/queries` catalog](https://github.com/microsoft/finops-toolkit/blob/dev/src/queries/INDEX.md) queries FinOps Hub cost datasets and is not imported.
 - [Azure Policy samples](https://learn.microsoft.com/en-us/azure/governance/policy/samples/resource-graph-samples): evaluations, non-compliant findings and exemptions. We retain raw states rather than adopting sample logic that fills missing evaluations as compliant.
 - [APRL VM guidance](https://azure.github.io/Azure-Proactive-Resiliency-Library-v2/azure-resources/Compute/virtualMachines/), [storage guidance](https://azure.github.io/Azure-Proactive-Resiliency-Library-v2/azure-resources/Storage/storageAccounts/), and [PostgreSQL guidance](https://azure.github.io/Azure-Proactive-Resiliency-Library-v2/azure-resources/DBforPostgreSQL/flexibleServers/): selected resilience observations. The VM backup join uses normalized full ARM IDs, not VM names, and requires an observed active AzureIaasVM protected item.
 - [Defender regulatory compliance samples](https://learn.microsoft.com/en-us/azure/defender-for-cloud/resource-graph-samples): standard, control and assessment evidence, with skipped and unsupported states retained.
@@ -163,8 +162,9 @@ explicitly disabled settings.
 ### Interpretation and collection coverage
 
 The cost and compliance chapter is shared by PDF, DOCX, Markdown, HTML/site and
-XLSX exports. It summarizes saved service evidence; full records remain in the
-inventory evidence and technical reference. Desktop Inventory discovers the new
+XLSX exports. It summarises saved service evidence. Full stored records remain in SQLite
+and the relevant data exports; the print technical reference selects operational
+settings and summarises repeated findings. Desktop Inventory discovers the new
 categories from the query pack, and Findings displays the new finding checks.
 
 - Advisor amounts are estimates, not billed costs. Currency and reported period
@@ -233,7 +233,7 @@ fallbacks, and user override paths.
 ## Operational and access evidence
 
 The pack contains **78 inventory queries and 36 finding queries**. The following
-26 additions extend the Microsoft collections. See [operational evidence](operational-evidence.md)
+queries cover operational and access evidence exposed by Microsoft collections. See [operational evidence](operational-evidence.md)
 for retention, scope, freshness and source-provenance semantics.
 
 | Query | Category | Kind | Evidence |

@@ -24,8 +24,11 @@ warn about broader grants and incomplete coverage; a role name alone is not proo
 ```sh
 azdocs init
 azdocs config validate
-azdocs --tenant acme check
+azdocs --tenant default check
 ```
+
+`init` creates the profile reference `default`. The `acme` reference used in
+the version 2 example below exists only after you create that profile.
 
 The desktop has a first-run path through **Settings → Add tenant → Test
 connection → Save changes**, followed by **Collect snapshot**. A connection

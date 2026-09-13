@@ -1,7 +1,8 @@
 # Architecture
 
-Single binary crate with a lib/bin split (`lib.rs` + thin `main.rs`) so
-integration tests can call internals.
+A Cargo workspace contains the root `azdocs` package (shared `lib.rs` plus a
+thin CLI `main.rs`) and `desktop/src-tauri` (`azdocs-desktop`). Both use one
+lockfile and target directory; the desktop depends on the shared library.
 
 ## Dependency flow
 
@@ -31,8 +32,10 @@ flowchart TD
 ```
 
 The load-bearing rule: **report, diagram, and TUI code read only from SQLite,
-never the network.** Everything after `collect` works offline — that's what
-makes golden-file testing and air-gapped report generation possible.
+never the network.** Stored-evidence exploration and exports work offline, which enables
+golden-file testing and air-gapped report generation. Desktop connection tests,
+collection and website capture are explicit online paths; see
+[Website screenshots](website-screenshots.md).
 
 ## The collect pipeline
 
@@ -59,8 +62,8 @@ flowchart LR
 | `src/labels/` | Every user-facing string, typed from `data/labels/en.toml`; user files deep-merged by name |
 | `src/store/` | All SQL. Versioned migrations, snapshot-scoped tables, cascade delete |
 | `src/model/` | Plain data types + `azure_types.rs` display names |
-| `src/collect/` | Runner, `ingest.rs`, `extractors.rs`, `audit.rs` |
-| `src/report/` | `ReportContext` → all report data; `document.rs` composes one semantic `PrintDocument` for PDF + DOCX, while markdown / html / site / csv / xlsx consume `ReportContext` directly. Styled outputs use `BrandingContext`. `governance.rs` owns the tag thresholds and the analysis applying them, shared with the desktop. |
+| `src/collect/` | Runner, `ingest.rs`, `extractors.rs`, `audit.rs`, and website endpoint discovery / Front Door enrichment in `websites.rs` |
+| `src/report/` | `ReportContext` → all report data; `assessment.rs` composes assessments and references using the shared `PrintDocument` blocks in `document.rs`, while markdown / html / site / csv / xlsx consume `ReportContext` directly. Styled outputs use `BrandingContext`. `governance.rs` owns the tag thresholds and the analysis applying them, shared with the desktop. |
 | `src/diagram/` | `EstateGraph` builders (incl. per-VNet/per-RG fan-out) → `page` (A4 fractions, density rungs) → `layout` (measure/justify) → `route` (orthogonal connectors) → mermaid / drawio (single + workbook) / svg / png emitters |
 | `src/tui/` | ratatui browse; `App` is a pure state machine, `ui.rs` renders it |
 | `desktop/src-tauri/` | Thin Tauri v2 boundary; opens the shared `Store` per command and maps core models to serialisable DTOs. `topology.rs` builds the explorer's view-ready relationship graphs (estate lanes, group drill-in with folding, ×N aggregation and cross-group ghost stubs, bounded-depth neighbourhoods) with honest drawn/folded/aggregated counts |
@@ -80,8 +83,7 @@ target, load balancer, application gateway, VMSS, AKS, App Service, storage
 and key-vault network ACLs) plus two generic passes that apply to every
 resource — child types link to the ARM parent their id nests under, and
 `identity.userAssignedIdentities` links to the managed identity. Zero extra
-API calls, retroactive on old snapshots, and each extractor is a pure
-`fn(&Resource) -> Vec<Edge>`.
+API calls, and extraction itself is an offline Rust post-pass.
 
 **Auth stays hand-rolled behind `TokenProvider`.** The client-credentials flow is
 one POST. `azure_identity` was rejected for API churn and unneeded surface.
@@ -96,7 +98,7 @@ TOML, user overrides from the config dir, no branch on a name in Rust.
 **One graph, many emitters.** Diagram builders produce a single `EstateGraph`
 (typed nodes with parent containment + styled edges); the Mermaid and draw.io
 emitters both consume it. Report emitters share one `ReportContext`. The two
-native print formats go one step further: `report/document.rs` turns that data,
+native print formats go one step further: `report/assessment.rs` turns that data,
 branding and diagram bundle into an ordered `PrintDocument`, then the Typst and
 OOXML backends render the same semantic block stream. Content, hierarchy,
 labels, captions and asset placement therefore have one edit point; only
@@ -142,7 +144,7 @@ flowchart LR
 explicit-empty list semantics. `ConfigDocument` owns raw comments and legacy
 secrets, does not implement Debug, and sanitises parse errors. Runtime resolution
 never reads the secret store. Only live operations resolve credentials.
-`SecretStore` is injectable in tests; the native implementation uses keyring v1.
+`SecretStore` is injectable in tests; the native implementation uses keyring 4's `v1` API feature.
 Config writes stage and verify new secret entries, lock/recheck file revisions,
 write a protected backup, and atomically replace TOML. Failed writes roll back
 new entries. Previous entries remain usable by backups and copied configs.

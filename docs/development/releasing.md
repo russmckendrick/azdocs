@@ -1,47 +1,88 @@
 # Releasing
 
-## CI
+## CI coverage
 
-`.github/workflows/ci.yml` runs two jobs on every push and PR.
+`.github/workflows/ci.yml` runs on pushes to `main` and pull requests.
 
-**`test`**, across ubuntu-latest, macos-latest and windows-latest:
+| Job | Platforms | Checks |
+|---|---|---|
+| Documentation | Linux | Local links and anchors, TOML examples, query catalogue, generated design sheet |
+| CLI | Linux, macOS, Windows | Workspace formatting; root-package Clippy and tests; separate native credential-store smoke tests |
+| Desktop | Linux, macOS, Windows | Frontend lint, typecheck, tests and production assets; backend Clippy/tests; generated wire-contract checks; native website-capture smoke test |
 
-- `cargo fmt --all --check` (covers both workspace members)
-- `cargo clippy --all-targets --locked -- -D warnings`
-- `cargo test --locked`
+Linux installs the required system libraries and uses Xvfb for native capture.
+Capture evidence is retained for seven days when artifact upload succeeds; an
+upload failure warns, while a native smoke failure fails the job. See
+[Testing](testing.md) and [Website screenshots](website-screenshots.md#verification).
 
-**`desktop`**, on ubuntu-latest, after installing the Tauri system libraries:
+CI builds frontend assets and exercises the desktop backend, but does not run
+`pnpm run tauri build`. It therefore does not validate platform installers,
+signing, notarisation or installation on a clean end-user machine.
 
-- `pnpm install --frozen-lockfile`, then `pnpm run lint`, `pnpm run typecheck`,
-  `pnpm test` and `pnpm run build`
-- `cargo clippy -p azdocs-desktop --all-targets --locked -- -D warnings`
-- `cargo test -p azdocs-desktop --locked`
+## Before tagging
 
-The frontend uses pnpm, not npm. Both jobs share one lockfile and one `target/`
-now that `desktop/src-tauri` is a workspace member.
+1. Review the intended commit and passing CI. Keep real configurations, databases,
+   secrets and report output out of the repository and its history.
+2. Keep the CLI and desktop Cargo versions, `desktop/package.json` and
+   `desktop/src-tauri/tauri.conf.json` aligned. Update `Cargo.lock` after a version
+   change and verify the tag matches the intended version.
+3. Check the README, installation instructions and notices against what will
+   actually be published. Remove the first-release/source-only wording when
+   downloadable artifacts become available.
+4. Regenerate dependency notices and review upstream licence changes when
+   dependencies or bundled fonts/assets change. Preserve the asset notices in
+   [Third-party notices](../../THIRD_PARTY_NOTICES.md).
 
-> Not yet covered: `pnpm run tauri build` is never exercised, so the packaged
-> bundle is only compiled at release time, and the desktop job is Linux-only.
+## Dependency notices
 
-## Release builds
+The release workflow uses cargo-about 0.9.2. To reproduce its CLI report:
 
-Tagging `v*` triggers `.github/workflows/release.yml`:
+```sh
+cargo install cargo-about --version 0.9.2 --locked
+cargo fetch --locked
+mkdir -p output/licenses
+cargo about generate --offline --locked --fail docs/licenses/about.hbs -o output/licenses/dependency-licenses.html
+```
+
+`about.toml` covers the five CLI targets, includes transitive/build dependencies,
+and excludes development-only dependencies. The template links each crate to
+its published source archive. Licence generation fails when a dependency's
+licence cannot be determined or accepted. This is a CLI dependency report;
+shipping desktop bundles also requires their Rust and JavaScript notices.
+The explicit asset notices cover IBM Plex, the fallback fonts in `typst-assets`,
+Microsoft Azure artwork and adapted Microsoft queries.
+
+## CLI release workflow
+
+A pushed `v*` tag triggers `.github/workflows/release.yml`:
 
 ```mermaid
 flowchart LR
-    tag[git tag v0.2.0] --> build[Build matrix]
-    build --> mac1[macOS aarch64]
-    build --> mac2[macOS x86_64]
-    build --> lin1[Linux musl x86_64]
-    build --> lin2[Linux musl aarch64]
-    build --> win[Windows x86_64]
-    mac1 & mac2 & lin1 & lin2 & win --> rel[GitHub release<br/>with archives + notes]
+    tag[Version tag] --> notices[Locked dependency notices]
+    notices --> build[CLI build matrix]
+    build --> mac1[macOS Apple Silicon]
+    build --> mac2[macOS Intel]
+    build --> lin1[Linux musl x86-64]
+    build --> lin2[Linux musl ARM64]
+    build --> win[Windows x86-64]
+    mac1 & mac2 & lin1 & lin2 & win --> package[Archives with licences and notices]
+    package --> release[GitHub release · SHA-256 checksums · generated notes]
 ```
+
+For the current 0.1.0 package versions, the release tag would be:
 
 ```sh
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.1.0
+git push origin v0.1.0
 ```
 
-The musl builds are fully static; every artifact is a single dependency-free
-binary.
+These commands publish a release; run them only when that version is ready.
+The workflow builds CLI executables, not desktop installers. Linux uses musl;
+macOS and Windows use operating-system libraries. Archives include `LICENSE`,
+`THIRD_PARTY_NOTICES.md`, the generated dependency report and referenced font/query
+licence files. `azdocs-checksums.sha256` accompanies the archives.
+
+After the workflow completes, download the actual artifacts, check their
+checksums and run `azdocs --version` and an offline fixture export on the target
+platforms. A local build or a successful source test does not establish that
+all published archives run correctly.
