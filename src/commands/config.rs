@@ -14,25 +14,7 @@ pub fn run(
 ) -> anyhow::Result<()> {
     let document = ConfigDocument::load(path)?;
     match command {
-        ConfigCommand::Show => {
-            // Runtime environment values are not part of the editable document.
-            // The envelope keeps configured and resolved values distinct.
-            let resolved = if tenant.is_some() || document.values.selected_reference(None).is_ok() {
-                let mut config = document.resolve(tenant)?;
-                config.auth.client_secret = None;
-                Some(config)
-            } else {
-                None
-            };
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&serde_json::json!({
-                    "configured": document.values,
-                    "resolved": resolved,
-                    "path": document.source,
-                }))?
-            );
-        }
+        ConfigCommand::Show => show_document(document, tenant)?,
         ConfigCommand::Validate => {
             document.values.validate()?;
             let resolved = document.resolve(tenant)?;
@@ -92,5 +74,30 @@ pub fn run(
             );
         }
     }
+    Ok(())
+}
+
+pub fn show(path: Option<&Path>, tenant: Option<&str>) -> anyhow::Result<()> {
+    show_document(ConfigDocument::load(path)?, tenant)
+}
+
+fn show_document(document: ConfigDocument, tenant: Option<&str>) -> anyhow::Result<()> {
+    // Runtime environment values are not part of the editable document.
+    // The envelope keeps configured and resolved values distinct.
+    let resolved = if tenant.is_some() || document.values.selected_reference(None).is_ok() {
+        let mut config = document.resolve(tenant)?;
+        config.auth.client_secret = None;
+        Some(config)
+    } else {
+        None
+    };
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&serde_json::json!({
+            "configured": document.values,
+            "resolved": resolved,
+            "path": document.source,
+        }))?
+    );
     Ok(())
 }
