@@ -30,8 +30,9 @@ brew install --cask russmckendrick/tap/azdocs-desktop
 
 The same signed and notarized DMG, plus Windows x86-64 and Linux x86-64/ARM64
 packages, are available from
-[GitHub Releases](https://github.com/russmckendrick/azdocs/releases). Direct
-downloads should be checked against `azdocs-checksums.sha256`.
+[GitHub Releases](https://github.com/russmckendrick/azdocs/releases). The
+[installation guide](installation.md#github-releases) gives GitHub CLI download,
+checksum verification and platform installation commands.
 
 ## Run from a source checkout
 

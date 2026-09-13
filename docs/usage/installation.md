@@ -2,13 +2,23 @@
 
 ## Homebrew
 
-Install the CLI on macOS or Linux:
+The public tap contains both the CLI formula and the macOS desktop cask. Install
+the CLI on macOS or Linux with either the fully qualified name:
 
 ```sh
 brew install russmckendrick/tap/azdocs
 ```
 
-On Apple Silicon macOS, install the signed and notarized desktop app:
+or tap the repository once and use the shorter name thereafter:
+
+```sh
+brew tap russmckendrick/tap
+brew install azdocs
+azdocs --version
+```
+
+On Apple Silicon macOS, install the signed and notarized desktop app from the
+same tap:
 
 ```sh
 brew install --cask russmckendrick/tap/azdocs-desktop
@@ -18,7 +28,22 @@ The desktop cask is currently Apple Silicon only. Windows and Linux desktop
 packages are available from
 [GitHub Releases](https://github.com/russmckendrick/azdocs/releases).
 
-## Direct downloads
+Homebrew upgrades both editions in the usual way:
+
+```sh
+brew update
+brew upgrade azdocs
+brew upgrade --cask azdocs-desktop
+```
+
+## GitHub Releases
+
+The [latest release](https://github.com/russmckendrick/azdocs/releases/latest)
+can be downloaded in a browser or with the
+[GitHub CLI](https://cli.github.com/). Every package has a SHA-256 checksum;
+`azdocs-checksums.sha256` contains the complete release manifest.
+
+### CLI
 
 Each release publishes these CLI archives:
 
@@ -30,6 +55,43 @@ Each release publishes these CLI archives:
 | Linux ARM64 | `azdocs-linux-arm64.tar.gz` |
 | Windows x86-64 | `azdocs-windows-amd64.zip` |
 
+On macOS or Linux, choose the asset from the table and replace the name in
+these commands if necessary. This Apple Silicon example installs into the
+per-user `~/.local/bin` directory:
+
+```sh
+mkdir -p azdocs-download ~/.local/bin
+cd azdocs-download
+gh release download --repo russmckendrick/azdocs \
+  --pattern 'azdocs-darwin-arm64.tar.gz*'
+shasum -a 256 -c azdocs-darwin-arm64.tar.gz.sha256
+tar -xzf azdocs-darwin-arm64.tar.gz
+install -m 0755 azdocs ~/.local/bin/azdocs
+~/.local/bin/azdocs --version
+```
+
+Linux can use `sha256sum -c` in place of `shasum -a 256 -c`. Ensure
+`~/.local/bin` is on `PATH` if it is not already.
+
+On Windows, use PowerShell to download, verify and extract the x86-64 archive:
+
+```powershell
+New-Item -ItemType Directory -Force azdocs-download | Out-Null
+Set-Location azdocs-download
+gh release download --repo russmckendrick/azdocs `
+  --pattern "azdocs-windows-amd64.zip*"
+$expected = (Get-Content .\azdocs-windows-amd64.zip.sha256).Split()[0]
+$actual = (Get-FileHash .\azdocs-windows-amd64.zip -Algorithm SHA256).Hash.ToLower()
+if ($actual -ne $expected) { throw "azdocs checksum mismatch" }
+Expand-Archive .\azdocs-windows-amd64.zip -DestinationPath .\azdocs
+.\azdocs\azdocs.exe --version
+```
+
+Move the extracted directory to a permanent location and add it to the user
+`PATH` if `azdocs.exe` should be available in every terminal.
+
+### Desktop
+
 Desktop packages are published for:
 
 | Platform | Assets |
@@ -38,9 +100,33 @@ Desktop packages are published for:
 | Windows x86-64 | NSIS setup executable and MSI |
 | Linux x86-64 and ARM64 | AppImage, DEB and RPM |
 
-Compare direct downloads with `azdocs-checksums.sha256`. Extract a CLI archive
-and place `azdocs` (or `azdocs.exe`) on `PATH`. Keep the included licence
-and notice files with redistributed copies.
+Download and verify the Apple Silicon DMG before opening it:
+
+```sh
+gh release download --repo russmckendrick/azdocs \
+  --pattern 'azdocs-desktop-macos-arm64.dmg*'
+shasum -a 256 -c azdocs-desktop-macos-arm64.dmg.sha256
+open azdocs-desktop-macos-arm64.dmg
+```
+
+On Windows, download either the setup executable or MSI together with its
+matching `.sha256` file, verify it with `Get-FileHash` as in the CLI example,
+then run the installer.
+
+On Linux, replace `amd64` with `arm64` when appropriate. Downloading the whole
+set lets the shared checksum file verify the AppImage, DEB and RPM together:
+
+```sh
+gh release download --repo russmckendrick/azdocs \
+  --pattern 'azdocs-desktop-linux-amd64.*'
+sha256sum -c azdocs-desktop-linux-amd64.sha256
+sudo apt install ./azdocs-desktop-linux-amd64.deb
+```
+
+Use the RPM with the distribution's package manager instead, or make the
+AppImage executable with `chmod +x` and run it directly.
+
+Keep the included licence and notice files with redistributed CLI copies.
 
 The CLI bundles SQLite and uses rustls, so no system SQLite, OpenSSL or Azure
 CLI installation is required. Native secret storage uses macOS Keychain,
