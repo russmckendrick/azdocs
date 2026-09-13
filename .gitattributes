@@ -12,3 +12,7 @@
 
 # Golden files are compared byte-for-byte across Linux, macOS and Windows.
 *.snap -text
+
+# Bundled KQL is embedded and hashed as executed query provenance. Windows
+# checkout conversion must not change those bytes or the report golden hashes.
+queries/**/*.toml text eol=lf
