@@ -7,12 +7,82 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  ci:
+    name: Full CI
+    uses: ./.github/workflows/ci.yml
+
+  release-metadata:
+    name: Validate release metadata
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Match tag, package versions and release notes
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          ROOT_VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+          DESKTOP_CARGO_VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' desktop/src-tauri/Cargo.toml | head -n 1)
+          DESKTOP_PACKAGE_VERSION=$(node -p "require('./desktop/package.json').version")
+          TAURI_VERSION=$(node -p "require('./desktop/src-tauri/tauri.conf.json').version")
+
+          for ENTRY in "Cargo.toml:${ROOT_VERSION}" "desktop/src-tauri/Cargo.toml:${DESKTOP_CARGO_VERSION}" "desktop/package.json:${DESKTOP_PACKAGE_VERSION}" "desktop/src-tauri/tauri.conf.json:${TAURI_VERSION}"; do
+            FILE="${ENTRY%%:*}"
+            VERSION="${ENTRY#*:}"
+            if [ "${VERSION}" != "${TAG_VERSION}" ]; then
+              echo "${FILE} version ${VERSION} does not match ${GITHUB_REF_NAME}" >&2
+              exit 1
+            fi
+          done
+
+          test -s "docs/releases/${TAG_VERSION}.md"
+          echo "version=${TAG_VERSION}" >> "${GITHUB_OUTPUT}"
+
+      - name: Require a public release repository
+        env:
+          REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+        run: |
+          if [ "${REPOSITORY_PRIVATE}" = "true" ]; then
+            echo "Homebrew cannot install GitHub release assets from a private repository." >&2
+            echo "Make the repository public before publishing a release tag." >&2
+            exit 1
+          fi
+
+      - name: Require publishing credentials
+        env:
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          HOMEBREW_TAP_DEPLOY_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          MISSING=0
+          for SECRET_NAME in APPLE_API_ISSUER APPLE_API_KEY APPLE_API_PRIVATE_KEY APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD KEYCHAIN_PASSWORD HOMEBREW_TAP_DEPLOY_KEY; do
+            if [ -z "${!SECRET_NAME}" ]; then
+              echo "Missing required GitHub Actions secret: ${SECRET_NAME}" >&2
+              MISSING=1
+            fi
+          done
+          exit "${MISSING}"
+
   notices:
     name: Generate dependency licence notices
+    needs: [ci, release-metadata]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - uses: taiki-e/install-action@v2
         with:
@@ -22,14 +92,14 @@ jobs:
         run: |
           mkdir -p output/licenses
           cargo about generate --offline --locked --fail docs/licenses/about.hbs -o output/licenses/dependency-licenses.html
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: dependency-notices
           path: output/licenses/dependency-licenses.html
           if-no-files-found: error
 
-  build:
-    name: Build ${{ matrix.target }}
+  cli:
+    name: CLI / ${{ matrix.archive }}
     needs: notices
     runs-on: ${{ matrix.os }}
     strategy:
@@ -38,16 +108,21 @@ jobs:
         include:
           - os: macos-latest
             target: aarch64-apple-darwin
+            archive: azdocs-darwin-arm64.tar.gz
           - os: macos-latest
             target: x86_64-apple-darwin
+            archive: azdocs-darwin-amd64.tar.gz
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
+            archive: azdocs-linux-amd64.tar.gz
           - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-musl
+            archive: azdocs-linux-arm64.tar.gz
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+            archive: azdocs-windows-amd64.zip
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
@@ -55,53 +130,311 @@ jobs:
         if: contains(matrix.target, 'musl')
         run: sudo apt-get update && sudo apt-get install -y musl-tools
       - uses: Swatinem/rust-cache@v2
-      - name: Build
+      - name: Build release CLI
         run: cargo build --release --locked --target ${{ matrix.target }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v6
         with:
           name: dependency-notices
           path: target/${{ matrix.target }}/release/package
       - name: Stage executable and notices
         shell: bash
         run: |
-          package="target/${{ matrix.target }}/release/package"
-          binary=azdocs
-          if [ "$RUNNER_OS" = "Windows" ]; then binary=azdocs.exe; fi
-          mkdir -p "$package/data/fonts" "$package/docs/licenses"
-          cp "target/${{ matrix.target }}/release/$binary" "$package/"
-          cp LICENSE THIRD_PARTY_NOTICES.md "$package/"
-          cp data/fonts/OFL.txt "$package/data/fonts/"
-          cp docs/licenses/Microsoft-MIT.txt docs/licenses/typst-assets-NOTICE.txt "$package/docs/licenses/"
-      - name: Package (unix)
+          set -euo pipefail
+          PACKAGE="target/${{ matrix.target }}/release/package"
+          BINARY=azdocs
+          if [ "${RUNNER_OS}" = "Windows" ]; then BINARY=azdocs.exe; fi
+
+          mkdir -p "${PACKAGE}/data/fonts" "${PACKAGE}/docs/licenses"
+          cp "target/${{ matrix.target }}/release/${BINARY}" "${PACKAGE}/"
+          cp LICENSE THIRD_PARTY_NOTICES.md "${PACKAGE}/"
+          cp data/fonts/OFL.txt "${PACKAGE}/data/fonts/"
+          cp docs/licenses/Microsoft-MIT.txt docs/licenses/typst-assets-NOTICE.txt "${PACKAGE}/docs/licenses/"
+      - name: Package and checksum (Unix)
         if: runner.os != 'Windows'
+        shell: bash
         run: |
-          cd target/${{ matrix.target }}/release
-          tar czf azdocs-${{ matrix.target }}.tar.gz -C package .
-      - name: Package (windows)
+          set -euo pipefail
+          RELEASE_DIR="target/${{ matrix.target }}/release"
+          tar czf "${{ matrix.archive }}" -C "${RELEASE_DIR}/package" .
+          shasum -a 256 "${{ matrix.archive }}" > "${{ matrix.archive }}.sha256"
+      - name: Package and checksum (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path target/${{ matrix.target }}/release/package/* `
-            -DestinationPath target/${{ matrix.target }}/release/azdocs-${{ matrix.target }}.zip
-      - uses: actions/upload-artifact@v4
+          Compress-Archive -Path "target/${{ matrix.target }}/release/package/*" -DestinationPath "${{ matrix.archive }}"
+          $hash = (Get-FileHash -Algorithm SHA256 "${{ matrix.archive }}").Hash.ToLower()
+          "$hash  ${{ matrix.archive }}" | Out-File -Encoding ascii "${{ matrix.archive }}.sha256"
+      - uses: actions/upload-artifact@v6
         with:
-          name: azdocs-${{ matrix.target }}
+          name: release-cli-${{ matrix.target }}
           if-no-files-found: error
           path: |
-            target/${{ matrix.target }}/release/azdocs-*.tar.gz
-            target/${{ matrix.target }}/release/azdocs-*.zip
+            ${{ matrix.archive }}
+            ${{ matrix.archive }}.sha256
 
-  release:
-    needs: build
+  desktop-macos:
+    name: Desktop / macOS arm64 DMG
+    needs: [ci, release-metadata]
+    runs-on: macos-latest
+    env:
+      DESKTOP_DMG: azdocs-desktop-macos-arm64.dmg
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 10
+          run_install: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: desktop/pnpm-lock.yaml
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: pnpm install --frozen-lockfile
+      - name: Import Apple Developer certificate
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          CERTIFICATE_PATH="${RUNNER_TEMP}/certificate.p12"
+          KEYCHAIN_PATH="${RUNNER_TEMP}/azdocs-signing.keychain-db"
+
+          printf '%s' "${APPLE_CERTIFICATE}" | base64 --decode > "${CERTIFICATE_PATH}"
+          security create-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
+          security set-keychain-settings -lut 21600 "${KEYCHAIN_PATH}"
+          security unlock-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
+          security import "${CERTIFICATE_PATH}" -k "${KEYCHAIN_PATH}" -P "${APPLE_CERTIFICATE_PASSWORD}" -T /usr/bin/codesign
+          security list-keychains -d user -s "${KEYCHAIN_PATH}" $(security list-keychains -d user | tr -d '"')
+          security default-keychain -s "${KEYCHAIN_PATH}"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
+
+          IDENTITIES=$(security find-identity -v -p codesigning "${KEYCHAIN_PATH}" || true)
+          printf '%s\n' "${IDENTITIES}"
+          CERT_ID=$(printf '%s\n' "${IDENTITIES}" | sed -n 's/.*"\(Developer ID Application:.*\)".*/\1/p' | head -n 1)
+          if [ -z "${CERT_ID}" ]; then
+            echo "The certificate secret does not contain a Developer ID Application identity." >&2
+            exit 1
+          fi
+
+          echo "APPLE_SIGNING_IDENTITY=${CERT_ID}" >> "${GITHUB_ENV}"
+      - name: Configure App Store Connect API key
+        env:
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! [[ "${APPLE_API_ISSUER}" =~ ^[0-9a-fA-F-]{36}$ ]]; then
+            echo "APPLE_API_ISSUER must be the App Store Connect issuer UUID." >&2
+            exit 1
+          fi
+          if ! printf '%s' "${APPLE_API_PRIVATE_KEY}" | grep -q "BEGIN PRIVATE KEY"; then
+            echo "APPLE_API_PRIVATE_KEY must contain an App Store Connect AuthKey .p8 file." >&2
+            exit 1
+          fi
+
+          API_KEY_PATH="${RUNNER_TEMP}/AuthKey_${APPLE_API_KEY}.p8"
+          printf '%s' "${APPLE_API_PRIVATE_KEY}" > "${API_KEY_PATH}"
+          chmod 600 "${API_KEY_PATH}"
+          echo "APPLE_API_ISSUER=${APPLE_API_ISSUER}" >> "${GITHUB_ENV}"
+          echo "APPLE_API_KEY=${APPLE_API_KEY}" >> "${GITHUB_ENV}"
+          echo "APPLE_API_KEY_PATH=${API_KEY_PATH}" >> "${GITHUB_ENV}"
+      - name: Build signed and notarized DMG
+        working-directory: desktop
+        run: pnpm tauri build --target aarch64-apple-darwin --bundles dmg --ci
+      - name: Verify signed and notarized app
+        shell: bash
+        run: |
+          set -euo pipefail
+          DMG=$(find target/aarch64-apple-darwin/release/bundle/dmg -name '*.dmg' -type f | head -n 1)
+          test -n "${DMG}"
+          codesign --verify --verbose=2 "${DMG}"
+
+          MOUNT_DIR=$(mktemp -d "${RUNNER_TEMP}/azdocs-dmg.XXXXXX")
+          hdiutil attach "${DMG}" -readonly -nobrowse -mountpoint "${MOUNT_DIR}"
+          trap 'hdiutil detach "${MOUNT_DIR}" -quiet || true' EXIT
+
+          APP="${MOUNT_DIR}/azdocs.app"
+          if [ ! -d "${APP}" ]; then
+            echo "Mounted DMG does not contain azdocs.app" >&2
+            find "${MOUNT_DIR}" -maxdepth 2 -print >&2
+            exit 1
+          fi
+          codesign --verify --deep --strict --verbose=2 "${APP}"
+          xcrun stapler validate "${APP}"
+          spctl -a -vv -t execute "${APP}"
+      - name: Normalize desktop artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          DMG=$(find target/aarch64-apple-darwin/release/bundle/dmg -name '*.dmg' -type f | head -n 1)
+          cp "${DMG}" "${DESKTOP_DMG}"
+          shasum -a 256 "${DESKTOP_DMG}" > "${DESKTOP_DMG}.sha256"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: release-desktop-macos-arm64
+          if-no-files-found: error
+          path: |
+            ${{ env.DESKTOP_DMG }}
+            ${{ env.DESKTOP_DMG }}.sha256
+
+  desktop-windows:
+    name: Desktop / Windows amd64
+    needs: [ci, release-metadata]
+    runs-on: windows-latest
+    env:
+      DESKTOP_SETUP: azdocs-desktop-windows-amd64-setup.exe
+      DESKTOP_MSI: azdocs-desktop-windows-amd64.msi
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 10
+          run_install: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: desktop/pnpm-lock.yaml
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: pnpm install --frozen-lockfile
+      - name: Build desktop installers
+        working-directory: desktop
+        run: pnpm tauri build --bundles nsis,msi --ci
+      - name: Normalize desktop artifacts
+        shell: pwsh
+        run: |
+          $setup = Get-ChildItem -Path "target/release/bundle/nsis" -Filter "*-setup.exe" | Select-Object -First 1
+          $msi = Get-ChildItem -Path "target/release/bundle/msi" -Filter "*.msi" | Select-Object -First 1
+          if (-not $setup -or -not $msi) {
+            throw "Tauri did not produce both NSIS and MSI installers"
+          }
+
+          Copy-Item $setup.FullName "${{ env.DESKTOP_SETUP }}"
+          Copy-Item $msi.FullName "${{ env.DESKTOP_MSI }}"
+          foreach ($file in @("${{ env.DESKTOP_SETUP }}", "${{ env.DESKTOP_MSI }}")) {
+            $hash = (Get-FileHash -Algorithm SHA256 $file).Hash.ToLower()
+            "$hash  $file" | Out-File -Encoding ascii "$file.sha256"
+          }
+      - uses: actions/upload-artifact@v6
+        with:
+          name: release-desktop-windows-amd64
+          if-no-files-found: error
+          path: |
+            ${{ env.DESKTOP_SETUP }}
+            ${{ env.DESKTOP_SETUP }}.sha256
+            ${{ env.DESKTOP_MSI }}
+            ${{ env.DESKTOP_MSI }}.sha256
+
+  desktop-linux:
+    name: Desktop / Linux ${{ matrix.arch }}
+    needs: [ci, release-metadata]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: amd64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Tauri Linux packaging dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf rpm
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 10
+          run_install: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: desktop/pnpm-lock.yaml
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: pnpm install --frozen-lockfile
+      - name: Build desktop packages
+        working-directory: desktop
+        run: pnpm tauri build --bundles appimage,deb,rpm --ci
+      - name: Normalize desktop artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          APPIMAGE=$(find target/release/bundle/appimage -name '*.AppImage' -type f | head -n 1)
+          DEB=$(find target/release/bundle/deb -name '*.deb' -type f | head -n 1)
+          RPM=$(find target/release/bundle/rpm -name '*.rpm' -type f | head -n 1)
+          test -n "${APPIMAGE}" && test -n "${DEB}" && test -n "${RPM}"
+
+          cp "${APPIMAGE}" "azdocs-desktop-linux-${{ matrix.arch }}.AppImage"
+          cp "${DEB}" "azdocs-desktop-linux-${{ matrix.arch }}.deb"
+          cp "${RPM}" "azdocs-desktop-linux-${{ matrix.arch }}.rpm"
+          sha256sum "azdocs-desktop-linux-${{ matrix.arch }}.AppImage" "azdocs-desktop-linux-${{ matrix.arch }}.deb" "azdocs-desktop-linux-${{ matrix.arch }}.rpm" > "azdocs-desktop-linux-${{ matrix.arch }}.sha256"
+      - uses: actions/upload-artifact@v6
+        with:
+          name: release-desktop-linux-${{ matrix.arch }}
+          if-no-files-found: error
+          path: |
+            azdocs-desktop-linux-${{ matrix.arch }}.AppImage
+            azdocs-desktop-linux-${{ matrix.arch }}.deb
+            azdocs-desktop-linux-${{ matrix.arch }}.rpm
+            azdocs-desktop-linux-${{ matrix.arch }}.sha256
+
+  publish:
+    name: Publish GitHub release
+    needs:
+      - release-metadata
+      - cli
+      - desktop-macos
+      - desktop-windows
+      - desktop-linux
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v6
         with:
-          pattern: azdocs-*
+          pattern: release-*
           merge-multiple: true
-      - name: Checksum release archives
-        run: sha256sum azdocs-*.tar.gz azdocs-*.zip > azdocs-checksums.sha256
+      - name: Consolidate checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          find . -maxdepth 1 -name '*.sha256' ! -name 'azdocs-checksums.sha256' -print0 | sort -z | xargs -0 cat > azdocs-checksums.sha256
       - uses: softprops/action-gh-release@v2
         with:
-          files: azdocs-*
-          generate_release_notes: true
+          body_path: docs/releases/${{ needs.release-metadata.outputs.version }}.md
+          fail_on_unmatched_files: true
+          files: |
+            azdocs-*.tar.gz
+            azdocs-*.zip
+            azdocs-desktop-*.dmg
+            azdocs-desktop-*.exe
+            azdocs-desktop-*.msi
+            azdocs-desktop-*.AppImage
+            azdocs-desktop-*.deb
+            azdocs-desktop-*.rpm
+            *.sha256
+
+  update-tap:
+    name: Publish Homebrew formula and cask
+    needs: publish
+    uses: ./.github/workflows/update-tap.yml
+    with:
+      release_tag: ${{ github.ref_name }}
+    secrets: inherit

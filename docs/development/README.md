@@ -36,7 +36,7 @@ Generated contracts and documentation checks are described in [Testing](testing.
 | [Azure display metadata](azure-metadata.md) | Friendly Azure values and the Microsoft refresh flow |
 | [Testing](testing.md) | Test layers, fixture estate, goldens and documentation checks |
 | [Contributing](contributing.md) | Recipes, style and crate gotchas |
-| [Releasing](releasing.md) | CI matrix, licence notices and the tag-triggered CLI release |
+| [Releasing](releasing.md) | Version gates, signed bundles, GitHub Releases and Homebrew publishing |
 
 Project policies: [Contributing](../../CONTRIBUTING.md),
 [Security](../../SECURITY.md), [MIT licence](../../LICENSE) and

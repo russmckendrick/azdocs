@@ -37,19 +37,16 @@ Full documentation lives in [docs/](docs/README.md):
 
 ## Install
 
-Build from source with a current stable [Rust toolchain](https://rustup.rs/):
+Install the CLI on macOS or Linux with Homebrew:
 
 ```sh
-git clone https://github.com/russmckendrick/azdocs.git
-cd azdocs
-cargo install --path . --locked
+brew install russmckendrick/tap/azdocs
 ```
 
-This installs the CLI into Cargo's binary directory, which must be on your
-`PATH`. See [Installation](docs/usage/installation.md) for platform requirements,
-desktop builds and release-archive instructions. The project is preparing its
-first release; use the source installation above until CLI archives appear on
-the [Releases page](https://github.com/russmckendrick/azdocs/releases).
+Portable CLI archives for macOS, Linux and Windows are on the
+[Releases page](https://github.com/russmckendrick/azdocs/releases). See
+[Installation](docs/usage/installation.md) for direct downloads, checksums,
+source builds and platform details.
 
 ## Quick start
 
@@ -85,19 +82,18 @@ Reader must be granted on each subscription or parent scope you intend to audit.
 
 ### Desktop
 
-From the repository root, with Rust, Node.js 22.12+ (22.x), pnpm 10 and the
-[Tauri platform prerequisites](https://v2.tauri.app/start/prerequisites/) installed:
+On Apple Silicon macOS:
 
 ```sh
-cd desktop
-pnpm install --frozen-lockfile
-pnpm run tauri dev
+brew install --cask russmckendrick/tap/azdocs-desktop
 ```
 
+The Releases page also provides the signed and notarized macOS DMG, Windows
+x86-64 installers, and Linux x86-64/ARM64 packages.
 Open **Settings → Add tenant**, test and save the connection, then choose
 **Collect snapshot**. A CLI-created configuration can also be used. Desktop
-installers are built from source; the release workflow packages the CLI only.
-See the [desktop guide](docs/usage/desktop.md).
+source-build instructions are in the
+[desktop guide](docs/usage/desktop.md).
 
 ## Configuration
 

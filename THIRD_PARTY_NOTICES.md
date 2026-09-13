@@ -50,13 +50,15 @@ and evidence interpretation; they do not imply ownership of that documentation.
 
 Rust dependencies are locked in `Cargo.lock`; desktop JavaScript dependencies
 are locked in `desktop/pnpm-lock.yaml`. Each dependency retains its own licence.
-The CLI release workflow generates `dependency-licenses.html` using cargo-about
-from the locked graph, including the supported platforms, and packages it with
-these notices and the font licences. See [Releasing](https://github.com/russmckendrick/azdocs/blob/main/docs/development/releasing.md)
+The release workflow generates `dependency-licenses.html` using cargo-about
+from the locked CLI graph, including the supported platforms, and packages it
+with these notices and the font licences. See
+[Releasing](https://github.com/russmckendrick/azdocs/blob/main/docs/development/releasing.md)
 for generation and review commands. The generated list includes source links;
 for MPL-2.0 dependencies, the linked crate archives contain their corresponding
 source files.
 
-Desktop bundles are currently built from source. Distributors of those bundles
-must also retain notices for the Tauri/Rust and JavaScript dependencies they
-include; the CLI dependency report does not cover the complete desktop bundle.
+Published desktop bundles embed this project notice, the MIT licence and the
+retained font, artwork and query licence material. Rust and JavaScript
+dependencies remain identified by `Cargo.lock` and `desktop/pnpm-lock.yaml`;
+each dependency retains its own licence.

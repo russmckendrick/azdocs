@@ -1,41 +1,98 @@
 # Releasing
 
-## CI coverage
+Pushing a version tag runs the complete release path: the normal CI suite,
+metadata and credential gates, CLI archives, desktop packages, GitHub Release
+publication, and the Homebrew tap update. A failed build cannot publish a
+partial release.
 
-`.github/workflows/ci.yml` runs on pushes to `main` and pull requests.
+## Release graph
 
-| Job | Platforms | Checks |
-|---|---|---|
-| Documentation | Linux | Local links and anchors, TOML examples, query catalogue, generated design sheet |
-| CLI | Linux, macOS, Windows | Workspace formatting; root-package Clippy and tests; separate native credential-store smoke tests |
-| Desktop | Linux, macOS, Windows | Frontend lint, typecheck, tests and production assets; backend Clippy/tests; generated wire-contract checks; native website-capture smoke test |
+```mermaid
+flowchart LR
+    tag[Version tag] --> checks[Full CI and release gates]
+    checks --> notices[Locked dependency notices]
+    notices --> cli[CLI archives]
+    checks --> desktop[Desktop packages]
+    cli & desktop --> release[GitHub Release and checksums]
+    release --> tap[Homebrew formula and cask]
+```
 
-Linux installs the required system libraries and uses Xvfb for native capture.
-Capture evidence is retained for seven days when artifact upload succeeds; an
-upload failure warns, while a native smoke failure fails the job. See
-[Testing](testing.md) and [Website screenshots](website-screenshots.md#verification).
-
-CI builds frontend assets and exercises the desktop backend, but does not run
-`pnpm run tauri build`. It therefore does not validate platform installers,
-signing, notarisation or installation on a clean end-user machine.
+`.github/workflows/ci.yml` is both the push/pull-request workflow and the
+reusable CI gate called by `.github/workflows/release.yml`. The release job
+does not rebuild a reduced test subset.
 
 ## Before tagging
 
-1. Review the intended commit and passing CI. Keep real configurations, databases,
-   secrets and report output out of the repository and its history.
-2. Keep the CLI and desktop Cargo versions, `desktop/package.json` and
-   `desktop/src-tauri/tauri.conf.json` aligned. Update `Cargo.lock` after a version
-   change and verify the tag matches the intended version.
-3. Check the README, installation instructions and notices against what will
-   actually be published. Remove the first-release/source-only wording when
-   downloadable artifacts become available.
-4. Regenerate dependency notices and review upstream licence changes when
-   dependencies or bundled fonts/assets change. Preserve the asset notices in
-   [Third-party notices](../../THIRD_PARTY_NOTICES.md).
+1. Review the intended commit and a passing `main` CI run. Keep real
+   configurations, databases, secrets and report output out of the repository
+   and its history.
+2. Keep the versions in `Cargo.toml`,
+   `desktop/src-tauri/Cargo.toml`, `desktop/package.json` and
+   `desktop/src-tauri/tauri.conf.json` aligned. Update `Cargo.lock` after a
+   version change.
+3. Add `docs/releases/<version>.md` and link it from
+   `docs/releases/README.md`. The tag must be `v<version>`.
+4. Review dependency and asset notices whenever dependencies, fonts, icons or
+   adapted queries change.
+5. Confirm that the repository is public. Homebrew clients cannot fetch release
+   assets from a private GitHub repository.
+
+The workflow enforces steps 2, 3 and 5 before it starts packaging.
+
+## Required GitHub secrets
+
+The repository needs these Actions secrets:
+
+| Secret | Purpose |
+|---|---|
+| `APPLE_CERTIFICATE` | Base64-encoded Developer ID Application `.p12` |
+| `APPLE_CERTIFICATE_PASSWORD` | Password used to export that certificate |
+| `KEYCHAIN_PASSWORD` | Disposable CI keychain password |
+| `APPLE_API_ISSUER` | App Store Connect API issuer UUID |
+| `APPLE_API_KEY` | App Store Connect API key ID |
+| `APPLE_API_PRIVATE_KEY` | Complete App Store Connect `AuthKey_*.p8` contents |
+| `HOMEBREW_TAP_DEPLOY_KEY` | Dedicated SSH deploy key with write access only to `russmckendrick/homebrew-tap` |
+
+The Apple certificate must be a **Developer ID Application** identity. An Apple
+Distribution or Developer ID Installer certificate cannot sign the
+direct-download app bundle. The workflow verifies the imported identity, signs
+the macOS app and DMG, notarizes through App Store Connect, mounts the finished
+DMG, and checks its signature, staple and Gatekeeper verdict.
+
+Do not place certificates, private keys or token values in the repository,
+workflow YAML, release notes or build artifacts.
+
+## Published artifacts
+
+The CLI archives use stable, user-facing names:
+
+| Platform | Release asset |
+|---|---|
+| macOS Apple Silicon | `azdocs-darwin-arm64.tar.gz` |
+| macOS Intel | `azdocs-darwin-amd64.tar.gz` |
+| Linux x86-64 | `azdocs-linux-amd64.tar.gz` |
+| Linux ARM64 | `azdocs-linux-arm64.tar.gz` |
+| Windows x86-64 | `azdocs-windows-amd64.zip` |
+
+Each archive contains the executable, MIT licence, project third-party notice,
+generated locked Rust dependency report, font notice and retained Microsoft
+licence material. Linux CLI archives use musl.
+
+Desktop packages are:
+
+| Platform | Release assets |
+|---|---|
+| macOS Apple Silicon | Signed and notarized `azdocs-desktop-macos-arm64.dmg` |
+| Windows x86-64 | NSIS `setup.exe` and MSI installers |
+| Linux x86-64 and ARM64 | AppImage, DEB and RPM packages |
+
+The desktop bundle embeds the project licence and static asset/query notices.
+Every artifact has a sibling `.sha256` file, and
+`azdocs-checksums.sha256` consolidates all published hashes.
 
 ## Dependency notices
 
-The release workflow uses cargo-about 0.9.2. To reproduce its CLI report:
+The release workflow uses cargo-about 0.9.2. Reproduce its report with:
 
 ```sh
 cargo install cargo-about --version 0.9.2 --locked
@@ -44,45 +101,42 @@ mkdir -p output/licenses
 cargo about generate --offline --locked --fail docs/licenses/about.hbs -o output/licenses/dependency-licenses.html
 ```
 
-`about.toml` covers the five CLI targets, includes transitive/build dependencies,
-and excludes development-only dependencies. The template links each crate to
-its published source archive. Licence generation fails when a dependency's
-licence cannot be determined or accepted. This is a CLI dependency report;
-shipping desktop bundles also requires their Rust and JavaScript notices.
-The explicit asset notices cover IBM Plex, the fallback fonts in `typst-assets`,
-Microsoft Azure artwork and adapted Microsoft queries.
+`about.toml` covers the five CLI targets, includes transitive and build
+dependencies, and excludes development-only dependencies. Licence generation
+fails when a dependency's licence cannot be determined or is not accepted.
+The explicit asset notices cover IBM Plex, the fallback fonts in
+`typst-assets`, Microsoft Azure artwork and adapted Microsoft queries.
 
-## CLI release workflow
+## Publish
 
-A pushed `v*` tag triggers `.github/workflows/release.yml`:
-
-```mermaid
-flowchart LR
-    tag[Version tag] --> notices[Locked dependency notices]
-    notices --> build[CLI build matrix]
-    build --> mac1[macOS Apple Silicon]
-    build --> mac2[macOS Intel]
-    build --> lin1[Linux musl x86-64]
-    build --> lin2[Linux musl ARM64]
-    build --> win[Windows x86-64]
-    mac1 & mac2 & lin1 & lin2 & win --> package[Archives with licences and notices]
-    package --> release[GitHub release · SHA-256 checksums · generated notes]
-```
-
-For the current 0.1.0 package versions, the release tag would be:
+For version 0.1.0:
 
 ```sh
-git tag v0.1.0
+git tag -s v0.1.0 -m "azdocs v0.1.0"
 git push origin v0.1.0
 ```
 
-These commands publish a release; run them only when that version is ready.
-The workflow builds CLI executables, not desktop installers. Linux uses musl;
-macOS and Windows use operating-system libraries. Archives include `LICENSE`,
-`THIRD_PARTY_NOTICES.md`, the generated dependency report and referenced font/query
-licence files. `azdocs-checksums.sha256` accompanies the archives.
+The release body comes from `docs/releases/0.1.0.md`. After GitHub publishes
+all files, `.github/workflows/update-tap.yml` writes
+`Formula/azdocs.rb` and `Casks/azdocs-desktop.rb` in
+`russmckendrick/homebrew-tap`, validates their Ruby syntax, and pushes the tap
+commit. The workflow can also be dispatched manually with an existing release
+tag to repair or repeat only the tap update.
 
-After the workflow completes, download the actual artifacts, check their
-checksums and run `azdocs --version` and an offline fixture export on the target
-platforms. A local build or a successful source test does not establish that
-all published archives run correctly.
+## Verify the published release
+
+Treat the uploaded files, rather than local build output, as the release
+candidate:
+
+```sh
+brew update
+brew install russmckendrick/tap/azdocs
+azdocs --version
+
+brew install --cask russmckendrick/tap/azdocs-desktop
+```
+
+Also download the direct assets, verify them against
+`azdocs-checksums.sha256`, and smoke-test the CLI plus the native installer on
+each platform. On macOS, `spctl` must accept the installed app without a
+quarantine override.

@@ -30,8 +30,19 @@
     "active": true,
     "targets": "all",
     "category": "DeveloperTool",
+    "publisher": "Russ McKendrick",
+    "homepage": "https://github.com/russmckendrick/azdocs",
+    "license": "MIT",
+    "copyright": "Copyright © 2026 Russ McKendrick",
     "shortDescription": "Explore offline Azure estate snapshots",
     "longDescription": "A rich desktop explorer for Azure estates collected by azdocs.",
+    "resources": {
+      "../../LICENSE": "notices/LICENSE",
+      "../../THIRD_PARTY_NOTICES.md": "notices/THIRD_PARTY_NOTICES.md",
+      "../../data/fonts/OFL.txt": "notices/fonts/OFL.txt",
+      "../../docs/licenses/Microsoft-MIT.txt": "notices/Microsoft-MIT.txt",
+      "../../docs/licenses/typst-assets-NOTICE.txt": "notices/typst-assets-NOTICE.txt"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

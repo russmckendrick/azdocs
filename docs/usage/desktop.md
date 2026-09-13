@@ -20,6 +20,19 @@ all come from the selected local snapshot.
 
 Website endpoints also have [saved screenshots](website-screenshots.md), captured automatically after desktop collection or on request. Browsing saved images stays offline.
 
+## Install a release
+
+On Apple Silicon macOS:
+
+```sh
+brew install --cask russmckendrick/tap/azdocs-desktop
+```
+
+The same signed and notarized DMG, plus Windows x86-64 and Linux x86-64/ARM64
+packages, are available from
+[GitHub Releases](https://github.com/russmckendrick/azdocs/releases). Direct
+downloads should be checked against `azdocs-checksums.sha256`.
+
 ## Run from a source checkout
 
 Node.js 22.12+ (22.x), pnpm 10, current stable Rust, and the [Tauri v2 platform prerequisites](https://v2.tauri.app/start/prerequisites/)

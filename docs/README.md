@@ -26,7 +26,7 @@ websites. Scope and permissions limit what can be collected.
 
 | Page | Covers |
 |---|---|
-| [Installation](usage/installation.md) | Source installation, CLI archives, desktop prerequisites and shell completions |
+| [Installation](usage/installation.md) | Homebrew, direct downloads, source builds and shell completions |
 | [Configuration](usage/configuration.md) | Named tenants, shared defaults, native secrets, migration and environment references |
 | [Permission diagnostics](usage/permissions.md) | Connection tests, RBAC verdicts and coverage limits |
 | [Collecting](usage/collecting.md) | Running the query pack, scoping, throttling |
@@ -64,6 +64,11 @@ websites. Scope and permissions limit what can be collected.
 | [Diagram standards](reference/diagrams.md) | Detail levels, A4 page fractions, density rungs, connector routing |
 | [Desktop design language](reference/design.md) | Desktop tokens, typography, Overview dashboard and evidence workspace rules |
 | [Design sheet](reference/design.html) | Generated swatches, type scale and brand marks |
+
+### [Release notes](releases/README.md)
+
+Versioned notes for the CLI and desktop packages published through GitHub
+Releases and Homebrew.
 
 ### [Marks](marks/README.md)
 
