@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from math import copysign, cos, pi, sin
 from pathlib import Path
 from xml.sax.saxutils import escape
 
@@ -175,9 +176,19 @@ def build_mark_assets() -> None:
 
 
 def build_app_icons() -> None:
-    for name, topology in (
-        ("azdocs-app-icon-light", WHITE),
-        ("azdocs-app-icon-dark", PAPER),
+    # The original superellipse keeps a consistent Dock silhouette. The 40-unit
+    # outer margin belongs to the native icon canvas, not to the standalone A.
+    points = []
+    for step in range(256):
+        angle = 2 * pi * step / 256
+        x = 256 + 216 * copysign(abs(cos(angle)) ** 0.5, cos(angle))
+        y = 256 + 216 * copysign(abs(sin(angle)) ** 0.5, sin(angle))
+        points.append(f"{x:.3f},{y:.3f}")
+    tile_path = "M" + " L".join(points) + " Z"
+
+    for name, topology, background in (
+        ("azdocs-app-icon-light", WHITE, PAPER),
+        ("azdocs-app-icon-dark", PAPER, CHARCOAL),
     ):
         write_asset(
             name,
@@ -187,7 +198,12 @@ def build_app_icons() -> None:
                 width=2048,
                 height=2048,
                 definitions=colour_definitions(),
-                body=colour_mark(topology=topology),
+                body=(
+                    f'<path d="{tile_path}" fill="{background}"/>\n'
+                    # Lift the triangular mark slightly to balance its wider base.
+                    '<g transform="translate(71.68 58) scale(0.72)">\n'
+                    f"{colour_mark(topology=topology)}\n</g>"
+                ),
             ),
         )
 

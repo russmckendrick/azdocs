@@ -28,7 +28,18 @@ fn unit_rasterises_every_mark_asset_when_svg_is_valid() {
 
     for asset in assets {
         let svg = fs::read_to_string(&asset).unwrap();
-        let rendered = png::from_svg(&svg, preview_scale)
+        // App icons need transparent canvas margins around their rounded tile.
+        let rasterise = if asset
+            .file_stem()
+            .unwrap()
+            .to_string_lossy()
+            .starts_with("azdocs-app-icon-")
+        {
+            png::from_svg_transparent
+        } else {
+            png::from_svg
+        };
+        let rendered = rasterise(&svg, preview_scale)
             .unwrap_or_else(|error| panic!("{} did not rasterise: {error}", asset.display()));
         assert!(
             rendered.starts_with(&[0x89, b'P', b'N', b'G']),

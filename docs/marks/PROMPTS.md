@@ -112,6 +112,10 @@ Any future redraw should preserve these invariants:
   colours or foreground shadows.
 - The only gradient is `#168fe5` through `#0b84dc` to `#0078d4` on the outer A.
 - No fold, facet, crossbar, tile border, bevel, glow or drop shadow.
+- App icons alone place the A on a paper or charcoal rounded-square tile.
+  Keep the original fourth-order superellipse within `(40,40)`–`(472,472)`
+  and the A at `translate(71.68 58) scale(0.72)`. Preserve transparent outer
+  margins in PNG and native exports. Standalone marks remain triangular.
 - The lockup uses the mark as its initial **A**, followed by an outlined `zdocs`
   from `data/fonts/IBMPlexSans-Bold.ttf`; never repeat a typed `a` beside
   the mark. Use deep blue on light surfaces and paper on dark surfaces.

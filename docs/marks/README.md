@@ -42,6 +42,13 @@ the source format; the PNGs are deterministic raster exports of those vectors.
 
 ## App icons
 
+The application icon places the intact topology A inside a rounded-square
+tile: warm paper for the light version, charcoal for the dark version. Its
+original superellipse outline and transparent outer margin give the native
+launcher icon a consistent footprint. The A is scaled to 72% and lifted
+slightly to balance its wider base. Standalone marks and favicons retain the
+triangular silhouette.
+
 <p>
   <img src="assets/azdocs-app-icon-light.svg" alt="Light azdocs app icon" width="220">
   <img src="assets/azdocs-app-icon-dark.svg" alt="Dark azdocs app icon" width="220">

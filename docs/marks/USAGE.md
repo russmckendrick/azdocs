@@ -4,14 +4,15 @@
 
 Use the horizontal lockup when the audience needs the product name. Use the
 standalone mark when azdocs is already named by the surrounding interface or
-document. The app icons have transparent outer corners so each platform can
-apply its own launch treatment; do not place them inside a second badge.
+document. The app icons contain their own rounded-square paper or charcoal
+tile, with a transparent margin outside it. Preserve that margin when exporting
+native launcher assets; do not add another badge or flatten the corners to white.
 
 | Context | Preferred asset |
 |---|---|
 | Desktop masthead, website header | `azdocs-lockup-primary.svg` |
 | Dark masthead or footer | `azdocs-lockup-reversed.svg` |
-| Application launcher, avatar | Matching `azdocs-app-icon-*.svg` mark |
+| Application launcher, avatar | Matching `azdocs-app-icon-*.svg` tile |
 | Favicon or compact navigation | Matching standalone mark |
 | PDF/DOCX cover | `azdocs-mark-primary.svg` on paper; `azdocs-mark-mono-paper.svg` on a dark cover block |
 | Slide or social background | Matching `azdocs-background-*.svg` motif |
@@ -28,6 +29,13 @@ The simplified identity has three load-bearing parts:
 Do not add facets, a page fold, separate legs, extra nodes or a conventional
 crossbar, and do not substitute the official Azure artwork. The topology is the
 counter of the A rather than an independent foreground badge.
+
+Only the app-icon variants add a rounded-square container. On their 512-unit
+canvas, its bounds are `(40,40)` to `(472,472)`, leaving an 80-pixel outer
+margin at a 1024-pixel export. The outline is an original fourth-order
+superellipse. The intact A uses `translate(71.68 58) scale(0.72)` for optical
+balance. Keep this construction in the generator, not in platform-specific
+copies of the artwork.
 
 ## Clear space and minimum size
 
@@ -114,7 +122,7 @@ Keep the SVG `viewBox` when exporting. The supplied PNGs are already rendered
 at 2048×2048 for marks and icons, 2560×1024 for lockups, and 3840×2160 for
 backgrounds. Generate platform PNG/ICO/ICNS assets from the light or dark
 app-icon SVG at the final required sizes; do not upscale from a small raster.
-Keep transparency for standalone marks and lockups.
+Keep transparency for standalone marks, lockups and the app icons' outer margins.
 
 The current SVGs are the design sources in `docs/marks/`; desktop consumers
 should reference or derive from them rather than maintaining separate artwork.
