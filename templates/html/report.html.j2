@@ -79,6 +79,16 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
   <div class="stat"><b>{{ tag_coverage.percent }}%</b><span>{{ html.tag_coverage }}</span></div>
 </div>
 
+
+<h2>{{ labels.report.posture.chapter }}</h2>
+<p>{{ labels.report.posture.intro }}</p>
+{% for evidence in posture_tables %}
+<h3>{{ evidence.title }}</h3>
+<p>{{ evidence.status }}</p><p>{{ evidence.note }}</p>
+{% if evidence.rows %}<table><thead><tr>{% for column in evidence.columns %}<th>{{ column }}</th>{% endfor %}</tr></thead>
+<tbody>{% for row in evidence.rows %}<tr>{% for cell in row %}<td>{{ cell | e }}</td>{% endfor %}</tr>{% endfor %}</tbody></table>{% endif %}
+{% endfor %}
+
 <h2>{{ labels.report.findings.chapter }}</h2>
 <p>
 <span class="badge high">{{ severity_counts.high }} {{ sev.high.name }}</span>
@@ -197,5 +207,6 @@ function filterTable(input, id) {
   }
 }
 </script>
+
 </body>
 </html>

@@ -34,6 +34,7 @@ pub fn seed_estate(store: &Store) -> String {
         ],
     );
     ingest_rows("all_resources", &estate_resources());
+    seed_microsoft_evidence(store, &snapshot.id);
     ingest_rows(
         "virtual_networks",
         &[
@@ -305,4 +306,63 @@ pub fn seed_website_evidence(store: &Store, snapshot: &str) -> Vec<u8> {
         )
         .unwrap();
     png
+}
+
+/// Collection evidence shared by every export fixture; no extra inventory
+/// resources or finding totals are introduced by these service records.
+pub fn seed_microsoft_evidence(store: &Store, snapshot_id: &str) {
+    let pack = QueryPack::builtin().unwrap();
+    for (name, rows) in [
+        (
+            "advisor_cost_recommendations",
+            vec![
+                json!({"id":"/advisor/cost-1", "subscriptionId":"sub-prod", "resourceId":"/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-web", "solution":"Review VM sizing", "currency":"GBP", "savingsPeriod":"Month", "savingsAmount":125.50, "annualSavingsAmount":null}),
+            ],
+        ),
+        (
+            "policy_states",
+            vec![
+                json!({"id":"/policy/state-1", "subscriptionId":"sub-prod", "resourceId":"/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01", "policyAssignmentId":"/subscriptions/sub-prod/providers/microsoft.authorization/policyassignments/baseline", "policyAssignmentName":"baseline", "policySetDefinitionId":"/providers/microsoft.authorization/policysetdefinitions/security-baseline", "complianceState":"Exempt", "evaluatedAt":"2026-09-01T12:00:00Z"}),
+            ],
+        ),
+        (
+            "policy_exemptions",
+            vec![
+                json!({"id":"/policy/exemption-1", "name":"migration", "displayName":"Migration exception", "subscriptionId":"sub-prod", "exemptionCategory":"Waiver", "expiresOn":"2099-01-01T00:00:00Z"}),
+            ],
+        ),
+        (
+            "defender_compliance_standards",
+            vec![
+                json!({"id":"/defender/standard-1", "subscriptionId":"sub-prod", "complianceStandard":"Azure-Security-Benchmark", "state":"Failed", "passedControls":12, "failedControls":2, "skippedControls":1, "unsupportedControls":3}),
+            ],
+        ),
+        (
+            "defender_compliance_controls",
+            vec![
+                json!({"id":"/defender/control-1", "subscriptionId":"sub-prod", "complianceStandard":"Azure-Security-Benchmark", "complianceControl":"NS-1", "state":"Unsupported"}),
+            ],
+        ),
+        (
+            "defender_compliance_assessments",
+            vec![
+                json!({"id":"/defender/assessment-1", "subscriptionId":"sub-prod", "complianceStandard":"Azure-Security-Benchmark", "complianceControl":"NS-1", "state":"Failed", "passedResources":12, "failedResources":2, "skippedResources":null}),
+            ],
+        ),
+    ] {
+        let def = pack.get(name).unwrap();
+        ingest::ingest(store, snapshot_id, def, &rows).unwrap();
+        store
+            .record_query_run(
+                snapshot_id,
+                &azdocs::model::QueryRun {
+                    query_name: name.into(),
+                    category: def.category.clone(),
+                    row_count: Some(rows.len() as u64),
+                    duration_ms: Some(10),
+                    error: None,
+                },
+            )
+            .unwrap();
+    }
 }

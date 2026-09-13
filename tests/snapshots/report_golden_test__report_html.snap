@@ -67,6 +67,41 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
   <div class="stat"><b>50%</b><span>tag coverage</span></div>
 </div>
 
+
+<h2>Cost and compliance evidence</h2>
+<p>Microsoft service evidence recorded during collection. Results cover only the accessible scope; an empty dataset is not proof of zero cost, compliance, protection or service enablement. Detailed records remain in the inventory evidence and technical reference.</p>
+
+<h3>Azure Advisor cost opportunities</h3>
+<p>Collection: Recorded evidence</p><p>Estimates from Azure Advisor, grouped by currency and reported period. Annual estimates are separate. Missing amounts or periods remain unknown. Recommendations can overlap; totals are not guaranteed savings or billed costs.</p>
+<table><thead><tr><th>Currency</th><th>Period</th><th>Items</th><th>Savings</th><th>Annual savings</th></tr></thead>
+<tbody><tr><td>GBP</td><td>Month</td><td>1</td><td>125.50</td><td>Unknown</td></tr></tbody></table>
+
+<h3>Azure Policy evaluation states</h3>
+<p>Collection: Recorded evidence</p><p>Counts are policy evaluations, not distinct resources. Recorded states stay separate; missing evaluations never imply compliance. Full assignment and initiative IDs identify each group. A missing initiative may indicate a standalone policy or missing evidence.</p>
+<table><thead><tr><th>Sub. ID</th><th>Assignment</th><th>Initiative ID</th><th>State</th><th>Results</th></tr></thead>
+<tbody><tr><td>sub-prod</td><td>&#x2f;subscriptions&#x2f;sub-prod&#x2f;providers&#x2f;microsoft.authorization&#x2f;policyassignments&#x2f;baseline</td><td>&#x2f;providers&#x2f;microsoft.authorization&#x2f;policysetdefinitions&#x2f;security-baseline</td><td>Exempt</td><td>1</td></tr></tbody></table>
+
+<h3>Azure Policy exemptions</h3>
+<p>Collection: Recorded evidence</p><p>Expiry is assessed at collection time. Review expired exemptions and those due within 90 days with their owners. No expiry specified does not mean permanent approval; assignment scope and justification remain in the stored evidence.</p>
+<table><thead><tr><th>Category</th><th>Expiry at collection</th><th>Exemptions</th></tr></thead>
+<tbody><tr><td>Waiver</td><td>Due after 90 days</td><td>1</td></tr></tbody></table>
+
+<h3>Defender regulatory standards</h3>
+<p>Collection: Recorded evidence</p><p>Standard states across accessible subscriptions. Detailed control counts remain in the stored evidence. Missing or unsupported coverage does not establish compliance or certification.</p>
+<table><thead><tr><th>Standard</th><th>State</th><th>Standard records</th></tr></thead>
+<tbody><tr><td>Azure-Security-Benchmark</td><td>Failed</td><td>1</td></tr></tbody></table>
+
+<h3>Defender regulatory controls</h3>
+<p>Collection: Recorded evidence</p><p>Control states across accessible subscriptions, grouped by standard. Skipped, unsupported and unknown states remain distinct from passes. Full control IDs remain in the stored evidence.</p>
+<table><thead><tr><th>Standard</th><th>State</th><th>Control records</th></tr></thead>
+<tbody><tr><td>Azure-Security-Benchmark</td><td>Unsupported</td><td>1</td></tr></tbody></table>
+
+<h3>Defender regulatory assessments</h3>
+<p>Collection: Recorded evidence</p><p>Passed, failed and skipped counts are resource occurrences across assessments; resources can be counted more than once. Missing counts remain unknown. These assessments do not establish certification or compliance of unassessed resources.</p>
+<table><thead><tr><th>Standard</th><th>State</th><th>Checks</th><th>Passed</th><th>Failed</th><th>Skipped</th></tr></thead>
+<tbody><tr><td>Azure-Security-Benchmark</td><td>Failed</td><td>1</td><td>12</td><td>2</td><td>Unknown</td></tr></tbody></table>
+
+
 <h2>Findings</h2>
 <p>
 <span class="badge high">2 high</span>
@@ -196,6 +231,81 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 </details>
 
 
+<h2>Compliance</h2>
+
+<details open>
+<summary>defender_compliance_assessments (1)</summary>
+<p class="meta">Defender regulatory assessments with passed, failed, and skipped resource counts</p>
+<table>
+<thead><tr><th>id</th><th>subscriptionId</th><th>complianceStandard</th><th>complianceControl</th><th>state</th><th>passedResources</th><th>failedResources</th><th>skippedResources</th></tr></thead>
+<tbody>
+<tr><td>/defender/assessment-1</td><td>sub-prod</td><td>Azure-Security-Benchmark</td><td>NS-1</td><td>Failed</td><td>12</td><td>2</td><td></td></tr>
+</tbody>
+</table>
+</details>
+
+<details >
+<summary>defender_compliance_controls (1)</summary>
+<p class="meta">Defender regulatory controls with standard, state, and description</p>
+<table>
+<thead><tr><th>id</th><th>subscriptionId</th><th>complianceStandard</th><th>complianceControl</th><th>state</th></tr></thead>
+<tbody>
+<tr><td>/defender/control-1</td><td>sub-prod</td><td>Azure-Security-Benchmark</td><td>NS-1</td><td>Unsupported</td></tr>
+</tbody>
+</table>
+</details>
+
+<details >
+<summary>defender_compliance_standards (1)</summary>
+<p class="meta">Defender regulatory standards with observed state and control counts</p>
+<table>
+<thead><tr><th>id</th><th>subscriptionId</th><th>complianceStandard</th><th>state</th><th>passedControls</th><th>failedControls</th><th>skippedControls</th><th>unsupportedControls</th></tr></thead>
+<tbody>
+<tr><td>/defender/standard-1</td><td>sub-prod</td><td>Azure-Security-Benchmark</td><td>Failed</td><td>12</td><td>2</td><td>1</td><td>3</td></tr>
+</tbody>
+</table>
+</details>
+
+
+<h2>Cost</h2>
+
+<details open>
+<summary>advisor_cost_recommendations (1)</summary>
+<p class="meta">Azure Advisor cost recommendations with reported savings, currency, period, and affected resource</p>
+<table>
+<thead><tr><th>id</th><th>subscriptionId</th><th>resourceId</th><th>solution</th><th>currency</th><th>savingsPeriod</th><th>savingsAmount</th><th>annualSavingsAmount</th></tr></thead>
+<tbody>
+<tr><td>/advisor/cost-1</td><td>sub-prod</td><td>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-web</td><td>Review VM sizing</td><td>GBP</td><td>Month</td><td>125.5</td><td></td></tr>
+</tbody>
+</table>
+</details>
+
+
+<h2>Governance</h2>
+
+<details open>
+<summary>policy_exemptions (1)</summary>
+<p class="meta">Azure Policy exemptions including category, assignment, and expiry</p>
+<table>
+<thead><tr><th>id</th><th>name</th><th>displayName</th><th>subscriptionId</th><th>exemptionCategory</th><th>expiresOn</th></tr></thead>
+<tbody>
+<tr><td>/policy/exemption-1</td><td>migration</td><td>Migration exception</td><td>sub-prod</td><td>Waiver</td><td>2099-01-01T00:00:00Z</td></tr>
+</tbody>
+</table>
+</details>
+
+<details >
+<summary>policy_states (1)</summary>
+<p class="meta">Azure Policy evaluations with assignment, initiative, resource, state, and evaluation timestamp</p>
+<table>
+<thead><tr><th>id</th><th>subscriptionId</th><th>resourceId</th><th>policyAssignmentId</th><th>policyAssignmentName</th><th>policySetDefinitionId</th><th>complianceState</th><th>evaluatedAt</th></tr></thead>
+<tbody>
+<tr><td>/policy/state-1</td><td>sub-prod</td><td>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01</td><td>/subscriptions/sub-prod/providers/microsoft.authorization/policyassignments/baseline</td><td>baseline</td><td>/providers/microsoft.authorization/policysetdefinitions/security-baseline</td><td>Exempt</td><td>2026-09-01T12:00:00Z</td></tr>
+</tbody>
+</table>
+</details>
+
+
 <h2>Inventory</h2>
 
 <details open>
@@ -305,5 +415,6 @@ function filterTable(input, id) {
   }
 }
 </script>
+
 </body>
 </html>

@@ -15,6 +15,7 @@ pub(crate) fn environment(labels: &Labels) -> Environment<'static> {
     let mut env = Environment::new();
     let no_rows = labels.report.markdown.no_rows.clone();
     env.add_filter("md_escape", md_escape);
+    env.add_filter("md_text", md_text);
     env.add_filter(
         "md_table",
         move |rows: ViaDeserialize<Vec<Value>>, columns: ViaDeserialize<Vec<String>>| {
@@ -48,6 +49,17 @@ fn fill_filter(template: String, kwargs: Kwargs) -> Result<String, minijinja::Er
 
 fn md_escape(value: &str) -> String {
     value.replace('|', "\\|").replace('\n', " ")
+}
+
+fn md_text(value: &str) -> String {
+    let mut value = value.replace('\\', "\\\\");
+    for character in ['`', '*', '_', '[', ']'] {
+        value = value.replace(character, &format!("\\{character}"));
+    }
+    md_escape(&value)
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
 }
 
 /// Directory- and link-safe version of a display name.
@@ -87,6 +99,7 @@ pub fn render_pages(
     labels: &Labels,
 ) -> anyhow::Result<Vec<(String, String)>> {
     let mut env = environment(labels);
+    let posture_tables = report.posture.tables(labels);
     let labels = minijinja::Value::from_serialize(labels);
     let tag_audit = super::governance::TAG_AUDIT;
     env.add_template(
@@ -116,6 +129,7 @@ pub fn render_pages(
         env.get_template("index")?.render(context! {
             labels,
             tag_audit,
+            posture_tables,
             ..minijinja::Value::from_serialize(report)
         })?,
     ));

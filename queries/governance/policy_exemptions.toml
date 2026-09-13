@@ -1,0 +1,17 @@
+# Adapted from https://learn.microsoft.com/en-us/azure/governance/policy/samples/resource-graph-samples
+name = "policy_exemptions"
+category = "governance"
+kind = "inventory"
+description = "Azure Policy exemptions including category, assignment, and expiry"
+kql = '''
+policyresources
+| where type =~ 'microsoft.authorization/policyexemptions'
+| project id, name, subscriptionId,
+          displayName = tostring(properties.displayName),
+          policyAssignmentId = tostring(properties.policyAssignmentId),
+          exemptionCategory = tostring(properties.exemptionCategory),
+          expiresOn = tostring(properties.expiresOn),
+          policyDefinitionReferenceIds = properties.policyDefinitionReferenceIds,
+          description = tostring(properties.description)
+| order by id asc
+'''

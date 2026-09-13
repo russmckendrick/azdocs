@@ -56,6 +56,7 @@ fn native_print_formats_share_main_and_reference_content() {
         &w.profiles,
         &w.security,
         &w.governance,
+        &branding.labels.report.posture.chapter,
         &w.actions,
         &w.coverage,
     ];
@@ -65,6 +66,9 @@ fn native_print_formats_share_main_and_reference_content() {
             &markers.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
             format,
         );
+        assert!(text.replace('\u{200b}', "").contains("125.50"));
+        assert!(text.contains("Exempt"));
+        assert!(text.contains("Unsupported"));
         assert!(!text.contains("Resources by type"));
         assert!(!text.contains("hostPoolType"));
     }

@@ -7,6 +7,7 @@ pub mod governance;
 pub mod html;
 pub mod markdown;
 pub mod pdf;
+pub mod posture;
 pub mod site;
 pub mod theme;
 pub mod websites;
@@ -36,6 +37,8 @@ pub use governance::{
 /// for direct serialization into templates.
 #[derive(Debug, Serialize)]
 pub struct ReportContext {
+    #[serde(skip)]
+    pub posture: posture::PostureReport,
     #[serde(skip)]
     pub websites: websites::WebsiteReport,
     #[serde(skip)]
@@ -429,7 +432,13 @@ impl ReportContext {
                 .insert(name.clone(), store.query_results(snapshot_id, &name)?);
         }
 
+        let posture = posture::PostureReport::build(
+            &analysis.recorded_queries,
+            &analysis.query_runs,
+            snapshot.created_at,
+        );
         Ok(Self {
+            posture,
             websites: websites::WebsiteReport::build(store, snapshot_id, include_images)?,
             analysis,
             snapshot_id: snapshot.id.clone(),

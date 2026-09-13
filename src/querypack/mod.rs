@@ -30,6 +30,10 @@ pub struct QueryDef {
     /// Column used to build finding titles; falls back to `name`, then `id`.
     #[serde(default)]
     pub title_field: Option<String>,
+    /// Affected-resource column for findings; `id` remains the unique evidence
+    /// row used for pagination. Missing values do not fall back to evidence IDs.
+    #[serde(default)]
+    pub resource_id_field: Option<String>,
 }
 
 impl QueryDef {

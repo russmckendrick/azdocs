@@ -1,0 +1,24 @@
+# Adapted from https://learn.microsoft.com/en-us/azure/governance/policy/samples/resource-graph-samples
+name = "policy_non_compliant"
+category = "governance"
+kind = "finding"
+description = "Resources with a recorded non-compliant Azure Policy evaluation"
+severity = "medium"
+title_field = "summary"
+resource_id_field = "resourceId"
+kql = '''
+policyresources
+| where type =~ 'microsoft.policyinsights/policystates'
+| project id, subscriptionId,
+          resourceId = tostring(properties.resourceId),
+          complianceState = tostring(properties.complianceState),
+          policyAssignmentId = tostring(properties.policyAssignmentId),
+          policyAssignmentName = tostring(properties.policyAssignmentName),
+          policyDefinitionId = tostring(properties.policyDefinitionId),
+          policySetDefinitionId = tostring(properties.policySetDefinitionId),
+          policyDefinitionReferenceId = tostring(properties.policyDefinitionReferenceId),
+          evaluatedAt = tostring(properties.timestamp)
+| where complianceState =~ 'NonCompliant'
+| extend summary = strcat(policyAssignmentName, ': ', resourceId, ' is non-compliant')
+| order by id asc
+'''

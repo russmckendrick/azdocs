@@ -1,0 +1,15 @@
+# Adapted from https://learn.microsoft.com/en-us/azure/defender-for-cloud/resource-graph-samples
+name = "defender_compliance_assessments"
+category = "compliance"
+kind = "inventory"
+description = "Defender regulatory assessments with passed, failed, and skipped resource counts"
+kql = '''
+securityresources
+| where type =~ 'microsoft.security/regulatorycompliancestandards/regulatorycompliancecontrols/regulatorycomplianceassessments'
+| project id, subscriptionId, complianceStandard = extract(@'/regulatorycompliancestandards/([^/]+)', 1, tolower(id)),
+          complianceControl = extract(@'/regulatorycompliancecontrols/([^/]+)', 1, tolower(id)),
+          assessmentName = tostring(properties.description), state = tostring(properties.state),
+          passedResources = tolong(properties.passedResources), failedResources = tolong(properties.failedResources),
+          skippedResources = tolong(properties.skippedResources)
+| order by id asc
+'''

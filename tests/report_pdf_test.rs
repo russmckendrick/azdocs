@@ -113,7 +113,7 @@ fn pdf_contains_title_findings_and_resource_group_text() {
     assert!(page_count >= 3, "expected >= 3 pages, got {page_count}");
     assert!(text.contains("Azure Estate Report"), "title missing");
     assert!(
-        text.contains("Security and data protection"),
+        text.contains("Audit findings and review priorities"),
         "findings heading missing"
     );
     assert!(text.contains("rg-app"), "resource group name missing");

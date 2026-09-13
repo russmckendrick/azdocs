@@ -163,6 +163,7 @@ pub struct GovernanceLabels {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ReportLabels {
+    pub posture: PostureLabels,
     pub assessment: AssessmentLabels,
     pub toc_title: String,
     pub summary: SummaryLabels,
@@ -1400,4 +1401,23 @@ pub struct WebsiteLabels {
     pub saved: String,
     pub collect_note: String,
     pub states: std::collections::BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PostureLabels {
+    pub chapter: String,
+    pub intro: String,
+    pub unknown: String,
+    pub status: String,
+    pub sheet: String,
+    pub values: std::collections::BTreeMap<String, String>,
+    pub datasets: std::collections::BTreeMap<String, PostureDatasetLabels>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PostureDatasetLabels {
+    pub title: String,
+    pub note: String,
 }

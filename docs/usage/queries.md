@@ -38,6 +38,10 @@ resources
 - **Finding queries** additionally need
   `severity = "high"|"medium"|"low"|"info"` and optionally
   `title_field = "<column>"` (falls back to `name`, then `id`).
+- `resource_id_field = "<column>"` optionally names the affected resource ID
+  for a finding; it defaults to `id`. This separates a unique policy evidence
+  row from its target resource. A missing/empty configured field leaves the
+  finding at estate/scope level; it never falls back to the evidence ID.
 - End with `| order by id asc` (or another deterministic sort) — multi-page
   results paginate via `$skipToken`, which needs stable ordering.
 - Never name a projected column `count` — it's a KQL reserved word and ARG

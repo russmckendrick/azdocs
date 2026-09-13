@@ -286,3 +286,22 @@ mod query_all {
         assert_eq!((status, detail.contains("BadRequest")), (400, true));
     }
 }
+
+#[tokio::test]
+async fn unit_rejects_truncated_arg_results_without_a_continuation_token() {
+    for response in [
+        json!({"data":[{"id":"a"}], "resultTruncated":true}),
+        json!({"data":[{"id":"a"}], "resultTruncated":"true"}),
+        json!({"data":[{"id":"a"}], "totalRecords":2}),
+    ] {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(response))
+            .mount(&server)
+            .await;
+        let result = arg_client(&server)
+            .query_all("resources | project id | order by id asc", &[])
+            .await;
+        assert!(matches!(result, Err(ArgError::Truncated)));
+    }
+}

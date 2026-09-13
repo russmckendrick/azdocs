@@ -82,3 +82,21 @@
 {% for sub in subscriptions -%}
 - [{{ md.subscription_link | fill(name=sub.display_name | md_escape) }}](subscriptions/{{ sub.display_name | slug }}.md)
 {% endfor %}
+
+## {{ labels.report.posture.chapter }}
+
+{{ labels.report.posture.intro }}
+{% for evidence in posture_tables %}
+### {{ evidence.title }}
+
+{{ evidence.status }}
+
+{{ evidence.note }}
+{% if evidence.rows %}
+|{% for column in evidence.columns %} {{ column | md_text }} |{% endfor %}
+|{% for column in evidence.columns %} --- |{% endfor %}
+{% for row in evidence.rows -%}
+|{% for cell in row %} {{ cell | md_text }} |{% endfor %}
+{% endfor %}
+{% endif %}
+{% endfor %}

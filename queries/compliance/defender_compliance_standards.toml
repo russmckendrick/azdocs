@@ -1,0 +1,13 @@
+# Adapted from https://learn.microsoft.com/en-us/azure/defender-for-cloud/resource-graph-samples
+name = "defender_compliance_standards"
+category = "compliance"
+kind = "inventory"
+description = "Defender regulatory standards with observed state and control counts"
+kql = '''
+securityresources
+| where type =~ 'microsoft.security/regulatorycompliancestandards'
+| project id, subscriptionId, complianceStandard = name, state = tostring(properties.state),
+          passedControls = tolong(properties.passedControls), failedControls = tolong(properties.failedControls),
+          skippedControls = tolong(properties.skippedControls), unsupportedControls = tolong(properties.unsupportedControls)
+| order by id asc
+'''

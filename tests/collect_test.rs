@@ -267,3 +267,25 @@ mod end_to_end {
         );
     }
 }
+
+#[test]
+fn unit_policy_findings_link_to_affected_resources_without_losing_evidence_ids() {
+    let pack = QueryPack::builtin().unwrap();
+    let row = json!({"id":"/POLICY/STATE-1", "resourceId":"/Subscriptions/S1/ResourceGroups/RG/Providers/Microsoft.Compute/virtualMachines/VM", "summary":"Non-compliant assignment"});
+    let finding = ingest::finding_from_row(pack.get("policy_non_compliant").unwrap(), &row);
+    assert_eq!(
+        finding.resource_id.as_deref(),
+        Some("/subscriptions/s1/resourcegroups/rg/providers/microsoft.compute/virtualmachines/vm")
+    );
+    assert_eq!(finding.detail.unwrap()["id"], "/POLICY/STATE-1");
+}
+
+#[test]
+fn unit_scope_findings_never_substitute_evidence_ids_for_missing_resources() {
+    let pack = QueryPack::builtin().unwrap();
+    let finding = ingest::finding_from_row(
+        pack.get("policy_exemptions_expiring").unwrap(),
+        &json!({"id":"/policy/exemption-1"}),
+    );
+    assert_eq!(finding.resource_id, None);
+}

@@ -1,6 +1,6 @@
 # Built-in query pack
 
-70 queries ship embedded in the binary from `queries/`. List the live set
+88 queries ship embedded in the binary from `queries/`. List the live set
 (including your custom queries) with `azdocs query list`, print KQL with
 `azdocs query show <name>`, run one ad-hoc with `azdocs query run <name>`.
 Override or extend via `queries.d/` — see
@@ -20,7 +20,10 @@ pie title Query pack by category
     "arc" : 2
     "monitoring" : 2
     "storage" : 2
-    "governance" : 1
+    "governance" : 5
+    "cost" : 7
+    "resilience findings" : 4
+    "compliance" : 3
     "integration" : 1
 ```
 
@@ -103,6 +106,90 @@ pie title Query pack by category
 | `aks_public_api_server` | 🟡 low | AKS clusters exposing a public API server with no authorized IP ranges |
 | `orphaned_resources` | 🔵 info | Unattached disks, unused public IPs, orphaned NICs |
 | `unassociated_nsgs` | 🔵 info | NSGs not associated with any subnet or network interface |
+
+
+## Cost, policy, resilience and Defender evidence
+
+The pack includes 60 inventory queries and 28 finding queries. The checks below
+are curated adaptations of Microsoft sources, reviewed on 2026-09-13. They use
+ARG only; collection stores the evidence in SQLite and every export remains
+offline. No billing connector, FinOps Hub deployment or remediation permission
+is required.
+
+| Name | Category | Kind / severity | Description |
+|---|---|---|---|
+| `advisor_cost_recommendations` | cost | inventory | Azure Advisor cost recommendations with reported savings, currency, period, and affected resource |
+| `stopped_allocated_vms` | cost | low | Virtual machines stopped without deallocation |
+| `empty_app_service_plans` | cost | low | Paid App Service plans with no hosted apps |
+| `backendless_load_balancers` | cost | low | Standard load balancers without a configured backend pool |
+| `backendless_app_gateways` | cost | low | Application gateways without configured backend addresses or NIC IP configurations |
+| `orphaned_nat_gateways` | cost | low | NAT gateways without an associated subnet |
+| `empty_sql_elastic_pools` | cost | low | SQL elastic pools with no associated databases |
+| `policy_states` | governance | inventory | Azure Policy evaluations with assignment, initiative, resource, state, and evaluation timestamp |
+| `policy_non_compliant` | governance | medium | Resources with a recorded non-compliant Azure Policy evaluation |
+| `policy_exemptions` | governance | inventory | Azure Policy exemptions including category, assignment, and expiry |
+| `policy_exemptions_expiring` | governance | low | Policy exemptions expired or due to expire within 90 days of collection |
+| `vms_without_azure_backup` | resilience | low | VMs without an observed active Azure Backup protected item in the accessible scope |
+| `storage_local_redundancy` | resilience | low | Storage accounts using locally redundant storage |
+| `postgres_without_zone_ha` | resilience | low | PostgreSQL flexible servers with HA disabled or restricted to one zone |
+| `postgres_without_geo_backup` | resilience | low | PostgreSQL flexible servers with geo-redundant backup explicitly disabled |
+| `defender_compliance_standards` | compliance | inventory | Defender regulatory standards with observed state and control counts |
+| `defender_compliance_controls` | compliance | inventory | Defender regulatory controls with standard, state, and description |
+| `defender_compliance_assessments` | compliance | inventory | Defender regulatory assessments with passed, failed, and skipped resource counts |
+
+### Sources and adaptations
+
+- [FinOps Resource Graph recommendation files](https://github.com/microsoft/finops-toolkit/tree/dev/src/templates/finops-hub/modules/Microsoft.FinOpsHubs/Recommendations/queries): Advisor cost and six waste checks. The unrelated [`src/queries` catalog](https://github.com/microsoft/finops-toolkit/blob/dev/src/queries/INDEX.md) queries FinOps Hub cost datasets and is not imported.
+- [Azure Policy samples](https://learn.microsoft.com/en-us/azure/governance/policy/samples/resource-graph-samples): evaluations, non-compliant findings and exemptions. We retain raw states rather than adopting sample logic that fills missing evaluations as compliant.
+- [APRL VM guidance](https://azure.github.io/Azure-Proactive-Resiliency-Library-v2/azure-resources/Compute/virtualMachines/), [storage guidance](https://azure.github.io/Azure-Proactive-Resiliency-Library-v2/azure-resources/Storage/storageAccounts/), and [PostgreSQL guidance](https://azure.github.io/Azure-Proactive-Resiliency-Library-v2/azure-resources/DBforPostgreSQL/flexibleServers/): selected resilience observations. The VM backup join uses normalized full ARM IDs, not VM names, and requires an observed active AzureIaasVM protected item.
+- [Defender regulatory compliance samples](https://learn.microsoft.com/en-us/azure/defender-for-cloud/resource-graph-samples): standard, control and assessment evidence, with skipped and unsupported states retained.
+
+Every new query preserves `id` and ends with `| order by id asc`. Policy finding
+rows retain the policy evidence ID for paging and use `resource_id_field` to
+associate the finding with the actual resource. Exemption findings are scope
+observations, so they do not invent a resource-inventory association. Expiry
+findings include already-expired exemptions and those due in the next 90 days
+at collection time. Reports use the snapshot timestamp, never the export date.
+
+Application gateway pools are expanded up to ARG's 2,000-element maximum;
+Azure's [documented per-gateway pool limit](https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/azure-subscription-service-limits#azure-application-gateway-limits) is lower. Unlike the upstream inner
+join, the check also retains gateways with zero pools. Empty SQL pools use a
+case-normalized ARM ID join; a same-named database or pool elsewhere cannot
+satisfy it. Stopped VM checks exclude deallocated VMs, and empty App Service plan
+checks exclude the Free tier. Missing PostgreSQL settings are not treated as
+explicitly disabled settings.
+
+### Interpretation and collection coverage
+
+The cost and compliance chapter is shared by PDF, DOCX, Markdown, HTML/site and
+XLSX exports. It summarizes saved service evidence; full records remain in the
+inventory evidence and technical reference. Desktop Inventory discovers the new
+categories from the query pack, and Findings displays the new finding checks.
+
+- Advisor amounts are estimates, not billed costs. Currency and reported period
+  remain separate; an absent period is unknown, not implicitly monthly. Annual
+  savings are separate, and overlapping recommendations must not be summed as
+  guaranteed savings. Missing amounts or counts make their aggregate unknown.
+- Policy counts are evaluations per assignment and initiative, not unique
+  resources or a tenant-wide compliance percentage. Exemptions and unknown,
+  conflict, error and not-applicable states are not reclassified as passes.
+- Defender counts describe the observed standards and assessments. Resource
+  occurrences can repeat across controls and standards. Unsupported and skipped
+  controls do not establish compliance or certification.
+- No observed active Azure Backup item does not prove no backups exist. Check
+  vault permissions, third-party protection, indexing freshness and restore
+  evidence. Local storage redundancy, same-zone HA and disabled geo-backup may
+  be deliberate workload choices; these are low-severity review observations.
+- Empty, failed, uncollected and inconsistent datasets have distinct collection
+  states. Reader access and ARG visibility constrain all datasets; service
+  configuration or inaccessible scopes can produce no rows. A successful empty
+  query never proves that the estate passed. ARG results truncated without a
+  continuation token fail collection instead of silently losing evidence.
+
+Use the existing category/query selection to limit collection when needed. User
+`queries.d/` overrides still work; changed output columns must retain the
+semantics expected by summaries. Query changes are reviewed locally, not pulled
+from upstream during collection or reporting.
 
 ## Rust-side audits (not KQL)
 

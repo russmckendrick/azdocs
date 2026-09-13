@@ -75,6 +75,38 @@ pub fn write(
         tokens,
         &header,
     )?;
+    let sheet = workbook
+        .add_worksheet()
+        .set_name(&labels.report.posture.sheet)?;
+    let mut row = 0;
+    for evidence in report.posture.tables(labels) {
+        sheet.merge_range(row, 0, row, 5, &evidence.title, &header)?;
+        sheet.write(row + 1, 0, &evidence.status)?;
+        sheet.merge_range(
+            row + 2,
+            0,
+            row + 2,
+            5,
+            &evidence.note,
+            &Format::new().set_text_wrap(),
+        )?;
+        sheet.set_row_height(row + 2, 48)?;
+        row += 4;
+        for (column, name) in evidence.columns.iter().enumerate() {
+            sheet.write_string_with_format(row, column as u16, name, &header)?;
+        }
+        row += 1;
+        for values in evidence.rows {
+            for (column, value) in values.iter().enumerate() {
+                sheet.write(row, column as u16, value)?;
+            }
+            row += 1;
+        }
+        row += 2;
+    }
+    sheet.set_column_width(0, 36)?;
+    sheet.set_column_range_width(1, 5, 24)?;
+
     for category in &report.categories {
         // Suffix avoids case-insensitive collisions with the fixed sheets
         // (e.g. a category literally named "inventory"); names cap at 31 chars.

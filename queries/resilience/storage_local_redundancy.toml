@@ -1,0 +1,15 @@
+# Adapted from https://azure.github.io/Azure-Proactive-Resiliency-Library-v2/azure-resources/Storage/storageAccounts/
+name = "storage_local_redundancy"
+category = "resilience"
+kind = "finding"
+description = "Storage accounts using locally redundant storage"
+severity = "low"
+title_field = "summary"
+kql = '''
+resources
+| where type =~ 'microsoft.storage/storageaccounts'
+| where tostring(sku.name) endswith '_LRS'
+| project id, name, resourceGroup, subscriptionId, skuName = tostring(sku.name),
+          summary = strcat(name, " uses locally redundant storage")
+| order by id asc
+'''

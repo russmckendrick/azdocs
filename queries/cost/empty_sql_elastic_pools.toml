@@ -1,0 +1,24 @@
+# Adapted from https://github.com/microsoft/finops-toolkit/tree/dev/src/templates/finops-hub/modules/Microsoft.FinOpsHubs/Recommendations/queries
+name = "empty_sql_elastic_pools"
+category = "cost"
+kind = "finding"
+description = "SQL elastic pools with no associated databases"
+severity = "low"
+title_field = "summary"
+kql = '''
+resources
+| where type =~ 'microsoft.sql/servers/elasticpools'
+| extend poolId = tolower(id)
+| project id, name, resourceGroup, subscriptionId, poolId
+| join kind=leftouter (
+    resources
+    | where type =~ 'microsoft.sql/servers/databases'
+    | project databaseId = id, poolId = tolower(tostring(properties.elasticPoolId))
+    | where isnotempty(poolId)
+) on poolId
+| summarize databaseCount = countif(isnotempty(databaseId)) by id, name, resourceGroup, subscriptionId
+| where databaseCount == 0
+| project id, name, resourceGroup, subscriptionId, databaseCount,
+          summary = strcat(name, ' has no associated databases')
+| order by id asc
+'''

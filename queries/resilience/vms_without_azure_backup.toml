@@ -1,0 +1,25 @@
+# Adapted from https://azure.github.io/Azure-Proactive-Resiliency-Library-v2/azure-resources/Compute/virtualMachines/
+name = "vms_without_azure_backup"
+category = "resilience"
+kind = "finding"
+description = "VMs without an observed active Azure Backup protected item in the accessible scope"
+severity = "low"
+title_field = "summary"
+kql = '''
+resources
+| where type =~ 'microsoft.compute/virtualmachines'
+| project id, name, resourceGroup, subscriptionId, vmId = tolower(id)
+| join kind=leftouter (
+    recoveryservicesresources
+    | where type =~ 'microsoft.recoveryservices/vaults/backupfabrics/protectioncontainers/protecteditems'
+    | where properties.backupManagementType =~ 'AzureIaasVM'
+    | where properties.protectionState =~ 'Protected'
+    | extend vmId = tolower(coalesce(tostring(properties.sourceResourceId), tostring(properties.virtualMachineId)))
+    | where isnotempty(vmId)
+    | summarize protectedItems = count() by vmId
+) on vmId
+| where isnull(protectedItems)
+| project id, name, resourceGroup, subscriptionId,
+          summary = strcat(name, ' has no observed active Azure Backup protection')
+| order by id asc
+'''

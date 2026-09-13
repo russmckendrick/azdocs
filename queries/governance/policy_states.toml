@@ -1,0 +1,19 @@
+# Adapted from https://learn.microsoft.com/en-us/azure/governance/policy/samples/resource-graph-samples
+name = "policy_states"
+category = "governance"
+kind = "inventory"
+description = "Azure Policy evaluations with assignment, initiative, resource, state, and evaluation timestamp"
+kql = '''
+policyresources
+| where type =~ 'microsoft.policyinsights/policystates'
+| project id, subscriptionId,
+          resourceId = tostring(properties.resourceId),
+          complianceState = tostring(properties.complianceState),
+          policyAssignmentId = tostring(properties.policyAssignmentId),
+          policyAssignmentName = tostring(properties.policyAssignmentName),
+          policyDefinitionId = tostring(properties.policyDefinitionId),
+          policySetDefinitionId = tostring(properties.policySetDefinitionId),
+          policyDefinitionReferenceId = tostring(properties.policyDefinitionReferenceId),
+          evaluatedAt = tostring(properties.timestamp)
+| order by id asc
+'''

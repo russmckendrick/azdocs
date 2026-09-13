@@ -1,0 +1,15 @@
+# Adapted from https://azure.github.io/Azure-Proactive-Resiliency-Library-v2/azure-resources/DBforPostgreSQL/flexibleServers/
+name = "postgres_without_geo_backup"
+category = "resilience"
+kind = "finding"
+description = "PostgreSQL flexible servers with geo-redundant backup explicitly disabled"
+severity = "low"
+title_field = "summary"
+kql = '''
+resources
+| where type =~ 'microsoft.dbforpostgresql/flexibleservers'
+| where properties.backup.geoRedundantBackup =~ 'Disabled'
+| project id, name, resourceGroup, subscriptionId, geoRedundantBackup = tostring(properties.backup.geoRedundantBackup),
+          summary = strcat(name, " has geo-redundant backup disabled")
+| order by id asc
+'''

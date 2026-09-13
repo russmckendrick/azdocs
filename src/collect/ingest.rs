@@ -101,7 +101,8 @@ pub fn finding_from_row(def: &QueryDef, row: &Value) -> Finding {
         query_name: def.name.clone(),
         category: def.category.clone(),
         severity: def.severity.unwrap_or(Severity::Info),
-        resource_id: str_field(row, "id").map(|id| normalize_arm_id(&id)),
+        resource_id: str_field(row, def.resource_id_field.as_deref().unwrap_or("id"))
+            .map(|id| normalize_arm_id(&id)),
         title,
         detail: Some(row.clone()),
     }

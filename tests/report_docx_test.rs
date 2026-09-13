@@ -123,7 +123,7 @@ fn docx_document_contains_headings_findings_and_severity_shading() {
     assert!(document.contains("Azure Estate Report"), "cover title");
     assert!(document.contains("Executive assessment"), "summary heading");
     assert!(
-        document.contains("Security and data protection"),
+        document.contains("Audit findings and review priorities"),
         "findings heading"
     );
     assert!(

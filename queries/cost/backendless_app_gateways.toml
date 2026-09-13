@@ -1,0 +1,18 @@
+# Adapted from https://github.com/microsoft/finops-toolkit/tree/dev/src/templates/finops-hub/modules/Microsoft.FinOpsHubs/Recommendations/queries
+name = "backendless_app_gateways"
+category = "cost"
+kind = "finding"
+description = "Application gateways without configured backend addresses or NIC IP configurations"
+severity = "low"
+title_field = "summary"
+kql = '''
+resources
+| where type =~ 'microsoft.network/applicationgateways'
+| mv-expand pool = iff(coalesce(array_length(properties.backendAddressPools), 0) == 0, dynamic([{}]), properties.backendAddressPools) limit 2000
+| extend endpoints = coalesce(array_length(pool.properties.backendIPConfigurations), 0) + coalesce(array_length(pool.properties.backendAddresses), 0)
+| summarize backendEndpoints = sum(endpoints) by id, name, resourceGroup, subscriptionId
+| where backendEndpoints == 0
+| project id, name, resourceGroup, subscriptionId, backendEndpoints,
+          summary = strcat(name, ' has no configured backend endpoints')
+| order by id asc
+'''

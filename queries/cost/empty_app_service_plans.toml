@@ -1,0 +1,15 @@
+# Adapted from https://github.com/microsoft/finops-toolkit/tree/dev/src/templates/finops-hub/modules/Microsoft.FinOpsHubs/Recommendations/queries
+name = "empty_app_service_plans"
+category = "cost"
+kind = "finding"
+description = "Paid App Service plans with no hosted apps"
+severity = "low"
+title_field = "summary"
+kql = '''
+resources
+| where type =~ 'microsoft.web/serverfarms'
+| where toint(properties.numberOfSites) == 0 and isnotempty(sku.tier) and sku.tier !~ 'Free'
+| project id, name, resourceGroup, subscriptionId, skuName = tostring(sku.name), skuTier = tostring(sku.tier),
+          summary = strcat(name, " has no hosted apps")
+| order by id asc
+'''

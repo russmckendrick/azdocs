@@ -1,0 +1,12 @@
+# Adapted from https://learn.microsoft.com/en-us/azure/defender-for-cloud/resource-graph-samples
+name = "defender_compliance_controls"
+category = "compliance"
+kind = "inventory"
+description = "Defender regulatory controls with standard, state, and description"
+kql = '''
+securityresources
+| where type =~ 'microsoft.security/regulatorycompliancestandards/regulatorycompliancecontrols'
+| project id, subscriptionId, complianceStandard = extract(@'/regulatorycompliancestandards/([^/]+)', 1, tolower(id)),
+          complianceControl = name, state = tostring(properties.state), description = tostring(properties.description)
+| order by id asc
+'''

@@ -2,7 +2,7 @@
 
 | Page | Covers |
 |---|---|
-| [Query pack](queries.md) | All 70 built-in queries, findings, and Rust-side audits |
+| [Query pack](queries.md) | All 88 built-in queries, findings, and Rust-side audits |
 | [Themes](themes.md) | The Field Report document language, plus custom palette, type and layout data |
 | [Labels](labels.md) | Every user-facing string as data: placeholders, plurals, and overriding wording from the config dir |
 | [Diagram standards](diagrams.md) | Detail levels, A4 page fractions, density rungs, connector routing, colour |

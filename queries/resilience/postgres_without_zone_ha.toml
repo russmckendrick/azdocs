@@ -1,0 +1,15 @@
+# Adapted from https://azure.github.io/Azure-Proactive-Resiliency-Library-v2/azure-resources/DBforPostgreSQL/flexibleServers/
+name = "postgres_without_zone_ha"
+category = "resilience"
+kind = "finding"
+description = "PostgreSQL flexible servers with HA disabled or restricted to one zone"
+severity = "low"
+title_field = "summary"
+kql = '''
+resources
+| where type =~ 'microsoft.dbforpostgresql/flexibleservers'
+| where tostring(properties.highAvailability.mode) in~ ('Disabled', 'SameZone')
+| project id, name, resourceGroup, subscriptionId, haMode = tostring(properties.highAvailability.mode),
+          summary = strcat(name, " does not use zone-redundant HA")
+| order by id asc
+'''

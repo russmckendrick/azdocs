@@ -30,6 +30,9 @@ pub struct QueryOutcome {
 #[serde(rename_all = "camelCase")]
 struct QueryResponse {
     data: Vec<Value>,
+    #[serde(default)]
+    result_truncated: Value,
+    total_records: Option<u64>,
     #[serde(rename = "$skipToken")]
     skip_token: Option<String>,
 }
@@ -76,7 +79,20 @@ impl<P: TokenProvider> ArgClient<P> {
             pages += 1;
             match response.skip_token {
                 Some(token) => skip_token = Some(token),
-                None => break,
+                None => {
+                    if response.result_truncated == Value::Bool(true)
+                        || response
+                            .result_truncated
+                            .as_str()
+                            .is_some_and(|v| v.eq_ignore_ascii_case("true"))
+                        || response
+                            .total_records
+                            .is_some_and(|total| total > rows.len() as u64)
+                    {
+                        return Err(ArgError::Truncated);
+                    }
+                    break;
+                }
             }
         }
 

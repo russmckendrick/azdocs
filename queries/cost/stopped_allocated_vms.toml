@@ -1,0 +1,15 @@
+# Adapted from https://github.com/microsoft/finops-toolkit/tree/dev/src/templates/finops-hub/modules/Microsoft.FinOpsHubs/Recommendations/queries
+name = "stopped_allocated_vms"
+category = "cost"
+kind = "finding"
+description = "Virtual machines stopped without deallocation"
+severity = "low"
+title_field = "summary"
+kql = '''
+resources
+| where type =~ 'microsoft.compute/virtualmachines'
+| where tostring(properties.extended.instanceView.powerState.code) =~ 'PowerState/stopped'
+| project id, name, resourceGroup, subscriptionId, powerState = tostring(properties.extended.instanceView.powerState.code),
+          summary = strcat(name, " is stopped but remains allocated")
+| order by id asc
+'''

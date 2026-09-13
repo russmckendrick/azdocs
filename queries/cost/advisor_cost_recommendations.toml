@@ -1,0 +1,23 @@
+# Adapted from https://github.com/microsoft/finops-toolkit/tree/dev/src/templates/finops-hub/modules/Microsoft.FinOpsHubs/Recommendations/queries
+name = "advisor_cost_recommendations"
+category = "cost"
+kind = "inventory"
+description = "Azure Advisor cost recommendations with reported savings, currency, period, and affected resource"
+kql = '''
+advisorresources
+| where type =~ 'microsoft.advisor/recommendations'
+| where properties.category =~ 'Cost'
+| project id, name, subscriptionId, resourceGroup,
+          resourceId = tostring(properties.resourceMetadata.resourceId),
+          recommendationTypeId = tostring(properties.recommendationTypeId),
+          impact = tostring(properties.impact),
+          problem = tostring(properties.shortDescription.problem),
+          solution = tostring(properties.shortDescription.solution),
+          savingsAmount = todouble(properties.extendedProperties.savingsAmount),
+          annualSavingsAmount = todouble(properties.extendedProperties.annualSavingsAmount),
+          currency = tostring(properties.extendedProperties.savingsCurrency),
+          savingsPeriod = tostring(properties.extendedProperties.savingsPeriod),
+          lastUpdated = tostring(properties.lastUpdated),
+          extendedProperties = properties.extendedProperties
+| order by id asc
+'''

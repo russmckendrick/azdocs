@@ -59,7 +59,7 @@ fn resolve_kql(query: &str) -> anyhow::Result<String> {
         let raw =
             std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
         if path.extension().is_some_and(|ext| ext == "toml") {
-            let parsed: toml::Value = raw.parse().context("parsing query definition")?;
+            let parsed: toml::Table = toml::from_str(&raw).context("parsing query definition")?;
             let Some(kql) = parsed.get("kql").and_then(|v| v.as_str()) else {
                 bail!("{} has no `kql` field", path.display());
             };
@@ -158,4 +158,23 @@ fn print_csv(rows: &[Value]) -> anyhow::Result<()> {
     }
     writer.flush()?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unit_query_file_reads_a_toml_document_with_source_comments() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("query.toml");
+        std::fs::write(
+            &path,
+            include_str!("../../queries/cost/advisor_cost_recommendations.toml"),
+        )
+        .unwrap();
+        let resolved = resolve_kql(path.to_str().unwrap()).unwrap();
+        assert!(resolved.starts_with("advisorresources\n"));
+        assert!(resolved.trim_end().ends_with("| order by id asc"));
+    }
 }

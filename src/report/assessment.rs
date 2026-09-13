@@ -214,6 +214,7 @@ pub(super) fn build<'a>(
     profiles(report, branding, diagrams, blocks);
     issues(report, branding, blocks);
     governance(report, branding, blocks);
+    microsoft_evidence(report, branding, blocks);
     actions(report, branding, blocks);
     coverage(report, branding, blocks);
 }
@@ -1699,5 +1700,36 @@ fn print_evidence_value(value: Option<&serde_json::Value>) -> String {
         text
     } else {
         crate::model::truncate(&text, 512)
+    }
+}
+
+fn microsoft_evidence<'a>(
+    report: &ReportContext,
+    branding: &'a BrandingContext,
+    blocks: &mut Vec<Block<'a>>,
+) {
+    let w = &branding.labels.report.posture;
+    major_chapter(blocks, w.chapter.as_str(), true);
+    para(blocks, w.intro.as_str());
+    for evidence in report.posture.tables(&branding.labels) {
+        heading(blocks, 2, evidence.title, None);
+        let total = evidence.rows.len();
+        let headers: Vec<&str> = evidence.columns.iter().map(String::as_str).collect();
+        table(
+            blocks,
+            &headers,
+            evidence.rows.into_iter().take(20).collect(),
+        );
+        para(blocks, evidence.status);
+        note(blocks, evidence.note);
+        if total > 20 {
+            note(
+                blocks,
+                fill(
+                    &branding.labels.report.assessment.showing_rows,
+                    &[("shown", &20), ("total", &total)],
+                ),
+            );
+        }
     }
 }

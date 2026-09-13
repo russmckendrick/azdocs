@@ -184,3 +184,27 @@ fn xlsx_governance_sheet_carries_the_worst_groups() {
         worst.name
     );
 }
+
+#[test]
+fn unit_microsoft_summary_escapes_service_text_in_markdown_and_html() {
+    let (store, id) = seeded_context();
+    let mut report = ReportContext::build(&store, &id).unwrap();
+    let rows = std::collections::BTreeMap::from([(
+        "advisor_cost_recommendations".into(),
+        vec![serde_json::json!({
+            "currency":"<script>alert(1)</script>", "savingsPeriod":"[click](javascript:alert(1))", "savingsAmount":12,
+        })],
+    )]);
+    report.posture = azdocs::report::posture::PostureReport::build(
+        &rows,
+        &report.analysis.query_runs,
+        "2026-09-13T12:00:00Z".parse().unwrap(),
+    );
+    let pages = markdown::render_pages(&report, &Labels::default()).unwrap();
+    let index = &pages.iter().find(|(path, _)| path == "index.md").unwrap().1;
+    assert!(index.contains("&lt;script&gt;"));
+    assert!(index.contains("\\[click\\]"));
+    let html = html::render(&report, &BrandingContext::default()).unwrap();
+    assert!(!html.contains("<script>alert(1)</script>"));
+    assert!(html.contains("&lt;script&gt;"));
+}

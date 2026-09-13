@@ -1,0 +1,15 @@
+# Adapted from https://github.com/microsoft/finops-toolkit/tree/dev/src/templates/finops-hub/modules/Microsoft.FinOpsHubs/Recommendations/queries
+name = "backendless_load_balancers"
+category = "cost"
+kind = "finding"
+description = "Standard load balancers without a configured backend pool"
+severity = "low"
+title_field = "summary"
+kql = '''
+resources
+| where type =~ 'microsoft.network/loadbalancers'
+| where sku.name =~ 'Standard' and coalesce(array_length(properties.backendAddressPools), 0) == 0
+| project id, name, resourceGroup, subscriptionId, skuName = tostring(sku.name),
+          summary = strcat(name, " has no configured backend pool")
+| order by id asc
+'''

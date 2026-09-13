@@ -1,0 +1,23 @@
+# Adapted from https://learn.microsoft.com/en-us/azure/governance/policy/samples/resource-graph-samples
+name = "policy_exemptions_expiring"
+category = "governance"
+kind = "finding"
+description = "Policy exemptions expired or due to expire within 90 days of collection"
+severity = "low"
+title_field = "summary"
+resource_id_field = "resourceId"
+kql = '''
+policyresources
+| where type =~ 'microsoft.authorization/policyexemptions'
+| project id, name, subscriptionId,
+          displayName = tostring(properties.displayName),
+          policyAssignmentId = tostring(properties.policyAssignmentId),
+          exemptionCategory = tostring(properties.exemptionCategory),
+          expiresOn = tostring(properties.expiresOn),
+          policyDefinitionReferenceIds = properties.policyDefinitionReferenceIds,
+          description = tostring(properties.description)
+| extend expiry = todatetime(expiresOn)
+| where isnotnull(expiry) and expiry <= now() + 90d
+| extend summary = strcat(displayName, ' exemption expires ', expiresOn)
+| order by id asc
+'''

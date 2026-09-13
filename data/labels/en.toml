@@ -903,7 +903,7 @@ executive = "Executive assessment"
 composition = "Estate composition"
 architecture = "Architecture and dependencies"
 profiles = "Subscription profiles"
-security = "Security and data protection"
+security = "Audit findings and review priorities"
 governance = "Governance and operational evidence"
 actions = "Prioritised review actions"
 coverage = "Collection coverage"
@@ -1274,3 +1274,174 @@ failed = "Capture failed"
 cancelled = "Cancelled"
 interrupted = "Interrupted"
 pending = "Not captured"
+
+[report.posture]
+chapter = "Cost and compliance evidence"
+intro = "Microsoft service evidence recorded during collection. Results cover only the accessible scope; an empty dataset is not proof of zero cost, compliance, protection or service enablement. Detailed records remain in the inventory evidence and technical reference."
+unknown = "Unknown"
+status = "Collection: {state}"
+sheet = "Cost and compliance"
+
+[report.posture.values]
+recorded = "Recorded evidence"
+empty = "Collected; no rows returned"
+failed = "Collection failed; no conclusion available"
+not_collected = "Not collected in this snapshot"
+incomplete = "Evidence incomplete or collection status unverified"
+currency = "Currency"
+period = "Period"
+recommendations = "Items"
+savings = "Savings"
+annual_savings = "Annual savings"
+subscription = "Sub. ID"
+assignment = "Assignment"
+initiative = "Initiative ID"
+state = "State"
+evaluations = "Results"
+category = "Category"
+expiry = "Expiry at collection"
+exemptions = "Exemptions"
+standard = "Standard"
+standards = "Standard records"
+controls = "Control records"
+assessments = "Checks"
+passed = "Passed"
+failed_resources = "Failed"
+skipped = "Skipped"
+no_expiry = "No expiry specified"
+expired = "Expired"
+due_soon = "Due within 90 days"
+later = "Due after 90 days"
+unknown = "Unknown"
+
+[report.posture.datasets.advisor_cost_recommendations]
+title = "Azure Advisor cost opportunities"
+note = "Estimates from Azure Advisor, grouped by currency and reported period. Annual estimates are separate. Missing amounts or periods remain unknown. Recommendations can overlap; totals are not guaranteed savings or billed costs."
+
+[report.posture.datasets.policy_states]
+title = "Azure Policy evaluation states"
+note = "Counts are policy evaluations, not distinct resources. Recorded states stay separate; missing evaluations never imply compliance. Full assignment and initiative IDs identify each group. A missing initiative may indicate a standalone policy or missing evidence."
+
+[report.posture.datasets.policy_exemptions]
+title = "Azure Policy exemptions"
+note = "Expiry is assessed at collection time. Review expired exemptions and those due within 90 days with their owners. No expiry specified does not mean permanent approval; assignment scope and justification remain in the stored evidence."
+
+[report.posture.datasets.defender_compliance_standards]
+title = "Defender regulatory standards"
+note = "Standard states across accessible subscriptions. Detailed control counts remain in the stored evidence. Missing or unsupported coverage does not establish compliance or certification."
+
+[report.posture.datasets.defender_compliance_controls]
+title = "Defender regulatory controls"
+note = "Control states across accessible subscriptions, grouped by standard. Skipped, unsupported and unknown states remain distinct from passes. Full control IDs remain in the stored evidence."
+
+[report.posture.datasets.defender_compliance_assessments]
+title = "Defender regulatory assessments"
+note = "Passed, failed and skipped counts are resource occurrences across assessments; resources can be counted more than once. Missing counts remain unknown. These assessments do not establish certification or compliance of unassessed resources."
+
+[report.assessment.checks.stopped_allocated_vms]
+title = "Stopped virtual machines still allocated"
+observation = "The VM power state was stopped, rather than deallocated."
+significance = "Allocated compute can continue to incur charges while the operating system is stopped."
+verification = "Confirm owner intent and workloads, and review the effect on temporary disks and IP addresses before deallocating."
+policy = "Use a workload-specific shutdown policy; verify savings against billing."
+action = "Review stopped allocated VMs"
+source = "https://github.com/microsoft/finops-toolkit/tree/dev/src/templates/finops-hub/modules/Microsoft.FinOpsHubs/Recommendations/queries"
+
+[report.assessment.checks.empty_app_service_plans]
+title = "App Service plans without apps"
+observation = "A non-Free App Service plan reported zero hosted sites."
+significance = "An empty plan may retain paid capacity or be reserved for an upcoming deployment."
+verification = "Check deployment slots, automation, ownership and intended capacity before removal."
+policy = "Retain only justified standby capacity; validate the billing impact."
+action = "Review empty paid App Service plans"
+source = "https://github.com/microsoft/finops-toolkit/tree/dev/src/templates/finops-hub/modules/Microsoft.FinOpsHubs/Recommendations/queries"
+
+[report.assessment.checks.backendless_load_balancers]
+title = "Load balancers without backend pools"
+observation = "A Standard load balancer reported no configured backend pools."
+significance = "The configuration may be incomplete or deliberately staged. This is not a traffic measurement."
+verification = "Review inbound NAT, outbound rules, frontend IPs, dependencies and ownership."
+policy = "Remove or reconfigure only after the owner confirms the resource is unnecessary."
+action = "Review backendless load balancers"
+source = "https://github.com/microsoft/finops-toolkit/tree/dev/src/templates/finops-hub/modules/Microsoft.FinOpsHubs/Recommendations/queries"
+
+[report.assessment.checks.backendless_app_gateways]
+title = "Application gateways without backend endpoints"
+observation = "No backend addresses or NIC IP configurations were recorded across the gateway pools."
+significance = "The gateway may retain provisioned capacity; the observation does not measure utilization."
+verification = "Review listeners, rules, pool configuration and deployment intent before changing the gateway."
+policy = "Establish ownership and dependency impact before removal; verify actual costs."
+action = "Review application gateway backend configuration"
+source = "https://github.com/microsoft/finops-toolkit/tree/dev/src/templates/finops-hub/modules/Microsoft.FinOpsHubs/Recommendations/queries"
+
+[report.assessment.checks.orphaned_nat_gateways]
+title = "NAT gateways without subnets"
+observation = "No associated subnets were recorded for the NAT gateway."
+significance = "A detached gateway may be unused, reserved, or awaiting deployment."
+verification = "Check intended egress design, attached public IPs and deployment automation."
+policy = "Confirm owner approval and billing impact before removing capacity."
+action = "Review detached NAT gateways"
+source = "https://github.com/microsoft/finops-toolkit/tree/dev/src/templates/finops-hub/modules/Microsoft.FinOpsHubs/Recommendations/queries"
+
+[report.assessment.checks.empty_sql_elastic_pools]
+title = "SQL elastic pools without databases"
+observation = "No database with a matching normalized elastic pool ARM ID was observed."
+significance = "Provisioned pool capacity may remain chargeable, but absent cross-scope visibility can hide members."
+verification = "Confirm database membership with sufficient access and check planned migrations or deployments."
+policy = "Review retained capacity with the database owner before resizing or deleting."
+action = "Review empty SQL elastic pools"
+source = "https://github.com/microsoft/finops-toolkit/tree/dev/src/templates/finops-hub/modules/Microsoft.FinOpsHubs/Recommendations/queries"
+
+[report.assessment.checks.policy_non_compliant]
+title = "Azure Policy non-compliant evaluations"
+observation = "Azure Policy recorded a NonCompliant evaluation for the identified resource and assignment."
+significance = "This is the policy service verdict at evaluation time. It does not independently establish exploitability or a regulatory breach."
+verification = "Read the policy definition, initiative reference, assignment scope and evaluation timestamp; check exemptions and remediation state."
+policy = "Use the assigned policy and its owner to decide remediation priority; retain other states separately."
+action = "Review non-compliant Azure Policy evaluations"
+source = "https://learn.microsoft.com/en-us/azure/governance/policy/samples/resource-graph-samples"
+
+[report.assessment.checks.policy_exemptions_expiring]
+title = "Expired or expiring Azure Policy exemptions"
+observation = "The exemption expired or was due within 90 days when collection ran."
+significance = "Expiry can remove an approved exception; an expired record alone does not establish a resource violation."
+verification = "Confirm exemption scope, owner, justification and expiry with the policy owner."
+policy = "Renew only justified exceptions or remediate affected resources; use the recorded snapshot date."
+action = "Review exemption expiry with policy owners"
+source = "https://learn.microsoft.com/en-us/azure/governance/policy/samples/resource-graph-samples"
+
+[report.assessment.checks.vms_without_azure_backup]
+title = "VMs without observed active Azure Backup protection"
+observation = "No accessible AzureIaasVM protected item in the Protected state matched the VM ARM ID."
+significance = "This is absence of observed active Azure Backup evidence, not proof that the VM has no backup. Other products, inaccessible vaults or delayed ARG indexing can explain it."
+verification = "Verify access to all relevant vaults, protection state, recovery points, restore tests and any third-party backup solution."
+policy = "Apply workload recovery requirements and documented exceptions; do not infer protection from vault existence."
+action = "Verify VM backup coverage and recovery evidence"
+source = "https://azure.github.io/Azure-Proactive-Resiliency-Library-v2/azure-resources/Compute/virtualMachines/"
+
+[report.assessment.checks.storage_local_redundancy]
+title = "Storage using local redundancy"
+observation = "The storage SKU explicitly selected locally redundant storage."
+significance = "LRS does not provide the zone or regional resilience of other replication choices. It may be appropriate for disposable or reproducible data."
+verification = "Check service and region support, data criticality, recovery requirements and migration constraints."
+policy = "Select redundancy against the workload recovery objectives and cost; this is not a universal policy violation."
+action = "Review storage redundancy requirements"
+source = "https://azure.github.io/Azure-Proactive-Resiliency-Library-v2/azure-resources/Storage/storageAccounts/"
+
+[report.assessment.checks.postgres_without_zone_ha]
+title = "PostgreSQL without zone-redundant HA"
+observation = "The flexible server reported Disabled or SameZone high availability."
+significance = "Same-zone or disabled HA provides different failure protection from zone-redundant HA. Missing modes are not treated as disabled."
+verification = "Check regional and SKU support, standby configuration, failover requirements and application retry behavior."
+policy = "Agree HA requirements with the database owner, accounting for non-production workloads."
+action = "Review PostgreSQL availability requirements"
+source = "https://azure.github.io/Azure-Proactive-Resiliency-Library-v2/azure-resources/DBforPostgreSQL/flexibleServers/"
+
+[report.assessment.checks.postgres_without_geo_backup]
+title = "PostgreSQL geo-redundant backup disabled"
+observation = "The flexible server explicitly reported geo-redundant backup as Disabled."
+significance = "This does not mean backups are disabled. Regional disaster recovery may rely on another documented mechanism."
+verification = "Review backup retention, geo-restore support, recovery objectives and tested alternatives."
+policy = "Choose backup geography according to recovery and data-residency requirements."
+action = "Review PostgreSQL regional recovery plans"
+source = "https://azure.github.io/Azure-Proactive-Resiliency-Library-v2/azure-resources/DBforPostgreSQL/flexibleServers/"

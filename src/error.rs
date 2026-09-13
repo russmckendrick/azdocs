@@ -98,6 +98,8 @@ pub enum ArgError {
     ThrottledOut { attempts: u32 },
     #[error("invalid resource graph response: {0}")]
     InvalidResponse(String),
+    #[error("resource graph returned incomplete results without a continuation token")]
+    Truncated,
 }
 
 #[derive(Debug, thiserror::Error)]

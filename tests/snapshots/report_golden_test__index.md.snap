@@ -75,9 +75,87 @@ expression: content
 ## Sections
 
 - [avd](avd.md)
+- [compliance](compliance.md)
+- [cost](cost.md)
+- [governance](governance.md)
 - [inventory](inventory.md)
 - [monitoring](monitoring.md)
 - [networking](networking.md)
 - [findings](findings.md)
 - [subscription: Development](subscriptions/development.md)
 - [subscription: Production](subscriptions/production.md)
+
+
+## Cost and compliance evidence
+
+Microsoft service evidence recorded during collection. Results cover only the accessible scope; an empty dataset is not proof of zero cost, compliance, protection or service enablement. Detailed records remain in the inventory evidence and technical reference.
+
+### Azure Advisor cost opportunities
+
+Collection: Recorded evidence
+
+Estimates from Azure Advisor, grouped by currency and reported period. Annual estimates are separate. Missing amounts or periods remain unknown. Recommendations can overlap; totals are not guaranteed savings or billed costs.
+
+| Currency | Period | Items | Savings | Annual savings |
+| --- | --- | --- | --- | --- |
+| GBP | Month | 1 | 125.50 | Unknown |
+
+
+
+### Azure Policy evaluation states
+
+Collection: Recorded evidence
+
+Counts are policy evaluations, not distinct resources. Recorded states stay separate; missing evaluations never imply compliance. Full assignment and initiative IDs identify each group. A missing initiative may indicate a standalone policy or missing evidence.
+
+| Sub. ID | Assignment | Initiative ID | State | Results |
+| --- | --- | --- | --- | --- |
+| sub-prod | /subscriptions/sub-prod/providers/microsoft.authorization/policyassignments/baseline | /providers/microsoft.authorization/policysetdefinitions/security-baseline | Exempt | 1 |
+
+
+
+### Azure Policy exemptions
+
+Collection: Recorded evidence
+
+Expiry is assessed at collection time. Review expired exemptions and those due within 90 days with their owners. No expiry specified does not mean permanent approval; assignment scope and justification remain in the stored evidence.
+
+| Category | Expiry at collection | Exemptions |
+| --- | --- | --- |
+| Waiver | Due after 90 days | 1 |
+
+
+
+### Defender regulatory standards
+
+Collection: Recorded evidence
+
+Standard states across accessible subscriptions. Detailed control counts remain in the stored evidence. Missing or unsupported coverage does not establish compliance or certification.
+
+| Standard | State | Standard records |
+| --- | --- | --- |
+| Azure-Security-Benchmark | Failed | 1 |
+
+
+
+### Defender regulatory controls
+
+Collection: Recorded evidence
+
+Control states across accessible subscriptions, grouped by standard. Skipped, unsupported and unknown states remain distinct from passes. Full control IDs remain in the stored evidence.
+
+| Standard | State | Control records |
+| --- | --- | --- |
+| Azure-Security-Benchmark | Unsupported | 1 |
+
+
+
+### Defender regulatory assessments
+
+Collection: Recorded evidence
+
+Passed, failed and skipped counts are resource occurrences across assessments; resources can be counted more than once. Missing counts remain unknown. These assessments do not establish certification or compliance of unassessed resources.
+
+| Standard | State | Checks | Passed | Failed | Skipped |
+| --- | --- | --- | --- | --- | --- |
+| Azure-Security-Benchmark | Failed | 1 | 12 | 2 | Unknown |
