@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, CircleDashed, GitCompareArrows, Rows3 } from "lucide-react";
 import { compareSnapshots } from "../api";
-import type { AppBootstrap, EstateSnapshot, SnapshotComparison } from "../types";
+import type { AppBootstrap, DashboardFilter, EstateSnapshot, SnapshotComparison } from "../types";
 import { dateTime, dayMonth, fill, resourceName } from "../format";
 import { useLabels } from "../labels";
 import { ShowMore, useProgressiveList } from "./progressive-list";
@@ -12,7 +12,7 @@ import { DatabaseStamp, ViewHeading } from "./view-chrome";
 
 
 
-export function HistoryView({ bootstrap, estate, onLoadSnapshot }: { bootstrap: AppBootstrap; estate: EstateSnapshot; onLoadSnapshot: (id: string) => void }) {
+export function HistoryView({ bootstrap, estate, onLoadSnapshot, dashboardFilter, onOpenResource }: { bootstrap: AppBootstrap; estate: EstateSnapshot; onLoadSnapshot: (id: string) => void; dashboardFilter?: DashboardFilter; onOpenResource: (id: string) => void }) {
   const older = useMemo(
     () => bootstrap.snapshots.filter((snapshot) => snapshot.id !== estate.id),
     [bootstrap.snapshots, estate.id],
@@ -72,7 +72,7 @@ export function HistoryView({ bootstrap, estate, onLoadSnapshot }: { bootstrap: 
     ];
   }, [comparison, resourceById, common.verdict.none]);
   const failedQueries = estate.queryRuns.filter((run) => run.error).length;
-  const list = useProgressiveList(changes, [comparison?.baseSnapshotId, comparison?.targetSnapshotId], 250);
+  const list = useProgressiveList(changes.filter(change => !dashboardFilter?.changeKind || change.kind === dashboardFilter.changeKind), [comparison?.baseSnapshotId, comparison?.targetSnapshotId, dashboardFilter], 250);
   const visibleChanges = list.visible;
 
   return (
@@ -135,19 +135,19 @@ export function HistoryView({ bootstrap, estate, onLoadSnapshot }: { bootstrap: 
               </div>
               <div className="change-list">
                 {visibleChanges.map((item) => (
-                  <div key={`${item.kind}-${item.id}`}><i className={item.kind} /><span><strong>{item.name}</strong><small>{item.detail}</small></span><em>{words.kinds[item.kind] ?? item.kind}</em></div>
+                  <div key={`${item.kind}-${item.id}`}><i className={item.kind} /><span><strong>{resourceById.has(item.id) ? <button className="text-link" onClick={() => onOpenResource(item.id)}>{item.name}</button> : item.name}</strong><small>{item.detail}</small></span><em>{words.kinds[item.kind] ?? item.kind}</em></div>
                 ))}
                 <ShowMore list={list} />
               </div>
             </>
           ) : <p className="muted-copy">{words.no_older}</p>}
-          <details className="query-health">
+          <details className="query-health" open={dashboardFilter?.healthOnly || undefined}>
             <summary>
               {words.health}
               <span>{fill(words.health_summary, { succeeded: estate.queryRuns.length - failedQueries, total: estate.queryRuns.length })}</span>
             </summary>
             <div className="query-health-list">
-              {estate.queryRuns.map((run) => <div key={run.queryName}><span><i className={run.error ? "failed" : "complete"} />{run.queryName}</span><small>{run.error ?? fill(words.run_detail, { rows: run.rowCount ?? 0, ms: run.durationMs ?? 0 })}</small></div>)}
+              {estate.queryRuns.filter(run => (!dashboardFilter?.category || run.category === dashboardFilter.category) && (!dashboardFilter?.queryName || run.queryName === dashboardFilter.queryName)).map((run) => <div key={run.queryName}><span><i className={run.error ? "failed" : "complete"} />{run.queryName}</span><small>{run.error ?? fill(words.run_detail, { rows: run.rowCount ?? 0, ms: run.durationMs ?? 0 })}</small></div>)}
             </div>
           </details>
         </aside>

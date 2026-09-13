@@ -83,3 +83,26 @@ describe("workspace navigation", () => {
     expect(state.history).toEqual([]);
   });
 });
+
+describe("dashboard destinations", () => {
+  it("restores the exact filter after opening and returning from a resource", () => {
+    const destination = { view: "findings" as const, label: "High", filter: { severity: "high" as const, queryName: "public_network" } };
+    let state = navigationReducer(initialNavigationState(), { type: "open-results", destination });
+    state = navigationReducer(state, { type: "open-resource", resourceId: "resource-a" });
+    state = navigationReducer(state, { type: "back" });
+    expect(state.result).toEqual(destination);
+    state = navigationReducer(state, { type: "back" });
+    expect(state.section).toBe("overview");
+    expect(state.result).toBeUndefined();
+  });
+  it("clears dashboard constraints on primary navigation and snapshot changes", () => {
+    const state = navigationReducer(initialNavigationState(), { type: "open-results", destination: { view: "estate", label: "Empty selection", filter: { resourceIds: [] } } });
+    expect(navigationReducer(state, { type: "open-section", section: "estate" }).result).toBeUndefined();
+    expect(navigationReducer(state, { type: "reset-snapshot" }).result).toBeUndefined();
+    expect(navigationReducer(state, { type: "clear-results" }).result).toBeUndefined();
+  });
+  it("opens the estate map instead of reusing a previous neighbourhood", () => {
+    const state = navigationReducer(inGroup(), { type: "open-results", destination: { view: "topology", label: "Estate", filter: {} } });
+    expect(state.relationships.location).toEqual({ kind: "estate" });
+  });
+});

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, CheckCircle2, Filter, ShieldAlert, X } from "lucide-react";
-import type { EstateSnapshot, Finding, Severity } from "../types";
+import type { DashboardFilter, EstateSnapshot, Finding, Severity } from "../types";
 import { fill, resourceName } from "../format";
 import { useLabels } from "../labels";
 import { ShowMore, useProgressiveList } from "./progressive-list";
@@ -8,13 +8,17 @@ import { SEVERITIES } from "../ordering";
 import { EmptyState, ViewHeading } from "./view-chrome";
 import { useEscapeKey } from "../estate-lookups";
 
+import { findingMatchesDashboard } from "./dashboard-model";
+
 const severities: Array<Severity | "all"> = ["all", ...SEVERITIES];
 
 export function FindingsView({
   estate,
   search,
   onOpenResource,
+  dashboardFilter,
 }: {
+  dashboardFilter?: DashboardFilter;
   estate: EstateSnapshot;
   search: string;
   onOpenResource: (id: string) => void;
@@ -26,18 +30,18 @@ export function FindingsView({
       const matchesSeverity = severity === "all" || finding.severity === severity;
       const needle = search.toLowerCase();
       const matchesSearch = !needle || [finding.title, finding.category, finding.queryName, JSON.stringify(finding.detail ?? {})].some((value) => value.toLowerCase().includes(needle));
-      return matchesSeverity && matchesSearch;
+      return findingMatchesDashboard(finding, estate, dashboardFilter) && matchesSeverity && matchesSearch;
     }),
-    [estate.findings, search, severity],
+    [dashboardFilter, estate, search, severity],
   );
-  const list = useProgressiveList(filtered, [search, severity]);
+  const list = useProgressiveList(filtered, [dashboardFilter, search, severity]);
   const visibleFindings = list.visible;
   const selected = selectedIndex === undefined ? undefined : visibleFindings[selectedIndex];
   const { common, desktop: { findings: words } } = useLabels();
 
   useEffect(() => {
     setSelectedIndex(undefined);
-  }, [search, severity]);
+  }, [dashboardFilter, search, severity]);
 
   useEscapeKey(Boolean(selected), () => setSelectedIndex(undefined));
 

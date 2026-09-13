@@ -175,13 +175,13 @@ mod tests {
     fn unit_query_file_reads_a_toml_document_with_source_comments() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("query.toml");
-        std::fs::write(
-            &path,
-            include_str!("../../queries/cost/advisor_cost_recommendations.toml"),
-        )
-        .unwrap();
-        let (resolved, _) = resolve_query(path.to_str().unwrap()).unwrap();
-        assert!(resolved.starts_with("advisorresources\n"));
-        assert!(resolved.trim_end().ends_with("| order by id asc"));
+        let definition = include_str!("../../queries/cost/advisor_cost_recommendations.toml")
+            .replace("\r\n", "\n");
+        for newline in ["\n", "\r\n"] {
+            std::fs::write(&path, definition.replace('\n', newline)).unwrap();
+            let (resolved, _) = resolve_query(path.to_str().unwrap()).unwrap();
+            assert_eq!(resolved.lines().next(), Some("advisorresources"));
+            assert_eq!(resolved.lines().last(), Some("| order by id asc"));
+        }
     }
 }

@@ -261,6 +261,7 @@ mod tests {
         "rows",
         "scope",
         "search",
+        "selection",
         "share",
         "status",
         "subscription",

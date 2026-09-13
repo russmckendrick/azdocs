@@ -1,10 +1,9 @@
 # Design
 
-The desktop app's design language is **The Field Report**: azdocs is the
-printed Azure estate report made interactive. IBM Plex Serif carries identity,
-Plex Sans does the work, Plex Mono marks machine-shaped evidence. Light mode is
-paper, ink and hairline rules; dark mode is the same composition remapped to
-warm charcoal for night reading, never a separate visual world.
+The desktop app combines a balanced Overview dashboard with focused evidence
+workspaces. IBM Plex Serif carries identity, Plex Sans does the work, and Plex
+Mono marks machine-shaped evidence. Light mode is paper, ink and hairline
+rules; dark mode remaps the same composition to warm charcoal.
 
 This file used to restate that in full. It doesn't any more — three copies of
 the same palette is how they drift.
@@ -33,6 +32,12 @@ undo. Everything else is in [`docs/reference/design.md`](docs/reference/design.m
 - **Selection is a quiet `--evidence` fill.** Never a coloured bar.
 - **No numbering chrome.** Figures get a caption, not a number.
 - **Nothing below 11px.**
+- **Overview has four KPI cards and responsive chart panels.** This approved
+  exception to the stat-strip pattern opens details in focused dialogs, with
+  links to matching results. The authoritative sheet records its scope and
+  history rules.
+- **The masthead identity is the azdocs logo.** Side navigation uses Azure
+  artwork and can minimise to a persistent, labelled 68px icon rail.
 - **Dark is a 1:1 token remap**, not a second composition. Never hardcode a
   canvas colour; the Cytoscape stage reads `--graph-*`/`--kind-*` at build time
   and rebuilds on theme change.

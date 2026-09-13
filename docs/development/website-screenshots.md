@@ -70,7 +70,15 @@ The local-only smoke example checks painted pixels, delayed assets, JavaScript,
 redirect final URLs, HTTP error-page capture, clean cookies, deadlines, cancellation
 and window destruction. It writes PNGs and its disposable fixture database under
 `output/website-smoke/`. CI runs the example on macOS, Windows and Linux and
-uploads these artifacts. No Azure credentials are needed.
+uploads these artifacts with seven-day retention. Upload failures produce a visible
+warning and job summary, while native smoke failures still fail CI. This lets the
+generated-contract check run even when GitHub's artifact storage quota is full.
+No Azure credentials are needed.
+
+The Windows MSVC smoke executable embeds the Common Controls v6 manifest from
+`desktop/src-tauri/examples/windows-app.manifest` through `build.rs`. Cargo examples
+do not inherit the app executable's manifest; without it, the Windows loader can
+exit with `STATUS_ENTRYPOINT_NOT_FOUND` before the smoke test starts.
 
 For manual acceptance, check that keyboard focus remains in the original app,
 exercise TLS/DNS failures and VPN sites, and verify preview/refresh/save/cancel

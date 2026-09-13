@@ -298,7 +298,7 @@ export const mockEstate: EstateSnapshot = {
   status: "complete",
   notes: "Weekly estate review",
   totals: { subscriptions: 2, resourceGroups: 3, resources: resources.length, findings: findings.length },
-  tagCoverage: { tagged: 10, untagged: 5, percent: 66 },
+  tagCoverage: { tagged: 13, untagged: 2, percent: 86 },
   severityCounts: findings.reduce<Record<Severity, number>>(
     (counts, finding) => ({ ...counts, [finding.severity]: counts[finding.severity] + 1 }),
     { high: 0, medium: 0, low: 0, info: 0 },
@@ -309,20 +309,20 @@ export const mockEstate: EstateSnapshot = {
   governance: {
     distinctKeys: 2,
     topKeys: [
-      { key: "env", count: 10, percent: 100 },
-      { key: "owner", count: 10, percent: 100 },
+      { key: "env", count: 13, percent: 100 },
+      { key: "owner", count: 13, percent: 100 },
     ],
     subscriptions: [
       { subscriptionId: "sub-dev", displayName: "Development", percent: 0, healthy: false },
       { subscriptionId: "sub-prod", displayName: "Production", percent: 100, healthy: true },
     ],
-    nonCompliant: 5,
+    nonCompliant: 2,
     worstGroups: [
       {
         name: "rg-dev",
         subscriptionName: "Development",
-        resources: 5,
-        nonCompliant: 5,
+        resources: 2,
+        nonCompliant: 2,
         missedTags: ["env", "owner"],
         flagged: true,
       },

@@ -1,10 +1,10 @@
-# Desktop design language — "Field Report"
+# Desktop design language
 
-The desktop app wears the printed estate report made interactive: IBM Plex
-Serif carries identity, Plex Sans does the work, Plex Mono marks
-machine-shaped evidence. Paper surfaces with hairline rules in light; dark is
-a warm-charcoal **1:1 token remap** ("night reading"), never a separate
-design. The tokens live in
+The desktop combines a balanced Overview dashboard with focused evidence
+workspaces. IBM Plex Serif carries identity, Plex Sans does the work, and Plex
+Mono marks machine-shaped evidence. Paper surfaces and hairline rules frame
+the content in light mode; dark is a warm-charcoal **1:1 token remap** of the
+same composition. The tokens live in
 [`desktop/src/styles.css`](../../desktop/src/styles.css) — the only place a
 colour value is written down. [design.html](design.html) shows them as
 swatches, alongside the type scale and the brand marks; it is generated from
@@ -31,22 +31,25 @@ one dark counterpart — components never branch on the mode.
 
 ## Tokens
 
-| Token | Role | Light | Dark |
-|---|---|---|---|
-| `--paper` | app ground | `#faf8f4` | `#14181d` |
-| `--surface` | raised panels, grids | `#ffffff` | `#1b2129` |
-| `--evidence` | JSON/mono blocks, selection fill | `#f3efe7` | `#10141a` |
-| `--ink` | headings, rules, primary button | `#1c2430` | `#e9e4da` |
-| `--body` | running text | `#3a4450` | `#c7c0b4` |
-| `--muted` | secondary text | `#5a6470` | `#9a958a` |
-| `--faint` | labels, captions | `#7a828c` | `#7d786e` |
-| `--faintest` | placeholders, counts | `#9aa2ac` | `#635f57` |
-| `--line-strong` | panel borders, column splits | `#d8d2c6` | `#3a4048` |
-| `--line` | row separators | `#eae6de` | `#262c34` |
-| `--accent` | links, active tabs, single-hue charts | `#0b5da8` | `#5aa7e8` |
-| `--coral` | high severity, risk | `#a83a22` | `#e07a5f` |
-| `--amber` | medium severity, warnings | `#8a6d00` | `#c9a83a` |
-| `--green` | healthy, resolved, complete | `#13734b` | `#63bd8f` |
+Values belong to `styles.css`; the generated [design sheet](design.html)
+shows the light and dark swatches without maintaining another palette here.
+
+| Token | Role |
+|---|---|
+| `--paper` | app ground |
+| `--surface` | raised panels, grids |
+| `--evidence` | JSON/mono blocks, selection fill |
+| `--ink` | headings, rules, primary button |
+| `--body` | running text |
+| `--muted` | secondary text |
+| `--faint` | labels, captions |
+| `--faintest` | placeholders, counts |
+| `--line-strong` | panel borders, column splits |
+| `--line` | row separators |
+| `--accent` | links, active tabs, single-hue charts |
+| `--coral` | high severity, risk |
+| `--amber` | medium severity, warnings |
+| `--green` | healthy, resolved, complete |
 
 ### Category / chart set
 
@@ -55,14 +58,14 @@ Fixed order, never cycled — the top slots of the app's Rust
 elsewhere may use the full set. Both mode palettes are CVD-validated against
 their surfaces; only the storage slot changes in dark.
 
-| Token | Category | Light | Dark |
-|---|---|---|---|
-| `--cat-compute` | compute | `#0078d4` | `#0078d4` |
-| `--cat-networking` | networking | `#107c10` | `#107c10` |
-| `--cat-storage` | storage | `#c19c00` | `#a98a00` |
-| `--cat-databases` | databases | `#b146c2` | `#b146c2` |
-| `--cat-appservices` | app services | `#d83b01` | `#d83b01` |
-| `--cat-other` | everything else | `#5a6470` | `#5a6470` |
+| Token | Category |
+|---|---|
+| `--cat-compute` | compute |
+| `--cat-networking` | networking |
+| `--cat-storage` | storage |
+| `--cat-databases` | databases |
+| `--cat-appservices` | app services |
+| `--cat-other` | everything else |
 
 Relationship kind classes (`--kind-network` …) map onto the same set. The
 Cytoscape stage reads `--graph-*` tokens at build time and rebuilds when the
@@ -84,6 +87,7 @@ one product family. Serif Regular/SemiBold is bundled with the frontend
 | Level | Face | Size | Use |
 |---|---|---|---|
 | Display | Plex Serif 600 | 26–30px | view titles, hero numerals |
+| Overview KPI | Plex Serif 600 | 36px | four primary dashboard values, tabular numerals |
 | Chapter | Plex Serif 600 | 16–20px | section and panel headings, table heads |
 | Body | Plex Sans 400 | 13–14px | descriptions and supporting copy |
 | Table | Plex Sans 400/600 | 12.5px | ledger rows, inspector detail |
@@ -99,20 +103,30 @@ one product family. Serif Regular/SemiBold is bundled with the frontend
   Tone and rules build hierarchy before shadow does.
 - Spacing rhythm `4 · 8 · 12 · 20 · 32`; radii `3px` (controls and tag chips),
   `6px` (panels), and `999px` for the deliberately rounded summary capsule.
-  The rest of the interface stays near-square and print-like.
-- The **stat strip** remains the summary idiom when metrics are primary page
-  content: serif numerals between rules, one cell per measure, coral only when
-  the measure is a risk. Use **summary capsules** instead when two to six
+  Overview uses `12px` KPI and chart panels and a `14px` detail dialog; these
+  are a local dashboard treatment, not a replacement for evidence workspaces.
+- The **stat strip** remains the summary idiom outside Overview when metrics
+  are primary page content: serif numerals between rules, one cell per measure,
+  coral only when the measure is a risk. **Overview is the user-approved
+  exception**, with four KPI cards and chart panels described below.
+  Use **summary capsules** when two to six
   secondary orientation facts can occupy spare header or toolbar space without
   competing with the title. The group wraps as a unit before it squeezes
   identity or action text.
-- Side navigation is a slim IDE-style list (~176px): icon + label rows,
-  tree subtrees with guide lines, Settings pinned to the bottom, a mono coral
-  count as the Findings badge.
+- The masthead identity is the azdocs logo, with no tagline. Snapshot, search
+  and collection controls retain their own roles alongside it.
+- Side navigation is a slim list (~176px) of icon + label rows, with Settings
+  pinned to the bottom and a mono coral count for high-severity findings.
+  Minimise collapses it to a 68px icon rail; the preference persists across
+  sessions. Both widths retain accessible names, native title tooltips and
+  `aria-current`; the toggle names its action and exposes its expanded state.
+  Use the vendored Azure SVGs in navigation and dashboard metrics: Compliance
+  for findings and Resource Graph Explorer for Map and relationships.
 - Estate disclosure and scope selection are independent. Subscriptions open to
   resource groups and groups open to resource rows without changing the active
   scope. Azure entities use the vendored Azure artwork throughout; generic
-  interface glyphs are reserved for controls, navigation, and signals.
+  interface glyphs identify controls and actions. Preserve the supplied artwork
+  rather than recolouring it as decorative chrome.
 - **One working surface per route.** Estate keeps its hierarchy rail because
   scope is part of browsing. A resource opens as a dedicated evidence sheet:
   all stored properties, SKU, identity, tags, findings, edge properties, ARM
@@ -134,6 +148,72 @@ one product family. Serif Regular/SemiBold is bundled with the frontend
 - Large collections must not make navigation grow without bound. Resource
   types and inventory queries use labelled selectors; lists and tables own
   their scroll area, while detail never permanently narrows them.
+
+### Overview dashboard
+
+Overview provides orientation in one scrolling document. Four equally weighted
+KPI cards lead: resources, audit findings, any-tag coverage, and stored
+relationships. Each combines a Serif value, Azure icon and short context line;
+only a findings value with high-severity results uses the risk colour.
+
+The responsive twelve-column chart grid contains resource history, findings
+by severity, resource types, regions, tag coverage by subscription, collection
+coverage, changes since the previous snapshot, and priority checks. A wide
+history panel sits beside the severity donut; composition panels follow, then
+collection coverage and changes, with priority checks across the full width.
+Container queries adapt to available workspace width: below 950px, middle
+panels rebalance; below 650px, the KPI cards form two columns and chart panels
+stack. Labels stay at least 11px, with direct values and full-name tooltips
+where a chart label is ellipsised.
+
+The subscription selector scopes current resource counts, findings, types,
+regions and tag coverage. Relationship counts include connections touching
+either endpoint in that scope. Findings without a resource remain estate-level
+and cannot be assigned to a selected subscription. The following measures
+explicitly retain whole-snapshot scope across all collected subscriptions:
+
+- **Resource history** includes the same tenant's stored snapshots up to the
+  selected snapshot, within 30 days, 90 days or all time. Running collections
+  are excluded. Partial and failed collections stay visible as labelled gaps;
+  neither the line nor its area fill connects across them. Only completed
+  totals set the padded, automatically scaled axis. Ticks are distinct full
+  localised integers, never rounded compact labels, and the left margin grows
+  with their width. The scale need not start at zero; the visible axis and
+  scope note make that clear. Collection scope may vary between snapshots.
+- **Collection coverage** counts successful query runs against attempted runs
+  by category. It measures collection evidence, not compliance.
+- **Changes** use the stored comparison only when both snapshots are complete
+  and belong to the same tenant. Additions, removals and property changes keep
+  their separate counts; missing comparison evidence has an explicit empty state.
+
+Tag coverage means resources with any tag. Required-tag compliance belongs in
+Governance. Rust-provided percentages and governance verdicts remain
+authoritative; the dashboard does not define thresholds or reround verdicts.
+
+KPI cards, chart values, snapshot points and priority checks open a focused
+native `dialog`. Its heading names the selection and scope, the body shows
+matching stored records in progressive batches, and the footer links to the
+exact result filters or selected snapshot. Resource and relationship rows
+provide direct record or neighbourhood navigation. The dialog has a labelled
+close button, native focus containment, Escape and backdrop dismissal, and a
+scrolling body that leaves the header and actions accessible. Result pages
+show the originating selection, a return action and a clear-filter control.
+
+Motion helps explain state changes: KPI numbers interpolate from their current
+value, bars and donut segments ease to their new values, the history line draws
+in, and the dialog and backdrop enter together. Sidebar width changes immediately;
+labels fade and slide in on expansion without animating the workspace layout.
+Reduced motion removes these animations and applies numeric changes directly,
+including when the preference changes during an animation.
+
+The implementation is in
+[`OverviewView.tsx`](../../desktop/src/components/OverviewView.tsx),
+[`DashboardModal.tsx`](../../desktop/src/components/DashboardModal.tsx),
+[`dashboard-model.ts`](../../desktop/src/components/dashboard-model.ts) and
+[`dashboard-motion.ts`](../../desktop/src/components/dashboard-motion.ts).
+Result navigation follows
+[`navigation-state.ts`](../../desktop/src/navigation-state.ts); all wording
+continues to come from the typed [labels](labels.md).
 
 ### Inventory evidence disclosures
 
@@ -238,6 +318,7 @@ with Retry and Revert actions and an `aria-live` announcement.
   primary dashboard metrics, or as a substitute for tables and ledgers.
 - **Evidence blocks** (stored JSON, ARM ids): mono on `--evidence` with a
   hairline border, never a dark backplate in light mode.
-- **Charts**: horizontal bars direct-labelled with the value; one hue for one
-  measure, category colours only for categorical identity; captions are one
-  short italic line.
+- **Charts**: bars are direct-labelled with the value; one hue for one measure,
+  category colours only for categorical identity. Overview adds a history line
+  and a severity donut with named, counted legend controls. Captions and scope
+  notes explain the evidence without numbering.

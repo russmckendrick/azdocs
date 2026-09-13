@@ -38,3 +38,22 @@ export interface ScopeSelection {
   subscriptionId?: string;
   resourceGroup?: string;
 }
+
+/** Exact constraints carried from a dashboard selection to its result view. */
+export interface DashboardFilter {
+  subscriptionId?: string;
+  azureType?: string;
+  location?: string;
+  resourceIds?: string[];
+  severity?: import("./api-types").Severity;
+  queryName?: string;
+  category?: string;
+  changeKind?: "added" | "changed" | "removed";
+  healthOnly?: boolean;
+}
+
+export interface DashboardDestination {
+  view: ViewId;
+  label: string;
+  filter: DashboardFilter;
+}

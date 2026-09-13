@@ -1,4 +1,4 @@
-import type { ViewId } from "./types";
+import type { DashboardDestination, ViewId } from "./types";
 
 export type RelationshipLocation =
   | { kind: "estate" }
@@ -19,6 +19,7 @@ export type WorkspaceSurface =
   | { kind: "resource"; resourceId: string };
 
 export interface NavigationFrame {
+  result?: DashboardDestination;
   section: ViewId;
   surface: WorkspaceSurface;
   relationships: RelationshipWorkspaceState;
@@ -29,6 +30,8 @@ export interface NavigationState extends NavigationFrame {
 }
 
 export type NavigationAction =
+  | { type: "open-results"; destination: DashboardDestination }
+  | { type: "clear-results" }
   | { type: "open-section"; section: ViewId }
   | { type: "open-resource"; resourceId: string }
   | { type: "open-relationships"; resourceId: string }
@@ -79,6 +82,7 @@ export function cloneRelationshipWorkspace(
 
 function currentFrame(state: NavigationState): NavigationFrame {
   return {
+    result: state.result,
     section: state.section,
     surface: { ...state.surface },
     relationships: cloneRelationshipWorkspace(state.relationships),
@@ -107,10 +111,16 @@ export function navigationReducer(
   action: NavigationAction,
 ): NavigationState {
   switch (action.type) {
+    case "open-results":
+      return { ...state, section: action.destination.view, result: action.destination,
+        surface: { kind: "section" }, relationships: action.destination.view === "topology" ? initialRelationshipWorkspace() : state.relationships, history: pushCurrent(state) };
+    case "clear-results":
+      return { ...state, result: undefined };
     case "open-section":
       return {
         ...state,
         section: action.section,
+        result: undefined,
         surface: { kind: "section" },
         history: [],
       };
@@ -159,6 +169,7 @@ export function navigationReducer(
       if (!previous) return state;
       return {
         section: previous.section,
+        result: previous.result,
         surface: { ...previous.surface },
         relationships: cloneRelationshipWorkspace(previous.relationships),
         history: state.history.slice(0, -1),

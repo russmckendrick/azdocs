@@ -12,16 +12,19 @@ import {
 } from "lucide-react";
 import { ALL_RESOURCES_ICON, RESOURCE_GROUP_ICON, SUBSCRIPTION_ICON, resourceIcon } from "../azure-icons";
 import { displayLocation } from "../azure-values";
-import type { EstateSnapshot, Resource, ResourceType, ScopeSelection } from "../types";
+import type { DashboardFilter, EstateSnapshot, Resource, ResourceType, ScopeSelection } from "../types";
 import { ShowMore, useProgressiveList } from "./progressive-list";
 import { EmptyState } from "./view-chrome";
 import { fill, fillNodes } from "../format";
 import { useLabels } from "../labels";
 import { matchesResourceSearch, useResourceTypeMap, useSubscriptionNames } from "../estate-lookups";
 
+import { resourceMatchesDashboard } from "./dashboard-model";
+
 type SortKey = "name" | "type" | "location" | "findings";
 
 interface EstateExplorerProps {
+  dashboardFilter?: DashboardFilter;
   estate: EstateSnapshot;
   search: string;
   scope: ScopeSelection;
@@ -35,6 +38,7 @@ export function EstateExplorer({
   scope,
   onScopeChange,
   onSelectResource,
+  dashboardFilter,
 }: EstateExplorerProps) {
   const [typeFilter, setTypeFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
@@ -55,7 +59,7 @@ export function EstateExplorer({
       const inGroup = !scope.resourceGroup || resource.resourceGroup === scope.resourceGroup;
       const hasType = !typeFilter || resource.azureType === typeFilter;
       const inLocation = !locationFilter || resource.location === locationFilter;
-      return inSubscription && inGroup && hasType && inLocation && matchesResourceSearch(resource, search, estate.azureMetadata);
+      return resourceMatchesDashboard(resource, dashboardFilter) && inSubscription && inGroup && hasType && inLocation && matchesResourceSearch(resource, search, estate.azureMetadata);
     });
     return matches.sort((a, b) => {
       if (sortKey === "findings") return b.findingCount - a.findingCount || a.name.localeCompare(b.name);
@@ -63,7 +67,7 @@ export function EstateExplorer({
       if (sortKey === "location") return (a.location ?? "").localeCompare(b.location ?? "") || a.name.localeCompare(b.name);
       return a.name.localeCompare(b.name);
     });
-  }, [estate.azureMetadata, estate.resources, locationFilter, scope, search, sortKey, typeFilter]);
+  }, [dashboardFilter, estate.azureMetadata, estate.resources, locationFilter, scope, search, sortKey, typeFilter]);
   const list = useProgressiveList(filtered, [locationFilter, scope.resourceGroup, scope.subscriptionId, search, sortKey, typeFilter]);
   const visibleResources = list.visible;
 

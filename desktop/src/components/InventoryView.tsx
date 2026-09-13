@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Table2 } from "lucide-react";
 import { getQueryPackMetadata, getQueryRows } from "../api";
-import type { EstateSnapshot, QueryDefMeta, QueryRows } from "../types";
+import type { DashboardFilter, EstateSnapshot, QueryDefMeta, QueryRows } from "../types";
 import { ShowMore, useProgressiveList } from "./progressive-list";
 import { DatabaseStamp, EmptyState, ViewHeading } from "./view-chrome";
 import { capitalise, errorMessage, fill, plural, spaced } from "../format";
@@ -52,11 +52,11 @@ function EvidenceSummary({ evidence }: { evidence: EstateSnapshot["evidenceSumma
   </section>;
 }
 
-export function InventoryView({ estate, search }: { estate: EstateSnapshot; search: string }) {
+export function InventoryView({ estate, search, dashboardFilter }: { estate: EstateSnapshot; search: string; dashboardFilter?: DashboardFilter }) {
   const [pack, setPack] = useState<QueryDefMeta[]>();
   const [packError, setPackError] = useState<string>();
-  const [category, setCategory] = useState<string>();
-  const [queryName, setQueryName] = useState<string>();
+  const [category, setCategory] = useState<string | undefined>(dashboardFilter?.category);
+  const [queryName, setQueryName] = useState<string | undefined>(dashboardFilter?.queryName);
   const [result, setResult] = useState<QueryRows>();
   const [rowsLoading, setRowsLoading] = useState(false);
   const { common, desktop: { inventory: words } } = useLabels();

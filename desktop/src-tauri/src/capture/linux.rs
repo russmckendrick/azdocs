@@ -1,5 +1,7 @@
 use super::{ImageSender, NavigationError};
-use webkit2gtk::{SnapshotOptions, SnapshotRegion, prelude::*};
+use webkit2gtk::{
+    AuthenticationRequestExt, PermissionRequestExt, SnapshotOptions, SnapshotRegion, WebViewExt,
+};
 
 pub const RENDERER: &str = "WebKitGTK";
 

@@ -4,24 +4,16 @@ import { CollectionDialog } from "./components/CollectionDialog";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import {
   AlertTriangle,
-  Boxes,
   ChevronDown,
-  FileClock,
-  FileOutput,
   FolderSearch2,
-  LayoutGrid,
   LoaderCircle,
-  Map as MapIcon,
   PanelLeftClose,
+  PanelLeftOpen,
   RefreshCw,
   Search,
-  Settings2,
-  ShieldCheck,
-  Table2,
-  Tags,
 } from "lucide-react";
 import { chooseDatabase, collectEstate, getBootstrap, getSnapshot, isTauri } from "./api";
-import { resourceIcon } from "./azure-icons";
+import { SIDEBAR_ICONS, resourceIcon } from "./azure-icons";
 import {
   initialNavigationState,
   navigationReducer,
@@ -39,6 +31,7 @@ import { ResourceDetailView } from "./components/ResourceDetailView";
 import { SettingsView } from "./components/SettingsView";
 import type {
   AppBootstrap,
+  DashboardDestination,
   CollectionEvent,
   EstateSnapshot,
   ScopeSelection,
@@ -54,18 +47,9 @@ const TopologyView = lazy(() =>
 );
 
 /** The side-nav entries; labels come from `desktop.nav` under the same ids. */
-const views: Array<{
-  id: Exclude<ViewId, "settings">;
-  icon: typeof Boxes;
-}> = [
-  { id: "overview", icon: LayoutGrid },
-  { id: "estate", icon: Boxes },
-  { id: "topology", icon: MapIcon },
-  { id: "inventory", icon: Table2 },
-  { id: "findings", icon: ShieldCheck },
-  { id: "governance", icon: Tags },
-  { id: "history", icon: FileClock },
-  { id: "exports", icon: FileOutput },
+const views: Array<{ id: Exclude<ViewId, "settings"> }> = [
+  { id: "overview" }, { id: "estate" }, { id: "topology" }, { id: "inventory" },
+  { id: "findings" }, { id: "governance" }, { id: "history" }, { id: "exports" },
 ];
 
 const THEME_STORAGE_KEY = "azdocs-theme";
@@ -106,6 +90,15 @@ function frameLabel(
 }
 
 export default function App() {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem("azdocs-sidebar-collapsed") === "true"; } catch { return false; }
+  });
+  function toggleSidebar() {
+    setSidebarCollapsed(current => {
+      try { localStorage.setItem("azdocs-sidebar-collapsed", String(!current)); } catch { /* The preference still applies for this session. */ }
+      return !current;
+    });
+  }
   const [bootstrap, setBootstrap] = useState<AppBootstrap>();
   const [estate, setEstate] = useState<EstateSnapshot>();
   const [navigation, dispatchNavigation] = useReducer(navigationReducer, undefined, initialNavigationState);
@@ -127,7 +120,7 @@ export default function App() {
     () => window.matchMedia("(prefers-color-scheme: dark)").matches,
   );
   const searchRef = useRef<HTMLInputElement>(null);
-  const { common: { websites: websiteWords }, desktop: { nav, shell } } = useLabels();
+  const { common: { websites: websiteWords }, desktop: { nav, shell, overview: overviewWords } } = useLabels();
   const view = navigation.section;
   const resourceRecordId = navigation.surface.kind === "resource"
     ? navigation.surface.resourceId
@@ -329,6 +322,12 @@ export default function App() {
     dispatchNavigation({ type: "open-section", section });
   }, []);
 
+  const openDashboardResults = useCallback((destination: DashboardDestination) => {
+    setSearch("");
+    setScope({});
+    dispatchNavigation({ type: "open-results", destination });
+  }, []);
+
   const openResource = useCallback((resourceId: string) => {
     dispatchNavigation({ type: "open-resource", resourceId });
   }, []);
@@ -358,7 +357,6 @@ export default function App() {
             <span className="brand-mark" aria-hidden="true" />
             <strong aria-hidden="true">zdocs</strong>
           </div>
-          <span>{shell.tagline}</span>
           {!isTauri ? <em>{shell.preview_badge}</em> : null}
         </div>
         <label className="snapshot-control">
@@ -441,10 +439,12 @@ export default function App() {
         </div>
       </header>
 
-      <div className="app-body">
-        <nav className="side-nav" aria-label={shell.primary_navigation}>
+      <div className={sidebarCollapsed ? "app-body sidebar-collapsed" : "app-body"}>
+        <nav className="side-nav" id="primary-navigation" aria-label={shell.primary_navigation}>
+          <button className="nav-row sidebar-toggle" onClick={toggleSidebar} aria-expanded={!sidebarCollapsed} aria-controls="primary-navigation" aria-label={sidebarCollapsed ? overviewWords.dashboard.expand_sidebar : overviewWords.dashboard.collapse_sidebar} title={sidebarCollapsed ? overviewWords.dashboard.expand_sidebar : overviewWords.dashboard.collapse_sidebar}>
+            {sidebarCollapsed ? <PanelLeftOpen size={19} /> : <PanelLeftClose size={19} />}<span>{overviewWords.dashboard.collapse_sidebar}</span>
+          </button>
           {views.map((item) => {
-            const Icon = item.icon;
             const badge = item.id === "findings" && highFindings > 0 ? highFindings : undefined;
             return (
               <button
@@ -453,8 +453,9 @@ export default function App() {
                 onClick={() => openSection(item.id)}
                 aria-current={view === item.id ? "page" : undefined}
                 title={nav[item.id]}
+                aria-label={badge ? `${nav[item.id]} · ${badge}` : nav[item.id]}
               >
-                <Icon size={15} strokeWidth={1.6} />
+                <img className="nav-azure-icon" src={SIDEBAR_ICONS[item.id]} alt="" />
                 <span>{nav[item.id]}</span>
                 {badge ? <span className="nav-badge">{badge}</span> : null}
               </button>
@@ -466,8 +467,9 @@ export default function App() {
             onClick={() => openSection("settings")}
             aria-current={view === "settings" ? "page" : undefined}
             title={nav.settings}
+            aria-label={nav.settings}
           >
-            <Settings2 size={15} strokeWidth={1.6} />
+            <img className="nav-azure-icon" src={SIDEBAR_ICONS.settings} alt="" />
             <span>{nav.settings}</span>
           </button>
         </nav>
@@ -488,6 +490,13 @@ export default function App() {
             </div>
           ) : null}
 
+          {navigation.result && navigation.result.view === view && !selectedResource ? (
+            <div className="dashboard-result-scope">
+              <button className="quiet-button" onClick={navigateBack}>{overviewWords.dashboard.back}</button>
+              <span>{fill(overviewWords.dashboard.filter, { selection: navigation.result.label })}</span>
+              <button className="quiet-button" onClick={() => dispatchNavigation({ type: "clear-results" })}>{overviewWords.dashboard.clear_filter}</button>
+            </div>
+          ) : null}
           {loading && !estate ? <LoadingWorkspace /> : null}
           {!loading && !estate && !error && view !== "settings" ? (
             <EmptyWorkspace
@@ -512,8 +521,10 @@ export default function App() {
                 <OverviewView
                   bootstrap={bootstrap}
                   estate={estate}
-                  onOpenView={openSection}
+                  onOpenResults={openDashboardResults}
                   onOpenResource={openResource}
+                  onOpenRelationships={openRelationships}
+                  onLoadSnapshot={(id) => void loadSnapshot(id)}
                 />
               ) : null}
               {view === "estate" && !selectedResource ? (
@@ -521,6 +532,7 @@ export default function App() {
                   estate={estate}
                   search={search}
                   scope={scope}
+                  dashboardFilter={navigation.result?.filter}
                   onScopeChange={setScope}
                   onSelectResource={openResource}
                 />
@@ -543,10 +555,10 @@ export default function App() {
                 </Suspense>
               ) : null}
               {view === "inventory" && !selectedResource ? (
-                <InventoryView estate={estate} search={search} />
+                <InventoryView estate={estate} search={search} dashboardFilter={navigation.result?.filter} />
               ) : null}
               {view === "findings" && !selectedResource ? (
-                <FindingsView estate={estate} search={search} onOpenResource={openResource} />
+                <FindingsView estate={estate} search={search} dashboardFilter={navigation.result?.filter} onOpenResource={openResource} />
               ) : null}
               {view === "governance" && bootstrap && !selectedResource ? (
                 <GovernanceView
@@ -560,6 +572,8 @@ export default function App() {
                   bootstrap={bootstrap}
                   estate={estate}
                   onLoadSnapshot={(id) => void loadSnapshot(id)}
+                  dashboardFilter={navigation.result?.filter}
+                  onOpenResource={openResource}
                 />
               ) : null}
               {view === "exports" && bootstrap && !selectedResource ? (

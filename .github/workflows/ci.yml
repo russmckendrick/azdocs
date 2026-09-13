@@ -101,11 +101,21 @@ jobs:
         if: runner.os != 'Linux'
         run: cargo run -p azdocs-desktop --locked --example website_capture_smoke
       - name: Upload native capture evidence
+        id: capture-evidence
         if: always()
+        # Evidence retention must not skip contract checks when storage is full.
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: website-capture-${{ matrix.os }}
           path: output/website-smoke/
+          retention-days: 7
+      - name: Report unavailable capture evidence
+        if: always() && steps.capture-evidence.outcome == 'failure'
+        shell: bash
+        run: |
+          echo "::warning::Native capture evidence could not be uploaded. Check artifact storage quota; smoke test results remain blocking."
+          echo "Native capture evidence upload failed; see the upload step for details. Smoke test results remain blocking." >> "$GITHUB_STEP_SUMMARY"
       - name: Check generated TypeScript is current
         shell: bash
         run: |
