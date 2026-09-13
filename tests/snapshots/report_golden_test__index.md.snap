@@ -81,14 +81,19 @@ expression: content
 - [inventory](inventory.md)
 - [monitoring](monitoring.md)
 - [networking](networking.md)
+- [operations](operations.md)
+- [resilience](resilience.md)
 - [findings](findings.md)
 - [subscription: Development](subscriptions/development.md)
 - [subscription: Production](subscriptions/production.md)
 
 
-## Cost and compliance evidence
+## Operational and compliance evidence
 
 Microsoft service evidence recorded during collection. Results cover only the accessible scope; an empty dataset is not proof of zero cost, compliance, protection or service enablement. Detailed records remain in the inventory evidence and technical reference.
+
+[Query provenance](query-provenance.md)
+
 
 ### Azure Advisor cost opportunities
 
@@ -159,3 +164,90 @@ Passed, failed and skipped counts are resource occurrences across assessments; r
 | Standard | State | Checks | Passed | Failed | Skipped |
 | --- | --- | --- | --- | --- | --- |
 | Azure-Security-Benchmark | Failed | 1 | 12 | 2 | Unknown |
+
+
+
+### Policy assignment inventory
+
+Collection: Recorded evidence
+
+Assignment inventory includes the requested inherited scope. Enforcement mode and excluded scopes affect interpretation; an assignment does not establish a passing evaluation.
+
+| Enforcement | Assignments |
+| --- | --- |
+| Default | 1 |
+| DoNotEnforce | 1 |
+
+
+
+### Patch assessments
+
+Collection: Recorded evidence
+
+Counts describe pending updates at the recorded assessment time and may overlap across classifications. Missing counts remain unknown. ARG assessment history is limited to seven days.
+
+| OS | State | Checks | Security updates | Critical updates |
+| --- | --- | --- | --- | --- |
+| Linux | Succeeded | 1 | 2 | Unknown |
+
+
+
+### Backup and restore outcomes
+
+Collection: Recorded evidence
+
+Backup and restore jobs retain the provider status, including warnings. ARG exposes up to 14 days of jobs; an empty result does not prove successful backups.
+
+| Operation | State | Jobs |
+| --- | --- | --- |
+| Backup | CompletedWithWarnings | 1 |
+| Restore | Failed | 1 |
+
+
+
+### Recent ARM changes
+
+Collection: Recorded evidence
+
+Recorded ARM changes can include actor, client and changed properties. ARG retains 14 days; this is not a complete activity or data-plane audit log.
+
+| Type | Actor type | Events |
+| --- | --- | --- |
+| Update | Application | 1 |
+
+
+
+### Policy evaluation coverage
+
+Collection: Recorded evidence
+
+Assignments are matched to stored policy states using full normalised ARM IDs. No observed evaluation is kept separate from compliance and from unavailable state collection.
+
+| Assignment | Name | State | Results |
+| --- | --- | --- | --- |
+| /subscriptions/sub-prod/providers/microsoft.authorization/policyassignments/baseline | Production baseline | Evaluation observed | 1 |
+| /subscriptions/sub-prod/providers/microsoft.authorization/policyassignments/not-evaluated | Pending initiative | No evaluation observed | 0 |
+
+
+
+### Machine assessment coverage
+
+Collection: Recorded evidence
+
+Counts use the collected VM and Arc inventory, deduplicated by full ARM ID. No observed assessment may indicate missing service configuration, access or expired evidence; it is not a passed patch check.
+
+| Type | State | Resources |
+| --- | --- | --- |
+| microsoft.compute/virtualmachines | Evaluation observed | 1 |
+
+
+
+### Evidence age at collection
+
+Collection: Recorded evidence
+
+Ages are evaluated at the snapshot timestamp using the threshold recorded with each query. Future, invalid and missing dates stay separate. Review thresholds are configurable and are not Microsoft retention guarantees.
+
+| Query | Review age (hours) | State | Items |
+| --- | --- | --- | --- |
+| patch\_assessments | 72 | Missing or invalid timestamp | 1 |

@@ -1,0 +1,19 @@
+# Source: https://learn.microsoft.com/en-us/azure/governance/resource-graph/samples/samples-by-category#resource-health
+# Unavailable, Degraded, Unknown and absent health records have different meanings. This is an observed status, not an uptime calculation.
+name = "resource_health"
+category = "monitoring"
+kind = "inventory"
+description = "Observed resource availability states and provider reasons"
+kql = '''
+// Unavailable, Degraded, Unknown and absent health records have different meanings. This is an observed status, not an uptime calculation.
+healthresources
+| where type =~ 'microsoft.resourcehealth/availabilitystatuses'
+| project id, name, subscriptionId, resourceGroup, resourceId = tostring(properties.targetResourceId),
+          targetResourceType = tostring(properties.targetResourceType), state = tostring(properties.availabilityState),
+          reasonType = tostring(properties.reasonType), occurredAt = properties.occurredTime, properties
+| order by id asc
+'''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/governance/resource-graph/samples/samples-by-category#resource-health"]
+reviewed_on = "2026-09-13"

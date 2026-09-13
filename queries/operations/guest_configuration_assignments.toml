@@ -1,0 +1,24 @@
+# Source: https://learn.microsoft.com/en-us/azure/governance/machine-configuration/how-to/view-compliance
+# A missing guest assignment is not a passing OS baseline. Preserve the latest report where the provider supplies it.
+name = "guest_configuration_assignments"
+category = "operations"
+kind = "inventory"
+description = "Guest configuration baseline evaluations for VM and Arc machines"
+kql = '''
+// A missing guest assignment is not a passing OS baseline. Preserve the latest report where the provider supplies it.
+guestconfigurationresources
+| where type =~ 'microsoft.guestconfiguration/guestconfigurationassignments'
+| project id, name, subscriptionId, resourceGroup,
+          resourceId = tostring(properties.targetResourceId), policyAssignmentId = tostring(properties.policyAssignmentId),
+          complianceState = tostring(properties.complianceStatus), assessedAt = properties.lastComplianceStatusChecked,
+          configuration = properties.guestConfiguration, latestAssignmentReport = properties.latestAssignmentReport
+| order by id asc
+'''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/governance/machine-configuration/how-to/view-compliance"]
+reviewed_on = "2026-09-13"
+
+[freshness]
+timestamp_field = "assessedAt"
+max_age_hours = 72

@@ -199,6 +199,7 @@ fn unit_microsoft_summary_escapes_service_text_in_markdown_and_html() {
         &rows,
         &report.analysis.query_runs,
         "2026-09-13T12:00:00Z".parse().unwrap(),
+        &[],
     );
     let pages = markdown::render_pages(&report, &Labels::default()).unwrap();
     let index = &pages.iter().find(|(path, _)| path == "index.md").unwrap().1;

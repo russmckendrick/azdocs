@@ -1,0 +1,18 @@
+# Source: https://learn.microsoft.com/en-us/azure/backup/query-backups-using-azure-resource-graph
+# Keep the provider-specific policy intact; reducing different schedules to a single retention number is misleading.
+name = "backup_policies"
+category = "resilience"
+kind = "inventory"
+description = "Recovery Services and Data Protection backup policies with their complete schedules and retention"
+kql = '''
+// Keep the provider-specific policy intact; reducing different schedules to a single retention number is misleading.
+recoveryservicesresources
+| where type in~ ('microsoft.recoveryservices/vaults/backuppolicies', 'microsoft.dataprotection/backupvaults/backuppolicies')
+| project id, name, type, subscriptionId, resourceGroup,
+          dataSourceType = tostring(properties.backupManagementType), properties
+| order by id asc
+'''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/backup/query-backups-using-azure-resource-graph"]
+reviewed_on = "2026-09-13"

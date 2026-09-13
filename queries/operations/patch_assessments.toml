@@ -1,0 +1,27 @@
+# Source: https://learn.microsoft.com/en-us/azure/update-manager/query-logs
+# Only summary records: per-patch rows would duplicate the machine totals. ARG assessment history is limited to seven days.
+name = "patch_assessments"
+category = "operations"
+kind = "inventory"
+description = "VM and Arc patch assessments with pending updates, reboot status and observation time"
+kql = '''
+// Only summary records: per-patch rows would duplicate the machine totals. ARG assessment history is limited to seven days.
+patchassessmentresources
+| where type in~ ('microsoft.compute/virtualmachines/patchassessmentresults', 'microsoft.hybridcompute/machines/patchassessmentresults')
+| project id, name, subscriptionId, resourceGroup,
+          resourceId = tostring(split(tolower(id), '/patchassessmentresults/')[0]),
+          assessedAt = properties.lastModifiedDateTime, osType = tostring(properties.osType),
+          status = tostring(properties.status), rebootPending = tobool(properties.rebootPending),
+          securityUpdates = toint(properties.availablePatchCountByClassification.security),
+          criticalUpdates = toint(properties.availablePatchCountByClassification.critical),
+          classifications = properties.availablePatchCountByClassification, errorDetails = properties.errorDetails
+| order by id asc
+'''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/update-manager/query-logs"]
+reviewed_on = "2026-09-13"
+
+[freshness]
+timestamp_field = "assessedAt"
+max_age_hours = 72

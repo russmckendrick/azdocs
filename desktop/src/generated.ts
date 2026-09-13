@@ -36,7 +36,11 @@ export type EstateSnapshot = { id: string, createdAt: string, tenantId: string, 
 /**
  * Every group the relationship map can open, synthetic ones included.
  */
-resourceGroupSummaries: Array<ResourceGroupSummary>, resources: Array<Resource>, resourceTypes: Array<ResourceType>, locations: Array<NameCount>, findings: Array<Finding>, edges: Array<Edge>, queryRuns: Array<QueryRun>, previousDiff?: SnapshotComparison | null, };
+resourceGroupSummaries: Array<ResourceGroupSummary>, resources: Array<Resource>, resourceTypes: Array<ResourceType>, locations: Array<NameCount>, findings: Array<Finding>, edges: Array<Edge>, queryRuns: Array<QueryRun>, 
+/**
+ * Already interpreted and labelled in Rust; the frontend only renders cells.
+ */
+evidenceSummaries: Array<EvidenceTable>, previousDiff?: SnapshotComparison | null, };
 
 export type Totals = { subscriptions: number, resourceGroups: number, resources: number, findings: number, };
 
@@ -118,7 +122,11 @@ export type Finding = { queryName: string, category: string, severity: Severity,
 
 export type Edge = { sourceId: string, targetId: string, kind: EdgeKind, properties?: unknown, };
 
-export type QueryRun = { queryName: string, category: string, rowCount?: number | null, durationMs?: number | null, error?: string | null, };
+export type QueryRun = { provenance?: QueryProvenance | null, queryName: string, category: string, rowCount?: number | null, durationMs?: number | null, error?: string | null, };
+
+export type QueryProvenance = { kql: string, kqlSha256: string, description: string, kind: string, authorizationScope: string, subscriptions: Array<string>, sourceUrls: Array<string>, reviewedOn?: string | null, revision?: string | null, };
+
+export type EvidenceTable = { key: string, title: string, note: string, status: string, columns: Array<string>, rows: Array<Array<string>>, };
 
 export type QueryDefMeta = { name: string, category: string, kind: QueryKind, description: string, };
 

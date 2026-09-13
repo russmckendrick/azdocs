@@ -1,11 +1,22 @@
+# Sources below describe provider fields; ARG may expose only a subset.
 name = "recovery_vaults"
 category = "storage"
 kind = "inventory"
-description = "Recovery Services and Backup vaults"
+description = "Recovery Services and Backup vaults with observed protection and security settings"
 kql = '''
 resources
 | where type in ("microsoft.recoveryservices/vaults", "microsoft.dataprotection/backupvaults")
 | project id, name, type, location, resourceGroup, subscriptionId,
-          sku = tostring(sku.name)
+          sku = tostring(sku.name),
+          immutabilityState = tostring(properties.securitySettings.immutabilitySettings.state),
+          softDeleteState = coalesce(tostring(properties.securitySettings.softDeleteSettings.softDeleteState), tostring(properties.securitySettings.softDeleteSettings.state)),
+          softDeleteRetentionDays = coalesce(toint(properties.securitySettings.softDeleteSettings.softDeleteRetentionPeriodInDays), toint(properties.securitySettings.softDeleteSettings.retentionDurationInDays)),
+          multiUserAuthorization = tostring(properties.securitySettings.multiUserAuthorization),
+          securitySettings = properties.securitySettings, resourceGuardOperationRequests = properties.resourceGuardOperationRequests,
+          publicNetworkAccess = tostring(properties.publicNetworkAccess)
 | order by id asc
 '''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/rest/api/recoveryservices/vaults/get", "https://learn.microsoft.com/en-us/rest/api/dataprotection/backup-vaults/get"]
+reviewed_on = "2026-09-13"

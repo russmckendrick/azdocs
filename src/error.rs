@@ -104,6 +104,8 @@ pub enum ArgError {
 
 #[derive(Debug, thiserror::Error)]
 pub enum StoreError {
+    #[error("invalid stored evidence metadata: {0}")]
+    Json(#[from] serde_json::Error),
     #[error("database error: {0}")]
     Sqlite(#[from] rusqlite::Error),
     #[error("snapshot `{0}` not found")]

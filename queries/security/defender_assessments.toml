@@ -1,0 +1,21 @@
+# Source: https://learn.microsoft.com/en-us/azure/defender-for-cloud/resource-graph-samples
+# Assessment IDs identify recommendations. Resource details can describe non-Azure assets, so preserve the source object and do not invent an ARM target.
+name = "defender_assessments"
+category = "security"
+kind = "inventory"
+description = "Defender security assessments with status, severity and affected-resource details"
+kql = '''
+// Assessment IDs identify recommendations. Resource details can describe non-Azure assets, so preserve the source object and do not invent an ARM target.
+securityresources
+| where type =~ 'microsoft.security/assessments'
+| project id, name, subscriptionId, resourceGroup,
+          resourceId = tostring(properties.resourceDetails.Id), displayName = tostring(properties.displayName),
+          state = tostring(properties.status.code), severity = tostring(properties.metadata.severity),
+          statusCause = tostring(properties.status.cause), statusDescription = tostring(properties.status.description),
+          resourceDetails = properties.resourceDetails, metadata = properties.metadata, additionalData = properties.additionalData
+| order by id asc
+'''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/defender-for-cloud/resource-graph-samples"]
+reviewed_on = "2026-09-13"

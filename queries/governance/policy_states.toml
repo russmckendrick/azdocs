@@ -17,3 +17,7 @@ policyresources
           evaluatedAt = tostring(properties.timestamp)
 | order by id asc
 '''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/governance/policy/samples/resource-graph-samples"]
+reviewed_on = "2026-09-13"

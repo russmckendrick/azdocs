@@ -47,6 +47,7 @@ rusqlite = { version = "0.40.2", features = ["bundled", "serde_json"] }
 rust_xlsxwriter = "0.98.1"
 serde = { workspace = true }
 serde_json = { workspace = true }
+sha2 = "0.10.9"
 thiserror = { workspace = true }
 tokio = { workspace = true }
 toml = "1.1.4"

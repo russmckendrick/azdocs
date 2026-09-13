@@ -38,6 +38,20 @@ function isMachineShaped(column: string) {
   return needle === "location" || needle.endsWith("id") || needle.includes("version") || needle.includes("address");
 }
 
+function EvidenceSummary({ evidence }: { evidence: EstateSnapshot["evidenceSummaries"][number] }) {
+  // Large assignment registers reveal more rows explicitly, matching inventory behaviour.
+  const list = useProgressiveList(evidence.rows, [evidence.key], 100);
+  return <section>
+    <h3>{evidence.title}</h3>
+    <p>{evidence.status}</p>
+    <p className="muted-copy">{evidence.note}</p>
+    {!!evidence.rows.length && <><div className="data-grid-wrap"><table className="data-grid">
+      <thead><tr>{evidence.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead>
+      <tbody>{list.visible.map((row, index) => <tr key={index}>{row.map((cell, column) => <td key={column}>{cell}</td>)}</tr>)}</tbody>
+    </table></div><ShowMore list={list} inline /></>}
+  </section>;
+}
+
 export function InventoryView({ estate, search }: { estate: EstateSnapshot; search: string }) {
   const [pack, setPack] = useState<QueryDefMeta[]>();
   const [packError, setPackError] = useState<string>();
@@ -68,13 +82,19 @@ export function InventoryView({ estate, search }: { estate: EstateSnapshot; sear
   }, [words.pack_unreadable]);
 
   // Only inventory queries that actually ran for this snapshot are listed —
-  // the pack is the catalogue, query_runs is the evidence.
+  // recorded definitions survive changes to the current pack.
   const inventory = useMemo(
-    () =>
-      (pack ?? []).filter(
-        (def) => def.kind === "inventory" && def.name !== "all_resources" && runByName.has(def.name),
-      ),
-    [pack, runByName],
+    () => estate.queryRuns.flatMap((run) => {
+      // Prefer the snapshot's definition: an override may have changed or vanished.
+      const recorded = run.provenance;
+      const def = recorded
+        ? { name: run.queryName, category: run.category, kind: recorded.kind, description: recorded.description }
+        : pack?.find((entry) => entry.name === run.queryName);
+      return def?.kind === "inventory" && def.name !== "all_resources"
+        ? [{ ...def, kind: "inventory" as const }]
+        : [];
+    }),
+    [pack, estate.queryRuns],
   );
   const categories = useMemo(() => {
     const byCategory = new Map<string, QueryDefMeta[]>();
@@ -125,7 +145,8 @@ export function InventoryView({ estate, search }: { estate: EstateSnapshot; sear
   const visibleRows = list.visible;
 
 
-  if (packError) {
+  // Recorded definitions keep historical evidence usable if today's pack is invalid.
+  if (packError && inventory.length === 0) {
     return (
       <div className="inventory-workspace">
         <ViewHeading title={words.title} description={fill(words.pack_failed, { error: packError })} />
@@ -145,6 +166,18 @@ export function InventoryView({ estate, search }: { estate: EstateSnapshot; sear
           value={fill(words.collected_value, { inventory: inventory.length, total: estate.queryRuns.length })}
         />
       </ViewHeading>
+
+      {!!estate.evidenceSummaries?.length && (
+        <details className="inventory-evidence">
+          <summary>{words.summaries}</summary>
+          <div className="inventory-evidence-body">
+            {/* Rust owns coverage and age decisions; these are the report's labelled cells. */}
+            {estate.evidenceSummaries.map((evidence) => (
+              <EvidenceSummary key={evidence.key} evidence={evidence} />
+            ))}
+          </div>
+        </details>
+      )}
 
       {categories.length === 0 ? (
         <EmptyState
@@ -173,7 +206,7 @@ export function InventoryView({ estate, search }: { estate: EstateSnapshot; sear
             ))}
           </nav>
 
-          <section className="inv-main">
+          <section className="inv-main" tabIndex={0} aria-label={words.title}>
             <div className="query-picker">
               <label>
                 <span>{words.table}</span>
@@ -191,6 +224,20 @@ export function InventoryView({ estate, search }: { estate: EstateSnapshot; sear
               {activeDef?.description}
               {run?.error ? <span style={{ color: "var(--coral)" }}>{fill(words.failed, { error: run.error })}</span> : null}
             </div>
+
+            <details className="inventory-evidence" key={activeQuery}>
+              <summary>{words.provenance}</summary>
+              {run?.provenance ? <div className="inventory-evidence-body">
+                <dl>
+                  <dt>{words.scope}</dt><dd>{run.provenance.authorizationScope}</dd>
+                  <dt>{words.subscriptions}</dt><dd>{run.provenance.subscriptions.join(", ") || words.all_visible}</dd>
+                  <dt>{words.query_hash}</dt><dd className="mono">{run.provenance.kqlSha256}</dd>
+                  {!!run.provenance.sourceUrls.length && <><dt>{words.source}</dt><dd>{run.provenance.sourceUrls.map((url) => <p key={url}>{url}</p>)}</dd></>}
+                  {run.provenance.reviewedOn && <><dt>{words.source_reviewed}</dt><dd>{run.provenance.reviewedOn}</dd></>}
+                </dl>
+                <pre>{run.provenance.kql}</pre>
+              </div> : <p className="muted-copy">{words.provenance_missing}</p>}
+            </details>
 
             <div className="data-grid-wrap">
               {rowsLoading ? (

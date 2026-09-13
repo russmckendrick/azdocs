@@ -1,0 +1,19 @@
+# Source: https://learn.microsoft.com/en-us/azure/governance/policy/samples/resource-graph-samples
+# Assignments without state rows are still evidence. Do not infer a passed evaluation from this inventory.
+name = "policy_definitions"
+category = "governance"
+kind = "inventory"
+description = "Policy definitions with effect, mode, parameters and rule"
+kql = '''
+// Assignments without state rows are still evidence. Do not infer a passed evaluation from this inventory.
+policyresources
+| where type =~ 'microsoft.authorization/policydefinitions'
+| project id, name, subscriptionId, displayName = tostring(properties.displayName), policyType = tostring(properties.policyType),
+          mode = tostring(properties.mode), parameters = properties.parameters, policyRule = properties.policyRule,
+          metadata = properties.metadata
+| order by id asc
+'''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/governance/policy/samples/resource-graph-samples"]
+reviewed_on = "2026-09-13"

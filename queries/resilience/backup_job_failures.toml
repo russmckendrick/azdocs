@@ -1,0 +1,27 @@
+# Source: https://learn.microsoft.com/en-us/azure/backup/query-backups-using-azure-resource-graph
+# CompletedWithWarnings is preserved in inventory, not silently relabelled failed or successful.
+name = "backup_job_failures"
+category = "resilience"
+kind = "finding"
+description = "Backup and restore jobs with an explicit failed outcome"
+title_field = "summary"
+severity = "medium"
+resource_id_field = "resourceId"
+kql = '''
+// CompletedWithWarnings is preserved in inventory, not silently relabelled failed or successful.
+recoveryservicesresources
+| where type in~ ('microsoft.recoveryservices/vaults/backupjobs', 'microsoft.dataprotection/backupvaults/backupjobs')
+| project id, name, type, subscriptionId, resourceGroup,
+          resourceId = coalesce(tostring(properties.dataSourceId), tostring(properties.sourceResourceId)),
+          friendlyName = coalesce(tostring(properties.entityFriendlyName), tostring(properties.dataSourceName)),
+          operation = coalesce(tostring(properties.operation), tostring(properties.operationCategory)),
+          status = tostring(properties.status), startedAt = properties.startTime, endedAt = properties.endTime,
+          duration = properties.duration, backupInstanceId = tostring(properties.backupInstanceId), properties
+| where status =~ 'Failed'
+| extend summary = strcat(operation, ' job failed for ', friendlyName)
+| order by id asc
+'''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/backup/query-backups-using-azure-resource-graph"]
+reviewed_on = "2026-09-13"

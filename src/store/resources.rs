@@ -122,8 +122,8 @@ impl Store {
     pub fn record_query_run(&self, snapshot_id: &str, run: &QueryRun) -> Result<(), StoreError> {
         self.conn().execute(
             "INSERT OR REPLACE INTO query_runs
-             (snapshot_id, query_name, category, row_count, duration_ms, error)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+             (snapshot_id, query_name, category, row_count, duration_ms, error, provenance)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             params![
                 snapshot_id,
                 run.query_name,
@@ -131,6 +131,10 @@ impl Store {
                 run.row_count.map(|v| v as i64),
                 run.duration_ms.map(|v| v as i64),
                 run.error,
+                run.provenance
+                    .as_ref()
+                    .map(serde_json::to_value)
+                    .transpose()?,
             ],
         )?;
         Ok(())
@@ -205,11 +209,23 @@ impl Store {
 
     pub fn query_runs(&self, snapshot_id: &str) -> Result<Vec<QueryRun>, StoreError> {
         let mut statement = self.conn().prepare(
-            "SELECT query_name, category, row_count, duration_ms, error
+            "SELECT query_name, category, row_count, duration_ms, error, provenance
              FROM query_runs WHERE snapshot_id = ?1 ORDER BY category, query_name",
         )?;
         let rows = statement.query_map([snapshot_id], |row| {
             Ok(QueryRun {
+                // Corrupt metadata is an error, never silently reported as an old snapshot.
+                provenance: row
+                    .get::<_, Option<serde_json::Value>>(5)?
+                    .map(serde_json::from_value)
+                    .transpose()
+                    .map_err(|e| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            5,
+                            rusqlite::types::Type::Text,
+                            Box::new(e),
+                        )
+                    })?,
                 query_name: row.get(0)?,
                 category: row.get(1)?,
                 row_count: row.get::<_, Option<i64>>(2)?.map(|v| v as u64),

@@ -68,7 +68,7 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 </div>
 
 
-<h2>Cost and compliance evidence</h2>
+<h2>Operational and compliance evidence</h2>
 <p>Microsoft service evidence recorded during collection. Results cover only the accessible scope; an empty dataset is not proof of zero cost, compliance, protection or service enablement. Detailed records remain in the inventory evidence and technical reference.</p>
 
 <h3>Azure Advisor cost opportunities</h3>
@@ -100,6 +100,41 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 <p>Collection: Recorded evidence</p><p>Passed, failed and skipped counts are resource occurrences across assessments; resources can be counted more than once. Missing counts remain unknown. These assessments do not establish certification or compliance of unassessed resources.</p>
 <table><thead><tr><th>Standard</th><th>State</th><th>Checks</th><th>Passed</th><th>Failed</th><th>Skipped</th></tr></thead>
 <tbody><tr><td>Azure-Security-Benchmark</td><td>Failed</td><td>1</td><td>12</td><td>2</td><td>Unknown</td></tr></tbody></table>
+
+<h3>Policy assignment inventory</h3>
+<p>Collection: Recorded evidence</p><p>Assignment inventory includes the requested inherited scope. Enforcement mode and excluded scopes affect interpretation; an assignment does not establish a passing evaluation.</p>
+<table><thead><tr><th>Enforcement</th><th>Assignments</th></tr></thead>
+<tbody><tr><td>Default</td><td>1</td></tr><tr><td>DoNotEnforce</td><td>1</td></tr></tbody></table>
+
+<h3>Patch assessments</h3>
+<p>Collection: Recorded evidence</p><p>Counts describe pending updates at the recorded assessment time and may overlap across classifications. Missing counts remain unknown. ARG assessment history is limited to seven days.</p>
+<table><thead><tr><th>OS</th><th>State</th><th>Checks</th><th>Security updates</th><th>Critical updates</th></tr></thead>
+<tbody><tr><td>Linux</td><td>Succeeded</td><td>1</td><td>2</td><td>Unknown</td></tr></tbody></table>
+
+<h3>Backup and restore outcomes</h3>
+<p>Collection: Recorded evidence</p><p>Backup and restore jobs retain the provider status, including warnings. ARG exposes up to 14 days of jobs; an empty result does not prove successful backups.</p>
+<table><thead><tr><th>Operation</th><th>State</th><th>Jobs</th></tr></thead>
+<tbody><tr><td>Backup</td><td>CompletedWithWarnings</td><td>1</td></tr><tr><td>Restore</td><td>Failed</td><td>1</td></tr></tbody></table>
+
+<h3>Recent ARM changes</h3>
+<p>Collection: Recorded evidence</p><p>Recorded ARM changes can include actor, client and changed properties. ARG retains 14 days; this is not a complete activity or data-plane audit log.</p>
+<table><thead><tr><th>Type</th><th>Actor type</th><th>Events</th></tr></thead>
+<tbody><tr><td>Update</td><td>Application</td><td>1</td></tr></tbody></table>
+
+<h3>Policy evaluation coverage</h3>
+<p>Collection: Recorded evidence</p><p>Assignments are matched to stored policy states using full normalised ARM IDs. No observed evaluation is kept separate from compliance and from unavailable state collection.</p>
+<table><thead><tr><th>Assignment</th><th>Name</th><th>State</th><th>Results</th></tr></thead>
+<tbody><tr><td>&#x2f;subscriptions&#x2f;sub-prod&#x2f;providers&#x2f;microsoft.authorization&#x2f;policyassignments&#x2f;baseline</td><td>Production baseline</td><td>Evaluation observed</td><td>1</td></tr><tr><td>&#x2f;subscriptions&#x2f;sub-prod&#x2f;providers&#x2f;microsoft.authorization&#x2f;policyassignments&#x2f;not-evaluated</td><td>Pending initiative</td><td>No evaluation observed</td><td>0</td></tr></tbody></table>
+
+<h3>Machine assessment coverage</h3>
+<p>Collection: Recorded evidence</p><p>Counts use the collected VM and Arc inventory, deduplicated by full ARM ID. No observed assessment may indicate missing service configuration, access or expired evidence; it is not a passed patch check.</p>
+<table><thead><tr><th>Type</th><th>State</th><th>Resources</th></tr></thead>
+<tbody><tr><td>microsoft.compute&#x2f;virtualmachines</td><td>Evaluation observed</td><td>1</td></tr></tbody></table>
+
+<h3>Evidence age at collection</h3>
+<p>Collection: Recorded evidence</p><p>Ages are evaluated at the snapshot timestamp using the threshold recorded with each query. Future, invalid and missing dates stay separate. Review thresholds are configurable and are not Microsoft retention guarantees.</p>
+<table><thead><tr><th>Query</th><th>Review age (hours)</th><th>State</th><th>Items</th></tr></thead>
+<tbody><tr><td>patch_assessments</td><td>72</td><td>Missing or invalid timestamp</td><td>1</td></tr></tbody></table>
 
 
 <h2>Findings</h2>
@@ -217,6 +252,69 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 </table>
 
 
+<section>
+<h2>Query provenance</h2>
+<p class="meta">The executed query and request scope are preserved with this snapshot. Source review dates are not upstream release dates. Complete definitions are also exported in query-provenance.json.</p>
+
+<details><summary>backup_jobs</summary>
+<table><tr><th>KQL SHA-256</th><td>cb61f0676de911c80ba3e531f5ec6f6ef259cf75db1161ecaec5c106b88ee742</td></tr><tr><th>Authorization scope</th><td>AtScopeAndBelow</td></tr><tr><th>Requested subscriptions</th><td>sub-prod</td></tr><tr><th>Sources</th><td>https:&#x2f;&#x2f;learn.microsoft.com&#x2f;en-us&#x2f;azure&#x2f;backup&#x2f;query-backups-using-azure-resource-graph</td></tr><tr><th>Source reviewed</th><td>2026-09-13</td></tr></table>
+<pre><code>&#x2f;&#x2f; ARG retains up to 14 days of jobs. No jobs is not evidence of successful backups; target IDs may be unavailable on some job types.
+recoveryservicesresources
+| where type in~ (&#x27;microsoft.recoveryservices&#x2f;vaults&#x2f;backupjobs&#x27;, &#x27;microsoft.dataprotection&#x2f;backupvaults&#x2f;backupjobs&#x27;)
+| project id, name, type, subscriptionId, resourceGroup,
+          resourceId = coalesce(tostring(properties.dataSourceId), tostring(properties.sourceResourceId)),
+          friendlyName = coalesce(tostring(properties.entityFriendlyName), tostring(properties.dataSourceName)),
+          operation = coalesce(tostring(properties.operation), tostring(properties.operationCategory)),
+          status = tostring(properties.status), startedAt = properties.startTime, endedAt = properties.endTime,
+          duration = properties.duration, backupInstanceId = tostring(properties.backupInstanceId), properties
+| order by id asc
+</code></pre>
+</details>
+
+<details><summary>patch_assessments</summary>
+<table><tr><th>KQL SHA-256</th><td>8ef4dc6295f4389a1836e534969793c389f3cf6a721839b1dc4f8c1185716b37</td></tr><tr><th>Authorization scope</th><td>AtScopeAndBelow</td></tr><tr><th>Requested subscriptions</th><td>sub-prod</td></tr><tr><th>Sources</th><td>https:&#x2f;&#x2f;learn.microsoft.com&#x2f;en-us&#x2f;azure&#x2f;update-manager&#x2f;query-logs</td></tr><tr><th>Source reviewed</th><td>2026-09-13</td></tr></table>
+<pre><code>&#x2f;&#x2f; Only summary records: per-patch rows would duplicate the machine totals. ARG assessment history is limited to seven days.
+patchassessmentresources
+| where type in~ (&#x27;microsoft.compute&#x2f;virtualmachines&#x2f;patchassessmentresults&#x27;, &#x27;microsoft.hybridcompute&#x2f;machines&#x2f;patchassessmentresults&#x27;)
+| project id, name, subscriptionId, resourceGroup,
+          resourceId = tostring(split(tolower(id), &#x27;&#x2f;patchassessmentresults&#x2f;&#x27;)[0]),
+          assessedAt = properties.lastModifiedDateTime, osType = tostring(properties.osType),
+          status = tostring(properties.status), rebootPending = tobool(properties.rebootPending),
+          securityUpdates = toint(properties.availablePatchCountByClassification.security),
+          criticalUpdates = toint(properties.availablePatchCountByClassification.critical),
+          classifications = properties.availablePatchCountByClassification, errorDetails = properties.errorDetails
+| order by id asc
+</code></pre>
+</details>
+
+<details><summary>policy_assignments</summary>
+<table><tr><th>KQL SHA-256</th><td>b0d05b23d5aa6b47f7dfdd8fff0de86a88a02f0f4252a0c7f0d288a4f5b0dabd</td></tr><tr><th>Authorization scope</th><td>AtScopeAboveAndBelow</td></tr><tr><th>Requested subscriptions</th><td>sub-prod</td></tr><tr><th>Sources</th><td>https:&#x2f;&#x2f;learn.microsoft.com&#x2f;en-us&#x2f;azure&#x2f;governance&#x2f;policy&#x2f;samples&#x2f;resource-graph-samples</td></tr><tr><th>Source reviewed</th><td>2026-09-13</td></tr></table>
+<pre><code>&#x2f;&#x2f; Assignments without state rows are still evidence. Do not infer a passed evaluation from this inventory.
+policyresources
+| where type =~ &#x27;microsoft.authorization&#x2f;policyassignments&#x27;
+| project id, name, subscriptionId, scope = tostring(properties.scope), policyDefinitionId = tostring(properties.policyDefinitionId),
+          displayName = tostring(properties.displayName), enforcementMode = tostring(properties.enforcementMode),
+          notScopes = properties.notScopes, parameters = properties.parameters, metadata = properties.metadata
+| order by id asc
+</code></pre>
+</details>
+
+<details><summary>resource_changes</summary>
+<table><tr><th>KQL SHA-256</th><td>53f687e9350c4e3bb469c14d3eb0439573fcda49215f91481d4c8d3369fabfaa</td></tr><tr><th>Authorization scope</th><td>AtScopeAndBelow</td></tr><tr><th>Requested subscriptions</th><td>sub-prod</td></tr><tr><th>Sources</th><td>https:&#x2f;&#x2f;learn.microsoft.com&#x2f;en-us&#x2f;azure&#x2f;governance&#x2f;resource-graph&#x2f;changes&#x2f;get-resource-changes</td></tr><tr><th>Source reviewed</th><td>2026-09-13</td></tr></table>
+<pre><code>&#x2f;&#x2f; ARG change history lasts 14 days and does not represent a complete activity&#x2f;data-plane log. Missing actor information stays unknown.
+resourcechanges
+| project id, name, subscriptionId, resourceGroup, resourceId = tostring(properties.targetResourceId),
+          changeType = tostring(properties.changeType), changedAt = properties.changeAttributes.timestamp,
+          changedBy = tostring(properties.changeAttributes.changedBy), changedByType = tostring(properties.changeAttributes.changedByType),
+          clientType = tostring(properties.changeAttributes.clientType), correlationId = tostring(properties.changeAttributes.correlationId),
+          changes = properties.changes
+| order by id asc
+</code></pre>
+</details>
+
+</section>
+
+
 <h2>Avd</h2>
 
 <details open>
@@ -284,6 +382,18 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 <h2>Governance</h2>
 
 <details open>
+<summary>policy_assignments (2)</summary>
+<p class="meta">Policy assignments, including inherited scope and enforcement settings</p>
+<table>
+<thead><tr><th>id</th><th>displayName</th><th>enforcementMode</th></tr></thead>
+<tbody>
+<tr><td>/subscriptions/sub-prod/providers/microsoft.authorization/policyassignments/baseline</td><td>Production baseline</td><td>Default</td></tr>
+<tr><td>/subscriptions/sub-prod/providers/microsoft.authorization/policyassignments/not-evaluated</td><td>Pending initiative</td><td>DoNotEnforce</td></tr>
+</tbody>
+</table>
+</details>
+
+<details >
 <summary>policy_exemptions (1)</summary>
 <p class="meta">Azure Policy exemptions including category, assignment, and expiry</p>
 <table>
@@ -334,6 +444,17 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 </table>
 </details>
 
+<details >
+<summary>resource_changes (1)</summary>
+<p class="meta">Recent ARM control-plane changes with recorded actor, time and changed properties</p>
+<table>
+<thead><tr><th>id</th><th>changeType</th><th>changedByType</th><th>changedBy</th><th>clientType</th></tr></thead>
+<tbody>
+<tr><td>/changes/change-1</td><td>Update</td><td>Application</td><td>fixture-deployment</td><td>Azure Resource Manager</td></tr>
+</tbody>
+</table>
+</details>
+
 
 <h2>Networking</h2>
 
@@ -345,6 +466,35 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 <tbody>
 <tr><td>/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/virtualnetworks/vnet-hub</td><td>vnet-hub</td><td>uksouth</td><td>rg-network</td><td>sub-prod</td><td>["10.0.0.0/16"]</td><td>[]</td><td>2</td></tr>
 <tr><td>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/virtualnetworks/vnet-app</td><td>vnet-app</td><td>uksouth</td><td>rg-app</td><td>sub-prod</td><td>["10.1.0.0/16"]</td><td>[]</td><td>1</td></tr>
+</tbody>
+</table>
+</details>
+
+
+<h2>Operations</h2>
+
+<details open>
+<summary>patch_assessments (1)</summary>
+<p class="meta">VM and Arc patch assessments with pending updates, reboot status and observation time</p>
+<table>
+<thead><tr><th>id</th><th>resourceId</th><th>assessedAt</th><th>osType</th><th>status</th><th>securityUpdates</th><th>criticalUpdates</th></tr></thead>
+<tbody>
+<tr><td>/patch/assessment-1</td><td>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-app-01</td><td></td><td>Linux</td><td>Succeeded</td><td>2</td><td></td></tr>
+</tbody>
+</table>
+</details>
+
+
+<h2>Resilience</h2>
+
+<details open>
+<summary>backup_jobs (2)</summary>
+<p class="meta">Backup and restore job history with original status and provider details</p>
+<table>
+<thead><tr><th>id</th><th>operation</th><th>status</th></tr></thead>
+<tbody>
+<tr><td>/backup/job-1</td><td>Backup</td><td>CompletedWithWarnings</td></tr>
+<tr><td>/backup/job-2</td><td>Restore</td><td>Failed</td></tr>
 </tbody>
 </table>
 </details>

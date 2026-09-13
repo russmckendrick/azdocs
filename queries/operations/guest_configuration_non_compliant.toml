@@ -1,0 +1,25 @@
+# Source: https://learn.microsoft.com/en-us/azure/governance/machine-configuration/how-to/view-compliance
+# Only explicit NonCompliant is a finding; Pending, unknown and missing evidence retain their original states.
+name = "guest_configuration_non_compliant"
+category = "operations"
+kind = "finding"
+description = "Guest configuration assignments with an explicit non-compliant result"
+title_field = "summary"
+severity = "medium"
+resource_id_field = "resourceId"
+kql = '''
+// Only explicit NonCompliant is a finding; Pending, unknown and missing evidence retain their original states.
+guestconfigurationresources
+| where type =~ 'microsoft.guestconfiguration/guestconfigurationassignments'
+| project id, name, subscriptionId, resourceGroup,
+          resourceId = tostring(properties.targetResourceId), policyAssignmentId = tostring(properties.policyAssignmentId),
+          complianceState = tostring(properties.complianceStatus), assessedAt = properties.lastComplianceStatusChecked,
+          configuration = properties.guestConfiguration, latestAssignmentReport = properties.latestAssignmentReport
+| where complianceState =~ 'NonCompliant'
+| extend summary = strcat(name, ' has a recorded non-compliant guest configuration result')
+| order by id asc
+'''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/governance/machine-configuration/how-to/view-compliance"]
+reviewed_on = "2026-09-13"

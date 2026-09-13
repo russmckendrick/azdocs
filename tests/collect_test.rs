@@ -289,3 +289,47 @@ fn unit_scope_findings_never_substitute_evidence_ids_for_missing_resources() {
     );
     assert_eq!(finding.resource_id, None);
 }
+
+#[tokio::test]
+async fn unit_failed_collection_preserves_the_attempted_query_and_scope() {
+    use azdocs::arg::ArgClient;
+    use azdocs::auth::StaticTokenProvider;
+    use azdocs::collect::{CollectRequest, run};
+    use azdocs::model::SnapshotStatus;
+    use std::sync::Arc;
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+    let server = MockServer::start().await;
+    Mock::given(wiremock::matchers::method("POST"))
+        .respond_with(ResponseTemplate::new(400).set_body_json(
+            serde_json::json!({"error":{"code":"InvalidQuery","message":"fixture failure"}}),
+        ))
+        .mount(&server)
+        .await;
+    let store = Store::open_in_memory().unwrap();
+    let pack = QueryPack::builtin().unwrap();
+    let def = pack.get("role_assignments").unwrap().clone();
+    let expected = def.provenance(&["SUB-A".into()]);
+    let summary = run(
+        &store,
+        Arc::new(ArgClient::with_endpoint(
+            reqwest::Client::new(),
+            StaticTokenProvider("t".into()),
+            &server.uri(),
+        )),
+        CollectRequest {
+            tenant_id: "tenant".into(),
+            queries: vec![def],
+            subscriptions: vec!["SUB-A".into()],
+            concurrency: 1,
+            notes: None,
+            required_tags: vec![],
+            quiet: true,
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(summary.status, SnapshotStatus::Failed);
+    let runs = store.query_runs(&summary.snapshot_id).unwrap();
+    assert_eq!(runs[0].provenance.as_ref(), Some(&expected));
+    assert!(runs[0].error.is_some());
+}

@@ -13,3 +13,7 @@ resources
           summary = strcat(name, " does not use zone-redundant HA")
 | order by id asc
 '''
+
+[source]
+urls = ["https://azure.github.io/Azure-Proactive-Resiliency-Library-v2/azure-resources/DBforPostgreSQL/flexibleServers/"]
+reviewed_on = "2026-09-13"

@@ -1,5 +1,7 @@
 pub mod azure_types;
 pub mod azure_values;
+mod evidence;
+pub use evidence::{AuthorizationScope, EvidenceFreshness, QueryProvenance, QuerySource};
 pub mod network;
 pub mod rows;
 
@@ -211,6 +213,8 @@ pub struct Finding {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct QueryRun {
+    /// None on snapshots collected before provenance was recorded.
+    pub provenance: Option<QueryProvenance>,
     pub query_name: String,
     pub category: String,
     pub row_count: Option<u64>,

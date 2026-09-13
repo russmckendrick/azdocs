@@ -1,6 +1,6 @@
 # Built-in query pack
 
-88 queries ship embedded in the binary from `queries/`. List the live set
+114 queries ship embedded in the binary from `queries/`. List the live set
 (including your custom queries) with `azdocs query list`, print KQL with
 `azdocs query show <name>`, run one ad-hoc with `azdocs query run <name>`.
 Override or extend via `queries.d/` — see
@@ -8,23 +8,24 @@ Override or extend via `queries.d/` — see
 
 ```mermaid
 pie title Query pack by category
-    "security findings" : 16
-    "networking" : 14
-    "compute" : 10
-    "avd" : 5
-    "inventory" : 5
-    "databases" : 4
-    "analytics" : 3
-    "identity" : 3
     "ai" : 2
+    "analytics" : 3
     "arc" : 2
-    "monitoring" : 2
-    "storage" : 2
-    "governance" : 5
-    "cost" : 7
-    "resilience findings" : 4
+    "avd" : 5
     "compliance" : 3
+    "compute" : 10
+    "cost" : 10
+    "databases" : 4
+    "governance" : 8
+    "identity" : 6
     "integration" : 1
+    "inventory" : 5
+    "monitoring" : 5
+    "networking" : 14
+    "operations" : 6
+    "resilience" : 8
+    "security" : 20
+    "storage" : 2
 ```
 
 ## Inventory queries
@@ -228,3 +229,42 @@ can be refreshed from Microsoft's public region table with
 type because Azure defines them independently for each resource provider. See
 [Azure display metadata](../development/azure-metadata.md) for sources,
 fallbacks, and user override paths.
+
+## Operational and access evidence
+
+The pack contains **78 inventory queries and 36 finding queries**. The following
+26 additions extend the Microsoft collections. See [operational evidence](operational-evidence.md)
+for retention, scope, freshness and source-provenance semantics.
+
+| Query | Category | Kind | Evidence |
+| --- | --- | --- | --- |
+| `policy_assignments` | governance | inventory | Policy assignments, including inherited scope and enforcement settings |
+| `policy_definitions` | governance | inventory | Policy definitions with effect, mode, parameters and rule |
+| `policy_initiatives` | governance | inventory | Policy initiatives and their definition references |
+| `role_assignments` | identity | inventory | Azure RBAC role assignments with principal, role, scope and conditions |
+| `role_definitions` | identity | inventory | Azure RBAC role definitions with assignable scopes and complete permission blocks |
+| `broad_privileged_role_assignments` | identity | medium finding | Owner, User Access Administrator and Role Based Access Control Administrator assignments at subscription or management-group scope |
+| `patch_assessments` | operations | inventory | VM and Arc patch assessments with pending updates, reboot status and observation time |
+| `patch_installations` | operations | inventory | VM and Arc update installations with outcomes, patch counts and reboot state |
+| `patch_security_updates_pending` | operations | medium finding | Machines with observed pending security or critical updates |
+| `patch_installation_failures` | operations | medium finding | Recorded failed VM and Arc patch installation runs |
+| `guest_configuration_assignments` | operations | inventory | Guest configuration baseline evaluations for VM and Arc machines |
+| `guest_configuration_non_compliant` | operations | medium finding | Guest configuration assignments with an explicit non-compliant result |
+| `backup_protected_items` | resilience | inventory | Protected items and backup instances with recovery-point and protection metadata |
+| `backup_policies` | resilience | inventory | Recovery Services and Data Protection backup policies with their complete schedules and retention |
+| `backup_jobs` | resilience | inventory | Backup and restore job history with original status and provider details |
+| `backup_job_failures` | resilience | medium finding | Backup and restore jobs with an explicit failed outcome |
+| `defender_assessments` | security | inventory | Defender security assessments with status, severity and affected-resource details |
+| `defender_subassessments` | security | inventory | Defender subassessment evidence with status, resource details and remediation metadata |
+| `defender_active_alerts` | security | inventory | Active Defender alerts with original severity, timestamps and resource identifiers |
+| `defender_secure_score_controls` | security | inventory | Defender secure-score controls with original score and resource counts |
+| `resource_health` | monitoring | inventory | Observed resource availability states and provider reasons |
+| `service_health_events` | monitoring | inventory | Active subscription-scoped service incidents, maintenance and advisories |
+| `resource_changes` | monitoring | inventory | Recent ARM control-plane changes with recorded actor, time and changed properties |
+| `unassociated_ddos_plans` | cost | low finding | DDoS protection plans with an explicitly empty virtual-network association list |
+| `unprovisioned_expressroute_circuits` | cost | low finding | ExpressRoute circuits with an observed provider state other than Provisioned |
+| `vnet_gateways_without_connections` | cost | low finding | VPN or ExpressRoute gateways without observed connections or point-to-site configuration |
+
+`recovery_vaults` also retains observed immutability, soft-delete, MUA and network
+settings. Missing ARG fields remain unknown; the complete returned security
+settings object is retained for interpretation.

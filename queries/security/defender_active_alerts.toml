@@ -1,0 +1,23 @@
+# Source: https://learn.microsoft.com/en-us/azure/defender-for-cloud/resource-graph-samples
+# One alert can name multiple assets. Keep its identifiers as an array rather than choosing an arbitrary affected resource.
+name = "defender_active_alerts"
+category = "security"
+kind = "inventory"
+description = "Active Defender alerts with original severity, timestamps and resource identifiers"
+kql = '''
+// One alert can name multiple assets. Keep its identifiers as an array rather than choosing an arbitrary affected resource.
+securityresources
+| where type =~ 'microsoft.security/locations/alerts'
+| where properties.Status =~ 'Active'
+| project id, name, subscriptionId, resourceGroup, state = tostring(properties.Status),
+          severity = tostring(properties.Severity), alertName = tostring(properties.AlertDisplayName),
+          alertType = tostring(properties.AlertType), systemAlertId = tostring(properties.SystemAlertId),
+          startedAt = properties.StartTimeUtc, endedAt = properties.EndTimeUtc,
+          resourceIdentifiers = properties.ResourceIdentifiers, description = tostring(properties.Description),
+          remediationSteps = properties.RemediationSteps
+| order by id asc
+'''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/defender-for-cloud/resource-graph-samples"]
+reviewed_on = "2026-09-13"

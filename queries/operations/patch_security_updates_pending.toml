@@ -1,0 +1,28 @@
+# Source: https://learn.microsoft.com/en-us/azure/update-manager/query-logs
+# This is the recorded assessment, not a live scan. Verify its age before acting; missing classification counts stay unknown.
+name = "patch_security_updates_pending"
+category = "operations"
+kind = "finding"
+description = "Machines with observed pending security or critical updates"
+title_field = "summary"
+severity = "medium"
+resource_id_field = "resourceId"
+kql = '''
+// This is the recorded assessment, not a live scan. Verify its age before acting; missing classification counts stay unknown.
+patchassessmentresources
+| where type in~ ('microsoft.compute/virtualmachines/patchassessmentresults', 'microsoft.hybridcompute/machines/patchassessmentresults')
+| project id, name, subscriptionId, resourceGroup,
+          resourceId = tostring(split(tolower(id), '/patchassessmentresults/')[0]),
+          assessedAt = properties.lastModifiedDateTime, osType = tostring(properties.osType),
+          status = tostring(properties.status), rebootPending = tobool(properties.rebootPending),
+          securityUpdates = toint(properties.availablePatchCountByClassification.security),
+          criticalUpdates = toint(properties.availablePatchCountByClassification.critical),
+          classifications = properties.availablePatchCountByClassification, errorDetails = properties.errorDetails
+| where securityUpdates > 0 or criticalUpdates > 0
+| extend summary = 'Security or critical updates were pending at the recorded assessment'
+| order by id asc
+'''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/update-manager/query-logs"]
+reviewed_on = "2026-09-13"

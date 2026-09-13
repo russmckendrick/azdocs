@@ -1,0 +1,21 @@
+# Source: https://learn.microsoft.com/en-us/azure/defender-for-cloud/resource-graph-samples
+# Keep score denominators and not-applicable counts. Do not average percentages across controls or reinterpret them as compliance percentages.
+name = "defender_secure_score_controls"
+category = "security"
+kind = "inventory"
+description = "Defender secure-score controls with original score and resource counts"
+kql = '''
+// Keep score denominators and not-applicable counts. Do not average percentages across controls or reinterpret them as compliance percentages.
+securityresources
+| where type =~ 'microsoft.security/securescores/securescorecontrols'
+| project id, name, subscriptionId, displayName = tostring(properties.displayName),
+          currentScore = todouble(properties.score.current), maxScore = todouble(properties.score.max),
+          percentageScore = todouble(properties.score.percentage),
+          healthyResources = toint(properties.healthyResourceCount), unhealthyResources = toint(properties.unhealthyResourceCount),
+          notApplicableResources = toint(properties.notApplicableResourceCount), definition = properties.definition
+| order by id asc
+'''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/defender-for-cloud/resource-graph-samples"]
+reviewed_on = "2026-09-13"

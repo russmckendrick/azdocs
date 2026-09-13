@@ -100,6 +100,8 @@ pub struct EstateSnapshot {
     pub findings: Vec<FindingDto>,
     pub edges: Vec<EdgeDto>,
     pub query_runs: Vec<QueryRunDto>,
+    /// Already interpreted and labelled in Rust; the frontend only renders cells.
+    pub evidence_summaries: Vec<EvidenceTableDto>,
     pub previous_diff: Option<SnapshotComparison>,
 }
 
@@ -452,6 +454,7 @@ impl From<Edge> for EdgeDto {
 #[serde(rename_all = "camelCase")]
 #[ts(rename = "QueryRun", optional_fields = nullable)]
 pub struct QueryRunDto {
+    pub provenance: Option<QueryProvenanceDto>,
     pub query_name: String,
     pub category: String,
     pub row_count: Option<u64>,
@@ -462,11 +465,72 @@ pub struct QueryRunDto {
 impl From<QueryRun> for QueryRunDto {
     fn from(value: QueryRun) -> Self {
         Self {
+            provenance: value.provenance.map(Into::into),
             query_name: value.query_name,
             category: value.category,
             row_count: value.row_count,
             duration_ms: value.duration_ms,
             error: value.error,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename = "QueryProvenance", optional_fields = nullable)]
+pub struct QueryProvenanceDto {
+    pub kql: String,
+    pub kql_sha256: String,
+    pub description: String,
+    pub kind: String,
+    pub authorization_scope: String,
+    pub subscriptions: Vec<String>,
+    pub source_urls: Vec<String>,
+    pub reviewed_on: Option<String>,
+    pub revision: Option<String>,
+}
+
+impl From<azdocs::model::QueryProvenance> for QueryProvenanceDto {
+    fn from(value: azdocs::model::QueryProvenance) -> Self {
+        Self {
+            kql: value.kql,
+            kql_sha256: value.kql_sha256,
+            description: value.description,
+            kind: value.kind,
+            authorization_scope: value.authorization_scope.as_str().to_owned(),
+            subscriptions: value.subscriptions,
+            source_urls: value
+                .source
+                .as_ref()
+                .map(|s| s.urls.clone())
+                .unwrap_or_default(),
+            reviewed_on: value.source.as_ref().map(|s| s.reviewed_on.clone()),
+            revision: value.source.and_then(|s| s.revision),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename = "EvidenceTable")]
+pub struct EvidenceTableDto {
+    pub key: String,
+    pub title: String,
+    pub note: String,
+    pub status: String,
+    pub columns: Vec<String>,
+    pub rows: Vec<Vec<String>>,
+}
+
+impl From<azdocs::report::posture::EvidenceTable> for EvidenceTableDto {
+    fn from(value: azdocs::report::posture::EvidenceTable) -> Self {
+        Self {
+            key: value.key,
+            title: value.title,
+            note: value.note,
+            status: value.status,
+            columns: value.columns,
+            rows: value.rows,
         }
     }
 }
@@ -620,6 +684,7 @@ impl EstateSnapshot {
             findings: findings.into_iter().map(Into::into).collect(),
             edges: edges.into_iter().map(Into::into).collect(),
             query_runs: query_runs.into_iter().map(Into::into).collect(),
+            evidence_summaries: Vec::new(),
             previous_diff,
         }
     }

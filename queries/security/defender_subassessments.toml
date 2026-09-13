@@ -1,0 +1,22 @@
+# Source: https://learn.microsoft.com/en-us/azure/defender-for-cloud/resource-graph-samples
+# Retain the parent assessment ID: subassessments are detailed occurrences, not additional independent recommendations.
+name = "defender_subassessments"
+category = "security"
+kind = "inventory"
+description = "Defender subassessment evidence with status, resource details and remediation metadata"
+kql = '''
+// Retain the parent assessment ID: subassessments are detailed occurrences, not additional independent recommendations.
+securityresources
+| where type =~ 'microsoft.security/assessments/subassessments'
+| project id, name, subscriptionId, resourceGroup,
+          assessmentId = tostring(split(tolower(id), '/subassessments/')[0]),
+          resourceId = tostring(properties.resourceDetails.id), displayName = tostring(properties.displayName),
+          state = tostring(properties.status.code), severity = tostring(properties.status.severity),
+          description = tostring(properties.description), remediation = tostring(properties.remediation),
+          resourceDetails = properties.resourceDetails, additionalData = properties.additionalData
+| order by id asc
+'''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/defender-for-cloud/resource-graph-samples"]
+reviewed_on = "2026-09-13"

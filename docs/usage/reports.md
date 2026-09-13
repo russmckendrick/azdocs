@@ -146,4 +146,22 @@ aware) with severity badges and client-side table filtering — suitable for
 email or SharePoint. `output/docs-html/` is the docs tree as static HTML with
 navigation.
 
+
+## Operational evidence and provenance
+
+Operational and compliance summaries are computed once from the snapshot and
+shared by Markdown, HTML/site, XLSX, PDF and DOCX. They distinguish source states,
+missing evaluations and evidence age without requesting new Azure data.
+
+Every export of a snapshot with recorded query provenance also writes
+`query-provenance.json` at the output root. This contains complete executed
+queries and settings, including failed attempts. HTML exposes expandable query
+definitions; Markdown/site adds a query-provenance page; XLSX adds a provenance
+sheet; the optional PDF/DOCX technical reference lists source/scope/hash metadata.
+The JSON companion retains full KQL when a print or spreadsheet view is reduced.
+Old snapshots do not acquire invented provenance from today's query pack.
+
+See [operational evidence](../reference/operational-evidence.md) for Microsoft
+sources, retention windows and review thresholds.
+
 Next: [Diagrams](diagrams.md)

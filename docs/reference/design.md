@@ -135,6 +135,25 @@ one product family. Serif Regular/SemiBold is bundled with the frontend
   types and inventory queries use labelled selectors; lists and tables own
   their scroll area, while detail never permanently narrows them.
 
+### Inventory evidence disclosures
+
+Inventory keeps operational summaries and each query's recorded provenance in
+native disclosures, collapsed until requested. They use the existing paper,
+ink and hairline treatment. Rust owns the summary analysis and labelled
+wording; the frontend renders the supplied statuses, notes, columns and cells.
+Evidence semantics, source limits and historical provenance are documented in
+[Operational and access evidence](operational-evidence.md).
+
+Expanded disclosures contain bounded scrolling panels (320px maximum height).
+Long source URLs, query hashes and saved KQL wrap within the available width;
+KQL retains its line breaks and Mono face. The query record is keyboard
+focusable and scrolls, and the outer workspace also scrolls when disclosures
+exceed a short window. Preserve the raw table's minimum viewport (160px) so
+opening provenance cannot collapse the ledger or make its footer unreachable.
+These behaviours live in
+[`InventoryView.tsx`](../../desktop/src/components/InventoryView.tsx) and the
+inventory rules in [`styles.css`](../../desktop/src/styles.css).
+
 ### Map workspace
 
 Map alone is full-bleed. It uses one flat command rail above the

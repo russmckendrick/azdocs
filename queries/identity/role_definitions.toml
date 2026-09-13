@@ -1,0 +1,18 @@
+# Source: https://learn.microsoft.com/en-us/azure/governance/resource-graph/samples/samples-by-category#azure-rbac
+# Keep permission arrays intact: flattening Actions without NotActions/DataActions loses the meaning of custom roles.
+name = "role_definitions"
+category = "identity"
+kind = "inventory"
+description = "Azure RBAC role definitions with assignable scopes and complete permission blocks"
+kql = '''
+// Keep permission arrays intact: flattening Actions without NotActions/DataActions loses the meaning of custom roles.
+authorizationresources
+| where type =~ 'microsoft.authorization/roledefinitions'
+| project id, name, subscriptionId, roleName = tostring(properties.roleName), roleType = tostring(properties.type),
+          assignableScopes = properties.assignableScopes, permissions = properties.permissions
+| order by id asc
+'''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/governance/resource-graph/samples/samples-by-category#azure-rbac"]
+reviewed_on = "2026-09-13"

@@ -143,6 +143,9 @@ const MIGRATIONS: &[&str] = &[
         PRIMARY KEY(snapshot_id, url)
     );
     ",
+    // 4: Keep historical query definitions and request scope with their outcomes.
+    // NULL deliberately distinguishes older snapshots from newly recorded metadata.
+    "ALTER TABLE query_runs ADD COLUMN provenance TEXT;",
 ];
 
 pub fn migrate(conn: &Connection) -> Result<(), StoreError> {
@@ -184,6 +187,35 @@ fn current_version(conn: &Connection) -> Result<usize, StoreError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn unit_provenance_migration_keeps_older_query_runs_unknown() {
+        let conn = Connection::open_in_memory().unwrap();
+        for migration in &MIGRATIONS[..3] {
+            conn.execute_batch(migration).unwrap();
+        }
+        conn.execute("INSERT INTO meta VALUES ('schema_version','3')", [])
+            .unwrap();
+        conn.execute(
+            "INSERT INTO snapshots VALUES ('older','2026-01-01','tenant','test','complete',NULL)",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO query_runs VALUES ('older','old_query','inventory',0,1,NULL)",
+            [],
+        )
+        .unwrap();
+        migrate(&conn).unwrap();
+        let result: (i64, Option<String>) = conn
+            .query_row(
+                "SELECT row_count, provenance FROM query_runs WHERE snapshot_id='older'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(result, (0, None));
+    }
 
     #[test]
     fn website_migration_preserves_existing_snapshots() {

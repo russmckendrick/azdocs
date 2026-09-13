@@ -551,6 +551,15 @@ changed = "changed"
 removed = "removed"
 
 [desktop.inventory]
+summaries = "Operational evidence summaries"
+provenance = "Recorded query and sources"
+provenance_missing = "This snapshot predates query provenance recording."
+source = "Source"
+scope = "Authorization scope"
+subscriptions = "Requested subscriptions"
+all_visible = "All visible subscriptions"
+query_hash = "KQL SHA-256"
+source_reviewed = "Source reviewed"
 title = "Inventory"
 description = "The shaped rows every collected query stored for this snapshot — the same tables the reports print, browsable per category."
 pack_unreadable = "The query pack could not be read."
@@ -1276,13 +1285,60 @@ interrupted = "Interrupted"
 pending = "Not captured"
 
 [report.posture]
-chapter = "Cost and compliance evidence"
+chapter = "Operational and compliance evidence"
 intro = "Microsoft service evidence recorded during collection. Results cover only the accessible scope; an empty dataset is not proof of zero cost, compliance, protection or service enablement. Detailed records remain in the inventory evidence and technical reference."
 unknown = "Unknown"
 status = "Collection: {state}"
-sheet = "Cost and compliance"
+sheet = "Operational evidence"
 
 [report.posture.values]
+operation = "Operation"
+enforcement = "Enforcement"
+assignments = "Assignments"
+type = "Type"
+mode = "Mode"
+definitions = "Definitions"
+initiatives = "Initiatives"
+principal_type = "Principal type"
+role = "Role ID"
+os = "OS"
+security_updates = "Security updates"
+critical_updates = "Critical updates"
+jobs = "Jobs"
+failed_patches = "Failed patches"
+items = "Items"
+policies = "Policies"
+severity = "Severity"
+occurrences = "Occurrences"
+alerts = "Alerts"
+healthy = "Healthy"
+unhealthy = "Unhealthy"
+not_applicable = "Not applicable"
+resources = "Resources"
+events = "Events"
+actor_type = "Actor type"
+query = "Query"
+threshold_hours = "Review age (hours)"
+name = "Name"
+future_timestamp = "Timestamp after collection"
+stale = "Older than review threshold"
+within_threshold = "Within review threshold"
+unknown_timestamp = "Missing or invalid timestamp"
+evaluation_unknown = "Evaluation evidence unavailable"
+no_observed_evaluation = "No evaluation observed"
+evaluation_observed = "Evaluation observed"
+provenance = "Query provenance"
+hash = "KQL SHA-256"
+scope = "Authorization scope"
+subscriptions = "Requested subscriptions"
+all_visible = "All visible subscriptions"
+sources = "Sources"
+reviewed_on = "Source reviewed"
+revision = "Source revision"
+kql = "Executed KQL"
+field = "Field"
+value = "Value"
+provenance_note = "The executed query and request scope are preserved with this snapshot. Source review dates are not upstream release dates. Complete definitions are also exported in query-provenance.json."
 recorded = "Recorded evidence"
 empty = "Collected; no rows returned"
 failed = "Collection failed; no conclusion available"
@@ -1445,3 +1501,159 @@ verification = "Review backup retention, geo-restore support, recovery objective
 policy = "Choose backup geography according to recovery and data-residency requirements."
 action = "Review PostgreSQL regional recovery plans"
 source = "https://azure.github.io/Azure-Proactive-Resiliency-Library-v2/azure-resources/DBforPostgreSQL/flexibleServers/"
+
+[report.posture.datasets.policy_assignments]
+title = "Policy assignment inventory"
+note = "Assignment inventory includes the requested inherited scope. Enforcement mode and excluded scopes affect interpretation; an assignment does not establish a passing evaluation."
+
+[report.posture.datasets.policy_definitions]
+title = "Policy definition inventory"
+note = "Definitions retain their original rule, parameters and metadata in the detailed evidence. Counts do not indicate that every definition is assigned."
+
+[report.posture.datasets.policy_initiatives]
+title = "Policy initiative inventory"
+note = "Initiatives retain the complete definition-reference array. Definition counts and evaluated-resource counts are different measures."
+
+[report.posture.datasets.role_assignments]
+title = "Azure RBAC assignments"
+note = "Assignments are grouped by recorded role ID and principal type. Scope and conditions remain in detailed evidence; this is not an effective-access or PIM eligibility calculation."
+
+[report.posture.datasets.role_definitions]
+title = "Azure RBAC role definitions"
+note = "Role definitions preserve Actions, NotActions, DataActions and NotDataActions. Custom permissions must be reviewed together with assignable scopes and actual assignments."
+
+[report.posture.datasets.patch_assessments]
+title = "Patch assessments"
+note = "Counts describe pending updates at the recorded assessment time and may overlap across classifications. Missing counts remain unknown. ARG assessment history is limited to seven days."
+
+[report.posture.datasets.patch_installations]
+title = "Patch installation outcomes"
+note = "Each row is an installation run, not a unique machine. Successful runs, failures and warnings remain separate; ARG installation history is limited to 30 days."
+
+[report.posture.datasets.guest_configuration_assignments]
+title = "Guest configuration results"
+note = "Guest assignments describe observed VM and Arc OS baseline results. Pending or missing results do not establish compliance; details retain the provider report when available."
+
+[report.posture.datasets.backup_protected_items]
+title = "Backup protection evidence"
+note = "Protection state, backup status and recovery-point time are separate evidence. Missing fields remain unknown; the age threshold is a configurable review aid, not a workload RPO."
+
+[report.posture.datasets.backup_policies]
+title = "Backup policies"
+note = "Schedules and retention structures remain in the original policy evidence. The presence of a policy does not establish successful backups or tested recovery."
+
+[report.posture.datasets.backup_jobs]
+title = "Backup and restore outcomes"
+note = "Backup and restore jobs retain the provider status, including warnings. ARG exposes up to 14 days of jobs; an empty result does not prove successful backups."
+
+[report.posture.datasets.defender_assessments]
+title = "Defender recommendations"
+note = "Assessments describe security recommendations and their recorded state. Overlap with regulatory controls is expected; these totals must not be added as independent findings."
+
+[report.posture.datasets.defender_subassessments]
+title = "Defender detailed occurrences"
+note = "Subassessments are detailed occurrences linked to a parent assessment. Preserve that relationship when prioritising remediation."
+
+[report.posture.datasets.defender_active_alerts]
+title = "Active Defender alerts"
+note = "Alerts retain their recorded severity and all resource identifiers. An alert can affect multiple assets; absence of alerts does not establish detection coverage."
+
+[report.posture.datasets.defender_secure_score_controls]
+title = "Defender secure-score control evidence"
+note = "Counts are resource occurrences across controls and can overlap. Original scores and denominators remain in detailed evidence; no average compliance score is inferred."
+
+[report.posture.datasets.resource_health]
+title = "Resource availability"
+note = "Availability states describe observed provider status. Unknown or missing health records are not healthy results and this table is not an uptime measure."
+
+[report.posture.datasets.service_health_events]
+title = "Active Service Health events"
+note = "Active subscription-scoped incidents, maintenance and advisories are retained. Emerging issues without subscription IDs are outside ARG coverage."
+
+[report.posture.datasets.resource_changes]
+title = "Recent ARM changes"
+note = "Recorded ARM changes can include actor, client and changed properties. ARG retains 14 days; this is not a complete activity or data-plane audit log."
+
+[report.posture.datasets.policy_evaluation_coverage]
+title = "Policy evaluation coverage"
+note = "Assignments are matched to stored policy states using full normalised ARM IDs. No observed evaluation is kept separate from compliance and from unavailable state collection."
+
+[report.posture.datasets.patch_evaluation_coverage]
+title = "Machine assessment coverage"
+note = "Counts use the collected VM and Arc inventory, deduplicated by full ARM ID. No observed assessment may indicate missing service configuration, access or expired evidence; it is not a passed patch check."
+
+[report.posture.datasets.evidence_freshness]
+title = "Evidence age at collection"
+note = "Ages are evaluated at the snapshot timestamp using the threshold recorded with each query. Future, invalid and missing dates stay separate. Review thresholds are configurable and are not Microsoft retention guarantees."
+
+[report.assessment.checks.broad_privileged_role_assignments]
+title = "Broad privileged access"
+observation = "A built-in Owner, User Access Administrator or RBAC Administrator role was assigned at subscription or management-group scope."
+significance = "The assignment can grant broad resource or access-management authority. Legitimate administration, conditions and scope inheritance must be considered."
+verification = "Resolve the principal, review assignment conditions and owner intent, then verify privileged access and emergency-access arrangements."
+policy = "Use the organisation's access-review policy; this observation does not calculate effective permissions or PIM eligibility."
+action = "Review broad privileged assignments"
+source = "https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/privileged"
+
+[report.assessment.checks.patch_security_updates_pending]
+title = "Pending security or critical updates"
+observation = "The recorded assessment reported at least one pending security or critical update."
+significance = "The machine may require patching, but the assessment can predate remediation and classification counts can overlap."
+verification = "Check assessment time, OS vendor guidance, maintenance windows and the current machine assessment."
+policy = "Apply workload patch deadlines; missing or stale assessment data must not be treated as compliant."
+action = "Review pending security updates"
+source = "https://learn.microsoft.com/en-us/azure/update-manager/query-logs"
+
+[report.assessment.checks.patch_installation_failures]
+title = "Failed patch installations"
+observation = "An observed installation run reported Failed status or a positive failed-patch count."
+significance = "Failed updates can leave a workload exposed or awaiting a restart; another run may have succeeded later."
+verification = "Review the job timestamps, error details, subsequent runs and reboot status."
+policy = "Use approved maintenance windows and patch exception procedures."
+action = "Investigate failed patch runs"
+source = "https://learn.microsoft.com/en-us/azure/update-manager/query-logs"
+
+[report.assessment.checks.guest_configuration_non_compliant]
+title = "Non-compliant guest configuration"
+observation = "A guest assignment explicitly reported NonCompliant."
+significance = "A deployed OS baseline did not match the evaluated machine state at the recorded assessment."
+verification = "Inspect the baseline version, assignment report, evaluation time and any approved exceptions."
+policy = "Apply the assigned baseline and exception process; this check does not enable or change Machine Configuration."
+action = "Review guest configuration failures"
+source = "https://learn.microsoft.com/en-us/azure/governance/machine-configuration/how-to/view-compliance"
+
+[report.assessment.checks.backup_job_failures]
+title = "Failed backup or restore jobs"
+observation = "The provider recorded a backup or restore job with Failed status."
+significance = "Recovery evidence may be affected, but a later successful job can change the operational situation."
+verification = "Check job details, subsequent successes, latest recovery points and workload recovery requirements."
+policy = "Assess backup and restore objectives together; a configured policy alone does not prove recoverability."
+action = "Investigate failed backup or restore jobs"
+source = "https://learn.microsoft.com/en-us/azure/backup/query-backups-using-azure-resource-graph"
+
+[report.assessment.checks.unassociated_ddos_plans]
+title = "DDoS plans without associations"
+observation = "The plan returned an explicitly empty virtual-network association list."
+significance = "An unused or staged plan can retain cost; shared or planned use may justify keeping it."
+verification = "Confirm complete scope visibility, ownership, planned deployment and billing before changing the plan."
+policy = "Review intended protection coverage and commercial commitments before removal."
+action = "Review unassociated DDoS plans"
+source = "https://github.com/microsoft/finops-toolkit/tree/dev/src/templates/finops-hub/modules/Microsoft.FinOpsHubs/Recommendations/queries"
+
+[report.assessment.checks.unprovisioned_expressroute_circuits]
+title = "ExpressRoute provider provisioning"
+observation = "The circuit reported a non-empty service-provider state other than Provisioned."
+significance = "Provisioning may be incomplete or intentionally in transition; the observation does not measure traffic or cost."
+verification = "Confirm the provider order, circuit state, deployment plan and billing arrangements."
+policy = "Treat as an operational and cost review candidate, not automatic waste."
+action = "Review ExpressRoute provisioning"
+source = "https://github.com/microsoft/finops-toolkit/tree/dev/src/templates/finops-hub/modules/Microsoft.FinOpsHubs/Recommendations/queries"
+
+[report.assessment.checks.vnet_gateways_without_connections]
+title = "Gateways without observed connections"
+observation = "No accessible connection resources matched the gateway and no point-to-site address pool was configured."
+significance = "The gateway may be staged, disconnected or used through configuration outside the accessible scope."
+verification = "Review point-to-site use, all connection scopes, intended deployment and telemetry before making changes."
+policy = "Configuration absence is not proof of idle traffic or a safe deletion candidate."
+action = "Review gateway purpose and connections"
+source = "https://github.com/microsoft/finops-toolkit/tree/dev/src/templates/finops-hub/modules/Microsoft.FinOpsHubs/Recommendations/queries"

@@ -210,6 +210,7 @@ fn unit_partial_report_distinguishes_failed_empty_and_unrecorded_audits() {
             .record_query_run(
                 &snapshot.id,
                 &QueryRun {
+                    provenance: None,
                     query_name: name.into(),
                     category: "security".into(),
                     row_count: count,

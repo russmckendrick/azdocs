@@ -1,0 +1,23 @@
+# Source: https://github.com/microsoft/finops-toolkit/tree/dev/src/templates/finops-hub/modules/Microsoft.FinOpsHubs/Recommendations/queries
+# A provisioning transition can be intentional. This is a review candidate, not measured waste or a quoted saving.
+name = "unprovisioned_expressroute_circuits"
+category = "cost"
+kind = "finding"
+description = "ExpressRoute circuits with an observed provider state other than Provisioned"
+title_field = "summary"
+severity = "low"
+kql = '''
+// A provisioning transition can be intentional. This is a review candidate, not measured waste or a quoted saving.
+resources
+| where type =~ 'microsoft.network/expressroutecircuits'
+| extend providerState = tostring(properties.serviceProviderProvisioningState)
+| where isnotempty(providerState) and providerState !~ 'Provisioned'
+| project id, name, resourceGroup, subscriptionId, providerState,
+          circuitState = tostring(properties.circuitProvisioningState), serviceProvider = properties.serviceProviderProperties,
+          summary = strcat(name, ' has provider provisioning state ', providerState)
+| order by id asc
+'''
+
+[source]
+urls = ["https://github.com/microsoft/finops-toolkit/tree/dev/src/templates/finops-hub/modules/Microsoft.FinOpsHubs/Recommendations/queries"]
+reviewed_on = "2026-09-13"

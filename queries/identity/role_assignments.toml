@@ -1,0 +1,22 @@
+# Source: https://learn.microsoft.com/en-us/azure/governance/resource-graph/samples/samples-by-category#azure-rbac
+# Principal IDs are not resolved users or effective permissions; group expansion and PIM eligibility are separate evidence.
+name = "role_assignments"
+category = "identity"
+kind = "inventory"
+description = "Azure RBAC role assignments with principal, role, scope and conditions"
+authorization_scope = "AtScopeAboveAndBelow"
+kql = '''
+// Principal IDs are not resolved users or effective permissions; group expansion and PIM eligibility are separate evidence.
+authorizationresources
+| where type =~ 'microsoft.authorization/roleassignments'
+| project id, name, subscriptionId, resourceGroup,
+          roleDefinitionId = tostring(properties.roleDefinitionId), principalId = tostring(properties.principalId),
+          principalType = tostring(properties.principalType), scope = tostring(properties.scope),
+          condition = tostring(properties.condition), conditionVersion = tostring(properties.conditionVersion),
+          createdOn = properties.createdOn, updatedOn = properties.updatedOn
+| order by id asc
+'''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/governance/resource-graph/samples/samples-by-category#azure-rbac"]
+reviewed_on = "2026-09-13"

@@ -1641,6 +1641,16 @@ pub(super) fn reference<'a>(
         }
     }
     major_chapter(blocks, labels.report.evidence.chapter.as_str(), true);
+    let provenance = crate::report::provenance::records(&report.analysis.query_runs, labels);
+    if !provenance.is_empty() {
+        let words = &labels.report.posture.values;
+        heading(blocks, 2, words["provenance"].as_str(), None);
+        para(blocks, words["provenance_note"].as_str());
+        for record in provenance {
+            heading(blocks, 3, record.name, None);
+            table(blocks, &[&words["field"], &words["value"]], record.fields);
+        }
+    }
     para(blocks, w.reference_reductions.as_str());
     for (name, rows) in &report.analysis.recorded_queries {
         heading(blocks, 2, display_label(name), None);

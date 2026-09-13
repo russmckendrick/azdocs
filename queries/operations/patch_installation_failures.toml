@@ -1,0 +1,28 @@
+# Source: https://learn.microsoft.com/en-us/azure/update-manager/query-logs
+# Keep the installation ID as evidence: multiple failed runs on one machine are distinct occurrences.
+name = "patch_installation_failures"
+category = "operations"
+kind = "finding"
+description = "Recorded failed VM and Arc patch installation runs"
+title_field = "summary"
+severity = "medium"
+resource_id_field = "resourceId"
+kql = '''
+// Keep the installation ID as evidence: multiple failed runs on one machine are distinct occurrences.
+patchinstallationresources
+| where type in~ ('microsoft.compute/virtualmachines/patchinstallationresults', 'microsoft.hybridcompute/machines/patchinstallationresults')
+| project id, name, subscriptionId, resourceGroup,
+          resourceId = tostring(split(tolower(id), '/patchinstallationresults/')[0]),
+          startedAt = properties.startDateTime, updatedAt = properties.lastModifiedDateTime,
+          status = tostring(properties.status), osType = tostring(properties.osType),
+          installedPatches = toint(properties.installedPatchCount), failedPatches = toint(properties.failedPatchCount),
+          pendingPatches = toint(properties.pendingPatchCount), rebootStatus = tostring(properties.rebootStatus),
+          maintenanceWindowExceeded = tobool(properties.maintenanceWindowExceeded), errorDetails = properties.errorDetails
+| where status =~ 'Failed' or failedPatches > 0
+| extend summary = 'A recorded patch installation run contains failures'
+| order by id asc
+'''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/update-manager/query-logs"]
+reviewed_on = "2026-09-13"

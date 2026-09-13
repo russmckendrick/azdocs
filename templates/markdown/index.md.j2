@@ -86,6 +86,9 @@
 ## {{ labels.report.posture.chapter }}
 
 {{ labels.report.posture.intro }}
+{% if has_provenance %}
+[{{ labels.report.posture.values.provenance }}](query-provenance.md)
+{% endif %}
 {% for evidence in posture_tables %}
 ### {{ evidence.title }}
 

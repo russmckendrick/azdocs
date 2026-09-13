@@ -9,6 +9,7 @@ use serde_json::Value;
 
 use crate::labels::{Labels, fill};
 use crate::model::{QueryRun, normalize_arm_id};
+mod operational;
 
 #[derive(Debug, Default)]
 pub struct PostureReport {
@@ -35,6 +36,7 @@ enum Cell {
 
 #[derive(Debug, Serialize)]
 pub struct EvidenceTable {
+    pub key: String,
     pub title: String,
     pub note: String,
     pub status: String,
@@ -133,6 +135,7 @@ impl PostureReport {
         queries: &BTreeMap<String, Vec<Value>>,
         runs: &[QueryRun],
         collected_at: DateTime<Utc>,
+        resources: &[crate::model::Resource],
     ) -> Self {
         let mut datasets = Vec::new();
         for (key, groups, metrics, columns) in [
@@ -233,17 +236,28 @@ impl PostureReport {
                 },
             });
         }
+        datasets.extend(operational::datasets(
+            queries,
+            runs,
+            resources,
+            collected_at,
+        ));
         Self { datasets }
     }
 
     pub fn tables(&self, labels: &Labels) -> Vec<EvidenceTable> {
-        let words = &labels.report.posture;
+        self.tables_with_words(&labels.report.posture)
+    }
+
+    /// Desktop retains these resolved words on the backend; only rendered evidence crosses IPC.
+    pub fn tables_with_words(&self, words: &crate::labels::PostureLabels) -> Vec<EvidenceTable> {
         let label = |key: &str| words.values.get(key).unwrap_or(&words.unknown).clone();
         self.datasets
             .iter()
             .map(|dataset| {
                 let guidance = words.datasets.get(dataset.key);
                 EvidenceTable {
+                    key: dataset.key.to_owned(),
                     title: guidance.map_or_else(|| words.unknown.clone(), |g| g.title.clone()),
                     note: guidance.map_or_else(|| words.unknown.clone(), |g| g.note.clone()),
                     status: fill(&words.status, &[("state", &label(dataset.status))]),
@@ -284,6 +298,7 @@ mod tests {
         PostureReport::build(
             &BTreeMap::from([(key.into(), rows)]),
             &[QueryRun {
+                provenance: None,
                 query_name: key.into(),
                 category: "test".into(),
                 row_count: count,
@@ -291,6 +306,7 @@ mod tests {
                 error: error.map(str::to_owned),
             }],
             "2026-09-13T12:00:00Z".parse().unwrap(),
+            &[],
         )
     }
 
@@ -383,7 +399,7 @@ mod tests {
     #[test]
     fn unit_summary_labels_cover_every_dataset_column_and_status() {
         let labels = Labels::default();
-        let p = PostureReport::build(&BTreeMap::new(), &[], Utc::now());
+        let p = PostureReport::build(&BTreeMap::new(), &[], Utc::now(), &[]);
         for dataset in p.datasets {
             assert!(labels.report.posture.datasets.contains_key(dataset.key));
             for column in dataset.columns {

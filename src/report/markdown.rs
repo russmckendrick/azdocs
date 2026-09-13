@@ -100,6 +100,7 @@ pub fn render_pages(
 ) -> anyhow::Result<Vec<(String, String)>> {
     let mut env = environment(labels);
     let posture_tables = report.posture.tables(labels);
+    let provenance_records = super::provenance::records(&report.analysis.query_runs, labels);
     let labels = minijinja::Value::from_serialize(labels);
     let tag_audit = super::governance::TAG_AUDIT;
     env.add_template(
@@ -130,6 +131,7 @@ pub fn render_pages(
             labels,
             tag_audit,
             posture_tables,
+            has_provenance => !provenance_records.is_empty(),
             ..minijinja::Value::from_serialize(report)
         })?,
     ));
@@ -140,6 +142,17 @@ pub fn render_pages(
             ..minijinja::Value::from_serialize(report)
         })?,
     ));
+    if !provenance_records.is_empty() {
+        env.add_template(
+            "provenance",
+            include_str!("../../templates/markdown/provenance.md.j2"),
+        )?;
+        pages.push((
+            "query-provenance.md".to_owned(),
+            env.get_template("provenance")?
+                .render(context! { labels, records => provenance_records })?,
+        ));
+    }
     for category in &report.categories {
         pages.push((
             format!("{}.md", category.name),

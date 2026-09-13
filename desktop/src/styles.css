@@ -2664,9 +2664,13 @@ button.stat-cell.active {
 
 /* ------------------------------------------------------------- inventory */
 
+.inventory-workspace {
+  /* Disclosures can exceed a short window; keep the entire record reachable. */
+  overflow-y: auto;
+}
 .inventory-columns {
   flex: 1;
-  min-height: 0;
+  min-height: 320px;
   display: grid;
   grid-template-columns: 210px minmax(0, 1fr);
   gap: 24px;
@@ -2717,6 +2721,11 @@ button.stat-cell.active {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
+  overflow: auto;
+}
+.inv-main > .data-grid-wrap {
+  /* Preserve a usable table viewport when query metadata is expanded. */
+  flex: 1 0 160px;
 }
 .query-picker {
   display: flex;
@@ -2756,6 +2765,49 @@ button.stat-cell.active {
   font-size: 12.5px;
   color: var(--muted);
   flex-shrink: 0;
+}
+.inventory-evidence {
+  flex-shrink: 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 10px;
+  font-size: 12.5px;
+  min-width: 0;
+}
+.inventory-evidence summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 6px 0;
+}
+.inventory-evidence-body {
+  max-height: 320px;
+  overflow: auto;
+  padding: 8px 8px 8px 0;
+  overflow-wrap: anywhere;
+}
+.inventory-evidence-body section + section {
+  margin-top: 24px;
+}
+.inventory-evidence-body h3 {
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+.inventory-evidence-body p {
+  margin: 0 0 8px;
+}
+.inventory-evidence-body dl {
+  display: grid;
+  grid-template-columns: minmax(100px, 140px) minmax(0, 1fr);
+  gap: 8px 16px;
+}
+.inventory-evidence-body dt { color: var(--muted); }
+.inventory-evidence-body dd { margin: 0; }
+.inventory-evidence-body pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
 }
 .data-grid-wrap {
   flex: 1;

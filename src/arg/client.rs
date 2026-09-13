@@ -4,6 +4,7 @@ use serde_json::{Value, json};
 use super::throttle::{RetryPolicy, quota_pause};
 use crate::auth::TokenProvider;
 use crate::error::ArgError;
+use crate::model::AuthorizationScope;
 
 pub const DEFAULT_ENDPOINT: &str = "https://management.azure.com";
 const API_VERSION: &str = "2022-10-01";
@@ -67,13 +68,28 @@ impl<P: TokenProvider> ArgClient<P> {
         kql: &str,
         subscriptions: &[String],
     ) -> Result<QueryOutcome, ArgError> {
+        self.query_all_with_scope(kql, subscriptions, None).await
+    }
+
+    /// Set scope on every page; otherwise later pages can lose inherited assignments.
+    pub async fn query_all_with_scope(
+        &self,
+        kql: &str,
+        subscriptions: &[String],
+        authorization_scope: Option<AuthorizationScope>,
+    ) -> Result<QueryOutcome, ArgError> {
         let mut rows = Vec::new();
         let mut pages = 0;
         let mut skip_token: Option<String> = None;
 
         loop {
             let response = self
-                .query_page(kql, subscriptions, skip_token.as_deref())
+                .query_page(
+                    kql,
+                    subscriptions,
+                    skip_token.as_deref(),
+                    authorization_scope,
+                )
                 .await?;
             rows.extend(response.data);
             pages += 1;
@@ -104,11 +120,17 @@ impl<P: TokenProvider> ArgClient<P> {
         kql: &str,
         subscriptions: &[String],
         skip_token: Option<&str>,
+        authorization_scope: Option<AuthorizationScope>,
     ) -> Result<QueryResponse, ArgError> {
         let mut options = json!({
             "resultFormat": "objectArray",
             "$top": PAGE_SIZE,
         });
+        // API 2022-10-01 supports this option. Omit it for unrelated tables:
+        // https://learn.microsoft.com/azure/governance/resource-graph/concepts/query-language#query-scope
+        if let Some(scope) = authorization_scope {
+            options["authorizationScopeFilter"] = json!(scope.as_str());
+        }
         if let Some(token) = skip_token {
             options["$skipToken"] = json!(token);
         }

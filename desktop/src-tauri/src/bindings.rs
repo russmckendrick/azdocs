@@ -72,6 +72,8 @@ pub fn generated_typescript() -> String {
     decl::<FindingDto>(&mut out, &cfg);
     decl::<EdgeDto>(&mut out, &cfg);
     decl::<QueryRunDto>(&mut out, &cfg);
+    decl::<QueryProvenanceDto>(&mut out, &cfg);
+    decl::<EvidenceTableDto>(&mut out, &cfg);
     decl::<QueryDefDto>(&mut out, &cfg);
     decl::<QueryRowsDto>(&mut out, &cfg);
 

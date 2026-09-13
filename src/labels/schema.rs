@@ -831,6 +831,15 @@ pub struct DesktopHistoryLabels {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DesktopInventoryLabels {
+    pub summaries: String,
+    pub provenance: String,
+    pub provenance_missing: String,
+    pub source: String,
+    pub scope: String,
+    pub subscriptions: String,
+    pub all_visible: String,
+    pub query_hash: String,
+    pub source_reviewed: String,
     pub title: String,
     pub description: String,
     pub pack_unreadable: String,

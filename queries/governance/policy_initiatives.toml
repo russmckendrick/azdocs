@@ -1,0 +1,18 @@
+# Source: https://learn.microsoft.com/en-us/azure/governance/policy/samples/resource-graph-samples
+# Assignments without state rows are still evidence. Do not infer a passed evaluation from this inventory.
+name = "policy_initiatives"
+category = "governance"
+kind = "inventory"
+description = "Policy initiatives and their definition references"
+kql = '''
+// Assignments without state rows are still evidence. Do not infer a passed evaluation from this inventory.
+policyresources
+| where type =~ 'microsoft.authorization/policysetdefinitions'
+| project id, name, subscriptionId, displayName = tostring(properties.displayName), policyType = tostring(properties.policyType),
+          policyDefinitions = properties.policyDefinitions, parameters = properties.parameters, metadata = properties.metadata
+| order by id asc
+'''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/governance/policy/samples/resource-graph-samples"]
+reviewed_on = "2026-09-13"

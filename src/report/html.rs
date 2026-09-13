@@ -32,6 +32,7 @@ pub fn render(report: &ReportContext, branding: &BrandingContext) -> anyhow::Res
         labels => minijinja::Value::from_serialize(&branding.labels),
         tag_audit => super::governance::TAG_AUDIT,
         posture_tables => report.posture.tables(&branding.labels),
+        provenance_records => super::provenance::records(&report.analysis.query_runs, &branding.labels),
         website_evidence => report.websites.html(&branding.labels, None, None),
         ..minijinja::Value::from_serialize(report)
     })?;

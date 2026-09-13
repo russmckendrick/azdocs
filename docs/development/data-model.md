@@ -49,6 +49,7 @@ erDiagram
         text query_name
         int row_count
         int duration_ms
+        text provenance "nullable JSON definition and request scope"
         text error
     }
     query_results {
@@ -67,7 +68,11 @@ erDiagram
   (mv-expanded subnets, peerings, …) verbatim — report category tables render
   straight from them.
 - **`query_runs`** is the per-snapshot audit trail: which query ran, how many
-  rows, how long, what failed.
+  rows, how long, what failed. Migration 4 adds nullable `provenance` JSON with
+  the executed KQL and its SHA-256, captured query metadata, source details,
+  freshness rule and requested subscriptions/authorization scope. Failed runs
+  retain provenance too. Older rows remain NULL, never backfilled from the
+  current pack. Invalid stored metadata is reported as an error.
 - **Snapshot diff** is one `FULL OUTER JOIN` over `resources` between two
   snapshot ids (`store/snapshots.rs`): added / removed / changed (properties
   text differs).

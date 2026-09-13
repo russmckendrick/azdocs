@@ -171,7 +171,13 @@ pub fn load_snapshot(
         .map(|previous| comparison(&store, previous.snapshot.id.clone(), snapshot_id.clone()))
         .transpose()?;
 
-    Ok(EstateSnapshot::build(
+    let evidence_summaries = context
+        .posture
+        .tables_with_words(&state.labels.posture)
+        .into_iter()
+        .map(Into::into)
+        .collect();
+    let mut estate = EstateSnapshot::build(
         context,
         subscriptions,
         resource_groups,
@@ -181,7 +187,9 @@ pub fn load_snapshot(
         query_runs,
         previous_diff,
         &state.labels.common.subscription_scope,
-    ))
+    );
+    estate.evidence_summaries = evidence_summaries;
+    Ok(estate)
 }
 
 #[tauri::command]

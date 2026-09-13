@@ -161,6 +161,18 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 </tbody>
 </table>
 
+{% if provenance_records %}
+<section>
+<h2>{{ labels.report.posture.values.provenance | e }}</h2>
+<p class="meta">{{ labels.report.posture.values.provenance_note | e }}</p>
+{% for record in provenance_records %}
+<details><summary>{{ record.name | e }}</summary>
+<table>{% for field in record.fields %}<tr><th>{{ field[0] | e }}</th><td>{{ field[1] | e }}</td></tr>{% endfor %}</table>
+<pre><code>{{ record.kql | e }}</code></pre>
+</details>
+{% endfor %}
+</section>
+{% endif %}
 {% for category in categories %}
 <h2>{{ category.name | title }}</h2>
 {% for query in category.queries %}

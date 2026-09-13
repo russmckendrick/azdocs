@@ -13,3 +13,7 @@ securityresources
           skippedResources = tolong(properties.skippedResources)
 | order by id asc
 '''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/defender-for-cloud/resource-graph-samples"]
+reviewed_on = "2026-09-13"

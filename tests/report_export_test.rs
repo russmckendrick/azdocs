@@ -42,7 +42,7 @@ fn unit_reference_receipts_include_only_selected_print_formats() {
             &[ReportFormat::Docx, ReportFormat::Csv],
         )
         .unwrap();
-        assert_eq!(outputs.len(), if include_reference { 4 } else { 3 });
+        assert_eq!(outputs.len(), if include_reference { 5 } else { 4 });
         assert!(outputs.iter().all(|path| path.is_file()));
         assert_eq!(
             out.path().join("technical-reference.docx").exists(),
@@ -50,5 +50,22 @@ fn unit_reference_receipts_include_only_selected_print_formats() {
         );
         assert!(!out.path().join("technical-reference.pdf").exists());
         assert!(!out.path().join("technical-reference.csv").exists());
+        // Print and spreadsheet reductions must never discard the exact query:
+        // the companion preserves the recorded definition for every format.
+        let companion = out.path().join("query-provenance.json");
+        assert!(outputs.contains(&companion));
+        let exported: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&companion).unwrap()).unwrap();
+        let runs = store.query_runs(&snapshot).unwrap();
+        for run in runs {
+            if let Some(provenance) = run.provenance {
+                assert_eq!(
+                    exported[&run.query_name],
+                    serde_json::to_value(provenance).unwrap()
+                );
+            } else {
+                assert!(exported.get(&run.query_name).is_none());
+            }
+        }
     }
 }

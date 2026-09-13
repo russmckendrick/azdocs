@@ -1,0 +1,32 @@
+# Source: https://github.com/microsoft/finops-toolkit/tree/dev/src/templates/finops-hub/modules/Microsoft.FinOpsHubs/Recommendations/queries
+# Unlike the upstream idle-gateway query, exclude configured point-to-site pools. This examines accessible configuration, not traffic.
+name = "vnet_gateways_without_connections"
+category = "cost"
+kind = "finding"
+description = "VPN or ExpressRoute gateways without observed connections or point-to-site configuration"
+title_field = "summary"
+severity = "low"
+kql = '''
+// Unlike the upstream idle-gateway query, exclude configured point-to-site pools. This examines accessible configuration, not traffic.
+resources
+| where type =~ 'microsoft.network/virtualnetworkgateways'
+| where properties.gatewayType in~ ('Vpn', 'ExpressRoute')
+| where isnull(properties.vpnClientConfiguration) or array_length(properties.vpnClientConfiguration.vpnClientAddressPool.addressPrefixes) == 0
+| extend gatewayId = tolower(id)
+| join kind=leftouter (
+    resources
+    | where type =~ 'microsoft.network/connections'
+    | extend gatewayIds = pack_array(properties.virtualNetworkGateway1.id, properties.virtualNetworkGateway2.id)
+    | mv-expand gatewayId = gatewayIds limit 2
+    | project gatewayId = tolower(tostring(gatewayId))
+    | distinct gatewayId
+) on gatewayId
+| where isempty(gatewayId1)
+| project id, name, resourceGroup, subscriptionId,
+          summary = strcat(name, ' has no observed connection resources or configured point-to-site address pool')
+| order by id asc
+'''
+
+[source]
+urls = ["https://github.com/microsoft/finops-toolkit/tree/dev/src/templates/finops-hub/modules/Microsoft.FinOpsHubs/Recommendations/queries"]
+reviewed_on = "2026-09-13"

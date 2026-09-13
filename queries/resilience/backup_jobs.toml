@@ -1,0 +1,22 @@
+# Source: https://learn.microsoft.com/en-us/azure/backup/query-backups-using-azure-resource-graph
+# ARG retains up to 14 days of jobs. No jobs is not evidence of successful backups; target IDs may be unavailable on some job types.
+name = "backup_jobs"
+category = "resilience"
+kind = "inventory"
+description = "Backup and restore job history with original status and provider details"
+kql = '''
+// ARG retains up to 14 days of jobs. No jobs is not evidence of successful backups; target IDs may be unavailable on some job types.
+recoveryservicesresources
+| where type in~ ('microsoft.recoveryservices/vaults/backupjobs', 'microsoft.dataprotection/backupvaults/backupjobs')
+| project id, name, type, subscriptionId, resourceGroup,
+          resourceId = coalesce(tostring(properties.dataSourceId), tostring(properties.sourceResourceId)),
+          friendlyName = coalesce(tostring(properties.entityFriendlyName), tostring(properties.dataSourceName)),
+          operation = coalesce(tostring(properties.operation), tostring(properties.operationCategory)),
+          status = tostring(properties.status), startedAt = properties.startTime, endedAt = properties.endTime,
+          duration = properties.duration, backupInstanceId = tostring(properties.backupInstanceId), properties
+| order by id asc
+'''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/backup/query-backups-using-azure-resource-graph"]
+reviewed_on = "2026-09-13"

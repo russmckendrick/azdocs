@@ -35,6 +35,7 @@ pub fn seed_estate(store: &Store) -> String {
     );
     ingest_rows("all_resources", &estate_resources());
     seed_microsoft_evidence(store, &snapshot.id);
+    seed_operational_evidence(store, &snapshot.id);
     ingest_rows(
         "virtual_networks",
         &[
@@ -356,6 +357,7 @@ pub fn seed_microsoft_evidence(store: &Store, snapshot_id: &str) {
             .record_query_run(
                 snapshot_id,
                 &azdocs::model::QueryRun {
+                    provenance: None,
                     query_name: name.into(),
                     category: def.category.clone(),
                     row_count: Some(rows.len() as u64),
@@ -365,4 +367,65 @@ pub fn seed_microsoft_evidence(store: &Store, snapshot_id: &str) {
             )
             .unwrap();
     }
+}
+
+fn seed_operational_evidence(store: &Store, snapshot_id: &str) {
+    let pack = QueryPack::builtin().unwrap();
+    for (name, rows) in [
+        (
+            "policy_assignments",
+            vec![
+                json!({"id":"/subscriptions/sub-prod/providers/microsoft.authorization/policyassignments/baseline","displayName":"Production baseline","enforcementMode":"Default"}),
+                json!({"id":"/subscriptions/sub-prod/providers/microsoft.authorization/policyassignments/not-evaluated","displayName":"Pending initiative","enforcementMode":"DoNotEnforce"}),
+            ],
+        ),
+        (
+            "patch_assessments",
+            vec![
+                json!({"id":"/patch/assessment-1","resourceId":"/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-app-01","assessedAt":null,"osType":"Linux","status":"Succeeded","securityUpdates":2,"criticalUpdates":null}),
+            ],
+        ),
+        (
+            "backup_jobs",
+            vec![
+                json!({"id":"/backup/job-1","operation":"Backup","status":"CompletedWithWarnings"}),
+                json!({"id":"/backup/job-2","operation":"Restore","status":"Failed"}),
+            ],
+        ),
+        (
+            "resource_changes",
+            vec![
+                json!({"id":"/changes/change-1","changeType":"Update","changedByType":"Application","changedBy":"fixture-deployment","clientType":"Azure Resource Manager"}),
+            ],
+        ),
+    ] {
+        let def = pack.get(name).unwrap();
+        ingest::ingest(store, snapshot_id, def, &rows).unwrap();
+        store
+            .record_query_run(
+                snapshot_id,
+                &azdocs::model::QueryRun {
+                    query_name: name.into(),
+                    category: def.category.clone(),
+                    row_count: Some(rows.len() as u64),
+                    duration_ms: Some(10),
+                    error: None,
+                    provenance: Some(def.provenance(&["sub-prod".into()])),
+                },
+            )
+            .unwrap();
+    }
+    store
+        .record_query_run(
+            snapshot_id,
+            &azdocs::model::QueryRun {
+                query_name: "all_resources".into(),
+                category: "inventory".into(),
+                row_count: Some(store.resources(snapshot_id).unwrap().len() as u64),
+                duration_ms: Some(10),
+                error: None,
+                provenance: None,
+            },
+        )
+        .unwrap();
 }

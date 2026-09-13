@@ -30,6 +30,40 @@ fn arg_client(server: &MockServer) -> ArgClient<StaticTokenProvider> {
 
 const ARG_PATH: &str = "/providers/Microsoft.ResourceGraph/resources";
 
+#[tokio::test]
+async fn unit_assignment_scope_survives_every_continuation_page() {
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(|request: &Request| {
+            let body: serde_json::Value = serde_json::from_slice(&request.body).unwrap();
+            assert_eq!(
+                body["options"]["authorizationScopeFilter"],
+                "AtScopeAboveAndBelow"
+            );
+            assert_eq!(body["subscriptions"], json!(["sub-a"]));
+            if body["options"]["$skipToken"].is_null() {
+                ResponseTemplate::new(200).set_body_json(
+                    json!({"data":[{"id":"a"}],"totalRecords":2,"$skipToken":"next"}),
+                )
+            } else {
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({"data":[{"id":"b"}],"totalRecords":2}))
+            }
+        })
+        .expect(2)
+        .mount(&server)
+        .await;
+    let outcome = arg_client(&server)
+        .query_all_with_scope(
+            "authorizationresources",
+            &["sub-a".into()],
+            Some(azdocs::model::AuthorizationScope::AtScopeAboveAndBelow),
+        )
+        .await
+        .unwrap();
+    assert_eq!(outcome.rows.len(), 2);
+}
+
 mod token_provider {
     use super::*;
 

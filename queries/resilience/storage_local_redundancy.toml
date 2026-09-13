@@ -13,3 +13,7 @@ resources
           summary = strcat(name, " uses locally redundant storage")
 | order by id asc
 '''
+
+[source]
+urls = ["https://azure.github.io/Azure-Proactive-Resiliency-Library-v2/azure-resources/Storage/storageAccounts/"]
+reviewed_on = "2026-09-13"

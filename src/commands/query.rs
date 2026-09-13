@@ -8,6 +8,7 @@ use crate::arg::ArgClient;
 use crate::cli::QueryOutputFormat;
 use crate::config::Config;
 use crate::labels::{Labels, fill};
+use crate::model::AuthorizationScope;
 use crate::model::rows::{cell_to_string, columns};
 use crate::querypack::QueryPack;
 
@@ -19,7 +20,7 @@ pub async fn run(
     subscriptions: &[String],
     labels: &Labels,
 ) -> anyhow::Result<()> {
-    let kql = resolve_kql(query)?;
+    let (kql, authorization_scope) = resolve_query(query)?;
     let provider = super::token_provider(config)?;
     let client = ArgClient::new(super::http_client(), provider);
     let scope = if subscriptions.is_empty() {
@@ -28,7 +29,7 @@ pub async fn run(
         subscriptions
     };
     let outcome = client
-        .query_all(&kql, scope)
+        .query_all_with_scope(&kql, scope, authorization_scope)
         .await
         .context("query against Azure Resource Graph failed")?;
 
@@ -46,13 +47,13 @@ pub async fn run(
 /// `-` reads stdin; an existing file path is read (a .toml query definition's
 /// `kql` field, or raw KQL otherwise); anything else is a named query from the
 /// query pack.
-fn resolve_kql(query: &str) -> anyhow::Result<String> {
+fn resolve_query(query: &str) -> anyhow::Result<(String, Option<AuthorizationScope>)> {
     if query == "-" {
         let mut kql = String::new();
         std::io::stdin()
             .read_to_string(&mut kql)
             .context("reading query from stdin")?;
-        return Ok(kql);
+        return Ok((kql, None));
     }
     let path = Path::new(query);
     if path.exists() {
@@ -63,15 +64,21 @@ fn resolve_kql(query: &str) -> anyhow::Result<String> {
             let Some(kql) = parsed.get("kql").and_then(|v| v.as_str()) else {
                 bail!("{} has no `kql` field", path.display());
             };
-            return Ok(kql.to_owned());
+            let scope = parsed
+                .get("authorization_scope")
+                .cloned()
+                .map(|value| value.try_into())
+                .transpose()
+                .context("parsing authorization_scope")?;
+            return Ok((kql.to_owned(), scope));
         }
-        return Ok(raw);
+        return Ok((raw, None));
     }
     let pack = QueryPack::load()?;
     let Some(def) = pack.get(query) else {
         bail!("`{query}` is neither a file nor a known query name — see `azdocs query list`");
     };
-    Ok(def.kql.clone())
+    Ok((def.kql.clone(), def.authorization_scope))
 }
 
 pub fn list(category: Option<&str>, labels: &Labels) -> anyhow::Result<()> {
@@ -173,7 +180,7 @@ mod tests {
             include_str!("../../queries/cost/advisor_cost_recommendations.toml"),
         )
         .unwrap();
-        let resolved = resolve_kql(path.to_str().unwrap()).unwrap();
+        let (resolved, _) = resolve_query(path.to_str().unwrap()).unwrap();
         assert!(resolved.starts_with("advisorresources\n"));
         assert!(resolved.trim_end().ends_with("| order by id asc"));
     }

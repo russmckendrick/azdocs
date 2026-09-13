@@ -357,11 +357,21 @@ export const mockEstate: EstateSnapshot = {
   ],
   findings,
   edges,
+  // Preview-only evidence; production receives these decisions from the Rust report context.
+  evidenceSummaries: [{
+    key: "patch_evaluation_coverage",
+    title: "Machine assessment coverage",
+    note: "No observed assessment does not establish patch compliance. This browser preview uses fixture data.",
+    status: "Recorded evidence",
+    columns: ["Type", "State", "Resources"],
+    rows: [["Azure virtual machine", "No evaluation observed", "1"]],
+  }],
   queryRuns: [
     { queryName: "all_resources", category: "core", rowCount: 15, durationMs: 382 },
     { queryName: "subscriptions", category: "core", rowCount: 2, durationMs: 144 },
     { queryName: "resource_groups", category: "core", rowCount: 3, durationMs: 164 },
-    { queryName: "virtual_networks", category: "networking", rowCount: 2, durationMs: 277 },
+    // Representative recorded metadata; other rows exercise older snapshots without it.
+    { queryName: "virtual_networks", category: "networking", rowCount: 2, durationMs: 277, provenance: {"kql": "resources\n| where type == \"microsoft.network/virtualnetworks\"\n| project id, name, location, resourceGroup, subscriptionId,\n          addressPrefixes = properties.addressSpace.addressPrefixes,\n          dnsServers = properties.dhcpOptions.dnsServers,\n          subnetCount = array_length(properties.subnets)\n| order by id asc\n", "kqlSha256": "9d03bc0d75dd5921b322cb424da5c5b5240eade22c09aa1bfee166e82c016e23", "description": "Virtual networks with address spaces and DNS settings", "kind": "inventory", "authorizationScope": "AtScopeAndBelow", "subscriptions": ["sub-prod", "sub-dev"], "sourceUrls": ["https://learn.microsoft.com/en-us/azure/governance/resource-graph/samples/samples-by-category#virtual-networks"], "reviewedOn": "2026-09-13", "revision": null} },
     { queryName: "storage_public_blob_access", category: "storage", rowCount: 1, durationMs: 219 },
     { queryName: "nsg_open_to_internet", category: "networking", rowCount: 1, durationMs: 251 },
   ],

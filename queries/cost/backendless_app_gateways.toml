@@ -16,3 +16,7 @@ resources
           summary = strcat(name, ' has no configured backend endpoints')
 | order by id asc
 '''
+
+[source]
+urls = ["https://github.com/microsoft/finops-toolkit/tree/dev/src/templates/finops-hub/modules/Microsoft.FinOpsHubs/Recommendations/queries"]
+reviewed_on = "2026-09-13"

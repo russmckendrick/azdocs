@@ -8,6 +8,7 @@ pub mod html;
 pub mod markdown;
 pub mod pdf;
 pub mod posture;
+pub mod provenance;
 pub mod site;
 pub mod theme;
 pub mod websites;
@@ -24,7 +25,7 @@ use crate::error::StoreError;
 // Re-exported so the emitters can keep importing it from their parent module.
 pub(crate) use crate::model::rows::cell_to_string;
 use crate::model::{azure_types, azure_values, rows};
-use crate::querypack::{QueryKind, QueryPack};
+use crate::querypack::QueryPack;
 use crate::store::Store;
 // The governance judgements and the analysis that applies them live in one
 // module; every surface reads them from here.
@@ -243,38 +244,44 @@ impl ReportContext {
         let governance =
             governance::analyse(&subscriptions, &resource_groups, &resources, &findings);
 
-        // Category sections come from stored raw query results; the loader
-        // failing here (e.g. a broken user query file) should not block
-        // reporting on already-collected data.
+        // Enumerate the store first: removed overrides and renamed built-ins must
+        // not hide historical evidence. Recorded metadata wins over today's pack.
         let pack = QueryPack::load().unwrap_or_default();
+        let query_runs = store.query_runs(snapshot_id)?;
         let mut categories: BTreeMap<String, Vec<QuerySection>> = BTreeMap::new();
-        for def in pack.all() {
-            if def.kind != QueryKind::Inventory
-                || matches!(
-                    def.name.as_str(),
-                    "all_resources" | "subscriptions" | "resource_groups"
-                )
-            {
+        for name in store.query_result_names(snapshot_id)? {
+            if matches!(
+                name.as_str(),
+                "all_resources" | "subscriptions" | "resource_groups"
+            ) {
                 continue;
             }
-            let rows = store.query_results(snapshot_id, &def.name)?;
+            let rows = store.query_results(snapshot_id, &name)?;
             if rows.is_empty() {
                 continue;
             }
+            let run = query_runs.iter().find(|run| run.query_name == name);
+            let recorded = run.and_then(|run| run.provenance.as_ref());
+            let current = pack.get(&name);
+            let category = run
+                .map(|r| r.category.clone())
+                .or_else(|| current.map(|d| d.category.clone()))
+                .unwrap_or_else(|| "evidence".to_owned());
+            let description = recorded
+                .map(|p| p.description.clone())
+                .or_else(|| current.map(|d| d.description.clone()))
+                .unwrap_or_default();
             let columns = rows::columns(&rows);
-            categories
-                .entry(def.category.clone())
-                .or_default()
-                .push(QuerySection {
-                    name: def.name.clone(),
-                    description: def.description.clone(),
-                    print_columns: page_columns(&columns)
-                        .into_iter()
-                        .map(str::to_owned)
-                        .collect(),
-                    columns,
-                    rows,
-                });
+            categories.entry(category).or_default().push(QuerySection {
+                name,
+                description,
+                print_columns: page_columns(&columns)
+                    .into_iter()
+                    .map(str::to_owned)
+                    .collect(),
+                columns,
+                rows,
+            });
         }
         let categories = categories
             .into_iter()
@@ -424,7 +431,7 @@ impl ReportContext {
             &resource_groups,
             &findings,
             &edges,
-            store.query_runs(snapshot_id)?,
+            query_runs,
         );
         for name in store.query_result_names(snapshot_id)? {
             analysis
@@ -436,6 +443,7 @@ impl ReportContext {
             &analysis.recorded_queries,
             &analysis.query_runs,
             snapshot.created_at,
+            &resources,
         );
         Ok(Self {
             posture,

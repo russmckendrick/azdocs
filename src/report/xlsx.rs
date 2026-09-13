@@ -107,6 +107,26 @@ pub fn write(
     sheet.set_column_width(0, 36)?;
     sheet.set_column_range_width(1, 5, 24)?;
 
+    let records = super::provenance::records(&report.analysis.query_runs, labels);
+    if !records.is_empty() {
+        let words = &labels.report.posture.values;
+        let sheet = workbook.add_worksheet().set_name(&words["provenance"])?;
+        for (column, key) in ["query", "field", "value"].iter().enumerate() {
+            sheet.write_with_format(0, column as u16, &words[*key], &header)?;
+        }
+        let mut row = 1;
+        for record in records {
+            for field in record.fields {
+                sheet.write(row, 0, &record.name)?;
+                sheet.write(row, 1, &field[0])?;
+                sheet.write(row, 2, &field[1])?;
+                row += 1;
+            }
+        }
+        sheet.set_column_range_width(0, 1, 32)?;
+        sheet.set_column_width(2, 100)?;
+    }
+
     for category in &report.categories {
         // Suffix avoids case-insensitive collisions with the fixed sheets
         // (e.g. a category literally named "inventory"); names cap at 31 chars.

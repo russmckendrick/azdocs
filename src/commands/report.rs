@@ -94,6 +94,14 @@ pub fn run_selected_with_outputs(
 
     let words = &branding.labels.cli.report;
     let mut outputs = Vec::new();
+    // All formats, including CSV, receive the same exact query/scope evidence.
+    // Do not create metadata for old snapshots using current query definitions.
+    let provenance = report::provenance::definitions(&context.analysis.query_runs);
+    if !provenance.is_empty() {
+        let path = out_root.join("query-provenance.json");
+        std::fs::write(&path, serde_json::to_vec_pretty(&provenance)?)?;
+        outputs.push(path);
+    }
     for format in formats {
         match format {
             ReportFormat::Md => {

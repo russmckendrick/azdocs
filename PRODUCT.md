@@ -90,7 +90,8 @@ always accompanied by its word.
 ## What azdocs does not claim
 
 Resource Graph cannot see everything, and the product should not pretend
-otherwise: no RBAC assignments, no data-plane contents, no activity logs, no
-metrics. A snapshot is a point-in-time inventory of resource configuration and
-the relationships derivable from it. There are no customer claims, benchmarks
+otherwise: no resolved effective-access graph, no data-plane contents, no complete
+activity log and no measured utilisation. A snapshot includes resource configuration,
+derived relationships and the accessible policy, RBAC, security and operational
+evidence exposed by ARG. Retention windows and missing records limit that evidence. There are no customer claims, benchmarks
 or pricing here, and none should be invented.

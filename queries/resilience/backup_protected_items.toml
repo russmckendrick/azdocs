@@ -1,0 +1,29 @@
+# Source: https://learn.microsoft.com/en-us/azure/backup/query-backups-using-azure-resource-graph
+# Recovery Services and Data Protection expose different fields. Do not substitute last backup time for a recovery point or infer protection from existence.
+name = "backup_protected_items"
+category = "resilience"
+kind = "inventory"
+description = "Protected items and backup instances with recovery-point and protection metadata"
+kql = '''
+// Recovery Services and Data Protection expose different fields. Do not substitute last backup time for a recovery point or infer protection from existence.
+recoveryservicesresources
+| where type in~ ('microsoft.recoveryservices/vaults/backupfabrics/protectioncontainers/protecteditems', 'microsoft.dataprotection/backupvaults/backupinstances')
+| project id, name, type, subscriptionId, resourceGroup,
+          resourceId = coalesce(tostring(properties.sourceResourceId), tostring(properties.virtualMachineId), tostring(properties.dataSourceInfo.resourceID)),
+          friendlyName = tostring(properties.friendlyName),
+          protectionState = coalesce(tostring(properties.protectionState), tostring(properties.currentProtectionState)),
+          protectionStatus = tostring(properties.protectionStatus),
+          lastRecoveryPoint = properties.lastRecoveryPoint, lastBackupTime = properties.lastBackupTime,
+          lastBackupStatus = tostring(properties.lastBackupStatus),
+          policyId = coalesce(tostring(properties.policyId), tostring(properties.policyInfo.policyId)),
+          dataSourceType = coalesce(tostring(properties.backupManagementType), tostring(properties.dataSourceInfo.datasourceType))
+| order by id asc
+'''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/backup/query-backups-using-azure-resource-graph"]
+reviewed_on = "2026-09-13"
+
+[freshness]
+timestamp_field = "lastRecoveryPoint"
+max_age_hours = 48

@@ -1,0 +1,32 @@
+# Source: https://learn.microsoft.com/en-us/azure/governance/resource-graph/samples/samples-by-category#azure-rbac
+# Built-in role IDs: https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/privileged
+# A broad privileged assignment requires review, not automatic removal. Conditions and intended administration may justify it.
+name = "broad_privileged_role_assignments"
+category = "identity"
+kind = "finding"
+description = "Owner, User Access Administrator and RBAC Administrator assignments at subscription or management-group scope"
+title_field = "summary"
+severity = "medium"
+resource_id_field = "scope"
+authorization_scope = "AtScopeAboveAndBelow"
+kql = '''
+// A broad privileged assignment requires review, not automatic removal. Conditions and intended administration may justify it.
+authorizationresources
+| where type =~ 'microsoft.authorization/roleassignments'
+| project id, name, subscriptionId, resourceGroup,
+          roleDefinitionId = tostring(properties.roleDefinitionId), principalId = tostring(properties.principalId),
+          principalType = tostring(properties.principalType), scope = tostring(properties.scope),
+          condition = tostring(properties.condition), conditionVersion = tostring(properties.conditionVersion),
+          createdOn = properties.createdOn, updatedOn = properties.updatedOn
+| where tolower(roleDefinitionId) endswith '/8e3af657-a8ff-443c-a75c-2fe8c4bcb635'
+     or tolower(roleDefinitionId) endswith '/18d7d88d-d35e-4fb5-a5c3-7773c20a72d9'
+     or tolower(roleDefinitionId) endswith '/f58310d9-a9f6-439a-9e8d-f62e7b41a168'
+| where tolower(scope) matches regex '^/subscriptions/[^/]+$'
+     or tolower(scope) matches regex '^/providers/microsoft.management/managementgroups/[^/]+$'
+| extend summary = strcat('Review broad privileged assignment for principal ', principalId)
+| order by id asc
+'''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/governance/resource-graph/samples/samples-by-category#azure-rbac", "https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/privileged"]
+reviewed_on = "2026-09-13"

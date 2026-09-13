@@ -101,7 +101,7 @@ pub async fn run_with_progress<P: TokenProvider + 'static>(
                 .expect("semaphore not closed");
             let started = Instant::now();
             let result = client
-                .query_all(&def.kql, &subscriptions)
+                .query_all_with_scope(&def.kql, &subscriptions, def.authorization_scope)
                 .await
                 .map(|outcome| QueryPageData { rows: outcome.rows })
                 .map_err(|err| err.to_string());
@@ -123,7 +123,7 @@ pub async fn run_with_progress<P: TokenProvider + 'static>(
     let mut queries_failed = 0;
     let mut rows_ingested: u64 = 0;
     while let Some((def, result, duration_ms)) = receiver.recv().await {
-        let run_record = match result {
+        let mut run_record = match result {
             Ok(data) => {
                 let count = data.rows.len() as u64;
                 match ingest::ingest(store, &snapshot.id, &def, &data.rows) {
@@ -131,6 +131,7 @@ pub async fn run_with_progress<P: TokenProvider + 'static>(
                         rows_ingested += count;
                         progress.set_message(format!("{} ({count} rows)", def.name));
                         QueryRun {
+                            provenance: None,
                             query_name: def.name.clone(),
                             category: def.category.clone(),
                             row_count: Some(count),
@@ -152,6 +153,8 @@ pub async fn run_with_progress<P: TokenProvider + 'static>(
                 query_failure(&def, duration_ms, err)
             }
         };
+        // Record even failed queries: absence of rows does not erase what was attempted.
+        run_record.provenance = Some(def.provenance(&subscriptions));
         store.record_query_run(&snapshot.id, &run_record)?;
         progress.inc(1);
         completed += 1;
@@ -202,6 +205,7 @@ struct QueryPageData {
 
 fn query_failure(def: &QueryDef, duration_ms: u64, error: String) -> QueryRun {
     QueryRun {
+        provenance: None,
         query_name: def.name.clone(),
         category: def.category.clone(),
         row_count: None,

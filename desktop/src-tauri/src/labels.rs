@@ -14,6 +14,9 @@ use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AppLabels {
+    /// Backend-only wording for shared report analysis; never expands bootstrap labels.
+    #[serde(skip)]
+    pub posture: azdocs::labels::PostureLabels,
     pub common: CommonLabels,
     pub desktop: DesktopLabels,
 }
@@ -47,6 +50,7 @@ impl AppLabels {
 impl From<&Labels> for AppLabels {
     fn from(labels: &Labels) -> Self {
         Self {
+            posture: labels.report.posture.clone(),
             common: labels.common.clone(),
             desktop: labels.desktop.clone(),
         }

@@ -1,0 +1,21 @@
+# Source: https://learn.microsoft.com/en-us/azure/service-health/resource-graph-samples
+# Emerging issues without subscription IDs are outside ARG. Keep provider impact details rather than attributing every event to every estate resource.
+name = "service_health_events"
+category = "monitoring"
+kind = "inventory"
+description = "Active subscription-scoped service incidents, maintenance and advisories"
+kql = '''
+// Emerging issues without subscription IDs are outside ARG. Keep provider impact details rather than attributing every event to every estate resource.
+servicehealthresources
+| where type =~ 'microsoft.resourcehealth/events'
+| where properties.Status =~ 'Active'
+| project id, name, subscriptionId, eventType = tostring(properties.EventType), state = tostring(properties.Status),
+          title = tostring(properties.Title), trackingId = tostring(properties.TrackingId),
+          startedAt = properties.ImpactStartTime, endedAt = properties.ImpactMitigationTime,
+          impact = properties.Impact, properties
+| order by id asc
+'''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/service-health/resource-graph-samples"]
+reviewed_on = "2026-09-13"

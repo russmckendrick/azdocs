@@ -1,0 +1,13 @@
+# {{ labels.report.posture.values.provenance }}
+
+{{ labels.report.posture.values.provenance_note }}
+{% for record in records %}
+## {{ record.name | md_text }}
+
+| {{ labels.report.posture.values.field }} | {{ labels.report.posture.values.value }} |
+| --- | --- |
+{% for field in record.fields -%}
+| {{ field[0] | md_text }} | {{ field[1] | md_text }} |
+{% endfor %}
+{{ record.markdown_kql }}
+{% endfor %}

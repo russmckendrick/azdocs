@@ -1,0 +1,21 @@
+# Source: https://github.com/microsoft/finops-toolkit/tree/dev/src/templates/finops-hub/modules/Microsoft.FinOpsHubs/Recommendations/queries
+# A missing property is unknown, not an empty association list. Check planned/shared use before deleting a plan.
+name = "unassociated_ddos_plans"
+category = "cost"
+kind = "finding"
+description = "DDoS protection plans with an explicitly empty virtual-network association list"
+title_field = "summary"
+severity = "low"
+kql = '''
+// A missing property is unknown, not an empty association list. Check planned/shared use before deleting a plan.
+resources
+| where type =~ 'microsoft.network/ddosprotectionplans'
+| where array_length(properties.virtualNetworks) == 0
+| project id, name, resourceGroup, subscriptionId,
+          summary = strcat(name, ' has no associated virtual networks')
+| order by id asc
+'''
+
+[source]
+urls = ["https://github.com/microsoft/finops-toolkit/tree/dev/src/templates/finops-hub/modules/Microsoft.FinOpsHubs/Recommendations/queries"]
+reviewed_on = "2026-09-13"

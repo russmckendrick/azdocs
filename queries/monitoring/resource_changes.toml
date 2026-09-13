@@ -1,0 +1,20 @@
+# Source: https://learn.microsoft.com/en-us/azure/governance/resource-graph/changes/get-resource-changes
+# ARG change history lasts 14 days and does not represent a complete activity/data-plane log. Missing actor information stays unknown.
+name = "resource_changes"
+category = "monitoring"
+kind = "inventory"
+description = "Recent ARM control-plane changes with recorded actor, time and changed properties"
+kql = '''
+// ARG change history lasts 14 days and does not represent a complete activity/data-plane log. Missing actor information stays unknown.
+resourcechanges
+| project id, name, subscriptionId, resourceGroup, resourceId = tostring(properties.targetResourceId),
+          changeType = tostring(properties.changeType), changedAt = properties.changeAttributes.timestamp,
+          changedBy = tostring(properties.changeAttributes.changedBy), changedByType = tostring(properties.changeAttributes.changedByType),
+          clientType = tostring(properties.changeAttributes.clientType), correlationId = tostring(properties.changeAttributes.correlationId),
+          changes = properties.changes
+| order by id asc
+'''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/governance/resource-graph/changes/get-resource-changes"]
+reviewed_on = "2026-09-13"

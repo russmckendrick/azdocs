@@ -494,6 +494,15 @@
       }
     },
     "inventory": {
+      "summaries": "Operational evidence summaries",
+      "provenance": "Recorded query and sources",
+      "provenance_missing": "This snapshot predates query provenance recording.",
+      "source": "Source",
+      "scope": "Authorization scope",
+      "subscriptions": "Requested subscriptions",
+      "all_visible": "All visible subscriptions",
+      "query_hash": "KQL SHA-256",
+      "source_reviewed": "Source reviewed",
       "title": "Inventory",
       "description": "The shaped rows every collected query stored for this snapshot — the same tables the reports print, browsable per category.",
       "pack_unreadable": "The query pack could not be read.",
