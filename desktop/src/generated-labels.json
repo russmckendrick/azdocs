@@ -729,7 +729,7 @@
     },
     "exports": {
       "include_reference": "Include technical reference",
-      "reference_detail": "Add a separate document with every resource, finding occurrence and collected query result.",
+      "reference_detail": "Add key settings for every resource, relationships, grouped findings and collection coverage.",
       "title": "Exports",
       "description": "Produce a hand-off-ready artifact from the active stored snapshot. Generation stays offline.",
       "source_aria": "Export source",
@@ -779,7 +779,7 @@
           "label": "Estate assessment",
           "action": "Estate assessment",
           "detail": "Architecture, recurring-check assessments and prioritised review actions.",
-          "includes": "Optional technical reference contains the full inventory and evidence."
+          "includes": "Optional technical reference adds resource settings, relationships and grouped findings."
         },
         "word-report": {
           "label": "Word Report",
@@ -794,6 +794,7 @@
         "loading_pack": "Loading query pack and credentials",
         "running_queries": "Running {count} read-only Azure queries",
         "composing_reports": "Composing {count} report format(s)",
+        "rendering_report": "Generating {path}",
         "rendering_diagram": "Rendering {kind} as {format}"
       },
       "errors": {

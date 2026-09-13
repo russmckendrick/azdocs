@@ -40,10 +40,10 @@ blocks. The shared `PrintDocument::reference` owns screenshot placement; PDF and
 DOCX use the same block with column-sized proportional images. The assessment
 path does not emit these blocks. Every export remains offline.
 
-`src/report/metadata.rs` groups the technical reference's complete resource
-metadata into shared `MetadataGroup` rows. Both native renderers use a fixed
-one-third/two-thirds column grid and spanning section headings; a resource's
-identity group stays with its name plate. Website links use the same column
+`src/report/metadata.rs` selects operational settings using
+`data/reference_fields.toml` and emits shared `MetadataGroup` rows. Both native
+renderers use a fixed one-third/two-thirds column grid and spanning section
+headings. Website links use the same column
 alignment and full, wrapping URLs after the resource's screenshot gallery.
 
 ## Verification

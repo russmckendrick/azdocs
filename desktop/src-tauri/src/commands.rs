@@ -472,8 +472,23 @@ fn export_reports(
         theme: None,
         out: Some(destination.to_path_buf()),
     };
-    azdocs::commands::report::run_selected_with_outputs(&config, config_dir, store, &args, &formats)
-        .map_err(|error| AppError::Export(error.to_string()))
+    azdocs::commands::report::run_selected_with_progress(
+        &config,
+        config_dir,
+        store,
+        &args,
+        &formats,
+        |path| {
+            let file = path.strip_prefix(destination).unwrap_or(path).display();
+            let _ = on_event.send(ExportEvent::Phase {
+                message: fill(
+                    &labels.desktop.backend.phases.rendering_report,
+                    &[("path", &file)],
+                ),
+            });
+        },
+    )
+    .map_err(|error| AppError::Export(error.to_string()))
 }
 
 fn export_diagrams(

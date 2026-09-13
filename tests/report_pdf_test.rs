@@ -142,8 +142,8 @@ fn pdf_main_omits_resource_register_and_reference_retains_it() {
     let reference = pdf::render_reference(&report, &branding, &[]).unwrap();
     let (_, text) = extract_all_text(&reference);
     assert!(text.contains("Resources by type"));
-    assert!(text.contains("hostPoolType"));
-    assert!(text.contains("Finding occurrence register"));
+    assert!(text.contains("Host pool type"));
+    assert!(text.contains("Findings by resource"));
 }
 
 #[test]
@@ -204,20 +204,24 @@ fn pdf_divider_page_strategy_changes_document_layout() {
     );
 }
 
-/// A raw ARM id is longer than any table column, so it has to wrap rather than
-/// run off the page. The zero-width joins that allow it must survive into the
-/// text layer.
+/// Unresolved findings still need their complete scope: a short resource name
+/// alone could misattribute a finding to a similarly named stored resource.
 #[test]
-fn pdf_wraps_long_arm_ids_instead_of_clipping_them() {
-    let (report, diagrams) = seeded();
+fn pdf_wraps_unresolved_finding_ids_instead_of_clipping_them() {
+    let (mut report, diagrams) = seeded();
+    let id = "/subscriptions/sub-missing/resourceGroups/rg-missing/providers/Microsoft.DesktopVirtualization/hostPools/hp-missing";
+    report.analysis.issues[0].occurrences[0].resource_id = Some(id.into());
 
     let _guard = RENDER.lock().unwrap_or_else(|p| p.into_inner());
     let bytes = pdf::render_reference(&report, &BrandingContext::default(), &diagrams).unwrap();
 
     let (_, text) = extract_all_text(&bytes);
-    let stripped: String = text.chars().filter(|c| !c.is_whitespace()).collect();
+    let stripped: String = text
+        .chars()
+        .filter(|c| !c.is_whitespace() && *c != '\u{200b}')
+        .collect();
     assert!(
-        stripped.contains("providers/Microsoft.DesktopVirtualization/hostPools/hp-prod"),
+        stripped.contains(id),
         "full ARM id should be present, wrapped rather than truncated"
     );
 }

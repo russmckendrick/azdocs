@@ -51,6 +51,20 @@ pub fn run_selected_with_outputs(
     args: &ReportArgs,
     formats: &[ReportFormat],
 ) -> anyhow::Result<Vec<PathBuf>> {
+    run_selected_with_progress(config, config_dir, store, args, formats, |_| {})
+}
+
+/// Notify the caller before composing each artifact, including companions.
+/// A PDF reference can take much longer than the assessment; the desktop must
+/// identify that stage while both use this same offline export path.
+pub fn run_selected_with_progress(
+    config: &Config,
+    config_dir: Option<&Path>,
+    store: &Store,
+    args: &ReportArgs,
+    formats: &[ReportFormat],
+    mut on_artifact: impl FnMut(&Path),
+) -> anyhow::Result<Vec<PathBuf>> {
     if formats.is_empty() {
         anyhow::bail!("select at least one report format");
     }
@@ -94,20 +108,13 @@ pub fn run_selected_with_outputs(
 
     let words = &branding.labels.cli.report;
     let mut outputs = Vec::new();
-    // All formats, including CSV, receive the same exact query/scope evidence.
-    // Do not create metadata for old snapshots using current query definitions.
-    let provenance = report::provenance::definitions(&context.analysis.query_runs);
-    if !provenance.is_empty() {
-        let path = out_root.join("query-provenance.json");
-        std::fs::write(&path, serde_json::to_vec_pretty(&provenance)?)?;
-        outputs.push(path);
-    }
     for format in formats {
         match format {
             ReportFormat::Md => {
                 let out_dir = out_root.join("docs");
-                report::markdown::write(&context, &branding.labels, &out_dir)?;
                 let out = out_dir.join("index.md");
+                on_artifact(&out);
+                report::markdown::write(&context, &branding.labels, &out_dir)?;
                 println!(
                     "{}",
                     fill(&words.markdown_written, &[("path", &out.display())])
@@ -116,12 +123,14 @@ pub fn run_selected_with_outputs(
             }
             ReportFormat::Html => {
                 let out = out_root.join("report.html");
+                on_artifact(&out);
                 report::html::write(&context, &branding, &out)?;
                 println!("{}", fill(&words.html_written, &[("path", &out.display())]));
                 outputs.push(out);
                 let site_dir = out_root.join("docs-html");
-                report::site::write(&context, &branding, &diagrams, &site_dir)?;
                 let site_index = site_dir.join("index.html");
+                on_artifact(&site_index);
+                report::site::write(&context, &branding, &diagrams, &site_dir)?;
                 println!(
                     "{}",
                     fill(&words.site_written, &[("path", &site_index.display())])
@@ -131,7 +140,9 @@ pub fn run_selected_with_outputs(
             ReportFormat::Csv => {
                 let inventory = out_root.join("inventory.csv");
                 let findings_path = out_root.join("findings.csv");
+                on_artifact(&inventory);
                 report::csv::write_inventory(&resources, &branding.labels, &inventory)?;
+                on_artifact(&findings_path);
                 report::csv::write_findings(&findings, &branding.labels, &findings_path)?;
                 println!(
                     "{}",
@@ -148,17 +159,20 @@ pub fn run_selected_with_outputs(
             }
             ReportFormat::Xlsx => {
                 let out = out_root.join("azdocs.xlsx");
+                on_artifact(&out);
                 report::xlsx::write(&context, &branding, &resources, &out)?;
                 println!("{}", fill(&words.xlsx_written, &[("path", &out.display())]));
                 outputs.push(out);
             }
             ReportFormat::Pdf => {
                 let out = out_root.join("report.pdf");
+                on_artifact(&out);
                 report::pdf::write(&context, &branding, &assessment_diagrams, &out)?;
                 println!("{}", fill(&words.pdf_written, &[("path", &out.display())]));
                 outputs.push(out);
                 if args.include_reference {
                     let out = out_root.join("technical-reference.pdf");
+                    on_artifact(&out);
                     std::fs::write(
                         &out,
                         report::pdf::render_reference(&context, &branding, &diagrams)?,
@@ -169,11 +183,13 @@ pub fn run_selected_with_outputs(
             }
             ReportFormat::Docx => {
                 let out = out_root.join("report.docx");
+                on_artifact(&out);
                 report::docx::write(&context, &branding, &assessment_diagrams, &out)?;
                 println!("{}", fill(&words.docx_written, &[("path", &out.display())]));
                 outputs.push(out);
                 if args.include_reference {
                     let out = out_root.join("technical-reference.docx");
+                    on_artifact(&out);
                     std::fs::write(
                         &out,
                         report::docx::render_reference(&context, &branding, &diagrams)?,

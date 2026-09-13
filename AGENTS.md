@@ -151,9 +151,15 @@ selection; `report/assessment.rs` composes both through `PrintDocument`.
 
 `--include-reference` additionally writes `technical-reference.pdf`/`.docx`.
 The reference owns the full type register, subscription → group → resource
-body, complete finding occurrence register and stored query evidence. Its
-column/value reductions must be explicit. Do not restore exhaustive inventory
-to the main report or interpret missing evidence as a passed control.
+body, selected operational settings, relationships, findings grouped by check /
+resource / severity with complete occurrence counts, and collection coverage.
+`data/reference_fields.toml` selects settings; field labels live in the labels
+pack. Keep provider catalogues, raw query rows, scripts and repeated evidence in
+SQLite and data exports, not print. Selection and value reductions must be
+explicit. Do not restore exhaustive inventory to the main report or interpret
+missing evidence as a passed control.
+Exports do not create a separate provenance JSON file; exact queries and scope
+remain in SQLite, with embedded provenance views in the data-oriented formats.
 
 **Use the shared diagram libraries.** `diagram/graph/assessment.rs` only selects
 and aggregates `EstateGraph`s. `diagram/assets.rs` renders them using the same

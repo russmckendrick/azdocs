@@ -71,15 +71,17 @@ fn native_print_formats_share_main_and_reference_content() {
         assert!(text.contains("Unsupported"));
         assert!(!text.contains("Resources by type"));
         assert!(!text.contains("hostPoolType"));
+        assert!(!text.contains("Evidence appendix"));
     }
     let reference_pdf = pdf_text(&pdf::render_reference(&report, &branding, &[]).unwrap());
     let reference_word = document_xml(&docx::render_reference(&report, &branding, &[]).unwrap());
     for text in [&reference_pdf, &reference_word] {
         for marker in [
             "Resources by type",
-            "hostPoolType",
-            "stprodapp01 allows public blob access",
-            "512 characters",
+            "Host pool type",
+            "Findings by resource",
+            "Collections such as disks and subnets are counted",
+            "Collection coverage",
         ] {
             assert!(
                 text.contains(marker),
@@ -89,5 +91,8 @@ fn native_print_formats_share_main_and_reference_content() {
         for resource in report.analysis.resources.values() {
             assert!(text.contains(&resource.name), "{} missing", resource.name);
         }
+        assert!(!text.contains("hostPoolType"));
+        assert!(!text.contains("stprodapp01 allows public blob access"));
+        assert!(!text.contains("Evidence appendix"));
     }
 }

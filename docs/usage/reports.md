@@ -63,29 +63,34 @@ unchecked **Include technical reference** control for PDF and Word exports.
 The reference uses a smaller working type scale, bordered settings and evidence
 tables, and Azure service icons beside resource names. Resource names in the
 type index link to their detailed entries; relationship-table endpoints and
-finding resource IDs link to the same entries whenever the resource is present.
+finding resource names link to the same entries whenever the resource is present.
 Links use normalized ARM IDs, so duplicate names remain distinct. Main-report evidence
 examples use bullet points; the explanatory sections retain the assessment's
 regular body type.
 
-Each resource starts with an identity table, kept with its name and service type.
-Configuration uses a single aligned table with section rows for tags, SKU,
-managed identity and resource properties. Nested objects and array entries keep
-their own groups instead of repeating long JSON paths on every row. ARM IDs used
-as object keys appear in the wider value column. Empty containers, explicit nulls
-and complete property values are retained.
+Each resource shows its name, service type and selected operational settings:
+location, SKU, managed identity, service size and state, access controls,
+networking, retention and ownership tags where recorded. Disks, subnets, node
+pools and similar collections are counted instead of expanded. Settings use
+plain-language labels. Missing settings are omitted, never treated as a passed
+control. Definitions, scripts, provider capability lists, histories and hidden
+tags stay out of print. Individual values are abbreviated after 160 characters,
+tag lists after 200; standalone URLs remain complete.
 
 Website screenshots form a gallery followed by a separate capture-details table for each website.
 External links show their complete URLs and wrap within the table cells.
 
-The companion retains a full resource register, subscription → resource group →
-resource detail, every finding occurrence and stored query evidence, including
-queries no longer present in the current pack. Print query tables omit ARM ID columns
-and use at most six columns. Non-URL query and finding-evidence values may be shortened to 512
-characters. Resource metadata and URLs are shown in full. Each reduction is
-identified in the reference. The snapshot database retains full stored values;
-CSV, XLSX and HTML exports provide full values for their included fields and
-queries.
+The companion retains the complete resource register and subscription → resource
+group → resource navigation. Findings are grouped by check, resource and recorded
+severity, with counts covering every occurrence. A brief collection summary distinguishes successful, empty, failed and unknown
+outcomes; failed queries retain their diagnostic messages.
+
+There is no Evidence appendix in either the assessment or the technical
+reference. Raw query rows, policy and role catalogues, original finding titles
+and evidence are not printed in the reference. The snapshot database retains the full stored values; use the
+Data Workbook, CSV or HTML for data-oriented review of their included fields.
+This keeps the reference useful for operational review without turning it into
+a dump of Azure provider metadata.
 
 ### Diagrams and pagination
 
@@ -153,12 +158,11 @@ Operational and compliance summaries are computed once from the snapshot and
 shared by Markdown, HTML/site, XLSX, PDF and DOCX. They distinguish source states,
 missing evaluations and evidence age without requesting new Azure data.
 
-Every export of a snapshot with recorded query provenance also writes
-`query-provenance.json` at the output root. This contains complete executed
-queries and settings, including failed attempts. HTML exposes expandable query
-definitions; Markdown/site adds a query-provenance page; XLSX adds a provenance
-sheet; the optional PDF/DOCX technical reference lists source/scope/hash metadata.
-The JSON companion retains full KQL when a print or spreadsheet view is reduced.
+Exports do not create a separate `query-provenance.json` file. Exact executed
+queries and settings, including failed attempts, remain in the snapshot database.
+HTML exposes expandable query definitions; Markdown/site adds a query-provenance
+page; XLSX adds a provenance sheet. The optional PDF/DOCX technical reference
+summarises collection outcomes without exporting query definitions.
 Old snapshots do not acquire invented provenance from today's query pack.
 
 See [operational evidence](../reference/operational-evidence.md) for Microsoft

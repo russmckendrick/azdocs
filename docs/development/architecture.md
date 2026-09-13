@@ -104,7 +104,11 @@ native layout mechanics remain renderer-specific. `report/analysis.rs` groups
 stored findings without losing occurrences or severities, resolves typed
 relationships and selects distinct group studies. The main assessment and the
 optional technical reference have separate compositions in
-`report/assessment.rs`. Non-print report content is unchanged.
+`report/assessment.rs`. The reference includes every resource but selects
+operational configuration through `data/reference_fields.toml`, with wording in
+the labels pack. Findings are counted by check, resource and severity; query
+coverage replaces raw evidence tables. Full data remains in SQLite and the data
+exports. Non-print report composition is unchanged.
 
 **Report selection is not a rendering engine.** `diagram/graph/assessment.rs`
 selects and aggregates connection-focused `EstateGraph`s. `diagram/assets.rs`

@@ -216,7 +216,7 @@ pub(super) fn build<'a>(
     governance(report, branding, blocks);
     microsoft_evidence(report, branding, blocks);
     actions(report, branding, blocks);
-    coverage(report, branding, blocks);
+    coverage(report, branding, blocks, true);
 }
 
 fn executive<'a>(
@@ -1458,6 +1458,7 @@ fn coverage<'a>(
     report: &'a ReportContext,
     branding: &'a BrandingContext,
     blocks: &mut Vec<Block<'a>>,
+    include_query_register: bool,
 ) {
     let labels = &branding.labels;
     let w = &labels.report.assessment;
@@ -1473,6 +1474,12 @@ fn coverage<'a>(
         .iter()
         .filter(|r| r.error.is_none() && r.row_count == Some(0))
         .count();
+    let unrecorded = report
+        .analysis
+        .recorded_queries
+        .keys()
+        .filter(|name| !runs.iter().any(|run| &run.query_name == *name))
+        .count();
     para(
         blocks,
         fill(
@@ -1482,7 +1489,7 @@ fn coverage<'a>(
                 ("successful", &successful),
                 ("empty", &empty),
                 ("failed", &failed),
-                ("unknown", &(runs.len() - failed - successful)),
+                ("unknown", &(runs.len() - failed - successful + unrecorded)),
             ],
         ),
     );
@@ -1496,30 +1503,32 @@ fn coverage<'a>(
     if runs.is_empty() {
         super::empty(blocks, &w.coverage_missing);
     }
-    table(
-        blocks,
-        &[&w.query, &w.result, &w.rows],
-        runs.iter()
-            .map(|r| {
-                let outcome = if r.error.is_some() {
-                    &w.failed
-                } else if r.row_count == Some(0) {
-                    &w.empty_query
-                } else if r.row_count.is_some() {
-                    &w.successful
-                } else {
-                    &w.outcome_unknown
-                };
-                vec![
-                    display_label(&r.query_name),
-                    outcome.clone(),
-                    r.row_count
-                        .map(|n| n.to_string())
-                        .unwrap_or_else(|| w.unknown.clone()),
-                ]
-            })
-            .collect(),
-    );
+    if include_query_register {
+        table(
+            blocks,
+            &[&w.query, &w.result, &w.rows],
+            runs.iter()
+                .map(|r| {
+                    let outcome = if r.error.is_some() {
+                        &w.failed
+                    } else if r.row_count == Some(0) {
+                        &w.empty_query
+                    } else if r.row_count.is_some() {
+                        &w.successful
+                    } else {
+                        &w.outcome_unknown
+                    };
+                    vec![
+                        display_label(&r.query_name),
+                        outcome.clone(),
+                        r.row_count
+                            .map(|n| n.to_string())
+                            .unwrap_or_else(|| w.unknown.clone()),
+                    ]
+                })
+                .collect(),
+        );
+    }
     for run in runs.iter().filter(|run| run.error.is_some()) {
         heading(blocks, 3, display_label(&run.query_name), None);
         if let Some(error) = &run.error {
@@ -1566,9 +1575,8 @@ pub(super) fn reference<'a>(
                     icon: Cow::Borrowed(&resource.azure_type),
                     subtitle: Cow::Borrowed(azure_types::display_name(&resource.azure_type)),
                 });
-                super::metadata::identity(resource, name, labels, blocks);
+                super::metadata::summary(resource, labels, blocks);
                 report.websites.print_blocks(&resource.id, labels, blocks);
-                super::metadata::configuration(resource, labels, blocks);
                 let related: Vec<_> = report
                     .analysis
                     .relationships
@@ -1611,105 +1619,91 @@ pub(super) fn reference<'a>(
             }
         }
     }
+    reference_findings(report, branding, blocks);
+    coverage(report, branding, blocks, false);
+    note(blocks, w.reference_coverage_note.as_str());
+}
+
+fn reference_findings<'a>(
+    report: &'a ReportContext,
+    branding: &'a BrandingContext,
+    blocks: &mut Vec<Block<'a>>,
+) {
+    let labels = &branding.labels;
+    let w = &labels.report.assessment;
     major_chapter(blocks, w.reference_occurrences.as_str(), true);
+    para(blocks, w.reference_findings_note.as_str());
     for issue in &report.analysis.issues {
         heading(blocks, 2, issue_title(w, issue), None);
-        for occurrence in &issue.occurrences {
-            note(
-                blocks,
-                format!(
-                    "{} · {}",
-                    labels
-                        .common
-                        .severity
-                        .get(occurrence.severity.as_str())
-                        .label,
-                    occurrence.query_name
-                ),
-            );
-            para(blocks, occurrence.title.as_str());
-            if let Some(id) = &occurrence.resource_id {
-                if let Some(target) = resource_anchor(report, id) {
-                    link(blocks, target, id.as_str());
-                } else {
-                    note(blocks, id.as_str());
-                }
-            }
-            if let Some(evidence) = &occurrence.detail {
-                json_facts(blocks, &w.original_evidence, evidence);
-            }
+        let mut grouped = BTreeMap::new();
+        for finding in &issue.occurrences {
+            *grouped
+                .entry((finding.severity, finding.resource_id.as_deref()))
+                .or_insert(0usize) += 1;
         }
-    }
-    major_chapter(blocks, labels.report.evidence.chapter.as_str(), true);
-    let provenance = crate::report::provenance::records(&report.analysis.query_runs, labels);
-    if !provenance.is_empty() {
-        let words = &labels.report.posture.values;
-        heading(blocks, 2, words["provenance"].as_str(), None);
-        para(blocks, words["provenance_note"].as_str());
-        for record in provenance {
-            heading(blocks, 3, record.name, None);
-            table(blocks, &[&words["field"], &words["value"]], record.fields);
-        }
-    }
-    para(blocks, w.reference_reductions.as_str());
-    for (name, rows) in &report.analysis.recorded_queries {
-        heading(blocks, 2, display_label(name), None);
-        let columns = crate::model::rows::columns(rows);
-        let selected = super::super::page_columns(&columns);
-        note(
-            blocks,
-            fill(
-                &w.reference_query_note,
-                &[("shown", &selected.len()), ("total", &columns.len())],
-            ),
-        );
+        let mut links = Vec::new();
+        let rows = grouped
+            .into_iter()
+            .enumerate()
+            .map(|(row, ((severity, id), count))| {
+                let (name, scope) =
+                    if let Some(resource) = id.and_then(|id| report.analysis.resources.get(id)) {
+                        if let Some(target) = resource_anchor(report, &resource.id) {
+                            links.push(TableLink {
+                                row,
+                                column: 0,
+                                target,
+                                external: false,
+                            });
+                        }
+                        let subscription = report
+                            .analysis
+                            .subscriptions
+                            .get(&resource.subscription_id)
+                            .unwrap_or(&resource.subscription_id);
+                        (
+                            resource.name.clone(),
+                            format!(
+                                "{} / {}",
+                                subscription,
+                                resource
+                                    .resource_group
+                                    .as_deref()
+                                    .unwrap_or(&labels.common.subscription_scope)
+                            ),
+                        )
+                    } else if let Some(id) = id {
+                        (crate::model::short_name(id).to_owned(), id.to_owned())
+                    } else {
+                        (
+                            labels.common.subscription_scope.clone(),
+                            w.scope_unavailable.clone(),
+                        )
+                    };
+                vec![
+                    name,
+                    scope,
+                    labels.common.severity.get(severity.as_str()).label.clone(),
+                    count.to_string(),
+                ]
+            })
+            .collect();
         table(
             blocks,
-            &selected,
-            rows.iter()
-                .map(|row| {
-                    selected
-                        .iter()
-                        .map(|key| print_evidence_value(row.get(*key)))
-                        .collect()
-                })
-                .collect(),
+            &[
+                &labels.common.columns.resource,
+                &w.reference_scope,
+                &labels.common.columns.severity,
+                &w.reference_occurrence_count,
+            ],
+            rows,
         );
-    }
-}
-
-fn json_facts<'a>(blocks: &mut Vec<Block<'a>>, prefix: &str, value: &serde_json::Value) {
-    fn flatten(prefix: &str, value: &serde_json::Value, items: &mut Vec<Fact<'static>>) {
-        match value {
-            serde_json::Value::Object(map) if !map.is_empty() => {
-                for (key, value) in map {
-                    let path = if prefix.is_empty() {
-                        key.clone()
-                    } else {
-                        format!("{prefix}.{key}")
-                    };
-                    flatten(&path, value, items);
-                }
-            }
-            _ => items.push(fact(
-                prefix.to_owned(),
-                print_evidence_value(Some(value)),
-                false,
-            )),
+        if let Some(Block::Table {
+            links: table_links, ..
+        }) = blocks.last_mut()
+        {
+            *table_links = links;
         }
-    }
-    let mut items = Vec::new();
-    flatten(prefix, value, &mut items);
-    blocks.push(Block::Facts { items });
-}
-
-// Long URLs remain complete even inside stored JSON/query evidence.
-fn print_evidence_value(value: Option<&serde_json::Value>) -> String {
-    let text = cell_to_string(value);
-    if text.contains("https://") || text.contains("http://") {
-        text
-    } else {
-        crate::model::truncate(&text, 512)
     }
 }
 

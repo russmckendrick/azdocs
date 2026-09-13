@@ -3,7 +3,7 @@
 use serde::Serialize;
 
 use crate::labels::Labels;
-use crate::model::{QueryProvenance, QueryRun};
+use crate::model::QueryRun;
 
 #[derive(Debug, Serialize)]
 pub struct ProvenanceRecord {
@@ -50,16 +50,4 @@ pub fn records(runs: &[QueryRun], labels: &Labels) -> Vec<ProvenanceRecord> {
         .collect::<Vec<_>>();
     records.sort_by(|a, b| a.name.cmp(&b.name));
     records
-}
-
-/// Full-fidelity companion for every export, including failed query attempts.
-/// BTreeMap ordering makes the same snapshot byte-identical on re-export.
-pub fn definitions(runs: &[QueryRun]) -> std::collections::BTreeMap<&str, &QueryProvenance> {
-    runs.iter()
-        .filter_map(|run| {
-            run.provenance
-                .as_ref()
-                .map(|p| (run.query_name.as_str(), p))
-        })
-        .collect()
 }

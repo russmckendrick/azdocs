@@ -1,0 +1,190 @@
+# Selected stored configuration for PDF and Word. Order is the reading order.
+# Labels live in report.assessment.reference_fields. Provider definitions,
+# scripts and histories are never expanded into print tables.
+
+[[fields]]
+label = "provisioning_state"
+paths = ["/provisioningState"]
+
+[[fields]]
+label = "state"
+paths = ["/state","/status","/powerState"]
+
+[[fields]]
+label = "public_access"
+paths = ["/publicNetworkAccess"]
+
+[[fields]]
+label = "network_default"
+paths = ["/networkAcls/defaultAction","/networkRuleSet/defaultAction"]
+
+[[fields]]
+label = "https_only"
+paths = ["/supportsHttpsTrafficOnly","/httpsOnly"]
+
+[[fields]]
+label = "minimum_tls"
+paths = ["/minimumTlsVersion","/minimalTlsVersion","/siteConfig/minTlsVersion"]
+
+[[fields]]
+label = "local_auth"
+paths = ["/disableLocalAuth"]
+
+[[fields]]
+label = "blob_public_access"
+paths = ["/allowBlobPublicAccess"]
+
+[[fields]]
+label = "shared_key_access"
+paths = ["/allowSharedKeyAccess"]
+
+[[fields]]
+label = "rbac"
+paths = ["/enableRbacAuthorization","/enableRBAC"]
+
+[[fields]]
+label = "purge_protection"
+paths = ["/enablePurgeProtection"]
+
+[[fields]]
+label = "soft_delete"
+paths = ["/enableSoftDelete"]
+
+[[fields]]
+label = "vm_size"
+paths = ["/hardwareProfile/vmSize","/virtualMachineProfile/hardwareProfile/vmSize"]
+
+[[fields]]
+label = "os_type"
+paths = ["/storageProfile/osDisk/osType","/virtualMachineProfile/storageProfile/osDisk/osType","/osType"]
+
+[[fields]]
+label = "os_image"
+paths = ["/storageProfile/imageReference/offer","/virtualMachineProfile/storageProfile/imageReference/offer"]
+
+[[fields]]
+label = "disk_size"
+paths = ["/diskSizeGB","/storageProfile/osDisk/diskSizeGB"]
+
+[[fields]]
+label = "data_disks"
+paths = ["/storageProfile/dataDisks","/virtualMachineProfile/storageProfile/dataDisks"]
+count = true
+
+[[fields]]
+label = "network_interfaces"
+paths = ["/networkProfile/networkInterfaces"]
+count = true
+
+[[fields]]
+label = "version"
+paths = ["/kubernetesVersion","/currentKubernetesVersion","/version","/redisVersion"]
+
+[[fields]]
+label = "node_pools"
+paths = ["/agentPoolProfiles"]
+count = true
+
+[[fields]]
+label = "private_cluster"
+paths = ["/apiServerAccessProfile/enablePrivateCluster"]
+
+[[fields]]
+label = "network_plugin"
+paths = ["/networkProfile/networkPlugin"]
+
+[[fields]]
+label = "runtime"
+paths = ["/siteConfig/linuxFxVersion","/siteConfig/windowsFxVersion"]
+
+[[fields]]
+label = "always_on"
+paths = ["/siteConfig/alwaysOn"]
+
+[[fields]]
+label = "host_pool_type"
+paths = ["/hostPoolType"]
+
+[[fields]]
+label = "load_balancer_type"
+paths = ["/loadBalancerType"]
+
+[[fields]]
+label = "max_sessions"
+paths = ["/maxSessionLimit"]
+
+[[fields]]
+label = "address_space"
+paths = ["/addressSpace/addressPrefixes","/addressPrefixes","/addressPrefix"]
+
+[[fields]]
+label = "subnets"
+paths = ["/subnets"]
+count = true
+
+[[fields]]
+label = "security_rules"
+paths = ["/securityRules"]
+count = true
+
+[[fields]]
+label = "routes"
+paths = ["/routes"]
+count = true
+
+[[fields]]
+label = "peerings"
+paths = ["/virtualNetworkPeerings"]
+count = true
+
+[[fields]]
+label = "ip_address"
+paths = ["/ipAddress"]
+
+[[fields]]
+label = "allocation"
+paths = ["/publicIPAllocationMethod"]
+
+[[fields]]
+label = "hostname"
+paths = ["/defaultHostName","/dnsSettings/fqdn","/fullyQualifiedDomainName"]
+
+[[fields]]
+label = "endpoint"
+paths = ["/vaultUri","/documentEndpoint","/endpoint"]
+
+[[fields]]
+label = "access_tier"
+paths = ["/accessTier"]
+
+[[fields]]
+label = "replication"
+paths = ["/storageAccountType","/redundancy"]
+
+[[fields]]
+label = "geo_backup"
+paths = ["/backup/geoRedundantBackup"]
+
+[[fields]]
+label = "high_availability"
+paths = ["/highAvailability/mode"]
+
+[[fields]]
+label = "storage_size"
+paths = ["/storage/storageSizeGB"]
+
+[[fields]]
+label = "retention_days"
+paths = ["/retentionInDays","/softDeleteRetentionInDays","/backup/backupRetentionDays"]
+
+[[fields]]
+label = "ingestion_mode"
+paths = ["/ingestionMode"]
+
+[[fields]]
+label = "workspace_network"
+paths = ["/managedVirtualNetwork"]
+
+[[fields]]
+label = "sql_admin_auth"
+paths = ["/administrators/azureADOnlyAuthentication"]

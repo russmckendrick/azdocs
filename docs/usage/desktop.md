@@ -148,6 +148,11 @@ webview commands.
 
 ## Offline exports
 
+Report progress names the file currently being generated, including the optional
+`technical-reference.pdf` or `.docx` companion. The assessment is written first,
+so its presence does not mean the reference has finished. Exports write only
+the selected deliverables; query provenance stays in the snapshot database.
+
 The **Exports** workspace uses a native directory picker; the selected path is
 sent to Rust only for the duration of the export. The webview receives progress
 and a sorted manifest of completed files, but it never receives general file

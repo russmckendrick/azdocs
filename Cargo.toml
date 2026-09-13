@@ -82,3 +82,23 @@ opt-level = 2
 opt-level = 2
 [profile.dev.package.png]
 opt-level = 2
+
+# Print reports compose hundreds of resources and figures. Keep the embedded
+# compiler's layout, evaluation and memoization hot paths usable in tauri dev,
+# while retaining unoptimized application code and its normal debug symbols.
+[profile.dev.package.typst]
+opt-level = 2
+[profile.dev.package.typst-layout]
+opt-level = 2
+[profile.dev.package.typst-eval]
+opt-level = 2
+[profile.dev.package.typst-library]
+opt-level = 2
+[profile.dev.package.typst-realize]
+opt-level = 2
+[profile.dev.package.typst-utils]
+opt-level = 2
+[profile.dev.package.typst-pdf]
+opt-level = 2
+[profile.dev.package.comemo]
+opt-level = 2

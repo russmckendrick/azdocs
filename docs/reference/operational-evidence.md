@@ -44,9 +44,9 @@ subscriptions visible to the credential; it does not claim tenant-wide access.
 Source review dates are not upstream version identifiers. Failures preserve the
 attempted query metadata. Older snapshots retain unknown provenance.
 
-Each export with provenance includes `query-provenance.json`. Human-readable
-metadata also appears in HTML, Markdown/site, XLSX and the optional print
-technical reference. Desktop inventory prefers the recorded description/kind
+Exact provenance remains in SQLite; exports do not create a separate JSON file.
+Human-readable metadata appears in HTML, Markdown/site and XLSX. Print references
+summarise collection outcomes. Desktop inventory prefers the recorded description/kind
 over today's query pack and shows the saved KQL and source details.
 
 ## Evidence age and coverage

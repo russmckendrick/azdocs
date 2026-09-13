@@ -69,7 +69,7 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 
 
 <h2>Operational and compliance evidence</h2>
-<p>Microsoft service evidence recorded during collection. Results cover only the accessible scope; an empty dataset is not proof of zero cost, compliance, protection or service enablement. Detailed records remain in the inventory evidence and technical reference.</p>
+<p>Microsoft service evidence recorded during collection. Results cover only the accessible scope; an empty dataset is not proof of zero cost, compliance, protection or service enablement. Detailed records remain in the snapshot database and data exports.</p>
 
 <h3>Azure Advisor cost opportunities</h3>
 <p>Collection: Recorded evidence</p><p>Estimates from Azure Advisor, grouped by currency and reported period. Annual estimates are separate. Missing amounts or periods remain unknown. Recommendations can overlap; totals are not guaranteed savings or billed costs.</p>
@@ -254,7 +254,7 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 
 <section>
 <h2>Query provenance</h2>
-<p class="meta">The executed query and request scope are preserved with this snapshot. Source review dates are not upstream release dates. Complete definitions are also exported in query-provenance.json.</p>
+<p class="meta">The executed query and request scope are preserved with this snapshot. Source review dates are not upstream release dates.</p>
 
 <details><summary>backup_jobs</summary>
 <table><tr><th>KQL SHA-256</th><td>cb61f0676de911c80ba3e531f5ec6f6ef259cf75db1161ecaec5c106b88ee742</td></tr><tr><th>Authorization scope</th><td>AtScopeAndBelow</td></tr><tr><th>Requested subscriptions</th><td>sub-prod</td></tr><tr><th>Sources</th><td>https:&#x2f;&#x2f;learn.microsoft.com&#x2f;en-us&#x2f;azure&#x2f;backup&#x2f;query-backups-using-azure-resource-graph</td></tr><tr><th>Source reviewed</th><td>2026-09-13</td></tr></table>

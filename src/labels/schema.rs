@@ -1230,6 +1230,7 @@ pub struct BackendPhaseLabels {
     pub loading_pack: String,
     pub running_queries: String,
     pub composing_reports: String,
+    pub rendering_report: String,
     pub rendering_diagram: String,
 }
 
@@ -1357,6 +1358,11 @@ pub struct AssessmentLabels {
     pub reference_intro: String,
     pub reference_reductions: String,
     pub reference_properties: String,
+    pub reference_fields: std::collections::BTreeMap<String, String>,
+    pub reference_findings_note: String,
+    pub reference_coverage_note: String,
+    pub reference_scope: String,
+    pub reference_occurrence_count: String,
     pub reference_identity: String,
     pub reference_resource_id: String,
     pub reference_sku: String,

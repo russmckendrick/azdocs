@@ -90,7 +90,7 @@ expression: content
 
 ## Operational and compliance evidence
 
-Microsoft service evidence recorded during collection. Results cover only the accessible scope; an empty dataset is not proof of zero cost, compliance, protection or service enablement. Detailed records remain in the inventory evidence and technical reference.
+Microsoft service evidence recorded during collection. Results cover only the accessible scope; an empty dataset is not proof of zero cost, compliance, protection or service enablement. Detailed records remain in the snapshot database and data exports.
 
 [Query provenance](query-provenance.md)
 
