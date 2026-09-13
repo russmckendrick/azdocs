@@ -1,4 +1,4 @@
-name: Update Homebrew tap
+name: "🍺 Update Homebrew tap"
 
 on:
   workflow_call:
@@ -18,10 +18,10 @@ permissions:
 
 jobs:
   update-tap:
-    name: Update formula and cask
+    name: "🍻 Update formula and cask"
     runs-on: ubuntu-latest
     steps:
-      - name: Resolve release tag
+      - name: "🏷️ Resolve release tag"
         id: version
         env:
           GH_TOKEN: ${{ github.token }}
@@ -40,7 +40,7 @@ jobs:
           echo "tag=${TAG}" >> "${GITHUB_OUTPUT}"
           echo "version=${TAG#v}" >> "${GITHUB_OUTPUT}"
 
-      - name: Download published checksums
+      - name: "⬇️ Download published checksums"
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
@@ -52,14 +52,14 @@ jobs:
             gh release download "${RELEASE_TAG}" --repo "${GITHUB_REPOSITORY}" --pattern "${FILE}" --dir build
           done
 
-      - name: Check out Homebrew tap
-        uses: actions/checkout@v6
+      - name: "📥 Check out Homebrew tap"
+        uses: actions/checkout@v7
         with:
           repository: ${{ github.repository_owner }}/homebrew-tap
           ssh-key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
           path: homebrew-tap
 
-      - name: Write formula and cask
+      - name: "🧪 Brew formula and cask"
         env:
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
@@ -135,7 +135,7 @@ jobs:
           end
           EOF
 
-      - name: Validate and publish tap changes
+      - name: "🚚 Validate and publish tap changes"
         working-directory: homebrew-tap
         env:
           RELEASE_TAG: ${{ steps.version.outputs.tag }}

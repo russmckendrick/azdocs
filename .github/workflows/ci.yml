@@ -1,4 +1,4 @@
-name: CI
+name: "🧪 CI"
 
 on:
   workflow_call:
@@ -15,46 +15,53 @@ env:
 
 jobs:
   docs:
-    name: Documentation
+    name: "📚 Documentation"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: "📥 Check out source"
+        uses: actions/checkout@v7
+      - name: "🐍 Set up Python"
+        uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - run: python3 docs/development/tools/check_docs.py
-      - run: python3 docs/reference/tools/build_design_sheet.py --check
+      - name: "🔗 Check documentation"
+        run: python3 docs/development/tools/check_docs.py
+      - name: "🎨 Check design sheet"
+        run: python3 docs/reference/tools/build_design_sheet.py --check
 
   test:
-    name: Test (${{ matrix.os }})
+    name: "🦀 Test · ${{ matrix.os }}"
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - name: "📥 Check out source"
+        uses: actions/checkout@v7
+      - name: "🦀 Set up Rust"
+        uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v2
+      - name: "⚡ Restore Rust cache"
+        uses: Swatinem/rust-cache@v2
         with:
           prefix-key: v1-rust-no-debuginfo
       # --all covers every workspace member; the desktop crate is checked here
       # so the Tauri job does not need to reinstall a toolchain to format it.
-      - name: Format
+      - name: "✨ Check formatting"
         run: cargo fmt --all --check
-      - name: Clippy
+      - name: "📎 Run Clippy"
         run: cargo clippy --all-targets --locked -- -D warnings
-      - name: Test
+      - name: "🧪 Run tests"
         run: cargo test --locked
-      - name: Native credential storage (macOS / Windows)
+      - name: "🔐 Test native credential storage · macOS / Windows"
         if: runner.os != 'Linux'
         run: cargo test --locked --test credential_store_test -- --ignored
-      - name: Install Linux credential service
+      - name: "🔑 Install Linux credential service"
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y dbus-x11 gnome-keyring
-      - name: Native credential storage (Linux)
+      - name: "🔐 Test native credential storage · Linux"
         if: runner.os == 'Linux'
         shell: bash
         run: |
@@ -62,87 +69,92 @@ jobs:
             printf "%s" "azdocs-ci-disposable" | gnome-keyring-daemon --unlock --components=secrets
             cargo test --locked --test credential_store_test -- --ignored
           '
-      - name: Report Linux disk usage before cache cleanup
+      - name: "💽 Report Linux disk usage before cache cleanup"
         if: always() && runner.os == 'Linux'
         run: |
           df -h .
           if [ -d target ]; then du -sh target; fi
 
   desktop:
-    name: Desktop (${{ matrix.os }})
+    name: "🖥️ Desktop · ${{ matrix.os }}"
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - name: "📥 Check out source"
+        uses: actions/checkout@v7
+      - name: "🦀 Set up Rust"
+        uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
-      - uses: pnpm/action-setup@v4
+      - name: "📦 Set up pnpm"
+        uses: pnpm/action-setup@v4
         with:
           version: 10
-      - uses: actions/setup-node@v4
+      - name: "🟢 Set up Node.js"
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
           cache-dependency-path: desktop/pnpm-lock.yaml
-      - name: Install Tauri system dependencies
+      - name: "🐧 Install Tauri system dependencies"
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf xvfb
       # Both jobs use the workspace lockfile; each keeps its own build cache.
-      - uses: Swatinem/rust-cache@v2
+      - name: "⚡ Restore Rust cache"
+        uses: Swatinem/rust-cache@v2
         with:
           prefix-key: v1-rust-no-debuginfo
-      - name: Install frontend dependencies
+      - name: "📦 Install frontend dependencies"
         working-directory: desktop
         run: pnpm install --frozen-lockfile
-      - name: Lint frontend
+      - name: "🧹 Lint frontend"
         working-directory: desktop
         run: pnpm run lint
-      - name: Typecheck frontend
+      - name: "🔤 Typecheck frontend"
         working-directory: desktop
         run: pnpm run typecheck
-      - name: Test frontend
+      - name: "🧪 Test frontend"
         working-directory: desktop
         run: pnpm test
-      - name: Build frontend
+      - name: "🏗️ Build frontend"
         working-directory: desktop
         run: pnpm run build
-      - name: Clippy desktop backend
+      - name: "📎 Run Clippy on desktop backend"
         run: cargo clippy -p azdocs-desktop --all-targets --locked -- -D warnings
       # The topology invariant (drawn + folded + aggregated == total) is only
       # actually enforced if these run. They did not run until now.
       # This also regenerates desktop/src/generated.ts from the DTOs and
       # desktop/src/generated-labels.json from data/labels/en.toml.
-      - name: Test desktop backend
+      - name: "🧪 Test desktop backend"
         run: cargo test -p azdocs-desktop --locked
-      - name: Native screenshot smoke test (Linux)
+      - name: "📸 Native screenshot smoke test · Linux"
         if: runner.os == 'Linux'
         run: xvfb-run -a cargo run -p azdocs-desktop --locked --example website_capture_smoke
-      - name: Native screenshot smoke test (macOS / Windows)
+      - name: "📸 Native screenshot smoke test · macOS / Windows"
         if: runner.os != 'Linux'
         run: cargo run -p azdocs-desktop --locked --example website_capture_smoke
-      - name: Upload native capture evidence
+      - name: "🖼️ Upload native capture evidence"
         id: capture-evidence
         if: always()
         # Evidence retention must not skip contract checks when storage is full.
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: website-capture-${{ matrix.os }}
           path: output/website-smoke/
           retention-days: 7
-      - name: Report unavailable capture evidence
+      - name: "⚠️ Report unavailable capture evidence"
         if: always() && steps.capture-evidence.outcome == 'failure'
         shell: bash
         run: |
           echo "::warning::Native capture evidence could not be uploaded. Check artifact storage quota; smoke test results remain blocking."
           echo "Native capture evidence upload failed; see the upload step for details. Smoke test results remain blocking." >> "$GITHUB_STEP_SUMMARY"
-      - name: Check generated TypeScript is current
+      - name: "🔄 Check generated TypeScript is current"
         shell: bash
         run: |
           if ! git diff --exit-code -- desktop/src/generated.ts desktop/src/generated-labels.json; then
@@ -150,7 +162,7 @@ jobs:
             echo "Run 'cargo test -p azdocs-desktop' and commit the result."
             exit 1
           fi
-      - name: Report Linux disk usage before cache cleanup
+      - name: "💽 Report Linux disk usage before cache cleanup"
         if: always() && runner.os == 'Linux'
         run: |
           df -h .
