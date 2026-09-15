@@ -3,8 +3,10 @@
 The desktop combines a balanced Overview dashboard with focused evidence
 workspaces. IBM Plex Serif carries identity, Plex Sans does the work, and Plex
 Mono marks machine-shaped evidence. Paper surfaces and hairline rules frame
-the content in light mode; dark is a warm-charcoal **1:1 token remap** of the
-same composition. The tokens live in
+the content over a soft cool-grey-to-Azure atmosphere in light mode; dark is a
+charcoal-to-deep-Azure **1:1 token remap** of the same composition. This palette
+belongs to the desktop app only; PDF and DOCX continue to use the selected
+data-driven document theme. The tokens live in
 [`desktop/src/styles.css`](../../desktop/src/styles.css) — the only place a
 colour value is written down. [design.html](design.html) shows them as
 swatches, alongside the type scale and the brand marks; it is generated from
@@ -18,8 +20,9 @@ Three rules are non-negotiable, straight from review:
   "Fig. 3.1". Headings are names, not chapter numbers.
 - **Selection is a quiet evidence-tint fill** (`--evidence`) with ink text and
   weight — never a coloured bar or left-edge accent.
-- **Colour is reserved** for data (the category set) and signals (the
-  severity set). Chrome stays paper-and-ink.
+- **Ambient colour stays soft.** Cool grey/Azure washes can carry large chrome
+  and surface regions. Saturated colour is reserved for data (the category
+  set), signals (the severity set), focus and primary actions.
 
 ## Modes
 
@@ -39,7 +42,7 @@ shows the light and dark swatches without maintaining another palette here.
 | `--paper` | app ground |
 | `--surface` | raised panels, grids |
 | `--evidence` | JSON/mono blocks, selection fill |
-| `--ink` | headings, rules, primary button |
+| `--ink` | headings, high-contrast anchors, primary button |
 | `--body` | running text |
 | `--muted` | secondary text |
 | `--faint` | labels, captions |
@@ -50,6 +53,13 @@ shows the light and dark swatches without maintaining another palette here.
 | `--coral` | high severity, risk |
 | `--amber` | medium severity, warnings |
 | `--green` | healthy, resolved, complete |
+
+The solid tokens remain available wherever CSS or Cytoscape requires a colour.
+Four companion atmosphere tokens carry the soft gradients: `--ground-wash`
+is shared by the app canvas, masthead and status rail, with navigation left
+transparent over that canvas; `--surface-wash` serves controls and panels, and
+`--evidence-wash` selected evidence. `--action-wash` is the higher-contrast
+Azure gradient reserved for the primary action.
 
 ### Category / chart set
 
@@ -100,9 +110,10 @@ in [Fonts](themes.md#fonts). Serif Regular/SemiBold is bundled with the frontend
 
 ## Structure
 
-- **2px ink rule** anchors mastheads, stat strips and footers; **1px strong
-  hairline** for panel edges and column splits; **1px hairline** for rows.
-  Tone and rules build hierarchy before shadow does.
+- **2px ink rules** are reserved for stat strips and other high-value summary
+  anchors. The masthead, status rail and record headers use a **1px strong
+  hairline**; quieter section boundaries and column splits use a **1px
+  hairline**. Tone and spacing build hierarchy before rules or shadow do.
 - Spacing rhythm `4 · 8 · 12 · 20 · 32`; radii `3px` (controls and tag chips),
   `6px` (panels), and `999px` for the deliberately rounded summary capsule.
   Overview uses `12px` KPI and chart panels and a `14px` detail dialog; these
@@ -305,8 +316,9 @@ with Retry and Revert actions and an `aria-live` announcement.
 
 ## Components
 
-- **Primary button**: ink block, paper text — inverts with the mode.
-- **Quiet button**: surface fill, strong hairline border.
+- **Primary button**: deep-grey-to-Azure gradient with stable light text in
+  both modes.
+- **Quiet button**: soft surface wash, strong hairline border.
 - **Active tab**: 2px accent underline for evidence tabs. Settings area and
   panel navigation uses the quiet evidence fill, as described below.
 - **Tag chip**: mono on evidence fill; a **missing** required tag is a dashed
@@ -327,8 +339,12 @@ with Retry and Revert actions and an `aria-live` announcement.
 
 ## Settings layout
 
-Settings uses the Field Report tokens and a restrained tenant list beside a
-bounded editor. Top-level areas are Tenants, Shared defaults and Application.
+Settings uses the Field Report tokens and a restrained, softly bounded tenant
+list beside a matching editor surface. Top-level areas are Tenants, Shared
+defaults and Application, grouped into a compact tab control rather than a
+full-width page rule. Selected tabs and tenants use the evidence wash and a
+hairline boundary; inputs use the solid surface token so they stay distinct
+from the pale light-mode canvas without becoming heavy in dark mode.
 Tenant Connection, Collection & audit and Report branding are separate panels;
 selecting a tenant here changes the editor, while the masthead selector changes
 the active estate. Identity and credentials share columns when the tenant

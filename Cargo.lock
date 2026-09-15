@@ -403,7 +403,7 @@ checksum = "be5eb007b7cacc6c660343e96f650fedf4b5a77512399eb952ca6642cf8d13f7"
 
 [[package]]
 name = "azdocs"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -453,7 +453,7 @@ dependencies = [
 
 [[package]]
 name = "azdocs-desktop"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "azdocs",
  "base64 0.22.1",

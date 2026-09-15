@@ -31,10 +31,10 @@ TARGET = ROOT / "docs" / "reference" / "design.html"
 
 # (css custom property, name shown on the sheet, light role, dark role)
 PALETTE = [
-    ("paper", "paper", "app ground", "warm charcoal, not blue"),
+    ("paper", "paper", "cool-grey ground", "charcoal ground"),
     ("surface", "surface", "raised panels, grids", "raised panels, grids"),
     ("evidence", "evidence", "JSON blocks, selection fill", "JSON blocks, selection fill"),
-    ("ink", "ink", "headings, rules, primary button", "warm paper-toned text"),
+    ("ink", "ink", "headings and high-contrast anchors", "cool white headings and anchors"),
     ("body", "body", "running text", "running text"),
     ("muted", "muted", "secondary text", "secondary text"),
     ("line-strong", "hairline-strong", "panel borders", "panel borders"),
@@ -43,6 +43,13 @@ PALETTE = [
     ("coral", "coral", "high severity, risk", "high severity, risk"),
     ("amber", "amber", "medium severity, warnings", "medium severity, warnings"),
     ("green", "green", "healthy, resolved, complete", "healthy, resolved, complete"),
+]
+
+ATMOSPHERE = [
+    ("ground-wash", "app ground + chrome"),
+    ("surface-wash", "panels + controls"),
+    ("evidence-wash", "selected evidence"),
+    ("action-wash", "primary action"),
 ]
 
 # The fixed category order, mirroring `category_color()` in src/diagram/icons.rs.
@@ -151,6 +158,8 @@ def load_marks() -> dict[str, str]:
 
 def hexes(tokens: dict[str, str], mode: str) -> dict[str, str]:
     missing = [name for name, *_ in PALETTE if name not in tokens]
+    missing += [name for name, _ in ATMOSPHERE if name not in tokens]
+    missing += ["action-text"] if "action-text" not in tokens else []
     missing += [name for name, _ in CATEGORIES if name not in tokens and mode == "light"]
     if missing:
         raise SystemExit(
@@ -158,6 +167,16 @@ def hexes(tokens: dict[str, str], mode: str) -> dict[str, str]:
             "Add it, or drop it from build_design_sheet.py."
         )
     return tokens
+
+
+def atmosphere_tiles(light: dict[str, str], dark: dict[str, str], mode: str) -> str:
+    values = light if mode == "light" else {**light, **dark}
+    return "\n".join(
+        f'<div style="min-height: 54px; padding: 9px 11px; border: 1px solid {values["line-strong"]}; '
+        f'border-radius: 5px; background: {values[token]}; color: {values["ink"]}; display: flex; '
+        f'align-items: end"><span style="font-size: 11px; font-weight: 600">{label}</span></div>'
+        for token, label in ATMOSPHERE
+    )
 
 
 def swatch_rows(light: dict[str, str], dark: dict[str, str], mode: str) -> str:
@@ -284,7 +303,7 @@ def render() -> str:
   <header style="display: flex; align-items: baseline; gap: 18px; border-bottom: 2px solid {light['ink']}; padding-bottom: 14px; flex-wrap: wrap">
     <span class="serif" style="font-size: 26px; font-weight: 600; letter-spacing: -0.01em">azdocs · Design language</span>
     <span style="flex: 1"></span>
-    <span style="font-size: 12.5px; color: {light['muted']}">One language for the desktop app, the PDF and the DOCX — IBM Plex throughout, editorial structure, colour reserved for data and signals. Tokens: <span class="mono" style="font-size: 11px">desktop/src/styles.css</span> · prose: <a href="design.md">design.md</a></span>
+    <span style="font-size: 12.5px; color: {light['muted']}">Desktop-only cool-grey-to-Azure atmosphere — IBM Plex, editorial structure, saturated colour reserved for data, signals and actions. Tokens: <span class="mono" style="font-size: 11px">desktop/src/styles.css</span> · prose: <a href="design.md">design.md</a></span>
   </header>
 
   <div class="columns">
@@ -300,6 +319,18 @@ def render() -> str:
         <div class="dk" style="padding: 14px 18px; background: {merged_dark['paper']}">
           <div class="comp-label" style="margin-bottom: 8px; color: {merged_dark['faint']}">Dark · night reading</div>
 {swatch_rows(light, dark, "dark")}
+        </div>
+      </div>
+
+      <div>
+        <div class="comp-label" style="margin-bottom: 8px">Atmosphere · gradients carry large regions, never data values</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px">
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px">
+{atmosphere_tiles(light, dark, "light")}
+          </div>
+          <div class="dk" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; padding: 8px; margin: -8px; border-radius: 6px; background: {merged_dark['paper']}">
+{atmosphere_tiles(light, dark, "dark")}
+          </div>
         </div>
       </div>
 
@@ -344,9 +375,9 @@ def render() -> str:
       <div style="display: flex; align-items: baseline; gap: 12px; margin-top: 4px"><h2 class="sec-title">Structure</h2><span class="sec-note">rules over boxes, tone over shadow</span></div>
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; font-size: 12px; color: {light['body']}">
         <div>
-          <div style="border-top: 2px solid {light['ink']}; padding-top: 5px; margin-bottom: 8px">2px ink rule — anchors mastheads, stat strips, footers</div>
-          <div style="border-top: 1px solid {light['line-strong']}; padding-top: 5px; margin-bottom: 8px">1px strong hairline — panel edges, column splits</div>
-          <div style="border-top: 1px solid {light['line']}; padding-top: 5px">1px hairline — table rows, list separators</div>
+          <div style="border-top: 2px solid {light['ink']}; padding-top: 5px; margin-bottom: 8px">2px ink rule — reserved for high-value summary anchors</div>
+          <div style="border-top: 1px solid {light['line-strong']}; padding-top: 5px; margin-bottom: 8px">1px strong hairline — shell rails, record headers, panel edges</div>
+          <div style="border-top: 1px solid {light['line']}; padding-top: 5px">1px hairline — sections, table rows, list separators</div>
         </div>
         <div>
           <div style="margin-bottom: 6px">Spacing rhythm: <span class="mono">4 · 8 · 12 · 20 · 32 · 56</span> (56 = page margin)</div>
@@ -360,7 +391,7 @@ def render() -> str:
       <div style="display: flex; align-items: baseline; gap: 12px; margin-top: 4px"><h2 class="sec-title">Components</h2><span class="sec-note">same anatomy in both modes</span></div>
       <div style="border: 1px solid {light['line-strong']}; border-radius: 6px; overflow: hidden">
         <div style="padding: 12px 16px; background: {light['surface']}; display: flex; align-items: center; gap: 12px; flex-wrap: wrap">
-          <span style="font-size: 12px; font-weight: 600; color: {light['paper']}; background: {light['ink']}; padding: 7px 14px; border-radius: 3px">Primary action</span>
+          <span style="font-size: 12px; font-weight: 600; color: {light['action-text']}; background: {light['action-wash']}; padding: 7px 14px; border-radius: 3px">Primary action</span>
           <span style="font-size: 12px; font-weight: 600; color: {light['body']}; border: 1px solid {light['line-strong']}; padding: 6px 13px; border-radius: 3px">Quiet action</span>
           <span style="font-size: 12.5px; font-weight: 600; color: {light['accent']}; border-bottom: 2px solid {light['accent']}; padding-bottom: 4px">Active tab · 12</span>
           <span style="font-size: 12.5px; color: {light['muted']}; padding-bottom: 4px">Tab · 8</span>
@@ -369,7 +400,7 @@ def render() -> str:
           <span style="font-size: 12px; color: {light['body']}; border: 1px solid {light['line-strong']}; border-radius: 3px; padding: 6px 10px; background: {light['paper']}">Search evidence… <span class="mono" style="font-size: 11px; color: {light['faintest']}">⌘K</span></span>
         </div>
         <div style="padding: 12px 16px; background: {merged_dark['paper']}; display: flex; align-items: center; gap: 12px; flex-wrap: wrap">
-          <span style="font-size: 12px; font-weight: 600; color: {merged_dark['paper']}; background: {merged_dark['ink']}; padding: 7px 14px; border-radius: 3px">Primary action</span>
+          <span style="font-size: 12px; font-weight: 600; color: {merged_dark['action-text']}; background: {merged_dark['action-wash']}; padding: 7px 14px; border-radius: 3px">Primary action</span>
           <span style="font-size: 12px; font-weight: 600; color: {merged_dark['body']}; border: 1px solid {merged_dark['line-strong']}; padding: 6px 13px; border-radius: 3px">Quiet action</span>
           <span style="font-size: 12.5px; font-weight: 600; color: {merged_dark['accent']}; border-bottom: 2px solid {merged_dark['accent']}; padding-bottom: 4px">Active tab · 12</span>
           <span style="font-size: 12.5px; color: {merged_dark['muted']}; padding-bottom: 4px">Tab · 8</span>
@@ -378,7 +409,7 @@ def render() -> str:
           <span style="font-size: 12px; color: {merged_dark['body']}; border: 1px solid {merged_dark['line-strong']}; border-radius: 3px; padding: 6px 10px; background: {merged_dark['paper']}">Search evidence… <span class="mono" style="font-size: 11px; color: {merged_dark['faintest']}">⌘K</span></span>
         </div>
       </div>
-      <div class="sec-note">Summary capsules hold two to six short, read-only orientation facts in spare header or toolbar space. They wrap together, colour only signal values, and never replace controls, primary metrics, long evidence, tables, or ledgers. Theme is a tri-state in Settings — <span style="font-weight: 600">System</span> (default, follows the OS) · Light · Dark. The primary button inverts with the mode; category and severity colours are re-validated per surface, never auto-flipped. Selection anywhere is a quiet <span class="mono" style="font-size: 11px">--evidence</span> fill — never a coloured bar.</div>
+      <div class="sec-note">Summary capsules hold two to six short, read-only orientation facts in spare header or toolbar space. They wrap together, colour only signal values, and never replace controls, primary metrics, long evidence, tables, or ledgers. Theme is a tri-state in Settings — <span style="font-weight: 600">System</span> (default, follows the OS) · Light · Dark. The primary button keeps a higher-contrast Azure wash in both modes; category and severity colours are re-validated per surface, never auto-flipped. Selection anywhere is a quiet <span class="mono" style="font-size: 11px">--evidence</span> fill — never a coloured bar.</div>
     </div>
   </div>
 

@@ -84,9 +84,12 @@ local conventions does not need a fork. Adding Rust should be the exception.
 ## Design
 
 The desktop combines a balanced Overview dashboard with focused evidence
-workspaces. IBM Plex provides the type hierarchy, paper and ink frame the
-content, and colour identifies data and signals. Dashboard details lead to
-the exact stored results behind each measure. See [DESIGN.md](DESIGN.md).
+workspaces. IBM Plex provides the type hierarchy; soft cool-grey-to-Azure
+surfaces frame the content in light mode, with charcoal-to-deep-Azure surfaces
+in dark mode. Saturated colour identifies data, signals and primary actions.
+This atmosphere is desktop-only; document exports keep their selected report
+theme. Dashboard details lead to the exact stored results behind each measure.
+See [DESIGN.md](DESIGN.md).
 
 The product voice matches it: technical, calm, direct, evidence-led. Say what
 was collected and when; do not imply live state; do not decorate.

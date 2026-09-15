@@ -3,7 +3,9 @@
 The desktop app combines a balanced Overview dashboard with focused evidence
 workspaces. IBM Plex Serif carries identity, Plex Sans does the work, and Plex
 Mono marks machine-shaped evidence. Light mode is paper, ink and hairline
-rules; dark mode remaps the same composition to warm charcoal.
+rules over a soft cool-grey-to-Azure atmosphere; dark mode remaps the same
+composition from charcoal into deep Azure. This palette belongs to the desktop
+app only. PDF and DOCX themes remain the data-driven document themes.
 
 This file used to restate that in full. It doesn't any more — three copies of
 the same palette is how they drift.
@@ -27,8 +29,9 @@ python3 docs/reference/tools/build_design_sheet.py --check   # is it current?
 Stated here because they are the ones a plausible-looking change tends to
 undo. Everything else is in [`docs/reference/design.md`](docs/reference/design.md).
 
-- **Colour is for data and signals only** — the category set and the severity
-  set. Chrome is paper, ink and hairlines.
+- **Ambient colour stays soft** — cool grey/Azure washes may carry large chrome
+  and surface regions. Saturated colour is still reserved for the category and
+  severity sets, focus and primary actions.
 - **Selection is a quiet `--evidence` fill.** Never a coloured bar.
 - **No numbering chrome.** Figures get a caption, not a number.
 - **Nothing below 11px.**
