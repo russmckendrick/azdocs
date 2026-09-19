@@ -5,6 +5,7 @@ import type {
   EstateSnapshot,
   Finding,
   Resource,
+  SnapshotComparison,
 } from "../types";
 
 export function resourceMatchesDashboard(
@@ -150,8 +151,9 @@ export function dashboardHistory(
 export function dashboardComparison(
   bootstrap: AppBootstrap,
   estate: EstateSnapshot,
+  diff: SnapshotComparison | undefined,
 ) {
-  const diff = estate.previousDiff;
+  if (diff && diff.targetSnapshotId !== estate.id) return undefined;
   const base = bootstrap.snapshots.find(
     (snapshot) => snapshot.id === diff?.baseSnapshotId,
   );

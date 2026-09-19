@@ -1,14 +1,16 @@
 import type {
   AppBootstrap,
   Edge,
-  ExportRequest,
   EstateSnapshot,
+  ExportRequest,
   Finding,
   QueryDefMeta,
   QueryRows,
   Resource,
+  ResourceDetail,
   ResourceType,
   Severity,
+  SnapshotComparison,
 } from "./types";
 import { buildResourceGroupTopology } from "./components/topology-model";
 import { DEFAULT_LABELS } from "./labels";
@@ -104,14 +106,23 @@ function iconData(azureType: string) {
   );
 }
 
+/** The stored bags, keyed by id, the way `resource_detail` serves them. */
+export const mockResourceDetails: Record<string, ResourceDetail> = {};
+
 function resource(
   id: string,
   name: string,
   azureType: string,
   resourceGroup: string,
   subscriptionId: string,
-  options: Partial<Resource> = {},
+  options: Partial<Resource> & {
+    properties?: Record<string, unknown>;
+    sku?: unknown;
+    identity?: unknown;
+  } = {},
 ): Resource {
+  const { properties, sku, identity, ...rest } = options;
+  mockResourceDetails[id] = { id, properties, sku, identity };
   return {
     id,
     displayId: id,
@@ -126,8 +137,10 @@ function resource(
         : undefined,
     findingCount: 0,
     edgeCount: 0,
-    properties: {},
-    ...options,
+    hasProperties: properties !== undefined,
+    hasSku: sku !== undefined,
+    hasIdentity: identity !== undefined,
+    ...rest,
   };
 }
 
@@ -423,6 +436,7 @@ export const mockBootstrap: AppBootstrap = {
   ],
   activeTenantId: "11111111-1111-4111-8111-111111111111",
   configError: null,
+  appVersion: "0.1.1",
   labels: DEFAULT_LABELS,
   databasePath: "/Users/demo/Library/Application Support/azdocs/azdocs.db",
   configPath: "/Users/demo/Library/Application Support/azdocs/azdocs.toml",
@@ -589,6 +603,98 @@ export function mockQueryRows(queryName: string): QueryRows {
     })),
   };
 }
+
+/** The comparison the app fetches on demand once a snapshot is open. */
+export const mockComparison: SnapshotComparison = {
+    baseSnapshotId: "9d12c813-2026",
+    targetSnapshotId: "a7f21f53-2026",
+    added: [ids.privateEndpoint, ids.sql],
+    removed: [
+      "/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.compute/disks/old-test-disk",
+    ],
+    changed: [ids.web, ids.storage, ids.nsg],
+    fields: {
+      [ids.web]: [
+        { field: "properties", path: "httpsOnly", before: false, after: true },
+        { field: "tags", path: "owner", before: null, after: "platform" },
+      ],
+      [ids.storage]: [
+        {
+          field: "properties",
+          path: "minimumTlsVersion",
+          before: "TLS1_0",
+          after: "TLS1_2",
+        },
+      ],
+      [ids.nsg]: [
+        {
+          field: "properties",
+          path: "securityRules.0.properties.sourceAddressPrefix",
+          before: "*",
+          after: "10.0.0.0/8",
+        },
+      ],
+    },
+    findingsAdded: [
+      {
+        queryName: "storage_public_blob_access",
+        category: "storage",
+        severity: "high",
+        resourceId: ids.storage,
+        title: "Public blob access enabled",
+      },
+    ],
+    findingsResolved: [
+      {
+        queryName: "nsg_open_to_internet",
+        category: "networking",
+        severity: "high",
+        resourceId: ids.nsg,
+        title: "allow-all: rule permits Internet -> 3389",
+      },
+      {
+        queryName: "missing_required_tags",
+        category: "governance",
+        severity: "low",
+        resourceId: ids.web,
+        title: "Missing required tags: owner",
+      },
+    ],
+    edgesAdded: [
+      {
+        sourceId: ids.privateEndpoint,
+        targetId: ids.sql,
+        kind: "private_endpoint_for",
+      },
+    ],
+    edgesRemoved: [],
+    subscriptionsAdded: [],
+    subscriptionsRemoved: [],
+    resourceGroupsAdded: [],
+    resourceGroupsRemoved: [],
+    baseCounts: {
+      resources: 14,
+      findings: 5,
+      high: 2,
+      medium: 1,
+      low: 2,
+      info: 0,
+      edges: 11,
+      subscriptions: 2,
+      resourceGroups: 3,
+    },
+    targetCounts: {
+      resources: 15,
+      findings: 4,
+      high: 1,
+      medium: 1,
+      low: 2,
+      info: 0,
+      edges: 12,
+      subscriptions: 2,
+      resourceGroups: 3,
+    },
+  };
 
 export const mockEstate: EstateSnapshot = {
   id: "a7f21f53-2026",
@@ -757,96 +863,6 @@ export const mockEstate: EstateSnapshot = {
     },
   ],
   previousSnapshotId: "9d12c813-2026",
-  previousDiff: {
-    baseSnapshotId: "9d12c813-2026",
-    targetSnapshotId: "a7f21f53-2026",
-    added: [ids.privateEndpoint, ids.sql],
-    removed: [
-      "/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.compute/disks/old-test-disk",
-    ],
-    changed: [ids.web, ids.storage, ids.nsg],
-    fields: {
-      [ids.web]: [
-        { field: "properties", path: "httpsOnly", before: false, after: true },
-        { field: "tags", path: "owner", before: null, after: "platform" },
-      ],
-      [ids.storage]: [
-        {
-          field: "properties",
-          path: "minimumTlsVersion",
-          before: "TLS1_0",
-          after: "TLS1_2",
-        },
-      ],
-      [ids.nsg]: [
-        {
-          field: "properties",
-          path: "securityRules.0.properties.sourceAddressPrefix",
-          before: "*",
-          after: "10.0.0.0/8",
-        },
-      ],
-    },
-    findingsAdded: [
-      {
-        queryName: "storage_public_blob_access",
-        category: "storage",
-        severity: "high",
-        resourceId: ids.storage,
-        title: "Public blob access enabled",
-      },
-    ],
-    findingsResolved: [
-      {
-        queryName: "nsg_open_to_internet",
-        category: "networking",
-        severity: "high",
-        resourceId: ids.nsg,
-        title: "allow-all: rule permits Internet -> 3389",
-      },
-      {
-        queryName: "missing_required_tags",
-        category: "governance",
-        severity: "low",
-        resourceId: ids.web,
-        title: "Missing required tags: owner",
-      },
-    ],
-    edgesAdded: [
-      {
-        sourceId: ids.privateEndpoint,
-        targetId: ids.sql,
-        kind: "private_endpoint_for",
-      },
-    ],
-    edgesRemoved: [],
-    subscriptionsAdded: [],
-    subscriptionsRemoved: [],
-    resourceGroupsAdded: [],
-    resourceGroupsRemoved: [],
-    baseCounts: {
-      resources: 14,
-      findings: 5,
-      high: 2,
-      medium: 1,
-      low: 2,
-      info: 0,
-      edges: 11,
-      subscriptions: 2,
-      resourceGroups: 3,
-    },
-    targetCounts: {
-      resources: 15,
-      findings: 4,
-      high: 1,
-      medium: 1,
-      low: 2,
-      info: 0,
-      edges: 12,
-      subscriptions: 2,
-      resourceGroups: 3,
-    },
-  },
   trend: [
     {
       snapshotId: "7b42e150-2026",

@@ -22,6 +22,8 @@ pub struct AppBootstrap {
     pub required_tags: Vec<String>,
     pub snapshots: Vec<SnapshotSummary>,
     pub latest_snapshot_id: Option<String>,
+    /// The running app's version, for the About panel and the status bar.
+    pub app_version: String,
     /// Every word the frontend shows, already resolved against the user's
     /// overrides. Typed in TypeScript from `generated-labels.json`.
     #[ts(type = "Labels")]
@@ -106,9 +108,10 @@ pub struct EstateSnapshot {
     pub query_runs: Vec<QueryRunDto>,
     /// Already interpreted and labelled in Rust; the frontend only renders cells.
     pub evidence_summaries: Vec<EvidenceTableDto>,
-    /// The usable snapshot this one is compared against; None for the earliest.
+    /// The usable snapshot this one is compared against; None for the
+    /// earliest. The comparison itself is fetched on demand with
+    /// `compare_snapshots`, so opening a snapshot never waits on a diff.
     pub previous_snapshot_id: Option<String>,
-    pub previous_diff: Option<SnapshotComparison>,
     /// Usable snapshots of this tenant up to this one, oldest first.
     pub trend: Vec<TrendPointDto>,
 }
@@ -396,14 +399,38 @@ pub struct ResourceDto {
     pub subscription_id: String,
     #[ts(optional = nullable, type = "Record<string, unknown>")]
     pub tags: Option<Value>,
+    /// The heavy bags stay in SQLite until a record is opened
+    /// (`resource_detail`); these say whether there is anything to fetch.
+    pub has_sku: bool,
+    pub has_identity: bool,
+    pub has_properties: bool,
+    pub finding_count: usize,
+    pub edge_count: usize,
+}
+
+/// The stored bags of one resource, loaded when its record is opened.
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename = "ResourceDetail", optional_fields = nullable)]
+pub struct ResourceDetailDto {
+    pub id: String,
     #[ts(optional = nullable, type = "unknown")]
     pub sku: Option<Value>,
     #[ts(optional = nullable, type = "unknown")]
     pub identity: Option<Value>,
     #[ts(optional = nullable, type = "Record<string, unknown>")]
     pub properties: Option<Value>,
-    pub finding_count: usize,
-    pub edge_count: usize,
+}
+
+impl From<Resource> for ResourceDetailDto {
+    fn from(value: Resource) -> Self {
+        Self {
+            id: value.id,
+            sku: value.sku,
+            identity: value.identity,
+            properties: value.properties,
+        }
+    }
 }
 
 impl ResourceDto {
@@ -424,9 +451,9 @@ impl ResourceDto {
             resource_group: value.resource_group,
             subscription_id: value.subscription_id,
             tags: value.tags,
-            sku: value.sku,
-            identity: value.identity,
-            properties: value.properties,
+            has_sku: value.sku.is_some(),
+            has_identity: value.identity.is_some(),
+            has_properties: value.properties.as_ref().is_some_and(|bag| !bag.is_null()),
             finding_count,
             edge_count,
         }
@@ -744,7 +771,6 @@ impl EstateSnapshot {
         edges: Vec<Edge>,
         query_runs: Vec<QueryRun>,
         previous_snapshot_id: Option<String>,
-        previous_diff: Option<SnapshotComparison>,
         scope_name: &str,
     ) -> Self {
         let mut finding_counts = BTreeMap::new();
@@ -862,7 +888,6 @@ impl EstateSnapshot {
             query_runs: query_runs.into_iter().map(Into::into).collect(),
             evidence_summaries: Vec::new(),
             previous_snapshot_id,
-            previous_diff,
             trend: context.trend.iter().cloned().map(Into::into).collect(),
         }
     }

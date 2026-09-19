@@ -188,6 +188,10 @@ export type AccessIssueKind = "identity_unavailable" | "no_subscriptions" | "ass
 
 export type AppBootstrap = { tenants: Array<TenantSummary>, activeTenantId?: string | null, configError?: string | null, databasePath: string, configPath: string, configFound: boolean, hasCredentials: boolean, requiredTags: Array<string>, snapshots: Array<SnapshotSummary>, latestSnapshotId?: string | null,
 /**
+ * The running app's version, for the About panel and the status bar.
+ */
+appVersion: string,
+/**
  * Every word the frontend shows, already resolved against the user's
  * overrides. Typed in TypeScript from `generated-labels.json`.
  */
@@ -229,9 +233,11 @@ resourceGroupSummaries: Array<ResourceGroupSummary>, resources: Array<Resource>,
  */
 evidenceSummaries: Array<EvidenceTable>,
 /**
- * The usable snapshot this one is compared against; None for the earliest.
+ * The usable snapshot this one is compared against; None for the
+ * earliest. The comparison itself is fetched on demand with
+ * `compare_snapshots`, so opening a snapshot never waits on a diff.
  */
-previousSnapshotId?: string | null, previousDiff?: SnapshotComparison | null,
+previousSnapshotId?: string | null,
 /**
  * Usable snapshots of this tenant up to this one, oldest first.
  */
@@ -315,7 +321,14 @@ subscriptionName: string, resourceCount: number, findingCount: number,
  */
 resourceIds: Array<string>, };
 
-export type Resource = { id: string, displayId: string, name: string, azureType: string, kind?: string | null, location?: string | null, resourceGroup?: string | null, subscriptionId: string, tags?: Record<string, unknown>, sku?: unknown, identity?: unknown, properties?: Record<string, unknown>, findingCount: number, edgeCount: number, };
+export type Resource = { id: string, displayId: string, name: string, azureType: string, kind?: string | null, location?: string | null, resourceGroup?: string | null, subscriptionId: string, tags?: Record<string, unknown>,
+/**
+ * The heavy bags stay in SQLite until a record is opened
+ * (`resource_detail`); these say whether there is anything to fetch.
+ */
+hasSku: boolean, hasIdentity: boolean, hasProperties: boolean, findingCount: number, edgeCount: number, };
+
+export type ResourceDetail = { id: string, sku?: unknown, identity?: unknown, properties?: Record<string, unknown>, };
 
 export type ResourceType = { azureType: string, displayName: string, count: number, icon: string, color: string, };
 

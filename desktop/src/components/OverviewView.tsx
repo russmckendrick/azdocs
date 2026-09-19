@@ -21,6 +21,7 @@ import type {
   DashboardDestination,
   DashboardFilter,
   EstateSnapshot,
+  SnapshotComparison,
   SnapshotSummary,
 } from "../types";
 import {
@@ -291,6 +292,7 @@ export function HistoryChart({
 export function OverviewView({
   bootstrap,
   estate,
+  comparison: previousComparison,
   onOpenResults,
   onOpenResource,
   onOpenRelationships,
@@ -298,6 +300,8 @@ export function OverviewView({
 }: {
   bootstrap: AppBootstrap;
   estate: EstateSnapshot;
+  /** Fetched by the shell after the snapshot paints; undefined until then. */
+  comparison?: SnapshotComparison;
   onOpenResults: (destination: DashboardDestination) => void;
   onOpenResource: (id: string) => void;
   onOpenRelationships: (id: string) => void;
@@ -320,7 +324,7 @@ export function OverviewView({
     [bootstrap, estate, days],
   );
   const coverage = useMemo(() => queryCoverage(estate), [estate]);
-  const comparison = dashboardComparison(bootstrap, estate);
+  const comparison = dashboardComparison(bootstrap, estate, previousComparison);
   const scope = subscriptionId ? { subscriptionId } : {};
   const scopeName =
     estate.subscriptions.find(
@@ -748,6 +752,7 @@ export function OverviewView({
         <DashboardModal
           selection={selection}
           estate={estate}
+          comparison={comparison?.diff}
           onClose={() => setSelection(undefined)}
           onOpenResults={onOpenResults}
           onOpenResource={onOpenResource}

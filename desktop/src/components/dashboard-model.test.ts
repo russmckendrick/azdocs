@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mockBootstrap, mockEstate } from "../mock-data";
+import { mockBootstrap, mockComparison, mockEstate } from "../mock-data";
 import {
   dashboardComparison,
   dashboardData,
@@ -141,7 +141,11 @@ describe("dashboard evidence", () => {
   });
   it("suppresses comparisons involving incomplete or foreign-tenant snapshots", () => {
     expect(
-      dashboardComparison(mockBootstrap, { ...mockEstate, status: "partial" }),
+      dashboardComparison(
+        mockBootstrap,
+        { ...mockEstate, status: "partial" },
+        mockComparison,
+      ),
     ).toBeUndefined();
     const bootstrap = {
       ...mockBootstrap,
@@ -150,7 +154,15 @@ describe("dashboard evidence", () => {
         tenantId: "another",
       })),
     };
-    expect(dashboardComparison(bootstrap, mockEstate)).toBeUndefined();
+    expect(
+      dashboardComparison(bootstrap, mockEstate, mockComparison),
+    ).toBeUndefined();
+    expect(
+      dashboardComparison(mockBootstrap, mockEstate, mockComparison)?.diff,
+    ).toBe(mockComparison);
+    expect(
+      dashboardComparison(mockBootstrap, mockEstate, undefined),
+    ).toBeUndefined();
   });
 });
 

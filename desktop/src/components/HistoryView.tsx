@@ -12,13 +12,13 @@ import { DatabaseStamp, ViewHeading } from "./view-chrome";
 
 
 
-export function HistoryView({ bootstrap, estate, onLoadSnapshot, dashboardFilter, onOpenResource }: { bootstrap: AppBootstrap; estate: EstateSnapshot; onLoadSnapshot: (id: string) => void; dashboardFilter?: DashboardFilter; onOpenResource: (id: string) => void }) {
+export function HistoryView({ bootstrap, estate, previousComparison, onLoadSnapshot, dashboardFilter, onOpenResource }: { bootstrap: AppBootstrap; estate: EstateSnapshot; previousComparison?: SnapshotComparison; onLoadSnapshot: (id: string) => void; dashboardFilter?: DashboardFilter; onOpenResource: (id: string) => void }) {
   const older = useMemo(
     () => bootstrap.snapshots.filter((snapshot) => snapshot.id !== estate.id),
     [bootstrap.snapshots, estate.id],
   );
   const [baseId, setBaseId] = useState<string>();
-  const [comparison, setComparison] = useState<SnapshotComparison | undefined>(estate.previousDiff ?? undefined);
+  const [comparison, setComparison] = useState<SnapshotComparison | undefined>(previousComparison);
   const [comparing, setComparing] = useState(false);
   const resourceById = useMemo(
     () => new Map(estate.resources.map((resource) => [resource.id, resource])),
@@ -26,12 +26,12 @@ export function HistoryView({ bootstrap, estate, onLoadSnapshot, dashboardFilter
   );
   const { common, desktop: { history: words } } = useLabels();
 
-  const activeBase = baseId ?? estate.previousDiff?.baseSnapshotId;
+  const activeBase = baseId ?? previousComparison?.baseSnapshotId;
 
   useEffect(() => {
     setBaseId(undefined);
-    setComparison(estate.previousDiff ?? undefined);
-  }, [estate.id, estate.previousDiff]);
+    setComparison(previousComparison);
+  }, [estate.id, previousComparison]);
 
   useEffect(() => {
     if (!baseId) return;

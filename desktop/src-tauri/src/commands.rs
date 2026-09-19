@@ -15,12 +15,27 @@ use tauri::ipc::Channel;
 use crate::AppState;
 use crate::dto::{
     AppBootstrap, CollectRequestDto, CollectResultDto, CollectionEvent, EstateSnapshot,
-    ExportEvent, ExportRequestDto, ExportResultDto, QueryDefDto, QueryRowsDto, SnapshotComparison,
-    SnapshotSummary,
+    ExportEvent, ExportRequestDto, ExportResultDto, QueryDefDto, QueryRowsDto, ResourceDetailDto,
+    SnapshotComparison, SnapshotSummary,
 };
 use crate::error::AppError;
 use crate::labels::AppLabels;
+use crate::settings::Session;
 use crate::topology::{self, TopologyGraphDto, TopologyRequest};
+
+/// Runs a store read on a blocking thread so the webview never waits on
+/// SQLite. Every read command takes a clone of the session, opens its own
+/// read-only store there, and returns the DTO; a 300-resource estate was
+/// freezing the window for the length of `load_snapshot` before this.
+pub(crate) async fn blocking<T, F>(session: Session, work: F) -> Result<T, AppError>
+where
+    T: Send + 'static,
+    F: FnOnce(Session) -> Result<T, AppError> + Send + 'static,
+{
+    tauri::async_runtime::spawn_blocking(move || work(session))
+        .await
+        .map_err(|error| AppError::State(error.to_string()))?
+}
 
 pub(crate) fn database_path(state: &State<'_, AppState>) -> Result<PathBuf, AppError> {
     Ok(crate::settings::session(state)?.database_path)
@@ -30,7 +45,10 @@ pub(crate) fn database_path(state: &State<'_, AppState>) -> Result<PathBuf, AppE
 /// stored evidence and must never migrate or rewrite the database. Only the
 /// start-up open, `open_database` and collection open it for writing.
 pub(crate) fn open_store(state: &State<'_, AppState>) -> Result<Store, AppError> {
-    let session = crate::settings::session(state)?;
+    open_store_for(&crate::settings::session(state)?)
+}
+
+pub(crate) fn open_store_for(session: &Session) -> Result<Store, AppError> {
     Ok(Store::open_read_only(&session.database_path)?.with_tenant(session.tenant_id.as_deref()))
 }
 
@@ -129,6 +147,7 @@ pub(crate) fn bootstrap_for(session: &crate::settings::Session) -> Result<AppBoo
         required_tags: config.map(|c| c.audit.required_tags).unwrap_or_default(),
         snapshots,
         latest_snapshot_id,
+        app_version: env!("CARGO_PKG_VERSION").to_owned(),
         labels: (*session.labels).clone(),
     })
 }
@@ -152,19 +171,41 @@ pub fn query_pack_metadata() -> Result<Vec<QueryDefDto>, AppError> {
 }
 
 #[tauri::command]
-pub fn query_rows(
+pub async fn query_rows(
     snapshot_id: Option<String>,
     query_name: String,
     state: State<'_, AppState>,
 ) -> Result<QueryRowsDto, AppError> {
-    let store = open_store(&state)?;
-    let snapshot_id = store.resolve_snapshot(snapshot_id.as_deref().unwrap_or("latest"))?;
-    let rows = store.query_results(&snapshot_id, &query_name)?;
-    Ok(QueryRowsDto {
-        query_name,
-        columns: azdocs::model::rows::columns(&rows),
-        rows,
+    let session = crate::settings::session(&state)?;
+    blocking(session, move |session| {
+        let store = open_store_for(&session)?;
+        let snapshot_id = store.resolve_snapshot(snapshot_id.as_deref().unwrap_or("latest"))?;
+        let rows = store.query_results(&snapshot_id, &query_name)?;
+        Ok(QueryRowsDto {
+            query_name,
+            columns: azdocs::model::rows::columns(&rows),
+            rows,
+        })
     })
+    .await
+}
+
+/// The stored bags of one resource, read when its record is opened.
+#[tauri::command]
+pub async fn resource_detail(
+    snapshot_id: String,
+    resource_id: String,
+    state: State<'_, AppState>,
+) -> Result<Option<ResourceDetailDto>, AppError> {
+    let session = crate::settings::session(&state)?;
+    blocking(session, move |session| {
+        let store = open_store_for(&session)?;
+        let snapshot_id = store.resolve_snapshot(&snapshot_id)?;
+        Ok(store
+            .resource(&snapshot_id, &resource_id)?
+            .map(ResourceDetailDto::from))
+    })
+    .await
 }
 
 #[tauri::command]
@@ -208,89 +249,210 @@ fn comparison(
 }
 
 #[tauri::command]
-pub fn compare_snapshots(
+pub async fn compare_snapshots(
     base_snapshot_id: String,
     target_snapshot_id: String,
     state: State<'_, AppState>,
 ) -> Result<SnapshotComparison, AppError> {
-    let store = open_store(&state)?;
-    comparison(&store, base_snapshot_id, target_snapshot_id)
+    let session = crate::settings::session(&state)?;
+    blocking(session, move |session| {
+        let store = open_store_for(&session)?;
+        comparison(&store, base_snapshot_id, target_snapshot_id)
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn load_snapshot(
+pub async fn load_snapshot(
     snapshot_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<EstateSnapshot, AppError> {
-    let store = open_store(&state)?;
-    let snapshot_id = store.resolve_snapshot(snapshot_id.as_deref().unwrap_or("latest"))?;
-    let context = ReportContext::build_for_desktop(&store, &snapshot_id)?;
-    let subscriptions = store.subscriptions(&snapshot_id)?;
-    let resource_groups = store.resource_groups(&snapshot_id)?;
-    let resources = store.resources(&snapshot_id)?;
-    let findings = store.findings(&snapshot_id)?;
-    let edges = store.edges(&snapshot_id)?;
-    let query_runs = store.query_runs(&snapshot_id)?;
+    let session = crate::settings::session(&state)?;
+    blocking(session, move |session| {
+        let store = open_store_for(&session)?;
+        let snapshot_id = store.resolve_snapshot(snapshot_id.as_deref().unwrap_or("latest"))?;
+        let context = ReportContext::build_for_desktop(&store, &snapshot_id)?;
+        let subscriptions = store.subscriptions(&snapshot_id)?;
+        let resource_groups = store.resource_groups(&snapshot_id)?;
+        let resources = store.resources(&snapshot_id)?;
+        let findings = store.findings(&snapshot_id)?;
+        let edges = store.edges(&snapshot_id)?;
+        let query_runs = store.query_runs(&snapshot_id)?;
 
-    // The baseline is the previous *usable* snapshot; a failed or running
-    // neighbour would make the whole estate look newly added.
-    let previous_snapshot_id = store.previous_snapshot(&snapshot_id)?.map(|s| s.id);
-    let previous_diff = context.changes.clone().map(SnapshotComparison::from);
+        // The baseline is the previous *usable* snapshot; a failed or running
+        // neighbour would make the whole estate look newly added. Only its id
+        // travels here; the frontend asks for the comparison after first paint.
+        let previous_snapshot_id = store.previous_snapshot(&snapshot_id)?.map(|s| s.id);
 
-    let evidence_summaries = context
-        .posture
-        .tables_with_words(&crate::settings::session(&state)?.labels.posture)
-        .into_iter()
-        .map(Into::into)
-        .collect();
-    let mut estate = EstateSnapshot::build(
-        context,
-        subscriptions,
-        resource_groups,
-        resources,
-        findings,
-        edges,
-        query_runs,
-        previous_snapshot_id,
-        previous_diff,
-        &crate::settings::session(&state)?
-            .labels
-            .common
-            .subscription_scope,
-    );
-    estate.evidence_summaries = evidence_summaries;
-    Ok(estate)
+        let evidence_summaries = context
+            .posture
+            .tables_with_words(&session.labels.posture)
+            .into_iter()
+            .map(Into::into)
+            .collect();
+        let mut estate = EstateSnapshot::build(
+            context,
+            subscriptions,
+            resource_groups,
+            resources,
+            findings,
+            edges,
+            query_runs,
+            previous_snapshot_id,
+            &session.labels.common.subscription_scope,
+        );
+        estate.evidence_summaries = evidence_summaries;
+        Ok(estate)
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn topology_graph(
+pub async fn topology_graph(
     request: TopologyRequest,
     state: State<'_, AppState>,
 ) -> Result<TopologyGraphDto, AppError> {
-    let store = open_store(&state)?;
-    let snapshot_id = store.resolve_snapshot(request.snapshot_id.as_deref().unwrap_or("latest"))?;
-    let subscriptions = store.subscriptions(&snapshot_id)?;
-    let resource_groups = store.resource_groups(&snapshot_id)?;
-    let resources = store.resources(&snapshot_id)?;
-    let edges = store.edges(&snapshot_id)?;
-    let findings = store.findings(&snapshot_id)?;
-    let mut finding_counts = std::collections::BTreeMap::new();
-    for finding in &findings {
-        if let Some(resource_id) = &finding.resource_id {
-            *finding_counts.entry(resource_id.clone()).or_insert(0) += 1;
+    let session = crate::settings::session(&state)?;
+    blocking(session, move |session| {
+        let store = open_store_for(&session)?;
+        let snapshot_id =
+            store.resolve_snapshot(request.snapshot_id.as_deref().unwrap_or("latest"))?;
+        let subscriptions = store.subscriptions(&snapshot_id)?;
+        let resource_groups = store.resource_groups(&snapshot_id)?;
+        let resources = store.resources(&snapshot_id)?;
+        let edges = store.edges(&snapshot_id)?;
+        let findings = store.findings(&snapshot_id)?;
+        let mut finding_counts = std::collections::BTreeMap::new();
+        for finding in &findings {
+            if let Some(resource_id) = &finding.resource_id {
+                *finding_counts.entry(resource_id.clone()).or_insert(0) += 1;
+            }
         }
+        Ok(topology::build(
+            &request,
+            &topology::TopologyInput {
+                subscriptions: &subscriptions,
+                resource_groups: &resource_groups,
+                resources: &resources,
+                edges: &edges,
+                finding_counts: &finding_counts,
+                labels: &session.labels,
+            },
+        ))
+    })
+    .await
+}
+
+/// Puts text on the system clipboard (an ARM id, a set of finding ids).
+#[tauri::command]
+pub fn copy_text(app: tauri::AppHandle, text: String) -> Result<(), AppError> {
+    use tauri_plugin_clipboard_manager::ClipboardExt as _;
+    app.clipboard()
+        .write_text(text)
+        .map_err(|error| AppError::State(error.to_string()))
+}
+
+/// Saves text the frontend composed (a findings CSV) where the user
+/// chooses; the same native picker `save_website_image` uses.
+#[tauri::command]
+pub async fn save_text_file(
+    app: tauri::AppHandle,
+    suggested_name: String,
+    contents: String,
+    state: State<'_, AppState>,
+) -> Result<bool, AppError> {
+    use tauri_plugin_dialog::DialogExt as _;
+    let title = crate::settings::session(&state)?
+        .labels
+        .desktop
+        .dialogs
+        .save_file_title
+        .clone();
+    let extension = std::path::Path::new(&suggested_name)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("txt")
+        .to_owned();
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog()
+        .file()
+        .set_title(title)
+        .set_file_name(&suggested_name)
+        .add_filter(extension.to_ascii_uppercase(), &[extension.as_str()])
+        .save_file(move |path| {
+            let _ = tx.send(path);
+        });
+    let Some(path) = rx.await.map_err(|e| AppError::State(e.to_string()))? else {
+        return Ok(false);
+    };
+    let path = path
+        .into_path()
+        .map_err(|e| AppError::State(e.to_string()))?;
+    std::fs::write(path, contents).map_err(|e| AppError::State(e.to_string()))?;
+    Ok(true)
+}
+
+/// Only paths under a destination this session exported to may be opened
+/// or revealed: the frontend names paths, but the backend decides which
+/// ones are its own outputs rather than arbitrary files on the machine.
+fn exported_path(state: &State<'_, AppState>, path: &str) -> Result<PathBuf, AppError> {
+    let path = PathBuf::from(path);
+    let roots = state
+        .export_roots
+        .lock()
+        .map_err(|e| AppError::State(e.to_string()))?;
+    if roots.iter().any(|root| path.starts_with(root)) && path.exists() {
+        Ok(path)
+    } else {
+        Err(AppError::Export(format!(
+            "{} is not an export of this session",
+            path.display()
+        )))
     }
-    Ok(topology::build(
-        &request,
-        &topology::TopologyInput {
-            subscriptions: &subscriptions,
-            resource_groups: &resource_groups,
-            resources: &resources,
-            edges: &edges,
-            finding_counts: &finding_counts,
-            labels: &crate::settings::session(&state)?.labels,
-        },
-    ))
+}
+
+/// Shows an exported file in the platform file manager.
+#[tauri::command]
+pub fn reveal_export_path(
+    app: tauri::AppHandle,
+    path: String,
+    state: State<'_, AppState>,
+) -> Result<(), AppError> {
+    use tauri_plugin_opener::OpenerExt as _;
+    let path = exported_path(&state, &path)?;
+    app.opener()
+        .reveal_item_in_dir(path)
+        .map_err(|error| AppError::Export(error.to_string()))
+}
+
+/// Opens an export destination folder in the platform file manager.
+#[tauri::command]
+pub fn open_export_folder(
+    app: tauri::AppHandle,
+    path: String,
+    state: State<'_, AppState>,
+) -> Result<(), AppError> {
+    use tauri_plugin_opener::OpenerExt as _;
+    let path = exported_path(&state, &path)?;
+    let folder = if path.is_dir() {
+        path
+    } else {
+        path.parent().map(Path::to_path_buf).unwrap_or(path)
+    };
+    app.opener()
+        .open_path(folder.display().to_string(), None::<&str>)
+        .map_err(|error| AppError::Export(error.to_string()))
+}
+
+/// The one external link the app opens: its own documentation.
+pub const DOCS_URL: &str = "https://github.com/russmckendrick/azdocs/tree/main/docs";
+
+#[tauri::command]
+pub fn open_docs(app: tauri::AppHandle) -> Result<(), AppError> {
+    use tauri_plugin_opener::OpenerExt as _;
+    app.opener()
+        .open_url(DOCS_URL, None::<&str>)
+        .map_err(|error| AppError::Export(error.to_string()))
 }
 
 #[tauri::command]
@@ -747,6 +909,13 @@ pub async fn export_snapshot(
     let lease = state.exports.begin()?;
     let cancel_flag = lease.flag();
     let session = crate::settings::session(&state)?;
+    if !request.destination.trim().is_empty() {
+        state
+            .export_roots
+            .lock()
+            .map_err(|e| AppError::State(e.to_string()))?
+            .insert(PathBuf::from(&request.destination));
+    }
     let database = session.database_path.clone();
     let labels = Arc::clone(&session.labels);
     let document = session.document().or_else(|_| {

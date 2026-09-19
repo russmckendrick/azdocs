@@ -11,6 +11,7 @@ import type {
   DashboardDestination,
   DashboardFilter,
   EstateSnapshot,
+  SnapshotComparison,
   SnapshotSummary,
 } from "../types";
 import { fill, plural, resourceName, spaced } from "../format";
@@ -40,6 +41,7 @@ export interface DashboardSelection {
 export function DashboardModal({
   selection,
   estate,
+  comparison,
   onClose,
   onOpenResults,
   onOpenResource,
@@ -48,6 +50,7 @@ export function DashboardModal({
 }: {
   selection: DashboardSelection;
   estate: EstateSnapshot;
+  comparison?: SnapshotComparison;
   onClose: () => void;
   onOpenResults: (destination: DashboardDestination) => void;
   onOpenResource: (id: string) => void;
@@ -253,7 +256,7 @@ export function DashboardModal({
     actionLabel = d.all_queries;
   } else if (kind === "changes") {
     note = d.changes_note;
-    rows = (estate.previousDiff?.[filter.changeKind ?? "changed"] ?? []).map(
+    rows = (comparison?.[filter.changeKind ?? "changed"] ?? []).map(
       (id) => resourceRow(id),
     );
     action = () => open("history");

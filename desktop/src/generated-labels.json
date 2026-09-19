@@ -256,6 +256,7 @@
       "open_database_title": "Open an azdocs SQLite database",
       "sqlite_filter": "SQLite database",
       "export_directory_title": "Choose an export directory",
+      "save_file_title": "Save file",
       "preview_collecting": "Running read-only Azure queries",
       "preview_exporting": "Composing offline export preview",
       "collect_notes": "Collected from azdocs desktop"
@@ -844,6 +845,7 @@
       "properties_title": "Resource properties",
       "properties_detail": "Stored fields and collections from Azure Resource Graph.",
       "properties": "Properties",
+      "loading_properties": "Reading stored properties…",
       "sku": "SKU",
       "identity": "Managed identity",
       "relationships_title": "Relationships",

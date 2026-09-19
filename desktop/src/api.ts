@@ -10,6 +10,7 @@ import type {
   EstateSnapshot,
   QueryDefMeta,
   QueryRows,
+  ResourceDetail,
   SnapshotComparison,
   TopologyGraph,
   TopologyRequest,
@@ -118,7 +119,55 @@ export async function compareSnapshots(
     });
   }
   await pause();
-  return (await import("./mock-data")).mockEstate.previousDiff!;
+  return (await import("./mock-data")).mockComparison;
+}
+
+/** The stored bags of one resource, read when its record opens. */
+export async function getResourceDetail(
+  snapshotId: string,
+  resourceId: string,
+): Promise<ResourceDetail | null> {
+  if (!PREVIEW || isTauri)
+    return invoke<ResourceDetail | null>("resource_detail", {
+      snapshotId,
+      resourceId,
+    });
+  await pause(120);
+  return (await import("./mock-data")).mockResourceDetails[resourceId] ?? null;
+}
+
+export async function copyText(text: string): Promise<void> {
+  if (!PREVIEW || isTauri) return invoke("copy_text", { text });
+  await navigator.clipboard?.writeText(text);
+}
+
+/** Saves text through the native picker; false when the user cancelled. */
+export async function saveTextFile(
+  suggestedName: string,
+  contents: string,
+): Promise<boolean> {
+  if (!PREVIEW || isTauri)
+    return invoke<boolean>("save_text_file", { suggestedName, contents });
+  const url = URL.createObjectURL(new Blob([contents], { type: "text/plain" }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = suggestedName;
+  anchor.click();
+  URL.revokeObjectURL(url);
+  return true;
+}
+
+export async function revealExportPath(path: string): Promise<void> {
+  if (!PREVIEW || isTauri) return invoke("reveal_export_path", { path });
+}
+
+export async function openExportFolder(path: string): Promise<void> {
+  if (!PREVIEW || isTauri) return invoke("open_export_folder", { path });
+}
+
+export async function openDocs(): Promise<void> {
+  if (!PREVIEW || isTauri) return invoke("open_docs");
+  window.open("https://github.com/russmckendrick/azdocs/tree/main/docs", "_blank");
 }
 
 export async function collectEstate(

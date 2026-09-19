@@ -1,5 +1,5 @@
 import { WebsiteScreenshots } from "./WebsiteScreenshots";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -10,9 +10,10 @@ import {
 } from "lucide-react";
 import { resourceIcon } from "../azure-icons";
 import { displayKind, displayLocation } from "../azure-values";
-import type { EstateSnapshot, Resource, ResourceType } from "../types";
+import type { EstateSnapshot, Resource, ResourceDetail, ResourceType } from "../types";
+import { getResourceDetail } from "../api";
 import { AdaptiveDataView, describeStoredValue, hasStoredValue } from "./AdaptiveDataView";
-import { plural, resourceName, spaced } from "../format";
+import { errorMessage, plural, resourceName, spaced } from "../format";
 import { useLabels } from "../labels";
 import { EmptyState } from "./view-chrome";
 import { useEscapeKey, useResourceTypeMap } from "../estate-lookups";
@@ -43,6 +44,29 @@ export function ResourceDetailView({
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const resourceTypeMap = useResourceTypeMap(estate);
+  // The estate rows carry only flags for the heavy bags; the record reads
+  // them from SQLite when it opens, so a large snapshot loads without them.
+  const [detail, setDetail] = useState<ResourceDetail | null>();
+  const [detailError, setDetailError] = useState<string>();
+  useEffect(() => {
+    let active = true;
+    setDetail(undefined);
+    setDetailError(undefined);
+    if (!resource.hasProperties && !resource.hasSku && !resource.hasIdentity) {
+      setDetail(null);
+      return;
+    }
+    getResourceDetail(estate.id, resource.id)
+      .then((next) => {
+        if (active) setDetail(next);
+      })
+      .catch((caught) => {
+        if (active) setDetailError(errorMessage(caught));
+      });
+    return () => {
+      active = false;
+    };
+  }, [estate.id, resource.id, resource.hasProperties, resource.hasSku, resource.hasIdentity]);
   const { common, desktop: { record: words, topology: { edge_kinds: edgeKinds } } } = useLabels();
   const subscription = estate.subscriptions.find((item) => item.id === resource.subscriptionId);
   const resourceGroup = estate.resourceGroups.find(
@@ -170,11 +194,16 @@ export function ResourceDetailView({
               <div><h2>{words.properties_title}</h2><p>{words.properties_detail}</p></div>
               <ListTree size={18} />
             </div>
-            <div className="resource-property-stack">
-              <EvidenceData label={words.properties} value={resource.properties} />
-              <EvidenceData label={words.sku} value={resource.sku} />
-              <EvidenceData label={words.identity} value={resource.identity} />
-            </div>
+            {detailError ? <p className="muted-copy risk">{detailError}</p> : null}
+            {detail === undefined && !detailError ? (
+              <p className="muted-copy" role="status">{words.loading_properties}</p>
+            ) : (
+              <div className="resource-property-stack">
+                <EvidenceData label={words.properties} value={detail?.properties} />
+                <EvidenceData label={words.sku} value={detail?.sku} />
+                <EvidenceData label={words.identity} value={detail?.identity} />
+              </div>
+            )}
           </section>
 
           <section className="resource-record-section">

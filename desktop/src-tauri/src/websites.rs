@@ -4,62 +4,70 @@ use tauri::{State, ipc::Channel};
 use tauri_plugin_dialog::DialogExt;
 
 #[tauri::command]
-pub fn website_state(
+pub async fn website_state(
     snapshot_id: String,
     state: State<'_, AppState>,
 ) -> Result<WebsiteState, AppError> {
-    let store = crate::commands::open_store(&state)?;
-    let id = store.resolve_snapshot(&snapshot_id)?;
-    Ok(WebsiteState {
-        endpoints: store
-            .website_endpoints(&id)?
-            .into_iter()
-            .map(|e| WebsiteEndpointDto {
-                status: e.status.as_str().into(),
-                resource_id: e.resource_id,
-                resource_name: e.resource_name,
-                source: e.source,
-                hostname: e.hostname,
-                url: e.url,
-            })
-            .collect(),
-        captures: store
-            .website_captures(&id, false)?
-            .into_iter()
-            .map(|c| WebsiteCaptureDto {
-                status: c.status.as_str().into(),
-                url: c.url,
-                final_url: c.final_url,
-                captured_at: c.captured_at,
-                attempted_at: c.attempted_at,
-                error: c.error,
-                renderer: c.renderer,
-                width: c.width,
-                height: c.height,
-            })
-            .collect(),
-        evidence_errors: store
-            .website_evidence(&id)?
-            .into_iter()
-            .filter_map(|e| e.error.map(|error| format!("{}: {error}", e.resource_id)))
-            .collect(),
+    let session = crate::settings::session(&state)?;
+    crate::commands::blocking(session, move |session| {
+        let store = crate::commands::open_store_for(&session)?;
+        let id = store.resolve_snapshot(&snapshot_id)?;
+        Ok(WebsiteState {
+            endpoints: store
+                .website_endpoints(&id)?
+                .into_iter()
+                .map(|e| WebsiteEndpointDto {
+                    status: e.status.as_str().into(),
+                    resource_id: e.resource_id,
+                    resource_name: e.resource_name,
+                    source: e.source,
+                    hostname: e.hostname,
+                    url: e.url,
+                })
+                .collect(),
+            captures: store
+                .website_captures(&id, false)?
+                .into_iter()
+                .map(|c| WebsiteCaptureDto {
+                    status: c.status.as_str().into(),
+                    url: c.url,
+                    final_url: c.final_url,
+                    captured_at: c.captured_at,
+                    attempted_at: c.attempted_at,
+                    error: c.error,
+                    renderer: c.renderer,
+                    width: c.width,
+                    height: c.height,
+                })
+                .collect(),
+            evidence_errors: store
+                .website_evidence(&id)?
+                .into_iter()
+                .filter_map(|e| e.error.map(|error| format!("{}: {error}", e.resource_id)))
+                .collect(),
+        })
     })
+    .await
 }
 
 #[tauri::command]
-pub fn website_image(
+pub async fn website_image(
     snapshot_id: String,
     url: String,
     state: State<'_, AppState>,
 ) -> Result<Option<String>, AppError> {
-    let store = crate::commands::open_store(&state)?;
-    let id = store.resolve_snapshot(&snapshot_id)?;
-    Ok(store.website_png(&id, &url)?.map(|bytes| {
-        format!(
-            "data:image/png;base64,{}",
-            base64::engine::general_purpose::STANDARD.encode(bytes)
-        )
-    }))
+    let session = crate::settings::session(&state)?;
+    crate::commands::blocking(session, move |session| {
+        let store = crate::commands::open_store_for(&session)?;
+        let id = store.resolve_snapshot(&snapshot_id)?;
+        Ok(store.website_png(&id, &url)?.map(|bytes| {
+            format!(
+                "data:image/png;base64,{}",
+                base64::engine::general_purpose::STANDARD.encode(bytes)
+            )
+        }))
+    })
+    .await
 }
 
 #[tauri::command]

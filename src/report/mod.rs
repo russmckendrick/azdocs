@@ -253,9 +253,18 @@ impl ReportContext {
         Self::build_scoped(store, snapshot_id, &ReportScope::default(), true)
     }
 
-    /// Desktop metadata never reads screenshot blobs; previews load on demand.
+    /// Desktop metadata never reads screenshot blobs and never runs the
+    /// previous-snapshot comparison: previews and the diff load on demand,
+    /// so opening a large estate costs one snapshot read, not two.
     pub fn build_for_desktop(store: &Store, snapshot_id: &str) -> Result<Self, StoreError> {
-        Self::build_scoped(store, snapshot_id, &ReportScope::default(), false)
+        Self::build_inner(
+            store,
+            snapshot_id,
+            &ReportScope::default(),
+            false,
+            crate::config::ReportConfig::default(),
+            false,
+        )
     }
 
     /// Build for one scope. `include_images` loads screenshot bytes, which
@@ -283,6 +292,17 @@ impl ReportContext {
         include_images: bool,
         limits: crate::config::ReportConfig,
     ) -> Result<Self, StoreError> {
+        Self::build_inner(store, snapshot_id, scope, include_images, limits, true)
+    }
+
+    fn build_inner(
+        store: &Store,
+        snapshot_id: &str,
+        scope: &ReportScope,
+        include_images: bool,
+        limits: crate::config::ReportConfig,
+        with_changes: bool,
+    ) -> Result<Self, StoreError> {
         let snapshot = store.get_snapshot(snapshot_id)?;
         let mut subscriptions = store.subscriptions(snapshot_id)?;
         let mut resource_groups = store.resource_groups(snapshot_id)?;
@@ -309,10 +329,14 @@ impl ReportContext {
                 kept.contains(edge.source_id.as_str()) || kept.contains(edge.target_id.as_str())
             });
         }
-        let changes = store
-            .previous_snapshot(snapshot_id)?
-            .map(|previous| store.snapshot_changes(&previous.id, snapshot_id))
-            .transpose()?;
+        let changes = if with_changes {
+            store
+                .previous_snapshot(snapshot_id)?
+                .map(|previous| store.snapshot_changes(&previous.id, snapshot_id))
+                .transpose()?
+        } else {
+            None
+        };
         // The trend is scoped to this snapshot's tenant whatever the store's
         // selection, and stops at this snapshot so a report on an older
         // snapshot does not describe its future.

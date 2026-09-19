@@ -24,6 +24,7 @@ import {
 import {
   chooseDatabase,
   collectEstate,
+  compareSnapshots,
   getBootstrap,
   getSnapshot,
   isTauri,
@@ -51,6 +52,7 @@ import type {
   CollectionEvent,
   EstateSnapshot,
   ScopeSelection,
+  SnapshotComparison,
   ThemePreference,
   ViewId,
 } from "./types";
@@ -141,6 +143,10 @@ export default function App() {
   const snapshotRequest = useRef(0);
   const [bootstrap, setBootstrap] = useState<AppBootstrap>();
   const [estate, setEstate] = useState<EstateSnapshot>();
+  // The diff against the previous usable snapshot is fetched after the
+  // estate has painted: it loads a second snapshot, and nothing on the
+  // first screen needs it.
+  const [comparison, setComparison] = useState<SnapshotComparison>();
   const [navigation, dispatchNavigation] = useReducer(
     navigationReducer,
     undefined,
@@ -248,6 +254,25 @@ export default function App() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    setComparison(undefined);
+    const previous = estate?.previousSnapshotId;
+    const target = estate?.id;
+    if (!previous || !target) return;
+    let active = true;
+    compareSnapshots(previous, target)
+      .then((next) => {
+        if (active) setComparison(next);
+      })
+      .catch(() => {
+        // The overview and history say there is nothing to compare yet;
+        // the history view can still request a comparison explicitly.
+      });
+    return () => {
+      active = false;
+    };
+  }, [estate?.id, estate?.previousSnapshotId]);
 
   useEffect(() => {
     function handleShortcut(event: KeyboardEvent) {
@@ -783,6 +808,7 @@ export default function App() {
                   <OverviewView
                     bootstrap={bootstrap}
                     estate={estate}
+                    comparison={comparison}
                     onOpenResults={openDashboardResults}
                     onOpenResource={openResource}
                     onOpenRelationships={openRelationships}
@@ -852,6 +878,7 @@ export default function App() {
                   <HistoryView
                     bootstrap={bootstrap}
                     estate={estate}
+                    previousComparison={comparison}
                     onLoadSnapshot={(id) => void loadSnapshot(id)}
                     dashboardFilter={navigation.result?.filter}
                     onOpenResource={openResource}

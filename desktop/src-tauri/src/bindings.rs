@@ -106,6 +106,7 @@ pub fn generated_typescript() -> String {
     decl::<ResourceGroupDto>(&mut out, &cfg);
     decl::<ResourceGroupSummaryDto>(&mut out, &cfg);
     decl::<ResourceDto>(&mut out, &cfg);
+    decl::<ResourceDetailDto>(&mut out, &cfg);
     decl::<ResourceTypeDto>(&mut out, &cfg);
     decl::<NameCountDto>(&mut out, &cfg);
     decl::<FindingDto>(&mut out, &cfg);

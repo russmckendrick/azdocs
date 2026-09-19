@@ -184,6 +184,19 @@ impl Store {
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
+    /// One resource by its normalised id; the desktop loads the heavy bags
+    /// (properties, SKU, identity) this way when a record is opened rather
+    /// than shipping them with every row of the estate.
+    pub fn resource(&self, snapshot_id: &str, id: &str) -> Result<Option<Resource>, StoreError> {
+        let mut statement = self.conn().prepare(
+            "SELECT id, display_id, name, type, kind, location, resource_group,
+                    subscription_id, tags, sku, identity, properties
+             FROM resources WHERE snapshot_id = ?1 AND id = ?2",
+        )?;
+        let mut rows = statement.query_map([snapshot_id, id], resource_from_row)?;
+        rows.next().transpose().map_err(Into::into)
+    }
+
     /// Stored queries may outlive or replace their query-pack definition.
     pub fn query_result_names(&self, snapshot_id: &str) -> Result<Vec<String>, StoreError> {
         let mut statement = self.conn().prepare("SELECT DISTINCT query_name FROM query_results WHERE snapshot_id = ?1 ORDER BY query_name")?;
