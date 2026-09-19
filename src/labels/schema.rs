@@ -27,12 +27,21 @@ impl Plural {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Labels {
+    pub meta: MetaLabels,
     pub common: CommonLabels,
     pub report: ReportLabels,
     pub diagram: DiagramLabels,
     pub cli: CliLabels,
     pub tui: TuiLabels,
     pub desktop: DesktopLabels,
+}
+
+/// Document-level facts that are not wording: the BCP 47 language tag the
+/// HTML `lang` attribute and Typst hyphenation use.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MetaLabels {
+    pub lang: String,
 }
 
 // ------------------------------------------------------------------ common --
@@ -90,8 +99,6 @@ pub struct SeverityLabels {
     pub name: String,
     /// Stat and badge label: "High".
     pub label: String,
-    /// Section heading: "High priority".
-    pub heading: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,6 +109,7 @@ pub struct CoverLabels {
     pub collected: String,
     pub status: String,
     pub notes: String,
+    pub logo_alt: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -170,12 +178,11 @@ pub struct ReportLabels {
     pub summary: SummaryLabels,
     pub findings: FindingsLabels,
     pub governance: ReportGovernanceLabels,
-    pub overview: ChapterLabels,
     pub type_index: ChapterLabels,
-    pub estate: EstateLabels,
     pub evidence: EvidenceLabels,
     pub pdf: PdfLabels,
     pub markdown: MarkdownLabels,
+    pub site: SiteLabels,
     pub html: HtmlLabels,
     pub xlsx: XlsxLabels,
     pub csv: CsvLabels,
@@ -185,12 +192,6 @@ pub struct ReportLabels {
 #[serde(deny_unknown_fields)]
 pub struct SummaryLabels {
     pub chapter: String,
-    pub sentence: String,
-    pub coverage_at_or_above: String,
-    pub coverage_below: String,
-    pub largest_types: String,
-    pub geographic_footprint: String,
-    pub priority_findings: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -198,14 +199,12 @@ pub struct SummaryLabels {
 pub struct FindingsLabels {
     pub chapter: String,
     pub empty: String,
-    pub intro: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ReportGovernanceLabels {
     pub chapter: String,
-    pub flagged_note: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -217,22 +216,7 @@ pub struct ChapterLabels {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct EstateLabels {
-    pub subscription_sentence: String,
-    pub group_summary: String,
-    pub group_findings: String,
-    pub relationships: String,
-    pub settings: String,
-    pub no_settings: String,
-    pub findings: String,
-    pub related: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct EvidenceLabels {
-    pub chapter: String,
-    pub intro: String,
     pub no_results: String,
 }
 
@@ -267,6 +251,16 @@ pub struct MarkdownLabels {
     pub related: String,
     pub no_rows: String,
     pub no_resources: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SiteLabels {
+    pub index: String,
+    pub findings: String,
+    pub provenance: String,
+    /// `{category}` is the query category a page lists.
+    pub category: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1321,8 +1315,6 @@ pub struct AssessmentLabels {
     pub study_dependency_summary: String,
     pub issue_group_scope: String,
     pub family_caption: String,
-    pub diagram_population: String,
-    pub diagram_external: String,
     pub executive: String,
     pub composition: String,
     pub architecture: String,
@@ -1382,7 +1374,6 @@ pub struct AssessmentLabels {
     pub group_dependencies_none: String,
     pub study_findings_heading: String,
     pub study_findings_none: String,
-    pub study_issue: String,
     pub connection_focus: String,
     pub diagram_caption: String,
     pub network_caption: String,
@@ -1409,7 +1400,6 @@ pub struct AssessmentLabels {
     pub operational_review: String,
     pub actions_intro: String,
     pub action: String,
-    pub action_verification: String,
     pub coverage_intro: String,
     pub coverage_summary: String,
     pub coverage_missing: String,
@@ -1431,19 +1421,10 @@ pub struct AssessmentLabels {
     pub reference_coverage_note: String,
     pub reference_scope: String,
     pub reference_occurrence_count: String,
-    pub reference_identity: String,
-    pub reference_resource_id: String,
     pub reference_sku: String,
     pub reference_auth_identity: String,
     pub reference_relationships: String,
-    pub reference_record_key: String,
-    pub reference_record_value: String,
-    pub original_evidence: String,
     pub reference_occurrences: String,
-    pub reference_query_note: String,
-    pub full_rows: String,
-    pub full_row: String,
-    pub findings_reference: String,
     pub reference_available: String,
     pub family_compute: String,
     pub family_network: String,
@@ -1462,12 +1443,9 @@ pub struct AssessmentLabels {
     pub replication: String,
     pub public_network: String,
     pub default_action: String,
-    pub https_only: String,
-    pub minimum_tls: String,
     pub blob_access: String,
     pub identity_type: String,
     pub logging_targets: String,
-    pub retention: String,
     pub vault_configuration: String,
     pub showing_rows: String,
     pub checks: std::collections::BTreeMap<String, CheckGuidance>,

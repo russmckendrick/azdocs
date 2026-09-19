@@ -505,7 +505,7 @@
 
 /// Document-wide rules. Applied once by report.typ via a show rule.
 #let setup(branding, body) = {
-  set text(font: typ.sans, size: typ.base_pt * 1pt, fill: ink)
+  set text(font: typ.sans, size: typ.base_pt * 1pt, fill: ink, lang: labels.meta.lang)
   set par(leading: (typ.line_height - 1.0) * typ.base_pt * 1pt, justify: false)
   show raw: set text(font: typ.mono, size: typ.small_pt * 1pt)
   set page(paper: branding.page_size, margin: eval(branding.margin))

@@ -9,6 +9,9 @@
 # (or <name>.toml, selected with `[branding] labels = "<name>"`); its keys are
 # deep-merged over these built-ins. Unknown keys are an error.
 
+[meta]
+lang = "en"
+
 [common]
 subscription_scope = "Subscription scope"
 counted = "{count} {noun}"
@@ -21,22 +24,18 @@ relationship = { one = "relationship", other = "relationships" }
 [common.severity.high]
 name = "high"
 label = "High"
-heading = "High priority"
 
 [common.severity.medium]
 name = "medium"
 label = "Medium"
-heading = "Medium priority"
 
 [common.severity.low]
 name = "low"
 label = "Low"
-heading = "Low priority"
 
 [common.severity.info]
 name = "info"
 label = "Info"
-heading = "Informational"
 
 [common.cover]
 tenant = "Tenant"
@@ -44,6 +43,7 @@ snapshot = "Snapshot"
 collected = "Collected"
 status = "Status"
 notes = "Notes"
+logo_alt = "Logo"
 
 [common.verdict]
 healthy = "healthy"
@@ -96,43 +96,19 @@ toc_title = "Contents"
 
 [report.summary]
 chapter = "Executive Summary"
-sentence = "This snapshot covers {resources} resources across {resource_groups} resource groups in {subscriptions} subscriptions. It records {findings} findings, including {high} high and {medium} medium priority items. {tagged} resources are tagged and {untagged} are untagged, giving {percent} tag coverage, {comparison} {threshold} this report treats as healthy."
-coverage_at_or_above = "at or above the"
-coverage_below = "below the"
-largest_types = "Largest resource types"
-geographic_footprint = "Geographic footprint"
-priority_findings = "Priority findings"
 
 [report.findings]
 chapter = "Findings"
 empty = "No findings."
-intro = "Findings are grouped by priority so the most consequential work can be reviewed first. The evidence appendix retains the underlying query output."
 
 [report.governance]
 chapter = "Governance"
-flagged_note = "Past the {share}% share this report calls out: {groups}."
-
-[report.overview]
-chapter = "Estate overview"
-intro = "These overview diagrams orient the detailed subscription and resource-group sections that follow. Resource-group diagrams remain with their own sections."
 
 [report.type_index]
 chapter = "Resources by type"
 intro = "This index keeps a compliance sweep by resource type available before the estate is documented in its Azure hierarchy."
 
-[report.estate]
-subscription_sentence = "{resources} resources across {groups} resource groups, with {findings} findings recorded in this snapshot."
-group_summary = "{resources} resources across {types} resource types"
-group_findings = "{findings} findings"
-relationships = "Relationships"
-settings = "Settings"
-no_settings = "No settings recorded."
-findings = "Findings"
-related = "Related resources"
-
 [report.evidence]
-chapter = "Evidence appendix"
-intro = "The following sections preserve the collected inventory evidence. Compact results are presented as facts; larger result sets remain tables for comparison and audit use."
 no_results = "No results."
 
 [report.pdf]
@@ -160,6 +136,12 @@ resource_details = "Resource details →"
 related = "Related"
 no_rows = "_No rows._"
 no_resources = "_No resources._"
+
+[report.site]
+index = "Overview"
+findings = "Findings"
+provenance = "Query provenance"
+category = "{category}"
 
 [report.html]
 collected = "collected"
@@ -1021,8 +1003,6 @@ study_mix = "{type} is the largest recorded service type, with {count} of the gr
 study_dependency_summary = "{incoming} directed connections enter this group and {outgoing} leave it; {peerings} peerings cross its boundary. Changes to the named shared targets need coordination with their consumers. These are recorded configuration links, so application dependencies may extend beyond them."
 issue_group_scope = "{count} affected resources are in {group} ({subscription}), the largest resolved group concentration for this check."
 family_caption = "Share of recorded resources by service family. Counts include supporting infrastructure and do not measure cost or business importance."
-diagram_population = "{hosts} resources + {folded} attached"
-diagram_external = "External {type}"
 executive = "Executive assessment"
 composition = "Estate composition"
 architecture = "Architecture and dependencies"
@@ -1082,7 +1062,6 @@ group_dependencies = "Dependencies across the group boundary"
 group_dependencies_none = "No cross-group dependencies are recorded. Resource Graph does not capture every application-level connection, so this does not establish isolation."
 study_findings_heading = "Observations to follow up"
 study_findings_none = "No finding occurrences resolve to this group. Read this alongside collection coverage; it is not a clean bill of health."
-study_issue = "{title}: {count} affected resource IDs in this group. See the linked assessment for interpretation and verification steps."
 connection_focus = "{relationship}: {target} ({connections} recorded links)"
 diagram_caption = "Recorded service connections for {group}. Attached NICs and disks fold into their host where possible; repeated types are aggregated with counts. External endpoints show dependencies outside this group. Lines count observed links, not every member of an aggregate."
 network_caption = "Virtual-network peerings recorded in this snapshot. Reciprocal records are shown once; lines describe configuration, not traffic or reachability."
@@ -1109,7 +1088,6 @@ operational_questions = "Operational checks to complete"
 operational_review = "Confirm which services require central logging, verify that telemetry arrives and alerts reach an accountable team, and record the last successful restore test for each recovery-critical workload. Review retention and replication against the organisation's own recovery objectives."
 actions_intro = "Use this register to organise review work. The order preserves recorded severity, then the number of affected resources; it is not a business-impact score or an automatic remediation schedule. Establish owners and change dependencies before implementation."
 action = "Recommended review"
-action_verification = "Evidence to close the review"
 coverage_intro = "The report describes the selected stored snapshot. Successful zero-row queries, query failures and missing run evidence are different states. A completed collection does not establish that every Azure service or control was assessed."
 coverage_summary = "Snapshot status: {status}. {successful} queries have successful run records, including {empty} with zero rows; {failed} failed and {unknown} have no recorded outcome."
 coverage_missing = "No query-run evidence is available. The report cannot establish which checks completed or whether an empty result reflects successful collection."
@@ -1130,19 +1108,10 @@ reference_findings_note = "Occurrences are grouped by check, resource and record
 reference_coverage_note = "This summary distinguishes successful, empty, failed and unknown collection outcomes. The snapshot database retains provider policy and role catalogues, query rows, exact executed queries and collection scope."
 reference_scope = "Subscription / group"
 reference_occurrence_count = "Occurrences"
-reference_identity = "Resource identity"
-reference_resource_id = "Resource ID"
 reference_sku = "SKU and service plan"
 reference_auth_identity = "Managed identity"
 reference_relationships = "Resource relationships"
-reference_record_key = "Record key"
-reference_record_value = "Stored value"
-original_evidence = "Original finding evidence"
 reference_occurrences = "Findings by resource"
-reference_query_note = "Shown columns: {shown} of {total}. Values longer than 512 characters are shortened unless the value is a standalone URL; use the snapshot database or the matching data export for full values."
-full_rows = "Complete collected rows"
-full_row = "Collected row {index}"
-findings_reference = "Assessment"
 reference_available = "The optional technical reference contains key settings for every resource, grouped findings and collection coverage. Use the snapshot database and data exports for the underlying evidence."
 family_compute = "Compute and hosting"
 family_network = "Networking"
@@ -1161,12 +1130,9 @@ zones = "Zones"
 replication = "SKU or replication"
 public_network = "Public network access"
 default_action = "Default network action"
-https_only = "HTTPS only"
-minimum_tls = "Minimum TLS"
 blob_access = "Anonymous access permitted"
 identity_type = "Identity type"
 logging_targets = "Logging targets"
-retention = "Retention days"
 vault_configuration = "Vault configuration"
 showing_rows = "Showing {shown} of {total} rows; the snapshot database and data exports retain the underlying evidence."
 

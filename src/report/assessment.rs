@@ -384,15 +384,7 @@ fn composition<'a>(
     );
 }
 
-fn edge_label(kind: EdgeKind, labels: &Labels) -> &str {
-    labels
-        .desktop
-        .topology
-        .edge_kinds
-        .get(kind.as_str())
-        .map(String::as_str)
-        .unwrap_or(kind.as_str())
-}
+use crate::labels::edge_label;
 
 fn architecture<'a>(
     report: &'a ReportContext,

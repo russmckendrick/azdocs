@@ -111,23 +111,19 @@
     "severity": {
       "high": {
         "name": "high",
-        "label": "High",
-        "heading": "High priority"
+        "label": "High"
       },
       "medium": {
         "name": "medium",
-        "label": "Medium",
-        "heading": "Medium priority"
+        "label": "Medium"
       },
       "low": {
         "name": "low",
-        "label": "Low",
-        "heading": "Low priority"
+        "label": "Low"
       },
       "info": {
         "name": "info",
-        "label": "Info",
-        "heading": "Informational"
+        "label": "Info"
       }
     },
     "cover": {
@@ -135,7 +131,8 @@
       "snapshot": "Snapshot",
       "collected": "Collected",
       "status": "Status",
-      "notes": "Notes"
+      "notes": "Notes",
+      "logo_alt": "Logo"
     },
     "verdict": {
       "healthy": "healthy",

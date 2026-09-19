@@ -45,7 +45,17 @@ pub struct ResourceDetail {
     pub location: Option<String>,
     pub settings: Vec<Setting>,
     pub findings: Vec<Callout>,
-    pub related: Vec<String>,
+    /// Related resources with the relationship's stored kind; templates
+    /// look the reader's word up in `desktop.topology.edge_kinds`, so the
+    /// context stays language-neutral and every surface spells one edge one way.
+    pub related: Vec<Related>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+pub struct Related {
+    pub name: String,
+    /// `EdgeKind::as_str`, the key into `desktop.topology.edge_kinds`.
+    pub kind: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -173,12 +183,15 @@ fn settings_rows(resource: &Resource) -> Vec<Setting> {
     rows
 }
 
-fn related_names(resource: &Resource, edges: &[Edge]) -> Vec<String> {
-    let mut related: Vec<String> = edges
+fn related_names(resource: &Resource, edges: &[Edge]) -> Vec<Related> {
+    let mut related: Vec<Related> = edges
         .iter()
         .filter_map(|edge| {
             let other = edge.other_end(&resource.id)?;
-            Some(format!("{} ({})", short_name(other), edge.kind.as_str()))
+            Some(Related {
+                name: short_name(other).to_owned(),
+                kind: edge.kind.as_str().to_owned(),
+            })
         })
         .collect();
     related.sort();

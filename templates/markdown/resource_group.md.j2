@@ -33,7 +33,7 @@
 {%- endfor %}
 
 {% if r.related -%}
-**{{ md.related }}**: {% for rel in r.related %}{{ rel | md_escape }}{% if not loop.last %} · {% endif %}{% endfor %}
+**{{ md.related }}**: {% for rel in r.related %}{{ rel.name | md_escape }} ({{ labels.desktop.topology.edge_kinds[rel.kind] | default(rel.kind) }}){% if not loop.last %} · {% endif %}{% endfor %}
 {% endif %}
 `{{ r.arm_id }}`
 {% endfor %}

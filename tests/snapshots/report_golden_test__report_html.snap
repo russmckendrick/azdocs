@@ -23,8 +23,10 @@ expression: "std::fs::read_to_string(&out).unwrap()"
         --info:#0078d4; --info-fill:#e6f2fb;
         --radius:3.0px; }
 @media (prefers-color-scheme: dark) {
-  :root { --bg:#14181d; --fg:#e9e4da; --muted:#9a958a; --border:#3a4048; --zebra:#10141a;
-          --tint:#10141a; --accent:#4da3e8; }
+  :root { --bg:#141414; --fg:#fefefe;
+          --muted:#959595; --border:#474747;
+          --zebra:#1d1d1d; --tint:#202020;
+          --accent:#8bc3f0; --accent-dark:#8bc3f0; }
 }
 /* The vendored PDF face first; an uninstalled IBM Plex falls through to the
    platform stack rather than forcing a web-font download. */

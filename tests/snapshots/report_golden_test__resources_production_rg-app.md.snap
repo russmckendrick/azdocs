@@ -1,5 +1,6 @@
 ---
 source: tests/report_golden_test.rs
+assertion_line: 47
 expression: content
 ---
 # rg-app
@@ -23,7 +24,7 @@ expression: content
 | Disk Size GB | 64 |
 | Disk State | Attached |
 
-**Related**: vm-app-01 (attached_to)
+**Related**: vm-app-01 (attached to)
 
 `/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/disks/vm-app-01-os`
 
@@ -37,7 +38,7 @@ expression: content
 | Location | UK South |
 | Tags | env=prod |
 
-**Related**: vm-app-01-nic (attached_to) · vm-app-01-os (attached_to)
+**Related**: vm-app-01-nic (attached to) · vm-app-01-os (attached to)
 
 `/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/virtualMachines/vm-app-01`
 
@@ -67,7 +68,7 @@ expression: content
 |---|---|
 | Location | UK South |
 
-**Related**: app (nic_in_subnet) · pe-sql (attached_to)
+**Related**: app (nic in subnet) · pe-sql (attached to)
 
 `/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/networkInterfaces/pe-sql.nic.4f2a`
 
@@ -81,7 +82,7 @@ expression: content
 |---|---|
 | Location | UK South |
 
-**Related**: app (nic_in_subnet) · vm-app-01 (attached_to) · vm-app-01-pip (attached_to)
+**Related**: app (nic in subnet) · vm-app-01 (attached to) · vm-app-01-pip (attached to)
 
 `/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/networkInterfaces/vm-app-01-nic`
 
@@ -95,7 +96,7 @@ expression: content
 |---|---|
 | Location | UK South |
 
-**Related**: app (nic_in_subnet) · pe-sql.nic.4f2a (attached_to) · sql-prod (private_endpoint_for)
+**Related**: app (nic in subnet) · pe-sql.nic.4f2a (attached to) · sql-prod (private endpoint for)
 
 `/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/privateEndpoints/pe-sql`
 
@@ -110,7 +111,7 @@ expression: content
 | Location | UK South |
 | Ip Address | 20.0.0.10 |
 
-**Related**: vm-app-01-nic (attached_to)
+**Related**: vm-app-01-nic (attached to)
 
 `/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/publicIPAddresses/vm-app-01-pip`
 
@@ -124,7 +125,7 @@ expression: content
 | Location | UK South |
 | Tags | env=prod |
 
-**Related**: app (subnet_of) · vnet-hub (peered_with)
+**Related**: app (subnet of) · vnet-hub (peered with)
 
 `/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/virtualNetworks/vnet-app`
 
@@ -154,7 +155,7 @@ expression: content
 | Public Network Access | Disabled |
 | Version | 12.0 |
 
-**Related**: app-db (attached_to) · pe-sql (private_endpoint_for)
+**Related**: app-db (attached to) · pe-sql (private endpoint for)
 
 `/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Sql/servers/sql-prod`
 
@@ -170,7 +171,7 @@ expression: content
 | Status | Online |
 | Current Service Objective Name | S0 |
 
-**Related**: sql-prod (attached_to)
+**Related**: sql-prod (attached to)
 
 `/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Sql/servers/sql-prod/databases/app-db`
 

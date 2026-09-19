@@ -4,7 +4,7 @@
 {%- set verdict = labels.common.verdict -%}
 {%- set html = labels.report.html -%}
 <!doctype html>
-<html lang="en">
+<html lang="{{ labels.meta.lang }}">
 <head>
 <meta charset="utf-8">
 <title>{{ branding.title }} — {{ tenant_id }}</title>
@@ -23,8 +23,10 @@
         --info:{{ branding.tokens.palette.severity.info.text }}; --info-fill:{{ branding.tokens.palette.severity.info.fill }};
         --radius:{{ branding.tokens.layout.radius_pt|round(1) }}px; }
 @media (prefers-color-scheme: dark) {
-  :root { --bg:#14181d; --fg:#e9e4da; --muted:#9a958a; --border:#3a4048; --zebra:#10141a;
-          --tint:#10141a; --accent:{{ branding.accent_color }}; }
+  :root { --bg:{{ branding.tokens.palette.dark.surface }}; --fg:{{ branding.tokens.palette.dark.ink }};
+          --muted:{{ branding.tokens.palette.dark.muted }}; --border:{{ branding.tokens.palette.dark.rule }};
+          --zebra:{{ branding.tokens.palette.dark.zebra }}; --tint:{{ branding.tokens.palette.dark.tint }};
+          --accent:{{ branding.tokens.palette.dark.accent }}; --accent-dark:{{ branding.tokens.palette.dark.accent }}; }
 }
 /* The vendored PDF face first; an uninstalled IBM Plex falls through to the
    platform stack rather than forcing a web-font download. */
@@ -65,7 +67,7 @@ figure.diagram figcaption { color: var(--muted); font-size: 13px; margin-top: .3
 </head>
 <body>
 {%- if branding.logo %}
-<p><img src="{{ branding.logo.data_uri }}" alt="logo" style="max-height:64px"></p>
+<p><img src="{{ branding.logo.data_uri }}" alt="{{ labels.common.cover.logo_alt }}" style="max-height:64px"></p>
 {%- endif %}
 <h1>{{ branding.title }}</h1>
 {%- if branding.subtitle or branding.company %}
@@ -111,7 +113,7 @@ figure.diagram figcaption { color: var(--muted); font-size: 13px; margin-top: .3
 <thead><tr><th>{{ col.severity }}</th><th>{{ col.title }}</th><th>{{ col.category }}</th><th>{{ col.check }}</th><th>{{ col.resource }}</th></tr></thead>
 <tbody>
 {%- for f in findings %}
-<tr><td><span class="badge {{ f.severity }}">{{ f.severity }}</span></td>
+<tr><td><span class="badge {{ f.severity }}">{{ sev[f.severity].name }}</span></td>
 <td>{{ f.title }}</td><td>{{ f.category }}</td><td><code>{{ f.query_name }}</code></td>
 <td>{% if f.resource_id %}<code>{{ f.resource_id }}</code>{% endif %}</td></tr>
 {%- endfor %}

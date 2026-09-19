@@ -19,8 +19,8 @@ const STYLE: &str = r#"
         --primary:{primary}; --accent:{accent}; --tint:{tint}; --zebra:{zebra}; --on-accent:{on_primary};
         --high:{high}; --high-fill:{high_fill}; --radius:{radius}px; }
 @media (prefers-color-scheme: dark) {
-  :root { --bg:#14181d; --fg:#e9e4da; --muted:#9a958a; --border:#3a4048;
-          --tint:#10141a; --zebra:#10141a; --accent:{accent_dark}; }
+  :root { --bg:{dark_surface}; --fg:{dark_ink}; --muted:{dark_muted}; --border:{dark_rule};
+          --tint:{dark_tint}; --zebra:{dark_zebra}; --accent:{dark_accent}; }
 }
 body { font: 15px/{line_height} "{sans}", -apple-system, "Segoe UI", Roboto, sans-serif;
        background: var(--bg); color: var(--fg); max-width: 1050px; margin: 0 auto; padding: 2rem 1rem; }
@@ -79,7 +79,13 @@ fn style(branding: &BrandingContext) -> String {
         .replace("{sans}", &tokens.typography.sans)
         .replace("{serif}", &tokens.typography.serif)
         .replace("{mono}", &tokens.typography.mono)
-        .replace("{accent_dark}", &branding.accent_color)
+        .replace("{dark_surface}", &palette.dark.surface)
+        .replace("{dark_ink}", &palette.dark.ink)
+        .replace("{dark_muted}", &palette.dark.muted)
+        .replace("{dark_rule}", &palette.dark.rule)
+        .replace("{dark_tint}", &palette.dark.tint)
+        .replace("{dark_zebra}", &palette.dark.zebra)
+        .replace("{dark_accent}", &palette.dark.accent)
         + &format!(":root {{ --th-bg:{th_bg}; --th-fg:{th_fg}; }}\n")
 }
 
@@ -88,7 +94,11 @@ fn style(branding: &BrandingContext) -> String {
 fn brand_header(branding: &BrandingContext) -> String {
     let mut parts = Vec::new();
     if let Some(logo) = &branding.logo {
-        parts.push(format!("<img src=\"{}\" alt=\"logo\">", logo.data_uri));
+        parts.push(format!(
+            "<img src=\"{}\" alt=\"{}\">",
+            logo.data_uri,
+            html_escape(&branding.labels.common.cover.logo_alt)
+        ));
     }
     if !branding.company.is_empty() {
         parts.push(format!("<b>{}</b>", html_escape(&branding.company)));
@@ -127,7 +137,8 @@ pub fn write(
         DiagramEmbedding { mermaid: false },
     )?;
     report.websites.write_assets(out_dir)?;
-    let nav = navigation(&pages);
+    let nav = navigation(&pages, &branding.labels);
+    let lang = html_escape(&branding.labels.meta.lang);
     for (relative, markdown) in &pages {
         let html_relative = relative.replace(".md", ".html");
         let depth = html_relative.matches('/').count();
@@ -155,13 +166,14 @@ pub fn write(
         let title = markdown
             .lines()
             .find_map(|l| l.strip_prefix("# "))
-            .unwrap_or("azdocs");
+            .unwrap_or(&branding.title);
+        let title = html_escape(title);
         let nav_html: String = nav
             .iter()
             .map(|(href, label)| format!("<a href=\"{prefix}{href}\">{label}</a>"))
             .collect();
         let page = format!(
-            "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">\
+            "<!doctype html>\n<html lang=\"{lang}\"><head><meta charset=\"utf-8\">\
              <title>{title}</title><style>{style}</style></head>\n\
              <body>{header}<nav>{nav_html}</nav>\n{body}\n{footer}</body></html>\n"
         );
@@ -183,15 +195,24 @@ pub(crate) fn html_escape(value: &str) -> String {
         .replace('"', "&quot;")
 }
 
-fn navigation(pages: &[(String, String)]) -> Vec<(String, String)> {
+/// Top-level pages only, captioned from the labels pack rather than by their
+/// file names: a `fr` pack reads "Aperçu", not "index".
+fn navigation(pages: &[(String, String)], labels: &crate::labels::Labels) -> Vec<(String, String)> {
+    let words = &labels.report.site;
     pages
         .iter()
         .filter(|(relative, _)| {
             !relative.starts_with("subscriptions/") && !relative.starts_with("resources/")
         })
         .map(|(relative, _)| {
-            let label = relative.trim_end_matches(".md").to_owned();
-            (relative.replace(".md", ".html"), label)
+            let stem = relative.trim_end_matches(".md");
+            let label = match stem {
+                "index" => words.index.clone(),
+                "findings" => words.findings.clone(),
+                "query-provenance" => words.provenance.clone(),
+                category => crate::labels::fill(&words.category, &[("category", &category)]),
+            };
+            (relative.replace(".md", ".html"), html_escape(&label))
         })
         .collect()
 }

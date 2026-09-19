@@ -69,7 +69,8 @@ impl Rgb {
     }
 
     /// WCAG 2.1 contrast ratio, 1.0 (identical) to 21.0 (black on white).
-    fn contrast(self, other: Self) -> f32 {
+    /// WCAG contrast ratio between two colours, 1.0 (identical) to 21.0.
+    pub fn contrast(self, other: Self) -> f32 {
         let (a, b) = (self.relative_luminance(), other.relative_luminance());
         let (hi, lo) = if a > b { (a, b) } else { (b, a) };
         (hi + 0.05) / (lo + 0.05)
@@ -86,10 +87,24 @@ impl Rgb {
     }
 }
 
-/// The branding colours a theme expression can refer to as `$primary` / `$accent`.
+/// The colours a theme expression can refer to: `$primary` / `$accent` from
+/// branding, plus any already-resolved palette field by name (`$surface`,
+/// `$ink`, ...) so a derived block such as `[palette.dark]` can be written
+/// in terms of the light one.
 pub struct ColorVars {
     pub primary: Rgb,
     pub accent: Rgb,
+    pub named: std::collections::BTreeMap<String, Rgb>,
+}
+
+impl ColorVars {
+    pub fn new(primary: Rgb, accent: Rgb) -> Self {
+        Self {
+            primary,
+            accent,
+            named: std::collections::BTreeMap::new(),
+        }
+    }
 }
 
 /// Guards against a runaway expression in a hand-edited theme file; no real
@@ -130,12 +145,16 @@ fn eval(
         return Rgb::parse(trimmed)
             .ok_or_else(|| invalid(field, whole, &format!("`{trimmed}` is not #rrggbb")));
     }
-    if trimmed.starts_with('$') {
-        return Err(invalid(
-            field,
-            whole,
-            &format!("unknown reference `{trimmed}` (expected $primary or $accent)"),
-        ));
+    if let Some(name) = trimmed.strip_prefix('$') {
+        return vars.named.get(name).copied().ok_or_else(|| {
+            invalid(
+                field,
+                whole,
+                &format!(
+                    "unknown reference `{trimmed}` (expected $primary, $accent or a palette field)"
+                ),
+            )
+        });
     }
 
     let (name, rest) = trimmed.split_once('(').ok_or_else(|| {
@@ -219,10 +238,10 @@ mod tests {
     use super::*;
 
     fn vars() -> ColorVars {
-        ColorVars {
-            primary: Rgb::parse("#0078d4").unwrap(),
-            accent: Rgb::parse("#4da3e8").unwrap(),
-        }
+        ColorVars::new(
+            Rgb::parse("#0078d4").unwrap(),
+            Rgb::parse("#4da3e8").unwrap(),
+        )
     }
 
     fn resolved(expr: &str) -> String {

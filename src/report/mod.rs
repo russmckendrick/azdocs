@@ -197,10 +197,6 @@ pub struct QuerySection {
     pub name: String,
     pub description: String,
     pub columns: Vec<String>,
-    /// [`page_columns`] applied once here so the page-width emitters (PDF,
-    /// DOCX) share one definition of "what fits" instead of each reimplementing
-    /// the rule.
-    pub print_columns: Vec<String>,
     pub rows: Vec<Value>,
 }
 
@@ -396,10 +392,6 @@ impl ReportContext {
             categories.entry(category).or_default().push(QuerySection {
                 name,
                 description,
-                print_columns: page_columns(&columns)
-                    .into_iter()
-                    .map(str::to_owned)
-                    .collect(),
                 columns,
                 rows,
             });
@@ -608,18 +600,6 @@ impl ReportContext {
             resource_types,
         })
     }
-}
-
-/// Column subset for page-width emitters (DOCX; the Typst template applies
-/// the same rule): drop the raw ARM `id` column, which never fits a printed
-/// page, and cap at six. The full data lives in CSV/XLSX/HTML.
-pub(crate) fn page_columns(columns: &[String]) -> Vec<&str> {
-    columns
-        .iter()
-        .map(String::as_str)
-        .filter(|c| *c != "id")
-        .take(6)
-        .collect()
 }
 
 #[cfg(test)]
