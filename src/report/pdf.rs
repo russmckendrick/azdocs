@@ -86,11 +86,24 @@ fn render_document(
     diagrams: &[DiagramAsset],
 ) -> anyhow::Result<(Vec<u8>, Vec<String>)> {
     let render_branding = document.render_branding(branding);
+    // The PDF's /ID from the snapshot and the document kind rather than
+    // typst's automatic value, which changes from run to run and was the
+    // one thing keeping two exports of one snapshot from matching byte for
+    // byte.
+    let ident = format!(
+        "azdocs:{}:{}",
+        document.cover.snapshot,
+        if document.technical_reference {
+            "reference"
+        } else {
+            "assessment"
+        }
+    );
     let world = ReportWorld::new(document, &render_branding, diagrams)?;
     let Warned { output, warnings } = typst::compile::<PagedDocument>(&world);
     let document = output.map_err(|diags| diagnostics_error("compiling PDF report", &diags))?;
     let options = PdfOptions {
-        ident: Smart::Auto,
+        ident: Smart::Custom(ident.as_str()),
         timestamp: world.timestamp,
         page_ranges: None,
         standards: PdfStandards::default(),

@@ -507,3 +507,84 @@ fn docx_renders_every_shipped_theme() {
         assert!(!bytes.is_empty(), "theme {theme} produced no bytes");
     }
 }
+
+/// Two renders of one snapshot describe the same document. docx-rs numbers
+/// hyperlink and picture relationships from process-wide counters, so a
+/// second render in the same process carries higher numbers; the comparison
+/// therefore normalises those numbers and the relationship order, which is
+/// exactly what a second *process* (the CLI, run twice) gets for free — that
+/// path is byte-identical and is checked by `cmp` at release time.
+#[test]
+fn docx_renders_identically_modulo_relationship_numbering() {
+    let (report, diagrams) = seeded();
+    let branding = BrandingContext::default();
+    let first = docx::render(&report, &branding, &diagrams).unwrap();
+    let second = docx::render(&report, &branding, &diagrams).unwrap();
+
+    // `rIdHyperlinkN`/`rIdImageN`, `w14:paraId`, bookmark `w:id` and the
+    // `_TocN` anchors all come from docx-rs's process-wide counters.
+    fn normalise(xml: &str) -> String {
+        let re_ids = |text: &str| -> String {
+            let mut out = String::with_capacity(text.len());
+            let mut rest = text;
+            while let Some(start) = rest.find("rId") {
+                out.push_str(&rest[..start]);
+                let tail = &rest[start + 3..];
+                let word: String = tail
+                    .chars()
+                    .take_while(|c| c.is_ascii_alphabetic())
+                    .collect();
+                let digits = tail[word.len()..]
+                    .chars()
+                    .take_while(char::is_ascii_digit)
+                    .count();
+                out.push_str("rId");
+                out.push_str(&word);
+                out.push('#');
+                rest = &tail[word.len() + digits..];
+            }
+            out.push_str(rest);
+            out
+        };
+        let blank_after = |text: &str, marker: &str, stop: &dyn Fn(char) -> bool| -> String {
+            let mut out = String::with_capacity(text.len());
+            let mut rest = text;
+            while let Some(start) = rest.find(marker) {
+                let end = start + marker.len();
+                out.push_str(&rest[..end]);
+                out.push('#');
+                let close = rest[end..]
+                    .find(stop)
+                    .map_or(rest.len(), |offset| end + offset);
+                rest = &rest[close..];
+            }
+            out.push_str(rest);
+            out
+        };
+        let quoted = |c: char| c == '"';
+        let out = blank_after(xml, "w14:paraId=\"", &quoted);
+        let out = blank_after(&out, "w:bookmarkStart w:id=\"", &quoted);
+        let out = blank_after(&out, "w:bookmarkEnd w:id=\"", &quoted);
+        let out = blank_after(&out, "_Toc", &|c: char| !c.is_ascii_digit());
+        re_ids(&out)
+    }
+    let sorted_rels = |bytes: &[u8]| {
+        let mut entries: Vec<String> = archive_entry(bytes, "word/_rels/document.xml.rels")
+            .split("<Relationship ")
+            .skip(1)
+            .map(normalise)
+            .collect();
+        entries.sort();
+        entries
+    };
+    let (a, b) = (
+        normalise(&archive_entry(&first, "word/document.xml")),
+        normalise(&archive_entry(&second, "word/document.xml")),
+    );
+    assert_eq!(a, b);
+    assert_eq!(sorted_rels(&first), sorted_rels(&second));
+    assert_eq!(
+        archive_entry(&first, "docProps/core.xml"),
+        archive_entry(&second, "docProps/core.xml")
+    );
+}

@@ -48,8 +48,12 @@ are cut from the Unreleased section at tag time; see
 - Implicit `latest` and the "previous snapshot" resolve only to complete or
   partial snapshots.
 - Excel cell text is bounded to Excel's limit rather than failing the
-  workbook; workbook document properties come from the snapshot so exports
-  are byte-identical.
+  workbook; workbook document properties come from the snapshot, the PDF's
+  document id from the snapshot and document kind, and the DOCX's
+  relationship part is written in id order. Markdown, HTML, CSV, XLSX and
+  DOCX exports of one snapshot are byte-identical run to run; the PDF's
+  content is identical but typst-pdf numbers its font and image objects
+  from hash maps, so its bytes can differ between processes.
 - Desktop type and spacing are rem-based; only the referenced icons and
   fonts are bundled.
 

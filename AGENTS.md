@@ -317,8 +317,15 @@ shared ports, name-only grids or indiscriminate Fit all.
 - rusqlite stays `bundled`; Excel sheet names are case-insensitive/31-char
   (category sheets are suffixed `" queries"` for this reason).
 - typst/typst-pdf/typst-assets are pinned to the same minor (0.13); the World
-  impl in `report/pdf.rs` derives today()/timestamps from the snapshot so PDF
-  bytes stay deterministic for a fixed snapshot, theme and font files.
+  impl in `report/pdf.rs` derives today()/timestamps and the document id from
+  the snapshot so PDF bytes stay deterministic within a process for a fixed
+  snapshot, theme and font files. Across processes typst-pdf orders font and
+  image objects from `HashMap`s, so bytes can differ while content does not;
+  do not promise cross-process PDF byte identity.
+- docx-rs numbers hyperlinks, pictures, bookmarks and paragraphs from
+  process-global counters: a second render in one process gets higher ids.
+  `report/docx/mod.rs` sorts the relationship part so separate processes
+  produce identical bytes; in-process tests compare modulo those numbers.
   Bundled fallback faces live in `data/fonts`; typst-assets' two families stay loaded
   behind it purely as a glyph fallback, and font-book insertion order is
   load-bearing.
