@@ -5,9 +5,12 @@ description = "VMs with their primary NIC, private/public IPs, and subnet"
 kql = '''
 resources
 | where type == "microsoft.compute/virtualmachines"
-| extend nicCount = array_length(properties.networkProfile.networkInterfaces)
-| mv-expand nic = properties.networkProfile.networkInterfaces
-| where nicCount == 1 or nic.properties.primary =~ "true" or isempty(nic)
+| extend nicCount = coalesce(array_length(properties.networkProfile.networkInterfaces), 0)
+// mv-expand of an empty array yields no row, which silently dropped NIC-less
+// VMs; expanding a one-element null array keeps them with empty NIC columns.
+| extend nics = iff(nicCount > 0, properties.networkProfile.networkInterfaces, pack_array(dynamic(null)))
+| mv-expand nic = nics
+| where nicCount <= 1 or nic.properties.primary =~ "true"
 | project id, name, location, resourceGroup, subscriptionId,
           vmSize = tostring(properties.hardwareProfile.vmSize),
           nicId = tolower(tostring(nic.id))

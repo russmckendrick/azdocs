@@ -37,7 +37,7 @@ cloud?: Cloud | null, secret_ref?: string | null, secret_env?: string | null, co
 
 export type CollectOverrides = { subscriptions?: Array<string> | null, concurrency?: number | null, retry?: RetryConfig | null, };
 
-export type AuditOverrides = { required_tags?: Array<string> | null, };
+export type AuditOverrides = { required_tags?: Array<string> | null, tag_resource_groups?: boolean | null, tag_subscriptions?: boolean | null, };
 
 export type BrandingOverrides = { company?: string | null, title?: string | null, subtitle?: string | null, primary_color?: string | null, accent_color?: string | null, logo?: string | null, page_size?: string | null, margin?: string | null, footer?: string | null, theme?: string | null, labels?: string | null, font_family?: string | null, mono_family?: string | null, font_dir?: string | null, };
 
@@ -69,7 +69,17 @@ timeout_secs: number,
  */
 connect_timeout_secs: number, };
 
-export type AuditConfig = { required_tags: Array<string>, };
+export type AuditConfig = { required_tags: Array<string>,
+/**
+ * Also require the tags on resource groups (tag-at-group is a common
+ * governance rule). On by default.
+ */
+tag_resource_groups: boolean,
+/**
+ * Also require the tags on subscriptions. Off by default: few estates
+ * tag subscriptions, and every miss would be an estate-level finding.
+ */
+tag_subscriptions: boolean, };
 
 export type StorageConfig = { db_path: string, };
 

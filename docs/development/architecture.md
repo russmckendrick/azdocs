@@ -78,12 +78,17 @@ resources — the classic Azure inventory bug.
 
 **Edges are derived in Rust, not queried.** `collect/extractors.rs` walks the
 already-stored properties JSON: per-type handlers for the network/compute
-chain (VNet → subnets/peerings, NIC → subnet/NSG/VM, private endpoint →
-target, load balancer, application gateway, VMSS, AKS, App Service, storage
-and key-vault network ACLs) plus two generic passes that apply to every
-resource — child types link to the ARM parent their id nests under, and
-`identity.userAssignedIdentities` links to the managed identity. Zero extra
-API calls, and extraction itself is an offline Rust post-pass.
+chain (VNet → subnets/peerings/route tables, NIC → subnet/NSG/ASG/VM, private
+endpoint → target, load balancer and application gateway → backend NICs or
+scale sets, NAT gateway, Azure Firewall and its policy, VPN/ExpressRoute
+gateways and connections, VMSS, AKS, App Service, Container Apps, flexible
+servers, disk → encryption set → key vault, storage and key-vault network ACLs)
+plus two generic passes that apply to every resource — child types link to the
+ARM parent their id nests under, and `identity.userAssignedIdentities` links to
+the managed identity. `extract_all` adds the one cross-resource edge (VMSS →
+AKS cluster by tag and node resource group) and `evidence_edges` reads stored
+`backup_protected_items` rows for vault → VM. Zero extra API calls, and
+extraction itself is an offline Rust post-pass.
 
 **Auth stays hand-rolled behind `TokenProvider`.** The client-credentials flow is
 one POST. `azure_identity` was rejected for API churn and unneeded surface.

@@ -1,0 +1,20 @@
+name = "orphaned_snapshots"
+category = "cost"
+kind = "finding"
+severity = "info"
+title_field = "summary"
+description = "Disk snapshots whose source disk no longer exists"
+kql = '''
+resources
+| where type == "microsoft.compute/snapshots"
+| extend sourceId = tolower(tostring(properties.creationData.sourceResourceId))
+| join kind=leftouter (
+    resources
+    | where type == "microsoft.compute/disks"
+    | project sourceId = tolower(id), diskId = id
+) on sourceId
+| where isnotempty(sourceId) and isempty(diskId)
+| project id, name, resourceGroup, subscriptionId, sourceId,
+          summary = strcat(name, " was taken from a disk that no longer exists")
+| order by id asc
+'''

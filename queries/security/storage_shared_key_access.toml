@@ -1,0 +1,14 @@
+name = "storage_shared_key_access"
+category = "security"
+kind = "finding"
+severity = "low"
+title_field = "summary"
+description = "Storage accounts still accepting shared-key (account key) authorisation"
+kql = '''
+resources
+| where type == "microsoft.storage/storageaccounts"
+| where coalesce(tobool(properties.allowSharedKeyAccess), true) == true
+| project id, name, resourceGroup, subscriptionId,
+          summary = strcat(name, " allows shared key access")
+| order by id asc
+'''

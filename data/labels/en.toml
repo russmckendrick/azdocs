@@ -1160,6 +1160,150 @@ retention = "Retention days"
 vault_configuration = "Vault configuration"
 showing_rows = "Showing {shown} of {total} rows; the snapshot database and data exports retain the underlying evidence."
 
+[report.assessment.checks.nsg_management_ports_open]
+title = "Management ports open to the Internet"
+observation = "The audit recorded inbound NSG rules that allow RDP (3389) or SSH (22) from any Internet source, including rules written with address and port arrays."
+significance = "Exposed management ports are the most common brute-force and credential-stuffing target on Azure. A permissive rule does not prove a listener exists behind it, but it removes the network boundary that would otherwise contain one."
+verification = "Confirm which NICs and subnets the NSG protects and whether a VM listens on the port. Replace Internet-wide rules with Bastion, just-in-time access or a source-restricted rule, then re-test the intended administrative path."
+policy = "Administrative access should terminate on a bastion or VPN, never on a public listener. Record any approved exception with its source restriction and review date."
+action = "Close management ports to the Internet"
+source = "https://learn.microsoft.com/en-us/azure/virtual-network/network-security-groups-overview"
+
+[report.assessment.checks.storage_public_network_access]
+title = "Storage accounts open to all networks"
+observation = "The audit recorded storage accounts whose public network access is enabled and whose firewall default action allows every source."
+significance = "The account accepts requests from any network; authentication, shared-key settings and container access levels still decide what those requests can do. This is the widest network posture a storage account can have."
+verification = "Review the clients that reach each account, then move to selected networks, private endpoints or trusted-service exceptions. Test the dependent workloads before changing the default action to deny."
+policy = "Storage accounts holding regulated or internal data should default to deny with explicit allowances. Public delivery accounts can stay open but should be documented as such."
+action = "Restrict storage network access"
+source = "https://learn.microsoft.com/en-us/azure/storage/common/storage-network-security"
+
+[report.assessment.checks.storage_shared_key_access]
+title = "Shared key authorisation permitted"
+observation = "The audit recorded storage accounts that still accept account-key (shared key) authorisation, including accounts where the setting was not present and therefore defaults to permitted."
+significance = "Account keys grant full data-plane access without identity, cannot be scoped and are a common leak vector in pipelines and configuration files. Disabling them forces Entra-based authorisation."
+verification = "Inventory the consumers of each account's keys and SAS tokens, migrate them to managed identities or user delegation SAS, then disable shared key access and confirm the workloads still run."
+policy = "New accounts should disable shared key access from the start. Existing accounts should carry a migration date or a documented exception."
+action = "Retire shared key authorisation"
+source = "https://learn.microsoft.com/en-us/azure/storage/common/shared-key-authorization-prevent"
+
+[report.assessment.checks.sql_weak_tls]
+title = "SQL TLS floor below 1.2"
+observation = "The audit recorded SQL servers or managed instances whose minimal TLS version explicitly permits 1.0, 1.1 or none."
+significance = "Older TLS versions have known weaknesses and are disabled by most current clients. The setting only matters for clients that would negotiate below 1.2, but it removes the guarantee that no connection does."
+verification = "Confirm no legacy client still negotiates old TLS, then raise the floor to 1.2 and re-test connectivity from every application."
+policy = "A 1.2 floor is the platform baseline; anything lower should be a documented exception with a retirement plan."
+action = "Raise the SQL TLS floor"
+source = "https://learn.microsoft.com/en-us/azure/azure-sql/database/connectivity-settings"
+
+[report.assessment.checks.sql_entra_only_auth_off]
+title = "SQL authentication still accepted"
+observation = "The audit recorded SQL servers that still accept SQL logins alongside Microsoft Entra authentication, or that have no Entra-only setting recorded."
+significance = "SQL logins are passwords stored outside the identity platform, without conditional access or MFA. Entra-only authentication removes that surface entirely."
+verification = "Identify workloads still using SQL logins, move them to managed identities or Entra service principals, then enable Entra-only authentication."
+policy = "Entra-only authentication should be the default for new servers; legacy dependencies should be listed with owners."
+action = "Move SQL access to Entra-only authentication"
+source = "https://learn.microsoft.com/en-us/azure/azure-sql/database/authentication-azure-ad-only-authentication"
+
+[report.assessment.checks.redis_insecure_transport]
+title = "Redis insecure transport"
+observation = "The audit recorded Redis caches with the non-SSL port enabled or a minimum TLS version below 1.2."
+significance = "The non-SSL port carries credentials and cached data in clear text; an old TLS floor allows weak negotiation. Neither proves a client uses them, but both keep the option open."
+verification = "Check client connection strings for port 6379 and old TLS settings, switch them to 6380 with TLS 1.2, then disable the non-SSL port."
+policy = "Caches should expose only the TLS port with a 1.2 floor; exceptions need an owner and a date."
+action = "Disable the Redis non-SSL port"
+source = "https://learn.microsoft.com/en-us/azure/azure-cache-for-redis/cache-remove-tls-10-11"
+
+[report.assessment.checks.local_auth_enabled]
+title = "Key-based local authentication permitted"
+observation = "The audit recorded Cognitive Services and AI Search accounts that still accept API keys, including accounts where the setting was not present and therefore defaults to permitted."
+significance = "API keys are long-lived, unscoped secrets that bypass conditional access. Disabling local authentication forces Entra identities and role assignments."
+verification = "Find the callers using keys, migrate them to managed identities with the appropriate data-plane roles, then disable local authentication and confirm the callers still succeed."
+policy = "AI and search endpoints handling internal data should be Entra-only; public demo endpoints may keep keys with a documented scope."
+action = "Retire API-key authentication"
+source = "https://learn.microsoft.com/en-us/azure/ai-services/authentication"
+
+[report.assessment.checks.aks_local_accounts_enabled]
+title = "AKS local accounts enabled"
+observation = "The audit recorded AKS clusters whose Kubernetes local accounts remain enabled, or where the setting was not present and therefore defaults to enabled."
+significance = "Local accounts provide a static cluster-admin credential outside Entra. With Entra integration on, they are a bypass; with it off, they are the only path and the cluster has no identity-backed access at all."
+verification = "Enable Entra integration if it is not already on, move administrators to Entra groups with Azure RBAC for Kubernetes, then disable local accounts and rotate any previously issued kubeconfig."
+policy = "Production clusters should run Entra-only access; break-glass access should be documented rather than left permanently enabled."
+action = "Disable AKS local accounts"
+source = "https://learn.microsoft.com/en-us/azure/aks/manage-local-accounts-managed-azure-ad"
+
+[report.assessment.checks.certificates_expiring]
+title = "Certificates expiring"
+observation = "The audit recorded App Service certificates that had expired, or were due to expire within 30 days of the collection time."
+significance = "An expired certificate breaks TLS for every hostname bound to it. Auto-renewal covers managed certificates, but imported and Key Vault certificates depend on someone renewing them."
+verification = "Confirm whether the certificate is still bound, whether renewal is automated, and renew or retire it before the expiry date. Re-collect afterwards to clear the observation."
+policy = "Track certificate ownership and renewal dates outside the platform; treat an expiry inside the review window as a scheduled task, not an incident."
+action = "Renew expiring certificates"
+source = "https://learn.microsoft.com/en-us/azure/app-service/configure-ssl-certificate"
+
+[report.assessment.checks.defender_unhealthy_high]
+title = "High-severity Defender recommendations"
+observation = "The audit recorded Defender for Cloud recommendations that were in an unhealthy state at high severity for the affected resource."
+significance = "Defender's own assessment already ranks these as the most consequential gaps. They are recommendations, not confirmed exploits, and depend on the plans enabled in each subscription."
+verification = "Open each recommendation in Defender for Cloud, confirm the affected resource and its remediation steps, and record exemptions where the finding is accepted."
+policy = "High-severity Defender recommendations should have an owner and a target date; exemptions should be recorded in Defender, not in a spreadsheet."
+action = "Work the high-severity Defender recommendations"
+source = "https://learn.microsoft.com/en-us/azure/defender-for-cloud/review-security-recommendations"
+
+[report.assessment.checks.defender_plan_off]
+title = "Defender plans on the Free tier"
+observation = "The audit recorded Defender for Cloud plans set to the Free tier in a subscription, meaning that workload type has no threat protection and its assessments are limited to the foundational set."
+significance = "Every other Defender observation in this report is bounded by which plans are on. A plan on the Free tier is a blind spot, not a finding of safety."
+verification = "Decide per subscription which plans the workloads warrant, enable them, and re-collect to see the assessments and alerts they produce."
+policy = "Plan coverage is a budget decision; record which plans are deliberately off and why so the gap is understood rather than rediscovered."
+action = "Review Defender plan coverage"
+source = "https://learn.microsoft.com/en-us/azure/defender-for-cloud/enable-all-plans"
+
+[report.assessment.checks.basic_sku_public_ips_and_lbs]
+title = "Retired Basic SKU networking"
+observation = "The audit recorded public IP addresses and load balancers on the Basic SKU, which Azure retired on 30 September 2025."
+significance = "Retired SKUs receive no support and may stop working at Microsoft's discretion. Basic SKUs also lack availability zones and the Standard security-by-default posture."
+verification = "Plan the migration to Standard SKU following Microsoft's upgrade guidance, which changes the default inbound posture and may need NSG rules added."
+policy = "No new Basic SKU resources should be created; existing ones need a migration owner and date."
+action = "Migrate Basic SKU networking to Standard"
+source = "https://learn.microsoft.com/en-us/azure/load-balancer/skus"
+
+[report.assessment.checks.private_dns_zones_unlinked]
+title = "Private DNS zones without links"
+observation = "The audit recorded private DNS zones linked to no virtual network."
+significance = "A zone with no links resolves nothing; it may be a leftover, a zone awaiting a link, or one used only for private-endpoint registration that has since been removed."
+verification = "Check whether a private endpoint or workload still expects the zone, link it or remove it."
+policy = "Zone ownership should be recorded alongside the private endpoints that use it."
+action = "Review unlinked private DNS zones"
+source = "https://learn.microsoft.com/en-us/azure/dns/private-dns-virtual-network-links"
+
+[report.assessment.checks.orphaned_snapshots]
+title = "Snapshots of deleted disks"
+observation = "The audit recorded disk snapshots whose source disk no longer exists in the estate."
+significance = "Such snapshots cost storage indefinitely and are rarely restorable to their original purpose. They may still be an intentional archive."
+verification = "Confirm whether the snapshot backs an image or a retention requirement; delete or move it to a documented archive otherwise."
+policy = "Snapshot retention should be a policy with a lifetime, not the default of forever."
+action = "Review orphaned snapshots"
+source = "https://learn.microsoft.com/en-us/azure/virtual-machines/snapshot-copy-managed-disk"
+
+[report.assessment.checks.route_tables_without_subnets]
+title = "Route tables without subnets"
+observation = "The audit recorded route tables associated with no subnet."
+significance = "A detached route table affects nothing; it may be a leftover from a redesign or a table prepared for a subnet not yet created."
+verification = "Confirm intent with the network owner and remove tables that no design references."
+policy = "Network artefacts should be removed with the design that created them."
+action = "Review detached route tables"
+source = "https://learn.microsoft.com/en-us/azure/virtual-network/manage-route-table"
+
+[report.assessment.checks.unused_user_assigned_identities]
+title = "Unreferenced managed identities"
+observation = "The audit recorded user-assigned managed identities that no collected resource references. Federated credentials and AKS kubelet identities are not visible to this check."
+significance = "An identity nobody uses may still hold role assignments, which is standing privilege with no consumer. It may also be used by a resource type outside the inventory."
+verification = "Check role assignments and federated credentials on each identity, confirm no workload uses it, then remove it and its assignments."
+policy = "Identities should be created with their consumer and removed with it."
+action = "Review unreferenced managed identities"
+source = "https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/overview"
+
 [report.assessment.checks.sql_public_network_access]
 title = "Database public-network configuration"
 observation = "The audit recorded database services whose public-network access setting was enabled or treated as enabled by the collected rule."
@@ -1268,6 +1412,15 @@ storage_size = "Storage size (GB)"
 retention_days = "Retention (days)"
 ingestion_mode = "Ingestion mode"
 workspace_network = "Managed virtual network"
+waf_mode = "WAF mode"
+waf_policy = "WAF policy"
+admin_user = "Admin user enabled"
+anonymous_pull = "Anonymous pull"
+next_hop_routes = "User-defined routes"
+certificate_expiry = "Certificate expiry"
+pricing_tier = "Defender plan tier"
+local_accounts = "Local accounts disabled"
+vnet_type = "Virtual network mode"
 sql_admin_auth = "Microsoft Entra-only authentication"
 
 [report.assessment.checks.web_app_https_only_disabled]

@@ -56,7 +56,7 @@ pub struct CollectRequest {
     pub subscriptions: Vec<String>,
     pub concurrency: usize,
     pub notes: Option<String>,
-    pub required_tags: Vec<String>,
+    pub audit: crate::config::AuditConfig,
     pub quiet: bool,
     /// Checked after every completed query; a cancelled run stops there,
     /// skips the post-pass and is stored as `cancelled`.
@@ -101,7 +101,7 @@ pub async fn run_with_progress<P: TokenProvider + 'static>(
         subscriptions,
         concurrency,
         notes,
-        required_tags,
+        audit: audit_config,
         quiet,
         cancel,
     } = request;
@@ -241,9 +241,15 @@ pub async fn run_with_progress<P: TokenProvider + 'static>(
     // Post-pass over stored resources: derive relationship edges and run the
     // config-driven audits.
     let resources = store.resources(&snapshot.id)?;
-    let edges: Vec<_> = resources.iter().flat_map(extractors::extract).collect();
+    let mut edges = extractors::extract_all(&resources);
+    edges.extend(extractors::evidence_edges(store, &snapshot.id)?);
     store.insert_edges(&snapshot.id, &edges)?;
-    let tag_findings = audit::missing_required_tags(&resources, &required_tags);
+    let tag_findings = audit::required_tag_findings(
+        &audit_config,
+        &resources,
+        &store.resource_groups(&snapshot.id)?,
+        &store.subscriptions(&snapshot.id)?,
+    );
     store.insert_findings(&snapshot.id, &tag_findings)?;
     tracing::info!(
         edges = edges.len(),

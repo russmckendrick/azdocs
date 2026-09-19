@@ -50,7 +50,11 @@ export const previewSettings: SettingsDocumentDto = {
         connect_timeout_secs: 15,
       },
     },
-    audit: { required_tags: ["environment", "owner"] },
+    audit: {
+      required_tags: ["environment", "owner"],
+      tag_resource_groups: true,
+      tag_subscriptions: false,
+    },
     storage: { db_path: mockBootstrap.databasePath },
     branding: {
       company: "",

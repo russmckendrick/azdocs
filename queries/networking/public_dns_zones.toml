@@ -1,0 +1,14 @@
+name = "public_dns_zones"
+category = "networking"
+kind = "inventory"
+description = "Public DNS zones with record-set counts and delegated name servers"
+kql = '''
+resources
+| where type == "microsoft.network/dnszones"
+| project id, name, resourceGroup, subscriptionId,
+          zoneType = tostring(properties.zoneType),
+          recordSets = properties.numberOfRecordSets,
+          maxRecordSets = properties.maxNumberOfRecordSets,
+          nameServers = tostring(properties.nameServers)
+| order by id asc
+'''

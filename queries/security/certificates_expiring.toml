@@ -1,0 +1,17 @@
+name = "certificates_expiring"
+category = "security"
+kind = "finding"
+severity = "medium"
+title_field = "summary"
+description = "App Service certificates expired or expiring within 30 days of collection"
+kql = '''
+resources
+| where type == "microsoft.web/certificates"
+| extend expiry = todatetime(properties.expirationDate)
+| where isnotnull(expiry) and expiry <= now() + 30d
+| project id, name, resourceGroup, subscriptionId,
+          subjectName = tostring(properties.subjectName),
+          expirationDate = tostring(properties.expirationDate),
+          summary = strcat(name, " (", properties.subjectName, ") expires ", properties.expirationDate)
+| order by id asc
+'''

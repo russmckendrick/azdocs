@@ -1,0 +1,14 @@
+name = "sql_entra_only_auth_off"
+category = "security"
+kind = "finding"
+severity = "low"
+title_field = "summary"
+description = "SQL servers where Entra-only authentication is not enforced"
+kql = '''
+resources
+| where type == "microsoft.sql/servers"
+| where coalesce(tobool(properties.administrators.azureADOnlyAuthentication), false) == false
+| project id, name, resourceGroup, subscriptionId,
+          summary = strcat(name, " still accepts SQL authentication")
+| order by id asc
+'''

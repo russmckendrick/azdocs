@@ -93,3 +93,14 @@
 "microsoft.portal/dashboards" = "Shared Dashboard"
 "microsoft.synapse/workspaces/sqlpools" = "Synapse SQL Pool"
 "microsoft.devtestlab/schedules" = "DevTest Schedule"
+
+# Added with the edge-service coverage: WAF policies, slots, certificates,
+# Defender plans, security groups and encryption sets.
+"microsoft.network/frontdoorwebapplicationfirewallpolicies" = "Front Door WAF Policy"
+"microsoft.network/applicationgatewaywebapplicationfirewallpolicies" = "Application Gateway WAF Policy"
+"microsoft.network/applicationsecuritygroups" = "Application Security Group"
+"microsoft.web/sites/slots" = "App Service Slot"
+"microsoft.web/certificates" = "App Service Certificate"
+"microsoft.security/pricings" = "Defender Plan"
+"microsoft.eventgrid/domains" = "Event Grid Domain"
+"microsoft.compute/diskencryptionsets" = "Disk Encryption Set"

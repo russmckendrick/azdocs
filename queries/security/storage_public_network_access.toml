@@ -1,0 +1,15 @@
+name = "storage_public_network_access"
+category = "security"
+kind = "finding"
+severity = "high"
+title_field = "summary"
+description = "Storage accounts reachable from all networks with no firewall default deny"
+kql = '''
+resources
+| where type == "microsoft.storage/storageaccounts"
+| where tolower(coalesce(tostring(properties.publicNetworkAccess), "enabled")) == "enabled"
+  and tolower(coalesce(tostring(properties.networkAcls.defaultAction), "allow")) == "allow"
+| project id, name, resourceGroup, subscriptionId,
+          summary = strcat(name, " is reachable from all networks")
+| order by id asc
+'''

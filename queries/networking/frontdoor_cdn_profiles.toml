@@ -1,0 +1,17 @@
+name = "frontdoor_cdn_profiles"
+category = "networking"
+kind = "inventory"
+description = "Front Door and CDN profiles with SKU, endpoint counts and attached WAF policy"
+kql = '''
+resources
+| where type in ("microsoft.cdn/profiles", "microsoft.network/frontdoors")
+| project id, name, type, location, resourceGroup, subscriptionId,
+          sku = tostring(sku.name), kind,
+          frontDoorId = tostring(properties.frontDoorId),
+          endpointCount = coalesce(array_length(properties.frontendEndpoints), 0),
+          backendPoolCount = coalesce(array_length(properties.backendPools), 0),
+          routingRuleCount = coalesce(array_length(properties.routingRules), 0),
+          wafPolicyId = tostring(properties.frontendEndpoints[0].properties.webApplicationFirewallPolicyLink.id),
+          enabledState = tostring(properties.enabledState)
+| order by id asc
+'''

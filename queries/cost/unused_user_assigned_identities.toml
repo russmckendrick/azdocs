@@ -1,0 +1,21 @@
+name = "unused_user_assigned_identities"
+category = "cost"
+kind = "finding"
+severity = "info"
+title_field = "summary"
+description = "User-assigned managed identities no resource references (federated and kubelet uses are not visible here)"
+kql = '''
+resources
+| where type == "microsoft.managedidentity/userassignedidentities"
+| project id, name, resourceGroup, subscriptionId, identityId = tolower(id)
+| join kind=leftanti (
+    resources
+    | where isnotempty(identity.userAssignedIdentities)
+    | mv-expand bagexpansion=array uai = identity.userAssignedIdentities
+    | project identityId = tolower(tostring(uai[0]))
+    | distinct identityId
+) on identityId
+| project id, name, resourceGroup, subscriptionId,
+          summary = strcat(name, " is assigned to no resource")
+| order by id asc
+'''

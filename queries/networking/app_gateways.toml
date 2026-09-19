@@ -1,7 +1,7 @@
 name = "app_gateways"
 category = "networking"
 kind = "inventory"
-description = "Application gateways with SKU, WAF configuration, and listener/pool/rule counts"
+description = "Application gateways with SKU, inline or policy-based WAF configuration, and listener/pool/rule counts"
 kql = '''
 resources
 | where type == "microsoft.network/applicationgateways"
@@ -9,7 +9,8 @@ resources
           sku = tostring(properties.sku.name),
           tier = tostring(properties.sku.tier),
           capacity = toint(properties.sku.capacity),
-          wafEnabled = properties.webApplicationFirewallConfiguration.enabled,
+          firewallPolicyId = tostring(properties.firewallPolicy.id),
+          wafEnabled = coalesce(tobool(properties.webApplicationFirewallConfiguration.enabled), isnotempty(tostring(properties.firewallPolicy.id))),
           wafMode = tostring(properties.webApplicationFirewallConfiguration.firewallMode),
           wafRuleSetType = tostring(properties.webApplicationFirewallConfiguration.ruleSetType),
           wafRuleSetVersion = tostring(properties.webApplicationFirewallConfiguration.ruleSetVersion),

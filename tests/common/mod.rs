@@ -108,7 +108,7 @@ pub fn seed_estate(store: &Store) -> String {
 
     // Same post-pass the collect runner performs.
     let resources = store.resources(&snapshot.id).unwrap();
-    let edges: Vec<_> = resources.iter().flat_map(extractors::extract).collect();
+    let edges = extractors::extract_all(&resources);
     store.insert_edges(&snapshot.id, &edges).unwrap();
     let tag_findings = audit::missing_required_tags(&resources, &["env".to_owned()]);
     store.insert_findings(&snapshot.id, &tag_findings).unwrap();

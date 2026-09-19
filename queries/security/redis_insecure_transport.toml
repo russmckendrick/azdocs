@@ -1,0 +1,16 @@
+name = "redis_insecure_transport"
+category = "security"
+kind = "finding"
+severity = "medium"
+title_field = "summary"
+description = "Redis caches with the non-SSL port enabled or a TLS floor below 1.2"
+kql = '''
+resources
+| where type == "microsoft.cache/redis"
+| extend nonSslPort = coalesce(tobool(properties.enableNonSslPort), false),
+         minTlsVersion = tostring(properties.minimumTlsVersion)
+| where nonSslPort == true or minTlsVersion in ("1.0", "1.1")
+| project id, name, resourceGroup, subscriptionId, nonSslPort, minTlsVersion,
+          summary = strcat(name, iff(nonSslPort, " exposes the non-SSL port", strcat(" permits TLS ", minTlsVersion)))
+| order by id asc
+'''

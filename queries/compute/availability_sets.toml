@@ -1,0 +1,15 @@
+name = "availability_sets"
+category = "compute"
+kind = "inventory"
+description = "Availability sets with fault/update domain counts and member VM counts"
+kql = '''
+resources
+| where type == "microsoft.compute/availabilitysets"
+| project id, name, location, resourceGroup, subscriptionId,
+          sku = tostring(sku.name),
+          faultDomains = toint(properties.platformFaultDomainCount),
+          updateDomains = toint(properties.platformUpdateDomainCount),
+          vmCount = coalesce(array_length(properties.virtualMachines), 0),
+          proximityPlacementGroupId = tostring(properties.proximityPlacementGroup.id)
+| order by id asc
+'''

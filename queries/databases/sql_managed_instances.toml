@@ -1,0 +1,20 @@
+name = "sql_managed_instances"
+category = "databases"
+kind = "inventory"
+description = "SQL managed instances with SKU, vCores, storage, subnet, public endpoint, TLS floor and licence"
+kql = '''
+resources
+| where type == "microsoft.sql/managedinstances"
+| project id, name, location, resourceGroup, subscriptionId,
+          sku = tostring(sku.name),
+          vCores = toint(properties.vCores),
+          storageSizeInGB = toint(properties.storageSizeInGB),
+          subnetId = tostring(properties.subnetId),
+          publicDataEndpointEnabled = properties.publicDataEndpointEnabled,
+          minimalTlsVersion = tostring(properties.minimalTlsVersion),
+          proxyOverride = tostring(properties.proxyOverride),
+          licenseType = tostring(properties.licenseType),
+          zoneRedundant = properties.zoneRedundant,
+          state = tostring(properties.state)
+| order by id asc
+'''

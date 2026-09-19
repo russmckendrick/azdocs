@@ -1,6 +1,6 @@
 # Built-in query pack
 
-114 queries ship embedded in the binary from `queries/`. List the live set
+148 queries ship embedded in the binary from `queries/`. List the live set
 (including your custom queries) with `azdocs query list`, print KQL with
 `azdocs query show <name>`, run one ad-hoc with `azdocs query run <name>`.
 Override or extend via `queries.d/` — see
@@ -13,18 +13,18 @@ pie title Query pack by category
     "arc" : 2
     "avd" : 5
     "compliance" : 3
-    "compute" : 10
-    "cost" : 10
-    "databases" : 4
+    "compute" : 14
+    "cost" : 15
+    "databases" : 5
     "governance" : 8
     "identity" : 6
-    "integration" : 1
+    "integration" : 3
     "inventory" : 5
-    "monitoring" : 5
-    "networking" : 14
+    "monitoring" : 6
+    "networking" : 22
     "operations" : 6
     "resilience" : 8
-    "security" : 20
+    "security" : 33
     "storage" : 2
 ```
 
@@ -44,7 +44,15 @@ pie title Query pack by category
 | `nsg_rules` | networking | Custom NSG security rules with direction, priority, and address/port scopes |
 | `public_ip_addresses` | networking | Public IPs and what they're attached to |
 | `load_balancers` | networking | Load balancers with SKU and rule counts |
-| `app_gateways` | networking | App gateways with SKU, WAF mode/ruleset, and listener/pool counts |
+| `app_gateways` | networking | App gateways with SKU, inline or policy-based WAF, and listener/pool counts |
+| `waf_policies` | networking | Front Door and Application Gateway WAF policies with mode, rule sets and linked services |
+| `frontdoor_cdn_profiles` | networking | Front Door and CDN profiles with SKU, endpoint counts and attached WAF policy |
+| `route_tables` | networking | Route tables with route and subnet counts and BGP propagation |
+| `route_table_routes` | networking | User-defined routes expanded from every route table |
+| `public_dns_zones` | networking | Public DNS zones with record-set counts and name servers |
+| `firewall_policies` | networking | Azure Firewall policies with tier, threat intelligence, DNS proxy and rule groups |
+| `local_network_gateways` | networking | Local network gateways with on-premises address, prefixes and BGP |
+| `application_security_groups` | networking | Application security groups (NIC membership becomes relationships) |
 | `firewalls` | networking | Azure Firewalls with SKU and policy |
 | `bastion_hosts` | networking | Bastion hosts with SKU, VNet placement, and public IP |
 | `private_endpoints` | networking | Private endpoints and their targets |
@@ -57,16 +65,21 @@ pie title Query pack by category
 | `vm_scale_sets` | compute | Scale sets with capacity, orchestration mode, and AKS ownership |
 | `managed_disks` | compute | Disks with size, SKU, encryption, attachment |
 | `aks_clusters` | compute | AKS with version, node pools, network plugin, RBAC and Defender posture |
+| `aks_node_pools` | compute | AKS node pools per row with mode, VM size, counts, autoscale, OS and subnet |
+| `container_registries` | compute | Container registries with SKU, admin user, anonymous pull and network posture |
+| `app_service_slots` | compute | App Service deployment slots with parent site, state and HTTPS-only |
+| `availability_sets` | compute | Availability sets with fault/update domains and member VM counts |
 | `app_service_plans` | compute | Plans with SKU and app counts |
 | `web_apps` | compute | App Services / Function Apps with TLS, FTPS, and network settings |
 | `static_web_apps` | compute | Static Web Apps with hostname, source repository, and network access |
 | `container_apps` | compute | Container Apps and environments |
-| `storage_accounts` | storage | Storage accounts with SKU, TLS floor, and network rules |
+| `storage_accounts` | storage | Storage accounts with SKU, TLS floor, network rule counts and shared-key access |
 | `recovery_vaults` | storage | Recovery Services and Backup vaults |
 | `sql_servers_and_dbs` | databases | SQL servers/dbs with public network access and Entra auth posture |
 | `cosmos_accounts` | databases | Cosmos accounts with API kind and consistency |
 | `postgres_mysql_flexible` | databases | PostgreSQL/MySQL flexible servers with HA and backup posture |
 | `redis_caches` | databases | Redis with SKU and TLS settings |
+| `sql_managed_instances` | databases | SQL managed instances with SKU, vCores, subnet, public endpoint and TLS floor |
 | `key_vaults` | identity | Key vaults with protection and network settings |
 | `managed_identities` | identity | User-assigned managed identities |
 | `resources_with_system_identity` | identity | Resources with system-assigned identity |
@@ -84,14 +97,22 @@ pie title Query pack by category
 | `avd_session_hosts` | avd | Likely AVD session hosts: VMs sharing a resource group with a host pool |
 | `management_groups` | governance | Management group hierarchy (may return no rows when ARG access is scoped to subscriptions only) |
 | `logic_app_workflows` | integration | Logic App workflows with state, identity, and integration account |
+| `api_management` | integration | API Management services with SKU, capacity, VNet mode and public network posture |
+| `messaging_services` | integration | Event Hubs, Service Bus and Event Grid with SKU, TLS floor and network posture |
 | `log_analytics_workspaces` | monitoring | Log Analytics workspaces with SKU, retention, quota, and network access |
 | `app_insights_components` | monitoring | Application Insights components with retention, sampling, and workspace integration |
+| `data_collection_rules` | monitoring | Data collection rules with data source kinds, destination workspaces and flows |
+| `web_certificates` | security | App Service certificates with subject, issuer, expiry and Key Vault source |
+| `defender_pricings` | security | Defender for Cloud plan coverage per subscription with pricing tier |
 
 ## Security findings
 
 | Name | Severity | Description |
 |---|---|---|
-| `nsg_open_to_internet` | 🔴 high | NSG rules allowing inbound from the Internet |
+| `nsg_open_to_internet` | 🔴 high | NSG rules allowing inbound from the Internet (scalar and array-form rules) |
+| `nsg_management_ports_open` | 🔴 high | NSG rules exposing RDP (3389) or SSH (22) to the Internet |
+| `storage_public_network_access` | 🔴 high | Storage accounts reachable from all networks with no firewall default deny |
+| `defender_unhealthy_high` | 🔴 high | Defender for Cloud recommendations unhealthy at high severity |
 | `storage_public_blob_access` | 🔴 high | Anonymous public blob access enabled |
 | `sql_public_network_access` | 🔴 high | Database servers reachable from public networks |
 | `public_ip_exposed_resources` | 🔴 high | Public IPs directly on NICs |
@@ -103,8 +124,16 @@ pie title Query pack by category
 | `keyvault_public_access` | 🟠 medium | Key vaults reachable from all networks |
 | `web_app_https_only_disabled` | 🟠 medium | App Services not enforcing HTTPS-only traffic |
 | `web_app_weak_tls_or_ftps` | 🟠 medium | App Services allowing weak TLS versions or unencrypted FTP |
+| `sql_weak_tls` | 🟠 medium | SQL servers and managed instances permitting TLS below 1.2 |
+| `redis_insecure_transport` | 🟠 medium | Redis caches with the non-SSL port enabled or a TLS floor below 1.2 |
+| `local_auth_enabled` | 🟠 medium | Cognitive Services and AI Search still accepting key-based local authentication |
+| `aks_local_accounts_enabled` | 🟠 medium | AKS clusters with Kubernetes local accounts enabled |
+| `certificates_expiring` | 🟠 medium | App Service certificates expired or expiring within 30 days of collection |
+| `defender_plan_off` | 🟠 medium | Defender for Cloud plans left on the Free tier |
 | `vms_without_managed_disks` | 🟡 low | VMs on unmanaged (blob) OS disks |
 | `aks_public_api_server` | 🟡 low | AKS clusters exposing a public API server with no authorized IP ranges |
+| `storage_shared_key_access` | 🟡 low | Storage accounts still accepting shared-key authorisation |
+| `sql_entra_only_auth_off` | 🟡 low | SQL servers where Entra-only authentication is not enforced |
 | `orphaned_resources` | 🔵 info | Unattached disks, unused public IPs, orphaned NICs |
 | `unassociated_nsgs` | 🔵 info | NSGs not associated with any subnet or network interface |
 
@@ -125,6 +154,11 @@ is required.
 | `backendless_app_gateways` | cost | low | Application gateways without configured backend addresses or NIC IP configurations |
 | `orphaned_nat_gateways` | cost | low | NAT gateways without an associated subnet |
 | `empty_sql_elastic_pools` | cost | low | SQL elastic pools with no associated databases |
+| `basic_sku_public_ips_and_lbs` | cost | medium | Public IPs and load balancers on the retired Basic SKU |
+| `private_dns_zones_unlinked` | cost | info | Private DNS zones with no virtual network links |
+| `orphaned_snapshots` | cost | info | Disk snapshots whose source disk no longer exists |
+| `route_tables_without_subnets` | cost | info | Route tables not associated with any subnet |
+| `unused_user_assigned_identities` | cost | info | User-assigned identities no resource references (federated and kubelet uses are invisible) |
 | `policy_states` | governance | inventory | Azure Policy evaluations with assignment, initiative, resource, state, and evaluation timestamp |
 | `policy_non_compliant` | governance | medium | Resources with a recorded non-compliant Azure Policy evaluation |
 | `policy_exemptions` | governance | inventory | Azure Policy exemptions including category, assignment, and expiry |
@@ -199,17 +233,34 @@ cross-resource context a single query can't see:
 
 | Name | Severity | Source |
 |---|---|---|
-| `missing_required_tags` | 🟡 low | `collect/audit.rs`, driven by `[audit] required_tags` |
+| `missing_required_tags` | 🟡 low | `collect/audit.rs`, driven by `[audit] required_tags`; also checks resource groups (`tag_resource_groups`, default on) and subscriptions (`tag_subscriptions`, default off) |
 
 Relationship **edges** are likewise derived in Rust (`collect/extractors.rs`)
-rather than queried: the network/compute chain (subnets, peerings, NSG
-associations, NIC/VM/disk attachment, private endpoints, DNS links, load
-balancers, application gateways, Bastion, VMSS), platform ties (App Service →
-plan, SQL VM registration, AKS node pools), monitoring (data collection rules,
-solutions and App Insights → workspace, alert-rule scopes, Event Grid system
-topics), plus two generic passes — child resources → their ARM parent, and
+rather than queried: the network/compute chain (subnets, peerings, NSG and
+application-security-group associations, subnet → route table, NIC/VM/disk
+attachment, availability sets, private endpoints, DNS links, load balancers and
+application gateways including their backend NICs and scale sets, WAF and
+firewall policies, Bastion, NAT gateways, Azure Firewall, VPN/ExpressRoute
+gateways and connections, VMSS → subnet and → AKS cluster), platform ties (App
+Service → plan, Container App → environment → subnet, flexible servers →
+delegated subnet, SQL VM registration, AKS node pools, disk → encryption set →
+key vault), storage and key-vault network ACLs → subnet, monitoring (data
+collection rules, solutions and App Insights → workspace, alert-rule scopes,
+Event Grid system topics, backup vault → protected VM from stored evidence),
+plus two generic passes — child resources → their ARM parent, and
 `identity.userAssignedIdentities` → the managed identity — see
 [development/architecture.md](../development/architecture.md#design-decisions).
+
+### Blind spots
+
+Resource Graph returns control-plane resources, not every child or extension
+resource. The following are therefore not checkable here, and a missing row
+never means a control passed: diagnostic settings, resource locks, budgets and
+cost alerts, SQL auditing and TDE state, blob soft-delete and versioning, Key
+Vault contents, App Service TLS certificates bound to listeners, and the
+activity log beyond `resource_changes`. The desktop's website capture shows
+the shape of an ARM supplement for one of these; others need the same kind of
+explicit, read-only ARM call rather than a query.
 
 ## Display metadata
 
@@ -232,7 +283,7 @@ fallbacks, and user override paths.
 
 ## Operational and access evidence
 
-The pack contains **78 inventory queries and 36 finding queries**. The following
+The pack contains **96 inventory queries and 52 finding queries**. The following
 queries cover operational and access evidence exposed by Microsoft collections. See [operational evidence](operational-evidence.md)
 for retention, scope, freshness and source-provenance semantics.
 

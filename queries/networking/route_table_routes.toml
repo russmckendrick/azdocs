@@ -1,0 +1,15 @@
+name = "route_table_routes"
+category = "networking"
+kind = "inventory"
+description = "User-defined routes expanded from every route table with prefix and next hop"
+kql = '''
+resources
+| where type == "microsoft.network/routetables"
+| mv-expand route = properties.routes
+| project id, name, resourceGroup, subscriptionId,
+          routeName = tostring(route.name),
+          addressPrefix = tostring(route.properties.addressPrefix),
+          nextHopType = tostring(route.properties.nextHopType),
+          nextHopIpAddress = tostring(route.properties.nextHopIpAddress)
+| order by id asc, routeName asc
+'''

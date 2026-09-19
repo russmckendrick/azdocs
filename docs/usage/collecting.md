@@ -63,6 +63,21 @@ empty and limits derived relationships, required-tag checks and resource views.
 Omitting `subscriptions` or `resource_groups` also reduces stored scope metadata.
 For a full estate report, collect the complete pack.
 
+## What Resource Graph cannot see
+
+ARG indexes control-plane resources. Diagnostic settings, resource locks,
+budgets, SQL auditing and TDE, blob soft-delete, Key Vault contents and the
+full activity log are extension or data-plane objects it does not return, so no
+query in the pack can check them and no report should be read as proving them.
+See the [query reference](../reference/queries.md#blind-spots).
+
+## Required-tag audit scope
+
+`[audit] required_tags` is checked on every resource, on every resource group
+(`tag_resource_groups`, default `true`) and optionally on subscriptions
+(`tag_subscriptions`, default `false`). Group and subscription findings carry
+the scope's ARM id and appear as estate-level findings in reports.
+
 ## Snapshot status
 
 | Status | Meaning |

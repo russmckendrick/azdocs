@@ -1,0 +1,11 @@
+name = "application_security_groups"
+category = "networking"
+kind = "inventory"
+description = "Application security groups; NIC membership is derived as relationships"
+kql = '''
+resources
+| where type == "microsoft.network/applicationsecuritygroups"
+| project id, name, location, resourceGroup, subscriptionId,
+          provisioningState = tostring(properties.provisioningState)
+| order by id asc
+'''

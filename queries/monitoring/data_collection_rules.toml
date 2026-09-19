@@ -1,0 +1,14 @@
+name = "data_collection_rules"
+category = "monitoring"
+kind = "inventory"
+description = "Data collection rules with data source kinds, destination workspaces and data flows"
+kql = '''
+resources
+| where type == "microsoft.insights/datacollectionrules"
+| project id, name, location, resourceGroup, subscriptionId, kind,
+          dataSourceKinds = tostring(bag_keys(properties.dataSources)),
+          workspaceCount = coalesce(array_length(properties.destinations.logAnalytics), 0),
+          streamCount = coalesce(array_length(properties.dataFlows), 0),
+          endpointId = tostring(properties.dataCollectionEndpointId)
+| order by id asc
+'''

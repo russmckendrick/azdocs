@@ -1,0 +1,15 @@
+name = "sql_weak_tls"
+category = "security"
+kind = "finding"
+severity = "medium"
+title_field = "summary"
+description = "SQL servers and managed instances explicitly permitting TLS below 1.2"
+kql = '''
+resources
+| where type in ("microsoft.sql/servers", "microsoft.sql/managedinstances")
+| extend minimalTlsVersion = tostring(properties.minimalTlsVersion)
+| where minimalTlsVersion in ("1.0", "1.1", "None")
+| project id, name, type, resourceGroup, subscriptionId, minimalTlsVersion,
+          summary = strcat(name, " permits TLS ", minimalTlsVersion)
+| order by id asc
+'''

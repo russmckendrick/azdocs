@@ -374,7 +374,7 @@ pub async fn collect_snapshot(
                         subscriptions,
                         concurrency: config.collect.concurrency,
                         notes: request.notes,
-                        required_tags: config.audit.required_tags.clone(),
+                        audit: config.audit.clone(),
                         quiet: true,
                         cancel,
                     },

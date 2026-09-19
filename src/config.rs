@@ -119,10 +119,26 @@ impl RetryConfig {
     }
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, ts_rs::TS)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(default, deny_unknown_fields)]
 pub struct AuditConfig {
     pub required_tags: Vec<String>,
+    /// Also require the tags on resource groups (tag-at-group is a common
+    /// governance rule). On by default.
+    pub tag_resource_groups: bool,
+    /// Also require the tags on subscriptions. Off by default: few estates
+    /// tag subscriptions, and every miss would be an estate-level finding.
+    pub tag_subscriptions: bool,
+}
+
+impl Default for AuditConfig {
+    fn default() -> Self {
+        Self {
+            required_tags: Vec::new(),
+            tag_resource_groups: true,
+            tag_subscriptions: false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]

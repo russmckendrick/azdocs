@@ -183,7 +183,7 @@ pub async fn run(
             subscriptions,
             concurrency,
             notes: args.notes.clone(),
-            required_tags: config.audit.required_tags.clone(),
+            audit: config.audit.clone(),
             quiet: args.quiet,
             cancel,
         },

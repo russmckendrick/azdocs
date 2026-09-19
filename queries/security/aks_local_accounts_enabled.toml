@@ -1,0 +1,14 @@
+name = "aks_local_accounts_enabled"
+category = "security"
+kind = "finding"
+severity = "medium"
+title_field = "summary"
+description = "AKS clusters with Kubernetes local accounts enabled alongside Entra integration"
+kql = '''
+resources
+| where type == "microsoft.containerservice/managedclusters"
+| where coalesce(tobool(properties.disableLocalAccounts), false) == false
+| project id, name, resourceGroup, subscriptionId,
+          summary = strcat(name, " has Kubernetes local accounts enabled")
+| order by id asc
+'''

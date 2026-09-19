@@ -108,6 +108,10 @@ pub struct CollectOverrides {
 pub struct AuditOverrides {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub required_tags: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tag_resource_groups: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tag_subscriptions: Option<bool>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
@@ -311,6 +315,12 @@ impl SettingsValues {
             }
             if let Some(tags) = &profile.audit.required_tags {
                 config.audit.required_tags = tags.clone();
+            }
+            if let Some(groups) = profile.audit.tag_resource_groups {
+                config.audit.tag_resource_groups = groups;
+            }
+            if let Some(subscriptions) = profile.audit.tag_subscriptions {
+                config.audit.tag_subscriptions = subscriptions;
             }
             profile.branding.apply(&mut config.branding);
         }

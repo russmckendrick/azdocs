@@ -25,7 +25,11 @@ function values(): SettingsValues {
         connect_timeout_secs: 15,
       },
     },
-    audit: { required_tags: ["owner"] },
+    audit: {
+      required_tags: ["owner"],
+      tag_resource_groups: true,
+      tag_subscriptions: false,
+    },
     storage: { db_path: "estate.db" },
     branding: {
       company: "Shared",

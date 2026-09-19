@@ -188,3 +188,40 @@ paths = ["/managedVirtualNetwork"]
 [[fields]]
 label = "sql_admin_auth"
 paths = ["/administrators/azureADOnlyAuthentication"]
+
+[[fields]]
+label = "waf_mode"
+paths = ["/policySettings/mode","/webApplicationFirewallConfiguration/firewallMode"]
+
+[[fields]]
+label = "waf_policy"
+paths = ["/firewallPolicy/id"]
+
+[[fields]]
+label = "admin_user"
+paths = ["/adminUserEnabled"]
+
+[[fields]]
+label = "anonymous_pull"
+paths = ["/anonymousPullEnabled"]
+
+[[fields]]
+label = "next_hop_routes"
+paths = ["/routes"]
+count = true
+
+[[fields]]
+label = "certificate_expiry"
+paths = ["/expirationDate"]
+
+[[fields]]
+label = "pricing_tier"
+paths = ["/pricingTier"]
+
+[[fields]]
+label = "local_accounts"
+paths = ["/disableLocalAccounts"]
+
+[[fields]]
+label = "vnet_type"
+paths = ["/virtualNetworkType"]

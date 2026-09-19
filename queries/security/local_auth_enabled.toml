@@ -1,0 +1,14 @@
+name = "local_auth_enabled"
+category = "security"
+kind = "finding"
+severity = "medium"
+title_field = "summary"
+description = "Cognitive Services and AI Search accounts still accepting key-based local authentication"
+kql = '''
+resources
+| where type in ("microsoft.cognitiveservices/accounts", "microsoft.search/searchservices")
+| where coalesce(tobool(properties.disableLocalAuth), false) == false
+| project id, name, type, resourceGroup, subscriptionId,
+          summary = strcat(name, " accepts key-based local authentication")
+| order by id asc
+'''
