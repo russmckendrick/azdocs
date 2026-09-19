@@ -70,7 +70,7 @@ For a full estate report, collect the complete pack.
 | `complete` | Every query succeeded |
 | `partial` | Some queries failed; the rest of the data is usable |
 | `failed` | Everything failed, or the collect was abandoned and reconciled on a later open |
-| `cancelled` | Stopped on request before every query ran |
+| `cancelled` | Stopped on request (Ctrl-C, or the desktop's Cancel) before every query ran; what finished is kept |
 
 Only `complete` and `partial` snapshots resolve as `latest`. Per-query results
 (row counts, rows ingest could not shape, durations, errors) are recorded —

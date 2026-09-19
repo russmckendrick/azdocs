@@ -85,6 +85,11 @@ pub fn generated_typescript() -> String {
     decl::<AppBootstrap>(&mut out, &cfg);
     decl::<SnapshotSummary>(&mut out, &cfg);
     decl::<SnapshotComparison>(&mut out, &cfg);
+    decl::<FieldChangeDto>(&mut out, &cfg);
+    decl::<FindingRefDto>(&mut out, &cfg);
+    decl::<EdgeRefDto>(&mut out, &cfg);
+    decl::<ComparisonCountsDto>(&mut out, &cfg);
+    decl::<TrendPointDto>(&mut out, &cfg);
     decl::<EstateSnapshot>(&mut out, &cfg);
     decl::<TotalsDto>(&mut out, &cfg);
     decl::<TagCoverageDto>(&mut out, &cfg);

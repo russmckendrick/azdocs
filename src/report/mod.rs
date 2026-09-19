@@ -60,7 +60,15 @@ pub struct ReportContext {
     pub subscriptions: Vec<SubscriptionSection>,
     pub details: Vec<details::ResourceGroupPage>,
     pub resource_types: Vec<ResourceTypeSection>,
+    /// What changed since the previous usable snapshot of this tenant; None
+    /// when this is the earliest one.
+    pub changes: Option<crate::model::diff::SnapshotChanges>,
+    /// The last usable snapshots of this tenant, oldest first, this one last.
+    pub trend: Vec<crate::store::TrendPoint>,
 }
+
+/// How many snapshots the trend table looks back over.
+pub const TREND_LIMIT: usize = 12;
 
 #[derive(Debug, Serialize)]
 pub struct Totals {
@@ -188,6 +196,18 @@ impl ReportContext {
         let resources = store.resources(snapshot_id)?;
         let findings = store.findings(snapshot_id)?;
         let edges = store.edges(snapshot_id)?;
+        let changes = store
+            .previous_snapshot(snapshot_id)?
+            .map(|previous| store.snapshot_changes(&previous.id, snapshot_id))
+            .transpose()?;
+        // The trend is scoped to this snapshot's tenant whatever the store's
+        // selection, and stops at this snapshot so a report on an older
+        // snapshot does not describe its future.
+        let trend: Vec<_> = store
+            .snapshot_trend_for(&snapshot.tenant_id, TREND_LIMIT)?
+            .into_iter()
+            .filter(|point| point.created_at <= snapshot.created_at.to_rfc3339())
+            .collect();
 
         let mut type_counts: BTreeMap<&str, usize> = BTreeMap::new();
         let mut location_counts: BTreeMap<&str, usize> = BTreeMap::new();
@@ -449,6 +469,8 @@ impl ReportContext {
             posture,
             websites: websites::WebsiteReport::build(store, snapshot_id, include_images)?,
             analysis,
+            changes,
+            trend,
             snapshot_id: snapshot.id.clone(),
             created_at: snapshot.created_at.to_rfc3339(),
             tenant_id: snapshot.tenant_id.clone(),

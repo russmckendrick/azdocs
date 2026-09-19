@@ -162,6 +162,18 @@ pub async fn run(
         );
     }
 
+    // Ctrl-C stops after the in-flight query and stores what finished as
+    // `cancelled`, instead of killing the process and stranding a `running`
+    // row. A second Ctrl-C falls through to the default handler.
+    let cancel = crate::collect::CancelToken::default();
+    let watcher = {
+        let cancel = cancel.clone();
+        tokio::spawn(async move {
+            if tokio::signal::ctrl_c().await.is_ok() {
+                cancel.cancel();
+            }
+        })
+    };
     let summary = crate::collect::run(
         store,
         client,
@@ -173,9 +185,11 @@ pub async fn run(
             notes: args.notes.clone(),
             required_tags: config.audit.required_tags.clone(),
             quiet: args.quiet,
+            cancel,
         },
     )
     .await?;
+    watcher.abort();
 
     println!(
         "{}",
@@ -198,6 +212,10 @@ pub async fn run(
         SnapshotStatus::Failed => println!(
             "{}",
             fill(&words.failed_hint, &[("id", &summary.snapshot_id)])
+        ),
+        SnapshotStatus::Cancelled => println!(
+            "{}",
+            fill(&words.cancelled_hint, &[("id", &summary.snapshot_id)])
         ),
         _ => {}
     }

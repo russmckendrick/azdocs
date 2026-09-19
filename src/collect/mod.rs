@@ -4,10 +4,12 @@ pub mod ingest;
 pub mod websites;
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use indicatif::{ProgressBar, ProgressStyle};
 use tokio::sync::{Semaphore, mpsc};
+use tokio::task::JoinSet;
 
 use crate::arg::ArgClient;
 use crate::auth::TokenProvider;
@@ -25,6 +27,27 @@ pub struct CollectSummary {
     pub rows_ingested: u64,
 }
 
+/// A flag a caller flips to stop a run. Cloneable and cheap; the desktop
+/// shares one with its batch lease, the CLI wires Ctrl-C to it.
+#[derive(Clone, Debug, Default)]
+pub struct CancelToken(Arc<AtomicBool>);
+
+impl CancelToken {
+    pub fn cancel(&self) {
+        self.0.store(true, Ordering::Relaxed);
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.0.load(Ordering::Relaxed)
+    }
+}
+
+impl From<Arc<AtomicBool>> for CancelToken {
+    fn from(flag: Arc<AtomicBool>) -> Self {
+        Self(flag)
+    }
+}
+
 /// Everything a collect run needs beyond the store and client.
 #[derive(Debug)]
 pub struct CollectRequest {
@@ -35,6 +58,9 @@ pub struct CollectRequest {
     pub notes: Option<String>,
     pub required_tags: Vec<String>,
     pub quiet: bool,
+    /// Checked after every completed query; a cancelled run stops there,
+    /// skips the post-pass and is stored as `cancelled`.
+    pub cancel: CancelToken,
 }
 
 /// Runs the selected queries concurrently (bounded by `concurrency`), ingesting
@@ -77,6 +103,7 @@ pub async fn run_with_progress<P: TokenProvider + 'static>(
         notes,
         required_tags,
         quiet,
+        cancel,
     } = request;
     let snapshot = store.create_snapshot(&tenant_id, notes.as_deref())?;
     let total = queries.len();
@@ -94,12 +121,15 @@ pub async fn run_with_progress<P: TokenProvider + 'static>(
     let (sender, mut receiver) =
         mpsc::channel::<(QueryDef, Result<QueryPageData, String>, u64)>(16);
 
+    // Tracked so a cancelled run can abort the in-flight queries instead of
+    // leaving them to finish (and pay for pages) in the background.
+    let mut tasks = JoinSet::new();
     for def in queries {
         let client = Arc::clone(&client);
         let semaphore = Arc::clone(&semaphore);
         let sender = sender.clone();
         let subscriptions = subscriptions.clone();
-        tokio::spawn(async move {
+        tasks.spawn(async move {
             let _permit = semaphore
                 .acquire_owned()
                 .await
@@ -130,7 +160,8 @@ pub async fn run_with_progress<P: TokenProvider + 'static>(
     let mut heartbeat = tokio::time::interval(HEARTBEAT_INTERVAL);
     heartbeat.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
     heartbeat.tick().await; // the first tick fires immediately; the row was just created
-    loop {
+    let mut cancelled = cancel.is_cancelled();
+    while !cancelled {
         let (def, result, duration_ms) = tokio::select! {
             received = receiver.recv() => match received {
                 Some(item) => item,
@@ -138,6 +169,9 @@ pub async fn run_with_progress<P: TokenProvider + 'static>(
             },
             _ = heartbeat.tick() => {
                 store.touch_snapshot(&snapshot.id, chrono::Utc::now())?;
+                if cancel.is_cancelled() {
+                    cancelled = true;
+                }
                 continue;
             }
         };
@@ -184,8 +218,25 @@ pub async fn run_with_progress<P: TokenProvider + 'static>(
             failed: queries_failed,
             latest_query: Some(def.description.clone()),
         });
+        cancelled = cancel.is_cancelled();
     }
     progress.finish_and_clear();
+
+    if cancelled {
+        // Whatever finished is real evidence and stays; the post-pass would
+        // describe an estate we never finished reading, so it is skipped.
+        tasks.abort_all();
+        drop(receiver);
+        tracing::warn!(completed, total, "collection cancelled");
+        store.set_snapshot_status(&snapshot.id, SnapshotStatus::Cancelled)?;
+        return Ok(CollectSummary {
+            snapshot_id: snapshot.id,
+            status: SnapshotStatus::Cancelled,
+            queries_run: completed,
+            queries_failed,
+            rows_ingested,
+        });
+    }
 
     // Post-pass over stored resources: derive relationship edges and run the
     // config-driven audits.

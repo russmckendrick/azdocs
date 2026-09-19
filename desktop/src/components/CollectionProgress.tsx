@@ -108,6 +108,8 @@ export function CollectionProgress({
   const stages = ["inventory", "discovery", "capture"] as const;
   const failed =
     feedback.stage === "failed" || feedback.result?.status === "failed";
+  const cancelled =
+    feedback.stage === "cancelled" || feedback.result?.status === "cancelled";
   const running = feedback.endedAt === undefined;
   const current =
     feedback.stage === "complete"
@@ -115,7 +117,9 @@ export function CollectionProgress({
         ? 0
         : 3
       : stages.indexOf(
-          feedback.stage === "failed" ? "inventory" : feedback.stage,
+          feedback.stage === "failed" || feedback.stage === "cancelled"
+            ? "inventory"
+            : feedback.stage,
         );
   const titles = {
     inventory: words.stage_inventory,
@@ -125,6 +129,7 @@ export function CollectionProgress({
   const result = feedback.result;
   const issues =
     feedback.stage === "failed" ||
+    cancelled ||
     (result &&
       (result.status !== "complete" ||
         Boolean(
@@ -145,6 +150,11 @@ export function CollectionProgress({
             <>
               <AlertTriangle size={18} />
               {words.failed_count}
+            </>
+          ) : feedback.stage === "cancelled" ? (
+            <>
+              <AlertTriangle size={18} />
+              {words.stage_cancelled}
             </>
           ) : (
             <>

@@ -131,13 +131,20 @@ fn snapshot_diff_reports_added_removed_changed() {
 
     ingest::ingest(&store, &a.id, def, &base).unwrap();
     ingest::ingest(&store, &b.id, def, &altered).unwrap();
-    let diff = store.diff_snapshots(&a.id, &b.id).unwrap();
+    let changes = store.snapshot_changes(&a.id, &b.id).unwrap();
 
     assert_eq!(
-        (diff.added.len(), diff.removed.len(), diff.changed.len()),
+        (
+            changes.resources.added.len(),
+            changes.resources.removed.len(),
+            changes.resources.changed.len()
+        ),
         (1, 1, 1),
-        "diff: {diff:?}"
+        "changes: {changes:?}"
     );
+    let field = &changes.resources.changed[0].fields[0];
+    assert_eq!(field.path, "addressSpace.addressPrefixes.0");
+    assert_eq!(field.after, Some(json!("10.9.0.0/16")));
 }
 
 #[test]
@@ -202,6 +209,110 @@ mod end_to_end {
         })
     }
 
+    #[tokio::test]
+    async fn unit_collect_marks_snapshot_cancelled_when_token_is_set_before_start() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "totalRecords": 0, "count": 0, "data": []
+            })))
+            .mount(&server)
+            .await;
+        let store = azdocs::store::Store::open_in_memory().unwrap();
+        let client = Arc::new(ArgClient::with_endpoint(
+            reqwest::Client::new(),
+            StaticTokenProvider("t".into()),
+            &server.uri(),
+        ));
+        let pack = azdocs::querypack::QueryPack::builtin().unwrap();
+        let cancel = azdocs::collect::CancelToken::default();
+        cancel.cancel();
+
+        let summary = run_with_progress(
+            &store,
+            client,
+            CollectRequest {
+                tenant_id: "tenant-1".into(),
+                queries: vec![pack.get("all_resources").unwrap().clone()],
+                subscriptions: vec![],
+                concurrency: 1,
+                notes: None,
+                required_tags: vec![],
+                quiet: true,
+                cancel,
+            },
+            |_| {},
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(summary.status, azdocs::model::SnapshotStatus::Cancelled);
+        assert_eq!(summary.queries_run, 0);
+        assert!(matches!(
+            store.resolve_snapshot("latest"),
+            Err(azdocs::error::StoreError::NoSnapshots)
+        ));
+        assert_eq!(
+            store.get_snapshot(&summary.snapshot_id).unwrap().status,
+            azdocs::model::SnapshotStatus::Cancelled
+        );
+    }
+
+    #[tokio::test]
+    async fn unit_collect_stops_after_the_in_flight_query_when_cancelled_mid_run() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_delay(std::time::Duration::from_millis(150))
+                    .set_body_json(json!({"totalRecords": 0, "count": 0, "data": []})),
+            )
+            .mount(&server)
+            .await;
+        let store = azdocs::store::Store::open_in_memory().unwrap();
+        let client = Arc::new(ArgClient::with_endpoint(
+            reqwest::Client::new(),
+            StaticTokenProvider("t".into()),
+            &server.uri(),
+        ));
+        let pack = azdocs::querypack::QueryPack::builtin().unwrap();
+        let queries: Vec<_> = ["all_resources", "subscriptions", "resource_groups"]
+            .iter()
+            .map(|name| pack.get(name).unwrap().clone())
+            .collect();
+        let cancel = azdocs::collect::CancelToken::default();
+        let trigger = cancel.clone();
+
+        let summary = run_with_progress(
+            &store,
+            client,
+            CollectRequest {
+                tenant_id: "tenant-1".into(),
+                queries,
+                subscriptions: vec![],
+                concurrency: 1,
+                notes: None,
+                required_tags: vec![],
+                quiet: true,
+                cancel,
+            },
+            move |progress| {
+                if progress.completed == 1 {
+                    trigger.cancel();
+                }
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(summary.status, azdocs::model::SnapshotStatus::Cancelled);
+        assert_eq!(
+            summary.queries_run, 1,
+            "stopped after the first completed query"
+        );
+        assert_eq!(store.query_runs(&summary.snapshot_id).unwrap().len(), 1);
+    }
+
     /// Pagination, a failing sibling query, ingest, extractors and the
     /// required-tag audit all in one run: the shape of a real collect.
     #[tokio::test]
@@ -262,6 +373,7 @@ mod end_to_end {
                 notes: None,
                 required_tags: vec!["env".into()],
                 quiet: true,
+                cancel: Default::default(),
             },
             |_| {},
         )
@@ -341,6 +453,7 @@ mod end_to_end {
                 notes: None,
                 required_tags: vec!["env".into()],
                 quiet: true,
+                cancel: Default::default(),
             },
             |progress| updates.lock().unwrap().push(progress),
         )
@@ -428,6 +541,7 @@ async fn unit_failed_collection_preserves_the_attempted_query_and_scope() {
             notes: None,
             required_tags: vec![],
             quiet: true,
+            cancel: Default::default(),
         },
     )
     .await

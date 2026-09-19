@@ -34,15 +34,36 @@ its profile no longer exists.
 ## Diffing estates over time
 
 ```sh
-azdocs snapshots diff <a> <b>
-azdocs snapshots diff e4fb3710 latest --format json   # machine-readable
+azdocs snapshots diff <a> <b>                          # terminal tables
+azdocs snapshots diff e4fb3710 latest --format md      # paste into a review
+azdocs snapshots diff e4fb3710 latest --format json    # the full structure
 ```
 
-Resources are compared by ARM id: **added**, **removed**, or **changed**
-(the stored properties JSON text differs). Tags and other top-level resource
-fields are separate columns, so changes confined to those fields do not appear
-as `changed`. This is a resource-properties comparison, not a complete audit
-of every stored field or finding. See [CI](ci.md) for retaining a baseline.
+Resources are compared by ARM id. A resource is **added**, **removed**, or
+**changed**, and a changed resource lists every field that differs: name,
+type, kind, location, resource group, SKU, identity, tags and every leaf of
+the properties bag as a dotted path with its before and after values. JSON is
+canonicalised first, so the order Resource Graph happened to serialise keys in
+never counts as a change.
+
+Beyond resources the diff reports **new** and **resolved findings** (keyed by
+check, resource and title), **added** and **removed relationships**, and
+subscriptions or resource groups that appeared or disappeared, with totals for
+both sides. The same comparison feeds the report's "changes since the previous
+snapshot" chapter and the desktop's Changes workspace.
+
+Azure rewrites some properties on every read (`provisioningState`, `etag`,
+`resourceGuid`, timestamps, instance views). Those paths are ignored by the
+built-in `data/diff_ignore.toml`; a `diff_ignore.toml` in the azdocs config
+directory extends the list for estate-specific noise:
+
+```toml
+[properties]
+paths = ["myVendor.lastSeen", "instanceView.*"]
+```
+
+`*` matches one path segment; a trailing `*` matches everything beneath.
+See [CI](ci.md) for retaining a baseline.
 
 ## Deleting and pruning
 

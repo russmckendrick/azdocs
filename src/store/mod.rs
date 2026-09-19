@@ -1,3 +1,4 @@
+mod diff;
 mod edges;
 mod findings;
 mod maintenance;
@@ -6,8 +7,9 @@ mod schema;
 mod snapshots;
 mod websites;
 
+pub use diff::TrendPoint;
 pub use maintenance::{IntegrityReport, STALE_RUNNING_AFTER};
-pub use snapshots::{SnapshotCounts, SnapshotDiff};
+pub use snapshots::SnapshotCounts;
 
 use std::path::Path;
 

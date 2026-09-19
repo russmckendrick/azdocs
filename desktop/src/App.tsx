@@ -386,9 +386,15 @@ export default function App() {
         if (event.event === "phase") setCollectionMessage(event.data.message);
         if (event.event === "complete")
           setCollectionMessage(shell.snapshot_stored);
+        if (event.event === "cancelled")
+          setCollectionMessage(shell.collection_cancelled);
         if (event.event === "failed") setCollectionMessage(event.data.message);
       });
-      updateFeedback({ type: "finish", at: Date.now(), result });
+      updateFeedback(
+        result.status === "cancelled"
+          ? { type: "cancel", at: Date.now() }
+          : { type: "finish", at: Date.now(), result },
+      );
       const nextBootstrap = await getBootstrap();
       installLabels(nextBootstrap.labels);
       setBootstrap(nextBootstrap);

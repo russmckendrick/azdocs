@@ -1,8 +1,9 @@
 use std::collections::{BTreeMap, HashSet};
 
+use azdocs::model::diff::{DiffField, SnapshotChanges};
 use azdocs::model::{Edge, Finding, QueryRun, Resource, ResourceGroup, Subscription, azure_values};
 use azdocs::report::{GovernanceAnalysis, ReportContext, SeverityCounts};
-use azdocs::store::{SnapshotCounts, SnapshotDiff};
+use azdocs::store::{SnapshotCounts, TrendPoint};
 use serde::Serialize;
 use serde_json::Value;
 use ts_rs::TS;
@@ -105,7 +106,49 @@ pub struct EstateSnapshot {
     pub query_runs: Vec<QueryRunDto>,
     /// Already interpreted and labelled in Rust; the frontend only renders cells.
     pub evidence_summaries: Vec<EvidenceTableDto>,
+    /// The usable snapshot this one is compared against; None for the earliest.
+    pub previous_snapshot_id: Option<String>,
     pub previous_diff: Option<SnapshotComparison>,
+    /// Usable snapshots of this tenant up to this one, oldest first.
+    pub trend: Vec<TrendPointDto>,
+}
+
+#[derive(Debug, Clone, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename = "TrendPoint", optional_fields = nullable)]
+pub struct TrendPointDto {
+    pub snapshot_id: String,
+    pub created_at: String,
+    #[ts(type = "SnapshotStatus")]
+    pub status: String,
+    pub subscriptions: u64,
+    pub resources: u64,
+    pub tagged: u64,
+    pub findings: u64,
+    pub high: u64,
+    pub medium: u64,
+    pub low: u64,
+    pub info: u64,
+    pub edges: u64,
+}
+
+impl From<TrendPoint> for TrendPointDto {
+    fn from(value: TrendPoint) -> Self {
+        Self {
+            snapshot_id: value.snapshot_id,
+            created_at: value.created_at,
+            status: value.status,
+            subscriptions: value.subscriptions,
+            resources: value.resources,
+            tagged: value.tagged,
+            findings: value.findings,
+            high: value.high,
+            medium: value.medium,
+            low: value.low,
+            info: value.info,
+            edges: value.edges,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, TS)]
@@ -538,7 +581,61 @@ impl From<azdocs::report::posture::EvidenceTable> for EvidenceTableDto {
     }
 }
 
-#[derive(Debug, Serialize, TS)]
+/// One changed value inside a resource.
+#[derive(Debug, Clone, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename = "FieldChange", optional_fields = nullable)]
+pub struct FieldChangeDto {
+    /// Which stored column: `name`, `tags`, `properties`, ...
+    pub field: String,
+    /// Dotted path inside the column; empty for scalar columns.
+    pub path: String,
+    #[ts(type = "unknown")]
+    pub before: Option<Value>,
+    #[ts(type = "unknown")]
+    pub after: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename = "FindingRef", optional_fields = nullable)]
+pub struct FindingRefDto {
+    pub query_name: String,
+    pub category: String,
+    #[ts(type = "Severity")]
+    pub severity: String,
+    pub resource_id: Option<String>,
+    pub title: String,
+}
+
+#[derive(Debug, Clone, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename = "EdgeRef", optional_fields = nullable)]
+pub struct EdgeRefDto {
+    pub source_id: String,
+    pub target_id: String,
+    #[ts(type = "EdgeKind")]
+    pub kind: String,
+}
+
+#[derive(Debug, Clone, Default, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename = "ComparisonCounts", optional_fields = nullable)]
+pub struct ComparisonCountsDto {
+    pub resources: u64,
+    pub findings: u64,
+    pub high: u64,
+    pub medium: u64,
+    pub low: u64,
+    pub info: u64,
+    pub edges: u64,
+    pub subscriptions: u64,
+    pub resource_groups: u64,
+}
+
+/// The field-level diff, with the id lists the older surfaces keyed on kept
+/// as a convenience.
+#[derive(Debug, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(optional_fields = nullable)]
 pub struct SnapshotComparison {
@@ -547,16 +644,85 @@ pub struct SnapshotComparison {
     pub added: Vec<String>,
     pub removed: Vec<String>,
     pub changed: Vec<String>,
+    /// Field changes per changed resource id.
+    pub fields: BTreeMap<String, Vec<FieldChangeDto>>,
+    pub findings_added: Vec<FindingRefDto>,
+    pub findings_resolved: Vec<FindingRefDto>,
+    pub edges_added: Vec<EdgeRefDto>,
+    pub edges_removed: Vec<EdgeRefDto>,
+    pub subscriptions_added: Vec<String>,
+    pub subscriptions_removed: Vec<String>,
+    pub resource_groups_added: Vec<String>,
+    pub resource_groups_removed: Vec<String>,
+    pub base_counts: ComparisonCountsDto,
+    pub target_counts: ComparisonCountsDto,
 }
 
-impl SnapshotComparison {
-    pub fn from_diff(base: String, target: String, value: SnapshotDiff) -> Self {
+impl From<SnapshotChanges> for SnapshotComparison {
+    fn from(value: SnapshotChanges) -> Self {
+        let finding = |f: azdocs::model::diff::FindingRef| FindingRefDto {
+            query_name: f.query_name,
+            category: f.category,
+            severity: f.severity.as_str().to_owned(),
+            resource_id: f.resource_id,
+            title: f.title,
+        };
+        let edge = |e: azdocs::model::diff::EdgeRef| EdgeRefDto {
+            source_id: e.source_id,
+            target_id: e.target_id,
+            kind: e.kind,
+        };
+        let counts = |c: azdocs::model::diff::SideCounts| ComparisonCountsDto {
+            resources: c.resources as u64,
+            findings: c.findings as u64,
+            high: c.high as u64,
+            medium: c.medium as u64,
+            low: c.low as u64,
+            info: c.info as u64,
+            edges: c.edges as u64,
+            subscriptions: c.subscriptions as u64,
+            resource_groups: c.resource_groups as u64,
+        };
         Self {
-            base_snapshot_id: base,
-            target_snapshot_id: target,
-            added: value.added,
-            removed: value.removed,
-            changed: value.changed,
+            base_snapshot_id: value.base.id,
+            target_snapshot_id: value.target.id,
+            added: value.resources.added.into_iter().map(|r| r.id).collect(),
+            removed: value.resources.removed.into_iter().map(|r| r.id).collect(),
+            changed: value
+                .resources
+                .changed
+                .iter()
+                .map(|c| c.resource.id.clone())
+                .collect(),
+            fields: value
+                .resources
+                .changed
+                .into_iter()
+                .map(|c| {
+                    (
+                        c.resource.id,
+                        c.fields
+                            .into_iter()
+                            .map(|f| FieldChangeDto {
+                                field: DiffField::as_str(f.field).to_owned(),
+                                path: f.path,
+                                before: f.before,
+                                after: f.after,
+                            })
+                            .collect(),
+                    )
+                })
+                .collect(),
+            findings_added: value.findings.added.into_iter().map(finding).collect(),
+            findings_resolved: value.findings.resolved.into_iter().map(finding).collect(),
+            edges_added: value.edges.added.into_iter().map(edge).collect(),
+            edges_removed: value.edges.removed.into_iter().map(edge).collect(),
+            subscriptions_added: value.subscriptions.added,
+            subscriptions_removed: value.subscriptions.removed,
+            resource_groups_added: value.resource_groups.added,
+            resource_groups_removed: value.resource_groups.removed,
+            base_counts: counts(value.counts.base),
+            target_counts: counts(value.counts.target),
         }
     }
 }
@@ -571,6 +737,7 @@ impl EstateSnapshot {
         findings: Vec<Finding>,
         edges: Vec<Edge>,
         query_runs: Vec<QueryRun>,
+        previous_snapshot_id: Option<String>,
         previous_diff: Option<SnapshotComparison>,
         scope_name: &str,
     ) -> Self {
@@ -688,7 +855,9 @@ impl EstateSnapshot {
             edges: edges.into_iter().map(Into::into).collect(),
             query_runs: query_runs.into_iter().map(Into::into).collect(),
             evidence_summaries: Vec::new(),
+            previous_snapshot_id,
             previous_diff,
+            trend: context.trend.iter().cloned().map(Into::into).collect(),
         }
     }
 }
@@ -864,6 +1033,9 @@ pub enum CollectionEvent {
     Complete {
         snapshot_id: String,
     },
+    Cancelled {
+        snapshot_id: String,
+    },
     Failed {
         message: String,
     },
@@ -983,6 +1155,9 @@ pub struct ExportRequestDto {
 pub struct ExportResultDto {
     pub destination: String,
     pub outputs: Vec<String>,
+    /// True when the run was stopped on request; `outputs` lists what was
+    /// written before that.
+    pub cancelled: bool,
 }
 
 #[derive(Clone, Debug, Serialize, TS)]
@@ -999,6 +1174,7 @@ pub struct ExportResultDto {
 pub enum ExportEvent {
     Phase { message: String },
     Complete { output_count: usize },
+    Cancelled { output_count: usize },
     Failed { message: String },
 }
 

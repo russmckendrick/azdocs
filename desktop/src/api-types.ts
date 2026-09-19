@@ -13,8 +13,14 @@
 /** `Severity` in src/model/mod.rs, ordered high-first. */
 export type Severity = "high" | "medium" | "low" | "info";
 
-/** `SnapshotStatus` in src/model/mod.rs. */
-export type SnapshotStatus = "running" | "complete" | "partial" | "failed";
+/**
+ * `SnapshotStatus` in src/model/mod.rs.
+ *
+ * `api-types.test.ts` reads the Rust source and fails if this union and
+ * `SnapshotStatus::as_str` fall out of step.
+ */
+export type SnapshotStatus =
+  "running" | "complete" | "partial" | "failed" | "cancelled";
 
 /** `QueryKind` in src/querypack/mod.rs. */
 export type QueryKind = "inventory" | "finding";
@@ -42,7 +48,8 @@ export type EdgeKind =
   | "monitors";
 
 /** The coarse family an edge kind belongs to — `kind_class` in topology.rs. */
-export type KindClass = "network" | "structure" | "data" | "identity" | "monitoring";
+export type KindClass =
+  "network" | "structure" | "data" | "identity" | "monitoring";
 
 /** The `kind` discriminator on a topology node. */
 export type TopologyNodeKind =
@@ -64,7 +71,8 @@ export type TopologyLevel = "estate" | "group" | "neighbourhood";
 export type ExportKind = "reports" | "diagrams";
 
 /** `ReportFormat` in src/cli.rs. */
-export type ReportExportFormat = "md" | "html" | "csv" | "xlsx" | "pdf" | "docx";
+export type ReportExportFormat =
+  "md" | "html" | "csv" | "xlsx" | "pdf" | "docx";
 
 /** `DiagramType` in src/cli.rs. */
 export type DiagramExportType =

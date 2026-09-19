@@ -767,6 +767,9 @@ button.stat-cell.active {
 .status-dot.failed {
   background: var(--coral);
 }
+.status-dot.cancelled {
+  background: var(--muted);
+}
 .status-divider {
   width: 1px;
   height: 12px;
@@ -2427,6 +2430,9 @@ button.stat-cell.active {
 }
 .snapshot-status.failed {
   color: var(--coral);
+}
+.snapshot-status.cancelled {
+  color: var(--muted);
 }
 
 .change-plate {

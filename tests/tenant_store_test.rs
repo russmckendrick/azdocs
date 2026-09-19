@@ -27,7 +27,7 @@ fn unit_rejects_cross_tenant_comparison_even_without_a_filter() {
     let a = store.create_snapshot("a", None).unwrap();
     let b = store.create_snapshot("b", None).unwrap();
     assert!(matches!(
-        store.diff_snapshots(&a.id, &b.id),
+        store.snapshot_changes(&a.id, &b.id),
         Err(StoreError::CrossTenantComparison)
     ));
 }

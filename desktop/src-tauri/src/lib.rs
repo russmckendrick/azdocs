@@ -24,7 +24,8 @@ pub struct AppState {
     session: RwLock<settings::Session>,
     pending_secrets: std::sync::Mutex<std::collections::BTreeMap<String, settings::PendingSecret>>,
     checks: Arc<RwLock<std::collections::BTreeMap<String, settings::SavedCheck>>>,
-    captures: capture::CaptureControl,
+    captures: capture::BatchControl,
+    exports: capture::BatchControl,
 }
 
 impl AppState {
@@ -33,7 +34,8 @@ impl AppState {
             session: RwLock::new(settings::Session::initial(database_path, labels)),
             pending_secrets: std::sync::Mutex::new(std::collections::BTreeMap::new()),
             checks: Arc::new(RwLock::new(std::collections::BTreeMap::new())),
-            captures: capture::CaptureControl::default(),
+            captures: capture::BatchControl::default(),
+            exports: capture::BatchControl::default(),
         }
     }
 }
@@ -85,9 +87,11 @@ pub fn run() {
                     commands::topology_graph,
                     commands::compare_snapshots,
                     commands::collect_snapshot,
+                    commands::cancel_collect,
                     commands::query_pack_metadata,
                     commands::query_rows,
                     commands::export_snapshot,
+                    commands::cancel_export,
                     websites::website_state,
                     websites::website_image,
                     websites::capture_websites,

@@ -10,7 +10,7 @@ import type {
 export type CollectionFeedback = {
   startedAt: number;
   endedAt?: number;
-  stage: CollectionStage | "complete" | "failed";
+  stage: CollectionStage | "complete" | "failed" | "cancelled";
   queries?: CollectionQueryProgress;
   screenshots?: WebsiteProgress;
   result?: CollectResult;
@@ -21,7 +21,8 @@ export type FeedbackAction =
   | { type: "start"; at: number }
   | { type: "event"; event: CollectionEvent }
   | { type: "finish"; at: number; result: CollectResult }
-  | { type: "fail"; at: number };
+  | { type: "fail"; at: number }
+  | { type: "cancel"; at: number };
 
 export function collectionFeedback(
   state: CollectionFeedback | undefined,
@@ -40,11 +41,14 @@ export function collectionFeedback(
     };
   if (action.type === "fail")
     return { ...state, stage: "failed", endedAt: action.at };
+  if (action.type === "cancel")
+    return { ...state, stage: "cancelled", endedAt: action.at };
   if (state.endedAt !== undefined) return state;
   const event = action.event;
   if (event.event === "permissions")
     return { ...state, permissions: event.data.check };
   if (event.event === "stage") return { ...state, stage: event.data.stage };
+  if (event.event === "cancelled") return { ...state, stage: "cancelled" };
   if (event.event === "queries")
     return { ...state, queries: event.data.progress };
   if (event.event === "screenshots")

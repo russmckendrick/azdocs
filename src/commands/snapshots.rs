@@ -5,6 +5,7 @@ use comfy_table::{Table, presets};
 use crate::cli::{DiffFormat, OutputFormat, SnapshotsCommand};
 use crate::labels::{Labels, SnapshotsLabels, fill};
 use crate::model::SnapshotStatus;
+use crate::model::diff::SnapshotChanges;
 use crate::store::{SnapshotCounts, Store};
 
 pub fn run(store: &Store, command: &SnapshotsCommand, labels: &Labels) -> anyhow::Result<()> {
@@ -158,44 +159,199 @@ fn diff(
 ) -> anyhow::Result<()> {
     let id_a = store.resolve_snapshot(a)?;
     let id_b = store.resolve_snapshot(b)?;
-    let diff = store.diff_snapshots(&id_a, &id_b)?;
+    let changes = store.snapshot_changes(&id_a, &id_b)?;
+    print!("{}", render_diff(&changes, format, words)?);
+    Ok(())
+}
 
-    match format {
-        DiffFormat::Json => {
-            println!(
-                "{}",
-                serde_json::to_string_pretty(&serde_json::json!({
-                    "a": id_a, "b": id_b,
-                    "added": diff.added, "removed": diff.removed, "changed": diff.changed,
-                }))?
-            );
+/// One renderer for every diff format so the three never disagree on what
+/// counts as a change. `table` is for a terminal, `md` pastes into a review,
+/// `json` is the full structure.
+pub fn render_diff(
+    changes: &SnapshotChanges,
+    format: DiffFormat,
+    words: &SnapshotsLabels,
+) -> anyhow::Result<String> {
+    let d = &words.diff;
+    if format == DiffFormat::Json {
+        return Ok(format!("{}\n", serde_json::to_string_pretty(changes)?));
+    }
+    let md = format == DiffFormat::Md;
+    let mut out = String::new();
+    let heading = |out: &mut String, text: &str| {
+        if md {
+            out.push_str(&format!("\n## {text}\n\n"));
+        } else {
+            out.push_str(&format!("\n{text}\n"));
         }
-        DiffFormat::Md | DiffFormat::Table => {
-            println!(
-                "{}",
-                fill(
-                    &words.comparing,
-                    &[
-                        ("a", &short(&id_a)),
-                        ("b", &short(&id_b)),
-                        ("added", &diff.added.len()),
-                        ("removed", &diff.removed.len()),
-                        ("changed", &diff.changed.len()),
-                    ]
-                )
-            );
-            for (label, ids) in [
-                ("+ ", &diff.added),
-                ("- ", &diff.removed),
-                ("~ ", &diff.changed),
-            ] {
-                for id in ids {
-                    println!("{label}{id}");
-                }
+    };
+    out.push_str(&fill(
+        &d.summary,
+        &[
+            ("a", &short(&changes.base.id)),
+            ("b", &short(&changes.target.id)),
+            ("added", &changes.resources.added.len()),
+            ("removed", &changes.resources.removed.len()),
+            ("changed", &changes.resources.changed.len()),
+            ("fields", &changes.field_changes()),
+            ("new_findings", &changes.findings.added.len()),
+            ("resolved", &changes.findings.resolved.len()),
+        ],
+    ));
+    out.push('\n');
+    if changes.is_empty() {
+        out.push_str(&d.no_changes);
+        out.push('\n');
+        return Ok(out);
+    }
+
+    if !changes.resources.added.is_empty()
+        || !changes.resources.removed.is_empty()
+        || !changes.resources.changed.is_empty()
+    {
+        heading(&mut out, &d.section_resources);
+        let mut table = Table::new();
+        table.load_style(if md {
+            presets::ASCII_MARKDOWN
+        } else {
+            presets::UTF8_BORDERS_ONLY
+        });
+        table.set_header([
+            d.columns.change.as_str(),
+            d.columns.resource.as_str(),
+            d.columns.field.as_str(),
+            d.columns.before.as_str(),
+            d.columns.after.as_str(),
+        ]);
+        for r in &changes.resources.added {
+            table.add_row([
+                d.added.clone(),
+                r.display_id.clone(),
+                String::new(),
+                String::new(),
+                String::new(),
+            ]);
+        }
+        for r in &changes.resources.removed {
+            table.add_row([
+                d.removed.clone(),
+                r.display_id.clone(),
+                String::new(),
+                String::new(),
+                String::new(),
+            ]);
+        }
+        for change in &changes.resources.changed {
+            for field in &change.fields {
+                let name = if field.path.is_empty() {
+                    field.field.as_str().to_owned()
+                } else {
+                    format!("{}.{}", field.field.as_str(), field.path)
+                };
+                table.add_row([
+                    d.changed.clone(),
+                    change.resource.display_id.clone(),
+                    name,
+                    cell(field.before.as_ref()),
+                    cell(field.after.as_ref()),
+                ]);
             }
         }
+        out.push_str(&table.to_string());
+        out.push('\n');
     }
-    Ok(())
+
+    if !changes.findings.added.is_empty() || !changes.findings.resolved.is_empty() {
+        heading(&mut out, &d.section_findings);
+        let mut table = Table::new();
+        table.load_style(if md {
+            presets::ASCII_MARKDOWN
+        } else {
+            presets::UTF8_BORDERS_ONLY
+        });
+        table.set_header([
+            d.columns.change.as_str(),
+            d.columns.severity.as_str(),
+            d.columns.check.as_str(),
+            d.columns.resource.as_str(),
+            d.columns.title.as_str(),
+        ]);
+        for f in &changes.findings.added {
+            table.add_row([
+                d.new_finding.clone(),
+                f.severity.as_str().to_owned(),
+                f.query_name.clone(),
+                f.resource_id.clone().unwrap_or_default(),
+                f.title.clone(),
+            ]);
+        }
+        for f in &changes.findings.resolved {
+            table.add_row([
+                d.resolved.clone(),
+                f.severity.as_str().to_owned(),
+                f.query_name.clone(),
+                f.resource_id.clone().unwrap_or_default(),
+                f.title.clone(),
+            ]);
+        }
+        out.push_str(&table.to_string());
+        out.push('\n');
+    }
+
+    if !changes.edges.added.is_empty() || !changes.edges.removed.is_empty() {
+        heading(&mut out, &d.section_edges);
+        for e in &changes.edges.added {
+            out.push_str(&format!(
+                "+ {} -[{}]-> {}\n",
+                e.source_id, e.kind, e.target_id
+            ));
+        }
+        for e in &changes.edges.removed {
+            out.push_str(&format!(
+                "- {} -[{}]-> {}\n",
+                e.source_id, e.kind, e.target_id
+            ));
+        }
+    }
+
+    if !changes.subscriptions.added.is_empty()
+        || !changes.subscriptions.removed.is_empty()
+        || !changes.resource_groups.added.is_empty()
+        || !changes.resource_groups.removed.is_empty()
+    {
+        heading(&mut out, &d.section_scope);
+        for id in &changes.subscriptions.added {
+            out.push_str(&format!("+ {id}\n"));
+        }
+        for id in &changes.subscriptions.removed {
+            out.push_str(&format!("- {id}\n"));
+        }
+        for id in &changes.resource_groups.added {
+            out.push_str(&format!("+ {id}\n"));
+        }
+        for id in &changes.resource_groups.removed {
+            out.push_str(&format!("- {id}\n"));
+        }
+    }
+    Ok(out)
+}
+
+fn cell(value: Option<&serde_json::Value>) -> String {
+    match value {
+        None => String::new(),
+        Some(serde_json::Value::String(s)) => truncate(s, 120),
+        Some(other) => truncate(&other.to_string(), 120),
+    }
+}
+
+fn truncate(text: &str, max: usize) -> String {
+    if text.chars().count() <= max {
+        text.to_owned()
+    } else {
+        let mut cut: String = text.chars().take(max - 1).collect();
+        cut.push('…');
+        cut
+    }
 }
 
 fn delete(
@@ -390,6 +546,69 @@ mod tests {
         let doomed = select_prunable(&entries, None, Some(30), now);
 
         assert_eq!(doomed, vec!["old".to_string()]);
+    }
+
+    #[test]
+    fn unit_diff_markdown_lists_field_changes_and_findings() {
+        use crate::model::diff::*;
+        let words = crate::labels::Labels::default().cli.snapshots;
+        let snapshot_ref = |id: &str| SnapshotRef {
+            id: id.into(),
+            created_at: "2026-01-01T00:00:00Z".into(),
+            status: "complete".into(),
+        };
+        let changes = SnapshotChanges {
+            base: snapshot_ref("aaaaaaaa-1"),
+            target: snapshot_ref("bbbbbbbb-2"),
+            resources: ResourceChanges {
+                added: vec![],
+                removed: vec![],
+                changed: vec![ResourceChange {
+                    resource: ResourceRef {
+                        id: "/r".into(),
+                        display_id: "/R".into(),
+                        name: "r".into(),
+                        azure_type: "t".into(),
+                        subscription_id: "s".into(),
+                        resource_group: None,
+                    },
+                    fields: vec![FieldChange {
+                        field: DiffField::Tags,
+                        path: "env".into(),
+                        before: Some("dev".into()),
+                        after: Some("prod".into()),
+                    }],
+                }],
+            },
+            findings: FindingChanges {
+                added: vec![FindingRef {
+                    query_name: "nsg_open".into(),
+                    category: "security".into(),
+                    severity: crate::model::Severity::High,
+                    resource_id: Some("/r".into()),
+                    title: "open".into(),
+                }],
+                resolved: vec![],
+            },
+            edges: EdgeChanges::default(),
+            subscriptions: SetChange::default(),
+            resource_groups: SetChange::default(),
+            counts: CountDelta::default(),
+        };
+
+        let md = render_diff(&changes, DiffFormat::Md, &words).unwrap();
+        let table = render_diff(&changes, DiffFormat::Table, &words).unwrap();
+        let json = render_diff(&changes, DiffFormat::Json, &words).unwrap();
+
+        assert!(
+            md.contains("## ") && md.contains("tags.env") && md.contains("| prod"),
+            "{md}"
+        );
+        assert!(
+            table.contains("nsg_open") && !table.contains("## "),
+            "{table}"
+        );
+        assert!(serde_json::from_str::<SnapshotChanges>(&json).is_ok());
     }
 
     #[test]

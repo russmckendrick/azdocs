@@ -18,14 +18,6 @@ pub struct SnapshotCounts {
     pub findings: u64,
 }
 
-/// Result of comparing two snapshots by resource id.
-#[derive(Debug, Default)]
-pub struct SnapshotDiff {
-    pub added: Vec<String>,
-    pub removed: Vec<String>,
-    pub changed: Vec<String>,
-}
-
 impl Store {
     pub fn tenant_ids(&self) -> Result<Vec<String>, StoreError> {
         Ok(self
@@ -144,46 +136,6 @@ impl Store {
     pub fn delete_snapshot(&self, snapshot_id: &str) -> Result<(), StoreError> {
         self.delete_snapshots(std::slice::from_ref(&snapshot_id.to_owned()))
             .map(|_| ())
-    }
-
-    /// Compare resources between two snapshots. `changed` compares the full
-    /// properties JSON text.
-    pub fn diff_snapshots(&self, a: &str, b: &str) -> Result<SnapshotDiff, StoreError> {
-        let left = self.get_snapshot(a)?;
-        let right = self.get_snapshot(b)?;
-        if !left.tenant_id.eq_ignore_ascii_case(&right.tenant_id) {
-            return Err(StoreError::CrossTenantComparison);
-        }
-        let mut diff = SnapshotDiff::default();
-        let mut statement = self.conn().prepare(
-            "SELECT COALESCE(ra.id, rb.id),
-                    ra.id IS NULL,
-                    rb.id IS NULL,
-                    COALESCE(ra.properties, '') != COALESCE(rb.properties, '')
-             FROM (SELECT * FROM resources WHERE snapshot_id = ?1) ra
-             FULL OUTER JOIN (SELECT * FROM resources WHERE snapshot_id = ?2) rb
-               ON ra.id = rb.id
-             ORDER BY 1",
-        )?;
-        let rows = statement.query_map([a, b], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, bool>(1)?,
-                row.get::<_, bool>(2)?,
-                row.get::<_, bool>(3)?,
-            ))
-        })?;
-        for row in rows {
-            let (id, missing_in_a, missing_in_b, properties_differ) = row?;
-            if missing_in_a {
-                diff.added.push(id);
-            } else if missing_in_b {
-                diff.removed.push(id);
-            } else if properties_differ {
-                diff.changed.push(id);
-            }
-        }
-        Ok(diff)
     }
 }
 

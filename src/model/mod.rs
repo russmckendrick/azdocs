@@ -1,5 +1,6 @@
 pub mod azure_types;
 pub mod azure_values;
+pub mod diff;
 mod evidence;
 pub use evidence::{AuthorizationScope, EvidenceFreshness, QueryProvenance, QuerySource};
 pub mod network;

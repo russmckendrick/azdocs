@@ -436,6 +436,7 @@ pub struct CollectLabels {
     pub snapshot_written: String,
     pub partial_hint: String,
     pub failed_hint: String,
+    pub cancelled_hint: String,
     pub no_subscriptions: String,
     pub dry_run_header: String,
     pub dry_run_columns: DryRunColumns,
@@ -515,7 +516,6 @@ pub struct SnapshotsLabels {
     pub schema: String,
     pub interrupted: String,
     pub notes: String,
-    pub comparing: String,
     pub nothing_to_prune: String,
     pub deleted: String,
     pub vacuumed: String,
@@ -524,6 +524,37 @@ pub struct SnapshotsLabels {
     pub reconciled: String,
     pub columns: SnapshotColumns,
     pub run_columns: RunColumns,
+    pub diff: DiffLabels,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DiffLabels {
+    pub summary: String,
+    pub no_changes: String,
+    pub section_resources: String,
+    pub section_findings: String,
+    pub section_edges: String,
+    pub section_scope: String,
+    pub added: String,
+    pub removed: String,
+    pub changed: String,
+    pub new_finding: String,
+    pub resolved: String,
+    pub columns: DiffColumns,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DiffColumns {
+    pub change: String,
+    pub resource: String,
+    pub field: String,
+    pub before: String,
+    pub after: String,
+    pub severity: String,
+    pub check: String,
+    pub title: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1039,6 +1070,8 @@ pub struct DesktopShellLabels {
     pub preparing_collection: String,
     pub snapshot_stored: String,
     pub collected: String,
+    pub collection_cancelled: String,
+    pub cancel_collection: String,
     pub source_note: String,
     pub dismiss: String,
     pub loading_title: String,
@@ -1454,6 +1487,7 @@ pub struct WebsiteLabels {
     pub collect_again: String,
     pub stage_inventory: String,
     pub stage_discovery: String,
+    pub stage_cancelled: String,
     pub stages: String,
     pub elapsed: String,
     pub finished: String,

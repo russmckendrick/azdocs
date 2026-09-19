@@ -201,12 +201,10 @@ fn comparison(
     base_snapshot_id: String,
     target_snapshot_id: String,
 ) -> Result<SnapshotComparison, AppError> {
-    let diff = store.diff_snapshots(&base_snapshot_id, &target_snapshot_id)?;
-    Ok(SnapshotComparison::from_diff(
-        base_snapshot_id,
-        target_snapshot_id,
-        diff,
-    ))
+    Ok(SnapshotComparison::from(store.snapshot_changes(
+        &base_snapshot_id,
+        &target_snapshot_id,
+    )?))
 }
 
 #[tauri::command]
@@ -234,13 +232,10 @@ pub fn load_snapshot(
     let edges = store.edges(&snapshot_id)?;
     let query_runs = store.query_runs(&snapshot_id)?;
 
-    let snapshots = store.list_snapshots()?;
-    let previous_diff = snapshots
-        .iter()
-        .position(|entry| entry.snapshot.id == snapshot_id)
-        .and_then(|index| snapshots.get(index + 1))
-        .map(|previous| comparison(&store, previous.snapshot.id.clone(), snapshot_id.clone()))
-        .transpose()?;
+    // The baseline is the previous *usable* snapshot; a failed or running
+    // neighbour would make the whole estate look newly added.
+    let previous_snapshot_id = store.previous_snapshot(&snapshot_id)?.map(|s| s.id);
+    let previous_diff = context.changes.clone().map(SnapshotComparison::from);
 
     let evidence_summaries = context
         .posture
@@ -256,6 +251,7 @@ pub fn load_snapshot(
         findings,
         edges,
         query_runs,
+        previous_snapshot_id,
         previous_diff,
         &crate::settings::session(&state)?
             .labels
@@ -305,6 +301,7 @@ pub async fn collect_snapshot(
     state: State<'_, AppState>,
 ) -> Result<CollectResultDto, AppError> {
     let lease = state.captures.begin()?;
+    let cancel = azdocs::collect::CancelToken::from(lease.flag());
     let path = database_path(&state)?;
     let capture_path = path.clone();
     let capture_channel = on_event.clone();
@@ -379,6 +376,7 @@ pub async fn collect_snapshot(
                         notes: request.notes,
                         required_tags: config.audit.required_tags.clone(),
                         quiet: true,
+                        cancel,
                     },
                     |progress| {
                         let _ = on_event.send(CollectionEvent::Queries {
@@ -395,7 +393,7 @@ pub async fn collect_snapshot(
                 .await
                 .map_err(|error| AppError::Collection(error.to_string()))?;
                 let mut discovery_error = None;
-                if summary.status != azdocs::model::SnapshotStatus::Failed {
+                if summary.status.is_usable() {
                     let _ = on_event.send(CollectionEvent::Stage {
                         stage: crate::dto::CollectionStage::Discovery,
                     });
@@ -445,6 +443,12 @@ pub async fn collect_snapshot(
 
     let mut result = result;
     if let Ok(summary) = &mut result {
+        if summary.status == "cancelled" {
+            let _ = completion_channel.send(CollectionEvent::Cancelled {
+                snapshot_id: summary.snapshot_id.clone(),
+            });
+            return result;
+        }
         if summary.status != "failed" {
             let _ = capture_channel.send(CollectionEvent::Stage {
                 stage: crate::dto::CollectionStage::Capture,
@@ -503,6 +507,19 @@ pub async fn collect_snapshot(
     result
 }
 
+/// Stops the running collection after its in-flight query (or the current
+/// screenshot); the snapshot keeps what finished and is stored as cancelled.
+#[tauri::command]
+pub fn cancel_collect(state: State<'_, AppState>) {
+    state.captures.cancel();
+}
+
+/// Stops the running export between formats; what was written stays.
+#[tauri::command]
+pub fn cancel_export(state: State<'_, AppState>) {
+    state.exports.cancel();
+}
+
 /// Parse a value the frontend sent into the CLI enum it names.
 ///
 /// clap already derives these kebab-case names, so asking it is the only way
@@ -540,15 +557,36 @@ fn diagram_format(value: &str) -> Result<DiagramFormat, AppError> {
     Ok(format)
 }
 
+/// Outputs written so far plus whether the run was stopped on request.
+struct ExportOutcome {
+    outputs: Vec<PathBuf>,
+    cancelled: bool,
+}
+
+/// What every export family needs besides its request.
+struct ExportEnv<'a> {
+    destination: &'a Path,
+    store: &'a Store,
+    on_event: &'a Channel<ExportEvent>,
+    labels: &'a AppLabels,
+    config: &'a Config,
+    config_dir: Option<&'a Path>,
+    cancelled: &'a dyn Fn() -> bool,
+}
+
 fn export_reports(
     request: ExportRequestDto,
-    destination: &Path,
-    store: &Store,
-    on_event: &Channel<ExportEvent>,
-    labels: &AppLabels,
-    config: &Config,
-    config_dir: Option<&Path>,
-) -> Result<Vec<PathBuf>, AppError> {
+    env: &ExportEnv<'_>,
+) -> Result<ExportOutcome, AppError> {
+    let ExportEnv {
+        destination,
+        store,
+        on_event,
+        labels,
+        config,
+        config_dir,
+        cancelled,
+    } = *env;
     let mut formats = Vec::new();
     for value in &request.formats {
         let format = report_format(value)?;
@@ -575,33 +613,55 @@ fn export_reports(
         theme: None,
         out: Some(destination.to_path_buf()),
     };
-    azdocs::commands::report::run_selected_with_progress(
-        config,
-        config_dir,
-        store,
-        &args,
-        &formats,
-        |path| {
-            let file = path.strip_prefix(destination).unwrap_or(path).display();
-            let _ = on_event.send(ExportEvent::Phase {
-                message: fill(
-                    &labels.desktop.backend.phases.rendering_report,
-                    &[("path", &file)],
-                ),
+    // One format per call so a cancel lands between documents rather than
+    // after the whole set.
+    let mut outputs = Vec::new();
+    for format in formats {
+        if cancelled() {
+            return Ok(ExportOutcome {
+                outputs,
+                cancelled: true,
             });
-        },
-    )
-    .map_err(|error| AppError::Export(error.to_string()))
+        }
+        outputs.extend(
+            azdocs::commands::report::run_selected_with_progress(
+                config,
+                config_dir,
+                store,
+                &args,
+                &[format],
+                |path| {
+                    let file = path.strip_prefix(destination).unwrap_or(path).display();
+                    let _ = on_event.send(ExportEvent::Phase {
+                        message: fill(
+                            &labels.desktop.backend.phases.rendering_report,
+                            &[("path", &file)],
+                        ),
+                    });
+                },
+            )
+            .map_err(|error| AppError::Export(error.to_string()))?,
+        );
+    }
+    Ok(ExportOutcome {
+        outputs,
+        cancelled: false,
+    })
 }
 
 fn export_diagrams(
     request: ExportRequestDto,
-    destination: &Path,
-    store: &Store,
-    on_event: &Channel<ExportEvent>,
-    labels: &AppLabels,
-    config: &Config,
-) -> Result<Vec<PathBuf>, AppError> {
+    env: &ExportEnv<'_>,
+) -> Result<ExportOutcome, AppError> {
+    let ExportEnv {
+        destination,
+        store,
+        on_event,
+        labels,
+        config,
+        cancelled,
+        ..
+    } = *env;
     let errors = &labels.desktop.backend.errors;
     let kind = request
         .diagram_type
@@ -632,6 +692,12 @@ fn export_diagrams(
         azdocs::labels::resolve(&config.branding).map_err(|e| AppError::Config(e.to_string()))?;
     let mut outputs = Vec::new();
     for format in formats {
+        if cancelled() {
+            return Ok(ExportOutcome {
+                outputs,
+                cancelled: true,
+            });
+        }
         let _ = on_event.send(ExportEvent::Phase {
             message: fill(
                 &labels.desktop.backend.phases.rendering_diagram,
@@ -658,7 +724,10 @@ fn export_diagrams(
                 .map_err(|error| AppError::Export(error.to_string()))?,
         );
     }
-    Ok(outputs)
+    Ok(ExportOutcome {
+        outputs,
+        cancelled: false,
+    })
 }
 
 #[tauri::command]
@@ -667,6 +736,8 @@ pub async fn export_snapshot(
     on_event: Channel<ExportEvent>,
     state: State<'_, AppState>,
 ) -> Result<ExportResultDto, AppError> {
+    let lease = state.exports.begin()?;
+    let cancel_flag = lease.flag();
     let session = crate::settings::session(&state)?;
     let database = session.database_path.clone();
     let labels = Arc::clone(&session.labels);
@@ -675,6 +746,7 @@ pub async fn export_snapshot(
     })?;
     let failure_channel = on_event.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
+        let cancelled = move || cancel_flag.load(std::sync::atomic::Ordering::Relaxed);
         let errors = &labels.desktop.backend.errors;
         let destination = PathBuf::from(&request.destination);
         if request.destination.trim().is_empty() {
@@ -692,19 +764,18 @@ pub async fn export_snapshot(
             .for_snapshot(&store.get_snapshot(&id)?.tenant_id)
             .map_err(crate::settings::config_error)?;
         let export_kind = request.export_kind.clone();
-        let mut outputs = match export_kind.as_str() {
-            "reports" => export_reports(
-                request,
-                &destination,
-                &store,
-                &on_event,
-                &labels,
-                &config,
-                document.source.as_deref().and_then(Path::parent),
-            )?,
-            "diagrams" => {
-                export_diagrams(request, &destination, &store, &on_event, &labels, &config)?
-            }
+        let env = ExportEnv {
+            destination: &destination,
+            store: &store,
+            on_event: &on_event,
+            labels: &labels,
+            config: &config,
+            config_dir: document.source.as_deref().and_then(Path::parent),
+            cancelled: &cancelled,
+        };
+        let outcome = match export_kind.as_str() {
+            "reports" => export_reports(request, &env)?,
+            "diagrams" => export_diagrams(request, &env)?,
             other => {
                 return Err(AppError::Export(fill(
                     &errors.unsupported_kind,
@@ -712,16 +783,22 @@ pub async fn export_snapshot(
                 )));
             }
         };
+        let mut outputs = outcome.outputs;
         outputs.sort();
         outputs.dedup();
         let output_count = outputs.len();
-        let _ = on_event.send(ExportEvent::Complete { output_count });
+        let _ = on_event.send(if outcome.cancelled {
+            ExportEvent::Cancelled { output_count }
+        } else {
+            ExportEvent::Complete { output_count }
+        });
         Ok(ExportResultDto {
             destination: destination.display().to_string(),
             outputs: outputs
                 .into_iter()
                 .map(|path| path.display().to_string())
                 .collect(),
+            cancelled: outcome.cancelled,
         })
     })
     .await

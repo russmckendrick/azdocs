@@ -91,9 +91,13 @@ erDiagram
   leaves a permanent `running` row. A `cancelled` status records a collect
   stopped on request. Only `complete` and `partial` snapshots resolve as the
   implicit `latest` or as a diff baseline (`Store::previous_snapshot`).
-- **Snapshot diff** is one `FULL OUTER JOIN` over `resources` between two
-  snapshot ids (`store/snapshots.rs`): added / removed / changed (properties
-  text differs).
+- **Snapshot diff** loads both sides (`store/diff.rs`) and hands them to the
+  pure comparison in `model/diff.rs`: resources by id with per-field changes
+  over canonicalised JSON, findings by (check, resource, title), edges by
+  (source, target, kind), plus subscription and group membership. Volatile
+  property paths come from `data/diff_ignore.toml` and a user override. The
+  same module answers the trend query (`snapshot_trend`), one SQL statement
+  over usable snapshots.
 
 Website tables were added by migration 3: `website_endpoints` stores ordered
 endpoint associations as JSON, `website_evidence` stores management responses by
@@ -104,9 +108,7 @@ See [Website screenshot pipeline](website-screenshots.md).
 
 The diagram above summarises the core fields rather than listing every column.
 Resource identity is the composite `(snapshot_id, id)`, so an ARM resource can
-appear in many snapshots. `changed` compares the stored `properties` JSON text;
-it does not currently report a tag-only, location-only or SKU-only change stored
-outside that JSON as changed.
+appear in many snapshots.
 
 ## Migrations
 

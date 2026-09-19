@@ -168,7 +168,29 @@ labels: Labels, };
 
 export type SnapshotSummary = { id: string, createdAt: string, tenantId: string, status: SnapshotStatus, notes?: string | null, subscriptions: number, resources: number, findings: number, };
 
-export type SnapshotComparison = { baseSnapshotId: string, targetSnapshotId: string, added: Array<string>, removed: Array<string>, changed: Array<string>, };
+export type SnapshotComparison = { baseSnapshotId: string, targetSnapshotId: string, added: Array<string>, removed: Array<string>, changed: Array<string>,
+/**
+ * Field changes per changed resource id.
+ */
+fields: { [key in string]: Array<FieldChange> }, findingsAdded: Array<FindingRef>, findingsResolved: Array<FindingRef>, edgesAdded: Array<EdgeRef>, edgesRemoved: Array<EdgeRef>, subscriptionsAdded: Array<string>, subscriptionsRemoved: Array<string>, resourceGroupsAdded: Array<string>, resourceGroupsRemoved: Array<string>, baseCounts: ComparisonCounts, targetCounts: ComparisonCounts, };
+
+export type FieldChange = {
+/**
+ * Which stored column: `name`, `tags`, `properties`, ...
+ */
+field: string,
+/**
+ * Dotted path inside the column; empty for scalar columns.
+ */
+path: string, before: unknown, after: unknown, };
+
+export type FindingRef = { queryName: string, category: string, severity: Severity, resourceId?: string | null, title: string, };
+
+export type EdgeRef = { sourceId: string, targetId: string, kind: EdgeKind, };
+
+export type ComparisonCounts = { resources: number, findings: number, high: number, medium: number, low: number, info: number, edges: number, subscriptions: number, resourceGroups: number, };
+
+export type TrendPoint = { snapshotId: string, createdAt: string, status: SnapshotStatus, subscriptions: number, resources: number, tagged: number, findings: number, high: number, medium: number, low: number, info: number, edges: number, };
 
 export type EstateSnapshot = { id: string, createdAt: string, tenantId: string, status: SnapshotStatus, notes?: string | null, totals: Totals, tagCoverage: TagCoverage, severityCounts: SeverityCounts, azureMetadata: AzureMetadata, governance: Governance, subscriptions: Array<Subscription>, resourceGroups: Array<ResourceGroup>,
 /**
@@ -178,7 +200,15 @@ resourceGroupSummaries: Array<ResourceGroupSummary>, resources: Array<Resource>,
 /**
  * Already interpreted and labelled in Rust; the frontend only renders cells.
  */
-evidenceSummaries: Array<EvidenceTable>, previousDiff?: SnapshotComparison | null, };
+evidenceSummaries: Array<EvidenceTable>,
+/**
+ * The usable snapshot this one is compared against; None for the earliest.
+ */
+previousSnapshotId?: string | null, previousDiff?: SnapshotComparison | null,
+/**
+ * Usable snapshots of this tenant up to this one, oldest first.
+ */
+trend: Array<TrendPoint>, };
 
 export type Totals = { subscriptions: number, resourceGroups: number, resources: number, findings: number, };
 
@@ -365,7 +395,7 @@ export type CollectionStage = "inventory" | "discovery" | "capture";
 
 export type CollectionQueryProgress = { completed: number, total: number, rows: number, failed: number, latestQuery?: string | null, };
 
-export type CollectionEvent = { "event": "permissions", "data": { check: ConnectionCheck, } } | { "event": "stage", "data": { stage: CollectionStage, } } | { "event": "queries", "data": { progress: CollectionQueryProgress, } } | { "event": "phase", "data": { message: string, } } | { "event": "complete", "data": { snapshotId: string, } } | { "event": "failed", "data": { message: string, } } | { "event": "screenshots", "data": { progress: WebsiteProgress, } };
+export type CollectionEvent = { "event": "permissions", "data": { check: ConnectionCheck, } } | { "event": "stage", "data": { stage: CollectionStage, } } | { "event": "queries", "data": { progress: CollectionQueryProgress, } } | { "event": "phase", "data": { message: string, } } | { "event": "complete", "data": { snapshotId: string, } } | { "event": "cancelled", "data": { snapshotId: string, } } | { "event": "failed", "data": { message: string, } } | { "event": "screenshots", "data": { progress: WebsiteProgress, } };
 
 export type WebsiteState = { endpoints: Array<WebsiteEndpoint>, captures: Array<WebsiteCapture>, evidenceErrors: Array<string>, };
 
@@ -381,7 +411,12 @@ export type WebsiteBatchResult = { captured: number, failed: number, skipped: nu
 
 export type ExportRequest = { includeReference?: boolean | null, snapshotId: string, destination: string, exportKind: ExportKind, formats: Array<string>, diagramType?: string | null, subscriptionId?: string | null, resourceGroup?: string | null, };
 
-export type ExportResult = { destination: string, outputs: Array<string>, };
+export type ExportResult = { destination: string, outputs: Array<string>,
+/**
+ * True when the run was stopped on request; `outputs` lists what was
+ * written before that.
+ */
+cancelled: boolean, };
 
-export type ExportEvent = { "event": "phase", "data": { message: string, } } | { "event": "complete", "data": { outputCount: number, } } | { "event": "failed", "data": { message: string, } };
+export type ExportEvent = { "event": "phase", "data": { message: string, } } | { "event": "complete", "data": { outputCount: number, } } | { "event": "cancelled", "data": { outputCount: number, } } | { "event": "failed", "data": { message: string, } };
 

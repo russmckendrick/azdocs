@@ -276,6 +276,14 @@ export async function captureWebsites(
   return invoke("capture_websites", { request, onEvent: channel });
 }
 
+export async function cancelCollect(): Promise<void> {
+  if (!PREVIEW || isTauri) await invoke("cancel_collect");
+}
+
+export async function cancelExport(): Promise<void> {
+  if (!PREVIEW || isTauri) await invoke("cancel_export");
+}
+
 export async function cancelWebsiteCapture(): Promise<void> {
   if (!PREVIEW || isTauri) await invoke("cancel_website_capture");
 }
@@ -301,7 +309,7 @@ export async function exportSnapshot(
     await pause(720);
     const outputs = (await import("./mock-data")).mockExportOutputs(request);
     onUpdate({ event: "complete", data: { outputCount: outputs.length } });
-    return { destination: request.destination, outputs };
+    return { destination: request.destination, outputs, cancelled: false };
   }
   const channel = new Channel<ExportEvent>();
   channel.onmessage = onUpdate;
