@@ -497,7 +497,9 @@ jobs:
       - name: "🧰 Install Tauri Linux packaging dependencies"
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf rpm
+          # xdg-utils: the AppImage bundler needs xdg-open, which the arm64
+          # image does not ship.
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf rpm xdg-utils
       - name: "⚡ Restore Rust cache"
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - name: "📦 Set up pnpm"
