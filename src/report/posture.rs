@@ -304,6 +304,7 @@ mod tests {
                 row_count: count,
                 duration_ms: None,
                 error: error.map(str::to_owned),
+                rows_dropped: None,
             }],
             "2026-09-13T12:00:00Z".parse().unwrap(),
             &[],

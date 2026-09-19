@@ -1,4 +1,4 @@
-import type { EstateSnapshot } from "../types";
+import type { DashboardDestination, EstateSnapshot } from "../types";
 import { fill, fillNodes } from "../format";
 import { useLabels } from "../labels";
 import { ViewHeading } from "./view-chrome";
@@ -21,7 +21,8 @@ export function GovernanceView({
 }: {
   estate: EstateSnapshot;
   requiredTags: string[];
-  onOpenFindings: () => void;
+  /** All governance findings, or one group's, through the dashboard result chip. */
+  onOpenFindings: (destination?: DashboardDestination) => void;
 }) {
   const { governance } = estate;
   const enforced = requiredTags.length > 0;
@@ -57,7 +58,7 @@ export function GovernanceView({
           </strong>
           <span>{columns.non_compliant}</span>
         </div>
-        <button className="stat-cell" onClick={onOpenFindings}>
+        <button className="stat-cell" onClick={() => onOpenFindings()}>
           <strong>{governanceFindings}</strong>
           <span>{words.governance_findings}</span>
         </button>
@@ -77,6 +78,14 @@ export function GovernanceView({
           ))}
           {governance.topKeys.length === 0 ? <p className="muted-copy">{common.governance.no_tags}</p> : null}
           <div className="fig-caption">{fill(words.key_caption, { tagged: estate.tagCoverage.tagged })}</div>
+          {governance.topKeysTotal > governance.topKeys.length ? (
+            <div className="fig-caption">
+              {fill(common.governance.top_keys_note, {
+                shown: governance.topKeys.length,
+                total: governance.topKeysTotal,
+              })}
+            </div>
+          ) : null}
         </div>
         <div className="figure-block">
           <h2 className="figure-title">{common.governance.coverage_by_subscription}</h2>
@@ -113,7 +122,26 @@ export function GovernanceView({
             <tbody>
               {governance.worstGroups.map((group) => (
                 <tr key={`${group.subscriptionName}-${group.name}`}>
-                  <td>{group.name}</td>
+                  <td>
+                    <button
+                      className="text-link"
+                      onClick={() =>
+                        onOpenFindings({
+                          view: "findings",
+                          label: fill(words.open_group_findings, { group: group.name }),
+                          filter: {
+                            category: "governance",
+                            resourceGroup: group.name.toLowerCase(),
+                            subscriptionId: estate.subscriptions.find(
+                              (subscription) => subscription.displayName === group.subscriptionName,
+                            )?.id,
+                          },
+                        })
+                      }
+                    >
+                      {group.name}
+                    </button>
+                  </td>
                   <td className="secondary">{group.subscriptionName}</td>
                   <td className="mono-cell numeric">{group.resources}</td>
                   <td className={group.flagged ? "numeric emphatic flagged" : "numeric emphatic"}>
@@ -138,6 +166,14 @@ export function GovernanceView({
           <div className="fig-caption spaced">
             {fillNodes(words.worst_caption, { audit: <span className="mono upright">missing_required_tags</span> })}
           </div>
+          {governance.worstGroupsTotal > governance.worstGroups.length ? (
+            <div className="fig-caption">
+              {fill(common.governance.worst_groups_note, {
+                shown: governance.worstGroups.length,
+                total: governance.worstGroupsTotal,
+              })}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

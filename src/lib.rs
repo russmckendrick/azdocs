@@ -1,6 +1,7 @@
 pub mod arg;
 pub mod auth;
 pub mod cli;
+pub mod cloud;
 pub mod collect;
 pub mod commands;
 pub mod config;
@@ -9,6 +10,7 @@ pub mod error;
 pub mod labels;
 pub(crate) mod mark;
 pub mod model;
+pub mod net;
 pub mod querypack;
 pub mod report;
 pub mod store;

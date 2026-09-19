@@ -1,17 +1,21 @@
+mod diff;
 mod edges;
 mod findings;
+mod maintenance;
 mod resources;
 mod schema;
 mod snapshots;
 mod websites;
 
-pub use snapshots::{SnapshotCounts, SnapshotDiff};
+pub use diff::TrendPoint;
+pub use maintenance::{IntegrityReport, STALE_RUNNING_AFTER};
+pub use snapshots::SnapshotCounts;
 
 use std::path::Path;
 
-use rusqlite::Connection;
+use rusqlite::{Connection, OpenFlags};
 
-use crate::error::StoreError;
+use crate::error::{StoreDecodeError, StoreError};
 
 /// Snapshot-scoped SQLite store. All writers and readers go through here;
 /// nothing outside this module touches SQL.
@@ -21,6 +25,10 @@ pub struct Store {
 }
 
 impl Store {
+    /// Open for writing: creates the file, runs pending migrations, switches
+    /// to WAL and reconciles any collect that died without finishing. This
+    /// is the only open that changes a database, so collect, prune, delete
+    /// and verify use it and everything that merely reads does not.
     pub fn open(path: &Path) -> Result<Self, StoreError> {
         if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
             // Default locations live under the platform data dir, which may
@@ -29,6 +37,46 @@ impl Store {
         }
         let conn = Connection::open(path)?;
         schema::migrate(&conn)?;
+        let store = Self {
+            conn,
+            tenant_id: None,
+        };
+        let reconciled = store.reconcile_stale_running(chrono::Utc::now(), STALE_RUNNING_AFTER)?;
+        if !reconciled.is_empty() {
+            tracing::warn!(
+                snapshots = ?reconciled,
+                "marked abandoned running snapshots as failed"
+            );
+        }
+        Ok(store)
+    }
+
+    /// Open for reading only. Never migrates, never touches the journal
+    /// mode, never creates a file: an archived baseline stays byte-for-byte
+    /// the artefact that was archived, and a stray write in a report,
+    /// diagram or TUI path fails loudly instead of silently mutating history.
+    pub fn open_read_only(path: &Path) -> Result<Self, StoreError> {
+        if !path.is_file() {
+            return Err(StoreError::DatabaseMissing(path.to_path_buf()));
+        }
+        let conn = Connection::open_with_flags(
+            path,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )?;
+        schema::configure(&conn)?;
+        let found = schema::current_version(&conn)?;
+        if found > schema::SUPPORTED_VERSION {
+            return Err(StoreError::SchemaTooNew {
+                found,
+                supported: schema::SUPPORTED_VERSION,
+            });
+        }
+        if found < schema::SUPPORTED_VERSION {
+            return Err(StoreError::MigrationRequired {
+                found,
+                required: schema::SUPPORTED_VERSION,
+            });
+        }
         Ok(Self {
             conn,
             tenant_id: None,
@@ -42,6 +90,11 @@ impl Store {
             conn,
             tenant_id: None,
         })
+    }
+
+    /// The schema version stored in `meta`, for `snapshots show`/`verify`.
+    pub fn schema_version(&self) -> Result<usize, StoreError> {
+        schema::current_version(&self.conn)
     }
 
     pub(crate) fn conn(&self) -> &Connection {
@@ -60,14 +113,23 @@ impl Store {
         Ok(())
     }
 
-    /// Resolve references within the selected tenant. Implicit latest is never cross-tenant.
+    /// Resolve references within the selected tenant. Implicit latest is never
+    /// cross-tenant and never a failed, cancelled or running snapshot: a
+    /// pipeline that reports on `latest` after a broken collect must see the
+    /// last good evidence, not an empty estate.
     pub fn resolve_snapshot(&self, reference: &str) -> Result<String, StoreError> {
         if reference == "latest" {
             self.require_tenant()?;
             return self.conn.query_row(
-                "SELECT id FROM snapshots WHERE status != 'running' AND (?1 IS NULL OR lower(tenant_id) = ?1) ORDER BY created_at DESC, id DESC LIMIT 1",
+                "SELECT id FROM snapshots WHERE status IN ('complete','partial') AND (?1 IS NULL OR lower(tenant_id) = ?1) ORDER BY created_at DESC, id DESC LIMIT 1",
                 [self.tenant_id.as_deref()], |row| row.get(0),
             ).map_err(|err| match err { rusqlite::Error::QueryReturnedNoRows => StoreError::NoSnapshots, other => other.into() });
+        }
+        // Ids are UUIDs, so anything outside hex and dashes cannot match;
+        // rejecting it up front also keeps `%` and `_` from acting as LIKE
+        // wildcards in the prefix match below.
+        if reference.is_empty() || !reference.chars().all(|c| c.is_ascii_hexdigit() || c == '-') {
+            return Err(StoreError::SnapshotNotFound(reference.into()));
         }
         let matched: Vec<String> = self.conn.prepare(
             "SELECT id FROM snapshots WHERE id LIKE ?1 || '%' AND (?2 IS NULL OR lower(tenant_id) = ?2) ORDER BY id"
@@ -87,6 +149,30 @@ pub(crate) fn json_text(value: &Option<serde_json::Value>) -> Option<String> {
     value.as_ref().map(std::string::ToString::to_string)
 }
 
-pub(crate) fn parse_json(text: Option<String>) -> Option<serde_json::Value> {
-    text.and_then(|t| serde_json::from_str(&t).ok())
+/// Decode a stored JSON column. Malformed text is corruption, not an
+/// absent value, so it surfaces as a conversion error naming the column.
+pub(crate) fn parse_json(
+    column: &'static str,
+    text: Option<String>,
+) -> rusqlite::Result<Option<serde_json::Value>> {
+    text.map(|t| {
+        serde_json::from_str(&t).map_err(|_| decode_error(column, t.chars().take(80).collect()))
+    })
+    .transpose()
+}
+
+pub(crate) fn decode_error(column: &'static str, value: String) -> rusqlite::Error {
+    rusqlite::Error::FromSqlConversionFailure(
+        0,
+        rusqlite::types::Type::Text,
+        Box::new(StoreDecodeError { column, value }),
+    )
+}
+
+pub(crate) fn parse_timestamp(
+    column: &'static str,
+    text: String,
+) -> rusqlite::Result<chrono::DateTime<chrono::Utc>> {
+    text.parse::<chrono::DateTime<chrono::Utc>>()
+        .map_err(|_| decode_error(column, text))
 }

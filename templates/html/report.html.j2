@@ -4,7 +4,7 @@
 {%- set verdict = labels.common.verdict -%}
 {%- set html = labels.report.html -%}
 <!doctype html>
-<html lang="en">
+<html lang="{{ labels.meta.lang }}">
 <head>
 <meta charset="utf-8">
 <title>{{ branding.title }} — {{ tenant_id }}</title>
@@ -23,8 +23,10 @@
         --info:{{ branding.tokens.palette.severity.info.text }}; --info-fill:{{ branding.tokens.palette.severity.info.fill }};
         --radius:{{ branding.tokens.layout.radius_pt|round(1) }}px; }
 @media (prefers-color-scheme: dark) {
-  :root { --bg:#14181d; --fg:#e9e4da; --muted:#9a958a; --border:#3a4048; --zebra:#10141a;
-          --tint:#10141a; --accent:{{ branding.accent_color }}; }
+  :root { --bg:{{ branding.tokens.palette.dark.surface }}; --fg:{{ branding.tokens.palette.dark.ink }};
+          --muted:{{ branding.tokens.palette.dark.muted }}; --border:{{ branding.tokens.palette.dark.rule }};
+          --zebra:{{ branding.tokens.palette.dark.zebra }}; --tint:{{ branding.tokens.palette.dark.tint }};
+          --accent:{{ branding.tokens.palette.dark.accent }}; --accent-dark:{{ branding.tokens.palette.dark.accent }}; }
 }
 /* The vendored PDF face first; an uninstalled IBM Plex falls through to the
    platform stack rather than forcing a web-font download. */
@@ -59,11 +61,13 @@ code { font-family: "{{ branding.tokens.typography.mono }}", ui-monospace, SFMon
 input.filter { width: 100%; max-width: 24rem; padding: .4rem .6rem; margin: .3rem 0;
        border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); }
 details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
+figure.diagram { margin: 1.5rem 0; } figure.diagram svg { max-width: 100%; height: auto; }
+figure.diagram figcaption { color: var(--muted); font-size: 13px; margin-top: .3rem; }
 </style>
 </head>
 <body>
 {%- if branding.logo %}
-<p><img src="{{ branding.logo.data_uri }}" alt="logo" style="max-height:64px"></p>
+<p><img src="{{ branding.logo.data_uri }}" alt="{{ labels.common.cover.logo_alt }}" style="max-height:64px"></p>
 {%- endif %}
 <h1>{{ branding.title }}</h1>
 {%- if branding.subtitle or branding.company %}
@@ -78,6 +82,13 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
   <div class="stat"><b>{{ totals.findings }}</b><span>{{ html.findings }}</span></div>
   <div class="stat"><b>{{ tag_coverage.percent }}%</b><span>{{ html.tag_coverage }}</span></div>
 </div>
+{%- if diagrams %}
+
+<h2>{{ html.diagrams }}</h2>
+{% for d in diagrams %}
+<figure class="diagram">{{ d.svg | safe }}<figcaption>{{ d.title }}</figcaption></figure>
+{% endfor %}
+{%- endif %}
 
 
 <h2>{{ labels.report.posture.chapter }}</h2>
@@ -102,7 +113,7 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 <thead><tr><th>{{ col.severity }}</th><th>{{ col.title }}</th><th>{{ col.category }}</th><th>{{ col.check }}</th><th>{{ col.resource }}</th></tr></thead>
 <tbody>
 {%- for f in findings %}
-<tr><td><span class="badge {{ f.severity }}">{{ f.severity }}</span></td>
+<tr><td><span class="badge {{ f.severity }}">{{ sev[f.severity].name }}</span></td>
 <td>{{ f.title }}</td><td>{{ f.category }}</td><td><code>{{ f.query_name }}</code></td>
 <td>{% if f.resource_id %}<code>{{ f.resource_id }}</code>{% endif %}</td></tr>
 {%- endfor %}
@@ -125,6 +136,9 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 {%- endfor %}
 </tbody>
 </table>
+{%- if governance.top_keys_total > governance.top_keys | length %}
+<p class="meta">{{ gov.top_keys_note | fill(shown=governance.top_keys | length, total=governance.top_keys_total) }}</p>
+{%- endif %}
 {% else %}<p>{{ gov.no_tags }}</p>{% endif %}
 {%- if governance.subscriptions %}
 <table>
@@ -149,6 +163,86 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
 {%- endfor %}
 </tbody>
 </table>
+{%- if governance.worst_groups_total > governance.worst_groups | length %}
+<p class="meta">{{ gov.worst_groups_note | fill(shown=governance.worst_groups | length, total=governance.worst_groups_total) }}</p>
+{%- endif %}
+{%- endif %}
+{%- if changes %}
+{%- set ch = labels.report.changes %}
+
+<h2>{{ ch.chapter }}</h2>
+<p>{{ ch.intro | fill(base=changes.base.id, base_date=changes.base.created_at) }}</p>
+{% if changes.resources.added or changes.resources.removed or changes.resources.changed or changes.findings.added or changes.findings.resolved or changes.edges.added or changes.edges.removed or changes.subscriptions.added or changes.subscriptions.removed or changes.resource_groups.added or changes.resource_groups.removed %}
+<p>{{ ch.summary | fill(added=changes.resources.added | length, removed=changes.resources.removed | length, changed=changes.resources.changed | length, fields=field_changes, new_findings=changes.findings.added | length, resolved=changes.findings.resolved | length, edges_added=changes.edges.added | length, edges_removed=changes.edges.removed | length) }}</p>
+{% else %}<p>{{ ch.none }}</p>{% endif %}
+{%- for title, rows in [(ch.added, changes.resources.added), (ch.removed, changes.resources.removed)] %}
+{%- if rows %}
+<h3>{{ title }}</h3>
+<table>
+<thead><tr><th>{{ col.name }}</th><th>{{ col.type }}</th><th>{{ col.resource_group }}</th><th>{{ col.subscription }}</th></tr></thead>
+<tbody>
+{%- for r in rows %}
+<tr><td>{{ r.name }}</td><td><code>{{ r.azure_type }}</code></td><td>{{ r.resource_group or "" }}</td><td>{{ r.subscription_id }}</td></tr>
+{%- endfor %}
+</tbody>
+</table>
+{%- endif %}
+{%- endfor %}
+{%- if changes.resources.changed %}
+<h3>{{ ch.changed }}</h3>
+{%- for change in changes.resources.changed %}
+<details>
+<summary>{{ change.resource.name }} <span class="meta">({{ change.resource.azure_type }} · {{ change.fields | length }})</span></summary>
+<table>
+<thead><tr><th>{{ col.field }}</th><th>{{ col.before }}</th><th>{{ col.after }}</th></tr></thead>
+<tbody>
+{%- for f in change.fields %}
+<tr><td><code>{{ f.field }}{% if f.path %}.{{ f.path }}{% endif %}</code></td><td>{{ f.before | md_cell }}</td><td>{{ f.after | md_cell }}</td></tr>
+{%- endfor %}
+</tbody>
+</table>
+</details>
+{%- endfor %}
+{%- endif %}
+{%- for title, rows in [(ch.new_findings, changes.findings.added), (ch.resolved_findings, changes.findings.resolved)] %}
+{%- if rows %}
+<h3>{{ title }}</h3>
+<table>
+<thead><tr><th>{{ col.severity }}</th><th>{{ col.check }}</th><th>{{ col.title }}</th><th>{{ col.resource }}</th></tr></thead>
+<tbody>
+{%- for f in rows %}
+<tr><td><span class="badge {{ f.severity }}">{{ sev[f.severity].name }}</span></td><td><code>{{ f.query_name }}</code></td><td>{{ f.title }}</td><td>{% if f.resource_id %}<code>{{ f.resource_id }}</code>{% endif %}</td></tr>
+{%- endfor %}
+</tbody>
+</table>
+{%- endif %}
+{%- endfor %}
+{%- if changes.edges.added or changes.edges.removed %}
+<h3>{{ ch.relationships }}</h3>
+<table>
+<thead><tr><th>{{ col.change }}</th><th>{{ labels.report.assessment.source }}</th><th>{{ labels.report.assessment.relationship }}</th><th>{{ labels.report.assessment.target }}</th></tr></thead>
+<tbody>
+{%- for e in changes.edges.added %}
+<tr><td>{{ ch.added_marker }}</td><td><code>{{ e.source_id }}</code></td><td>{{ labels.desktop.topology.edge_kinds[e.kind] | default(e.kind) }}</td><td><code>{{ e.target_id }}</code></td></tr>
+{%- endfor %}
+{%- for e in changes.edges.removed %}
+<tr><td>{{ ch.removed_marker }}</td><td><code>{{ e.source_id }}</code></td><td>{{ labels.desktop.topology.edge_kinds[e.kind] | default(e.kind) }}</td><td><code>{{ e.target_id }}</code></td></tr>
+{%- endfor %}
+</tbody>
+</table>
+{%- endif %}
+{%- if trend | length > 1 %}
+<h3>{{ ch.trend }}</h3>
+<p>{{ ch.trend_intro | fill(count=trend | length) }}</p>
+<table>
+<thead><tr><th>{{ labels.common.cover.collected }}</th><th>{{ col.status }}</th><th>{{ col.resources }}</th><th>{{ col.tagged }}</th><th>{{ col.findings }}</th><th>{{ sev.high.name }}</th><th>{{ sev.medium.name }}</th><th>{{ sev.low.name }}</th><th>{{ sev.info.name }}</th></tr></thead>
+<tbody>
+{%- for t in trend %}
+<tr><td>{{ t.created_at }}</td><td>{{ t.status }}</td><td>{{ t.resources }}</td><td>{{ t.tagged }}</td><td>{{ t.findings }}</td><td>{{ t.high }}</td><td>{{ t.medium }}</td><td>{{ t.low }}</td><td>{{ t.info }}</td></tr>
+{%- endfor %}
+</tbody>
+</table>
+{%- endif %}
 {%- endif %}
 
 <h2>{{ labels.report.type_index.chapter }}</h2>

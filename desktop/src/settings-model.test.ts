@@ -12,9 +12,24 @@ function values(): SettingsValues {
   return {
     schema_version: 2,
     default_tenant: "acme",
+    cloud: "public",
     tenants: { acme: newTenant("Acme") },
-    collect: { subscriptions: ["sub"], concurrency: 4 },
-    audit: { required_tags: ["owner"] },
+    collect: {
+      subscriptions: ["sub"],
+      concurrency: 4,
+      retry: {
+        max_attempts: 5,
+        base_delay_ms: 500,
+        max_delay_secs: 60,
+        timeout_secs: 120,
+        connect_timeout_secs: 15,
+      },
+    },
+    audit: {
+      required_tags: ["owner"],
+      tag_resource_groups: true,
+      tag_subscriptions: false,
+    },
     storage: { db_path: "estate.db" },
     branding: {
       company: "Shared",
@@ -31,6 +46,11 @@ function values(): SettingsValues {
       font_family: "",
       mono_family: "",
       font_dir: null,
+    },
+    report: {
+      max_group_diagrams: 60,
+      max_figure_nodes: 6,
+      max_evidence_rows: 20,
     },
   };
 }

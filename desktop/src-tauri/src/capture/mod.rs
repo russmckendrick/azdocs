@@ -19,15 +19,33 @@ use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder}
 use crate::dto::{WebsiteBatchResult, WebsiteCaptureRequest, WebsiteProgress};
 use crate::error::AppError;
 
+/// One "busy" slot with a cancel flag: whoever holds the lease is the only
+/// batch running, and `cancel` reaches it whatever phase it is in. The
+/// collection (queries, discovery, capture) shares one; exports have another.
 #[derive(Default)]
-pub struct CaptureControl(Mutex<Option<Arc<AtomicBool>>>);
+pub struct BatchControl(Mutex<Option<Arc<AtomicBool>>>);
+
+/// The name the capture pipeline grew up with.
+pub type CaptureControl = BatchControl;
 
 pub struct BatchLease<'a> {
-    control: &'a CaptureControl,
+    control: &'a BatchControl,
     cancel: Arc<AtomicBool>,
 }
 
-impl CaptureControl {
+impl BatchLease<'_> {
+    /// The shared flag, for phases (like the query run in the core crate)
+    /// that cannot borrow the lease.
+    pub fn flag(&self) -> Arc<AtomicBool> {
+        Arc::clone(&self.cancel)
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.cancel.load(Ordering::Relaxed)
+    }
+}
+
+impl BatchControl {
     pub fn begin(&self) -> Result<BatchLease<'_>, AppError> {
         let mut active = self.0.lock().map_err(|e| AppError::State(e.to_string()))?;
         if active.is_some() {

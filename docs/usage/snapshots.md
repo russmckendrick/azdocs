@@ -5,8 +5,12 @@ read from one. Snapshot ids can be abbreviated to any unique prefix.
 
 ```sh
 azdocs snapshots list                  # selected tenant snapshots with counts
-azdocs snapshots show latest           # per-query row counts, durations, errors
+azdocs snapshots show latest           # per-query row counts, dropped rows, durations, errors
+azdocs snapshots list --format json    # the same, for scripts
 ```
+
+`latest` always means the newest `complete` or `partial` snapshot. A `failed`
+or `cancelled` snapshot, or one still `running`, is only reachable by id.
 
 ## Tenant isolation
 
@@ -30,24 +34,70 @@ its profile no longer exists.
 ## Diffing estates over time
 
 ```sh
-azdocs snapshots diff <a> <b>
-azdocs snapshots diff e4fb3710 latest --format json   # machine-readable
+azdocs snapshots diff <a> <b>                          # terminal tables
+azdocs snapshots diff e4fb3710 latest --format md      # paste into a review
+azdocs snapshots diff e4fb3710 latest --format json    # the full structure
 ```
 
-Resources are compared by ARM id: **added**, **removed**, or **changed**
-(the stored properties JSON text differs). Tags and other top-level resource
-fields are separate columns, so changes confined to those fields do not appear
-as `changed`. This is a resource-properties comparison, not a complete audit
-of every stored field or finding. See [CI](ci.md) for retaining a baseline.
+Resources are compared by ARM id. A resource is **added**, **removed**, or
+**changed**, and a changed resource lists every field that differs: name,
+type, kind, location, resource group, SKU, identity, tags and every leaf of
+the properties bag as a dotted path with its before and after values. JSON is
+canonicalised first, so the order Resource Graph happened to serialise keys in
+never counts as a change.
 
-## Pruning
+Beyond resources the diff reports **new** and **resolved findings** (keyed by
+check, resource and title), **added** and **removed relationships**, and
+subscriptions or resource groups that appeared or disappeared, with totals for
+both sides. The same comparison feeds the report's "changes since the previous
+snapshot" chapter and the desktop's Changes workspace.
+
+Azure rewrites some properties on every read (`provisioningState`, `etag`,
+`resourceGuid`, timestamps, instance views). Those paths are ignored by the
+built-in `data/diff_ignore.toml`; a `diff_ignore.toml` in the azdocs config
+directory extends the list for estate-specific noise:
+
+```toml
+[properties]
+paths = ["myVendor.lastSeen", "instanceView.*"]
+```
+
+`*` matches one path segment; a trailing `*` matches everything beneath.
+See [CI](ci.md) for retaining a baseline.
+
+## Deleting and pruning
 
 ```sh
+azdocs snapshots delete <id> --yes            # one snapshot
 azdocs snapshots prune --keep 5 --yes
-azdocs snapshots prune --older-than 90 --yes
+azdocs snapshots prune --older-than 90 --yes --vacuum
 ```
 
-Deletes cascade — all resources, edges, findings, and query results for a
-pruned snapshot go with it.
+Deletes cascade — all resources, edges, findings, query results and website
+captures for a pruned snapshot go with it, in one transaction. `prune` never
+selects a `running` snapshot and does not count one toward `--keep`; `delete`
+refuses a `running` snapshot unless `--force` is passed. `--vacuum` reclaims
+the file space afterwards, which matters once screenshots have been stored.
+
+## Interrupted collections
+
+A collect writes a heartbeat every 30 seconds. If the process dies, the next
+writable open (a collect, prune, delete or `verify`) marks any `running`
+snapshot without a heartbeat in the last ten minutes as `failed` and records
+when that happened; `snapshots show` prints the interruption. Nothing is left
+permanently `running`.
+
+## Verifying a database
+
+```sh
+azdocs snapshots verify
+azdocs snapshots verify --format json
+```
+
+Applies pending migrations, runs SQLite's integrity and foreign-key checks,
+reconciles abandoned collects and prints the schema version. It exits non-zero
+when the file is damaged. This is the command to run after restoring a
+database from backup, and the one a read-only command names when it meets a
+database that still needs migrating.
 
 Next: [Queries](queries.md)

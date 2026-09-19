@@ -1,0 +1,16 @@
+name = "web_certificates"
+category = "security"
+kind = "inventory"
+description = "App Service certificates with subject, issuer, expiry and Key Vault source"
+kql = '''
+resources
+| where type == "microsoft.web/certificates"
+| project id, name, location, resourceGroup, subscriptionId,
+          subjectName = tostring(properties.subjectName),
+          issuer = tostring(properties.issuer),
+          thumbprint = tostring(properties.thumbprint),
+          expirationDate = todatetime(properties.expirationDate),
+          hostNames = tostring(properties.hostNames),
+          keyVaultId = tostring(properties.keyVaultId)
+| order by id asc
+'''

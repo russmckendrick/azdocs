@@ -6,7 +6,39 @@ use minijinja::{Environment, context};
 use serde_json::Value;
 
 use super::{ReportContext, cell_to_string};
+use crate::diagram::assets::{DiagramAsset, DiagramAssetKind};
 use crate::labels::Labels;
+
+/// What a page says about a diagram: the image link, and optionally the
+/// Mermaid source for hosts that render it (GitHub, most wikis). The site
+/// leaves the source out because a browser shows it as code.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DiagramEmbedding {
+    pub mermaid: bool,
+}
+
+#[derive(Debug, serde::Serialize)]
+struct DiagramRef<'a> {
+    slug: &'a str,
+    title: &'a str,
+    mermaid: Option<&'a str>,
+}
+
+fn diagram_refs<'a>(
+    diagrams: &'a [DiagramAsset],
+    embedding: DiagramEmbedding,
+    keep: impl Fn(&DiagramAsset) -> bool,
+) -> Vec<DiagramRef<'a>> {
+    diagrams
+        .iter()
+        .filter(|asset| keep(asset))
+        .map(|asset| DiagramRef {
+            slug: &asset.slug,
+            title: &asset.title,
+            mermaid: embedding.mermaid.then_some(asset.mermaid.as_str()),
+        })
+        .collect()
+}
 
 /// Shared environment for markdown and HTML templates, with the custom
 /// filters they rely on. The empty-table text is captured here because a
@@ -24,7 +56,13 @@ pub(crate) fn environment(labels: &Labels) -> Environment<'static> {
     );
     env.add_filter("slug", slug);
     env.add_filter("fill", fill_filter);
+    env.add_filter("md_cell", md_cell);
     env
+}
+
+/// A diff value (JSON or null) as one escaped table cell.
+fn md_cell(value: ViaDeserialize<Value>) -> String {
+    md_escape(&cell_to_string(Some(&value)))
 }
 
 /// `{{ label | fill(name=value, ...) }}`: the template-side twin of
@@ -97,10 +135,19 @@ fn md_table(
 pub fn render_pages(
     report: &ReportContext,
     labels: &Labels,
+    diagrams: &[DiagramAsset],
+    embedding: DiagramEmbedding,
 ) -> anyhow::Result<Vec<(String, String)>> {
     let mut env = environment(labels);
+    let overview_diagrams = diagram_refs(diagrams, embedding, |asset| {
+        matches!(
+            asset.kind,
+            DiagramAssetKind::Hierarchy | DiagramAssetKind::Network
+        )
+    });
     let posture_tables = report.posture.tables(labels);
     let provenance_records = super::provenance::records(&report.analysis.query_runs, labels);
+    let labels_ref = labels;
     let labels = minijinja::Value::from_serialize(labels);
     let tag_audit = super::governance::TAG_AUDIT;
     env.add_template(
@@ -131,7 +178,10 @@ pub fn render_pages(
             labels,
             tag_audit,
             posture_tables,
+            diagrams => overview_diagrams,
             has_provenance => !provenance_records.is_empty(),
+            field_changes => report.changes.as_ref().map_or(0, |c| c.field_changes()),
+            website_rows => report.websites.rows(labels_ref),
             ..minijinja::Value::from_serialize(report)
         })?,
     ));
@@ -168,23 +218,53 @@ pub fn render_pages(
         ));
     }
     for page in &report.details {
+        let group_diagrams = diagram_refs(diagrams, embedding, |asset| {
+            asset.group_key.as_deref() == Some(page.group_key.as_str())
+        });
         pages.push((
             format!("{}.md", page.path),
             env.get_template("resource_group")?
-                .render(context! { labels, page })?,
+                .render(context! { labels, page, diagrams => group_diagrams })?,
         ));
     }
     Ok(pages)
 }
 
-pub fn write(report: &ReportContext, labels: &Labels, out_dir: &Path) -> anyhow::Result<()> {
-    for (relative, content) in render_pages(report, labels)? {
+/// Write the docs tree plus a `diagrams/` directory holding each diagram as
+/// SVG (for the image links) and `.mmd` (the Mermaid source on its own).
+pub fn write(
+    report: &ReportContext,
+    labels: &Labels,
+    diagrams: &[DiagramAsset],
+    out_dir: &Path,
+) -> anyhow::Result<()> {
+    write_diagram_files(diagrams, out_dir)?;
+    report.websites.write_assets(out_dir)?;
+    for (relative, content) in
+        render_pages(report, labels, diagrams, DiagramEmbedding { mermaid: true })?
+    {
         let path = out_dir.join(&relative);
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)
                 .with_context(|| format!("creating {}", parent.display()))?;
         }
         std::fs::write(&path, content).with_context(|| format!("writing {}", path.display()))?;
+    }
+    Ok(())
+}
+
+pub(crate) fn write_diagram_files(diagrams: &[DiagramAsset], out_dir: &Path) -> anyhow::Result<()> {
+    if diagrams.is_empty() {
+        return Ok(());
+    }
+    let dir = out_dir.join("diagrams");
+    std::fs::create_dir_all(&dir).with_context(|| format!("creating {}", dir.display()))?;
+    for asset in diagrams {
+        for (extension, content) in [("svg", &asset.svg), ("mmd", &asset.mermaid)] {
+            let path = dir.join(format!("{}.{extension}", asset.slug));
+            std::fs::write(&path, content)
+                .with_context(|| format!("writing {}", path.display()))?;
+        }
     }
     Ok(())
 }

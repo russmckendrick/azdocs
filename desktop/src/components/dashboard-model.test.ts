@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mockBootstrap, mockEstate } from "../mock-data";
+import { mockBootstrap, mockComparison, mockEstate } from "../mock-data";
 import {
   dashboardComparison,
   dashboardData,
@@ -79,6 +79,15 @@ describe("dashboard evidence", () => {
       }),
     ).toBe(false);
   });
+  it("narrows resources and findings to one resource group", () => {
+    const resource = mockEstate.resources.find((item) => item.findingCount > 0 && item.resourceGroup)!;
+    const finding = mockEstate.findings.find((item) => item.resourceId === resource.id)!;
+    const filter = { subscriptionId: resource.subscriptionId, resourceGroup: resource.resourceGroup! };
+    expect(resourceMatchesDashboard(resource, filter)).toBe(true);
+    expect(resourceMatchesDashboard({ ...resource, resourceGroup: "elsewhere" }, filter)).toBe(false);
+    expect(findingMatchesDashboard(finding, mockEstate, filter)).toBe(true);
+    expect(findingMatchesDashboard({ ...finding, resourceId: null }, mockEstate, filter)).toBe(false);
+  });
   it("distinguishes a missing location from an unfiltered location", () => {
     const resource = { ...mockEstate.resources[0], location: null };
     expect(resourceMatchesDashboard(resource, { location: "" })).toBe(true);
@@ -141,7 +150,11 @@ describe("dashboard evidence", () => {
   });
   it("suppresses comparisons involving incomplete or foreign-tenant snapshots", () => {
     expect(
-      dashboardComparison(mockBootstrap, { ...mockEstate, status: "partial" }),
+      dashboardComparison(
+        mockBootstrap,
+        { ...mockEstate, status: "partial" },
+        mockComparison,
+      ),
     ).toBeUndefined();
     const bootstrap = {
       ...mockBootstrap,
@@ -150,7 +163,15 @@ describe("dashboard evidence", () => {
         tenantId: "another",
       })),
     };
-    expect(dashboardComparison(bootstrap, mockEstate)).toBeUndefined();
+    expect(
+      dashboardComparison(bootstrap, mockEstate, mockComparison),
+    ).toBeUndefined();
+    expect(
+      dashboardComparison(mockBootstrap, mockEstate, mockComparison)?.diff,
+    ).toBe(mockComparison);
+    expect(
+      dashboardComparison(mockBootstrap, mockEstate, undefined),
+    ).toBeUndefined();
   });
 });
 

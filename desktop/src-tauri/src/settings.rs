@@ -74,7 +74,7 @@ impl Session {
             }
         }
         if self.tenant_id.is_none()
-            && let Ok(store) = azdocs::store::Store::open(&self.database_path)
+            && let Ok(store) = azdocs::store::Store::open_read_only(&self.database_path)
             && let Ok(ids) = store.tenant_ids()
             && ids.len() == 1
         {
@@ -234,7 +234,11 @@ pub fn select_tenant(
     let _lease = state.captures.begin()?;
     let mut next = session(&state)?;
     let document = next.document().ok();
-    let stored = azdocs::store::Store::open(&next.database_path)?.tenant_ids()?;
+    let stored = match azdocs::store::Store::open_read_only(&next.database_path) {
+        Ok(store) => store.tenant_ids()?,
+        Err(azdocs::error::StoreError::DatabaseMissing(_)) => Vec::new(),
+        Err(error) => return Err(error.into()),
+    };
     let configured = document.as_ref().is_some_and(|d| {
         d.values
             .tenants
@@ -464,9 +468,10 @@ pub async fn settings_test(
             .map_err(|e| AppError::State(e.to_string()))?;
         runtime
             .block_on(azdocs::auth::diagnostics::inspect(
-                azdocs::commands::http_client(),
+                azdocs::commands::http_client(&config),
                 &provider,
                 &config.collect.subscriptions,
+                config.cloud,
             ))
             .map_err(|e| AppError::Collection(e.to_string()))
     })

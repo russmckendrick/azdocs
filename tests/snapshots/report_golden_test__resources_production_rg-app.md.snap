@@ -1,5 +1,6 @@
 ---
 source: tests/report_golden_test.rs
+assertion_line: 46
 expression: content
 ---
 # rg-app
@@ -8,8 +9,71 @@ expression: content
 
 - **Subscription**: Production
 - **Location**: UK South
-- **Resources**: 12
+- **Resources**: 26
 
+
+## ca-api
+
+**Container App** (`microsoft.app/containerapps`)
+
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Tags | env=prod |
+| Managed Environment Id | /subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.App/managedEnvironments/cae-prod |
+| Running Status | Running |
+
+**Related**: cae-prod (runs on)
+
+`/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.App/containerApps/ca-api`
+
+## cae-prod
+
+**Container Apps Environment** (`microsoft.app/managedenvironments`)
+
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Tags | env=prod |
+
+**Related**: ca-api (runs on) · cae (nic in subnet)
+
+`/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.App/managedEnvironments/cae-prod`
+
+## avset-app
+
+**Availability Set** (`microsoft.compute/availabilitysets`)
+
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Sku | Aligned |
+| Tags | env=prod |
+| Platform Fault Domain Count | 2 |
+| Platform Update Domain Count | 5 |
+
+**Related**: vm-app-01 (attached to)
+
+`/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/availabilitySets/avset-app`
+
+## des-prod
+
+**Disk Encryption Set** (`microsoft.compute/diskencryptionsets`)
+
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Identity Type | SystemAssigned |
+| Tags | env=prod |
+| Encryption Type | EncryptionAtRestWithCustomerKey |
+
+**Related**: kv-prod (depends on) · vm-app-01-os (depends on)
+
+`/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/diskEncryptionSets/des-prod`
 
 ## vm-app-01-os
 
@@ -23,7 +87,7 @@ expression: content
 | Disk Size GB | 64 |
 | Disk State | Attached |
 
-**Related**: vm-app-01 (attached_to)
+**Related**: des-prod (depends on) · vm-app-01 (attached to)
 
 `/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/disks/vm-app-01-os`
 
@@ -31,15 +95,53 @@ expression: content
 
 **Virtual Machine** (`microsoft.compute/virtualmachines`)
 
+> ⚠️ **HIGH** — vm-app-01: high severity Defender assessment is unhealthy
 
 | Setting | Value |
 |---|---|
 | Location | UK South |
 | Tags | env=prod |
 
-**Related**: vm-app-01-nic (attached_to) · vm-app-01-os (attached_to)
+**Related**: alert-cpu (monitors) · avset-app (attached to) · rsv-prod (monitors) · vm-app-01-nic (attached to) · vm-app-01-os (attached to)
 
 `/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/virtualMachines/vm-app-01`
+
+## aks-prod
+
+**AKS Cluster** (`microsoft.containerservice/managedclusters`)
+
+> ⚠️ **MEDIUM** — aks-prod allows local Kubernetes accounts
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Identity Type | SystemAssigned |
+| Tags | env=prod |
+| Kubernetes Version | 1.30.4 |
+| Node Resource Group | MC_rg-app_aks-prod_uksouth |
+| Enable RBAC | true |
+| Disable Local Accounts | false |
+
+**Related**: aks (nic in subnet) · aks-nodepool1-12345678-vmss (attached to) · law-prod (logs to)
+
+`/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.ContainerService/managedClusters/aks-prod`
+
+## psql-prod
+
+**PostgreSQL Flexible Server** (`microsoft.dbforpostgresql/flexibleservers`)
+
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Sku | Standard_B1ms |
+| Tags | env=prod |
+| Version | 16 |
+| State | Ready |
+
+**Related**: db (nic in subnet)
+
+`/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.DBforPostgreSQL/flexibleServers/psql-prod`
 
 ## hp-prod
 
@@ -57,6 +159,103 @@ expression: content
 
 `/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.DesktopVirtualization/hostPools/hp-prod`
 
+## appi-prod
+
+**Application Insights** (`microsoft.insights/components`)
+
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Kind | web |
+| Tags | env=prod |
+| Application_Type | web |
+| Workspace Resource Id | /subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.OperationalInsights/workspaces/law-prod |
+| Retention In Days | 90 |
+
+**Related**: law-prod (logs to)
+
+`/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Insights/components/appi-prod`
+
+## dcr-prod
+
+**Data Collection Rule** (`microsoft.insights/datacollectionrules`)
+
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Tags | env=prod |
+
+**Related**: law-prod (logs to)
+
+`/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Insights/dataCollectionRules/dcr-prod`
+
+## alert-cpu
+
+**Metric Alert** (`microsoft.insights/metricalerts`)
+
+
+| Setting | Value |
+|---|---|
+| Location | Global |
+| Tags | env=prod |
+| Scopes | /subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/virtualMachines/vm-app-01 |
+| Severity | 2 |
+| Enabled | true |
+| Evaluation Frequency | PT5M |
+
+**Related**: vm-app-01 (monitors)
+
+`/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Insights/metricAlerts/alert-cpu`
+
+## kv-prod
+
+**Key Vault** (`microsoft.keyvault/vaults`)
+
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Tags | env=prod |
+| Enable Soft Delete | true |
+| Enable Purge Protection | true |
+| Public Network Access | Disabled |
+
+**Related**: app (in vnet) · des-prod (depends on)
+
+`/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.KeyVault/vaults/kv-prod`
+
+## agw-prod
+
+**Application Gateway** (`microsoft.network/applicationgateways`)
+
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Sku | WAF_v2 |
+| Tags | env=prod |
+| Operational State | Running |
+
+**Related**: agw (nic in subnet) · pip-agw (attached to) · vm-app-01-nic (attached to) · wafpol-prod (depends on)
+
+`/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/applicationGateways/agw-prod`
+
+## wafpol-prod
+
+**Application Gateway WAF Policy** (`microsoft.network/applicationgatewaywebapplicationfirewallpolicies`)
+
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Tags | env=prod |
+
+**Related**: agw-prod (depends on)
+
+`/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies/wafpol-prod`
+
 ## pe-sql.nic.4f2a
 
 **Network Interface** (`microsoft.network/networkinterfaces`)
@@ -67,7 +266,7 @@ expression: content
 |---|---|
 | Location | UK South |
 
-**Related**: app (nic_in_subnet) · pe-sql (attached_to)
+**Related**: app (nic in subnet) · pe-sql (attached to)
 
 `/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/networkInterfaces/pe-sql.nic.4f2a`
 
@@ -81,7 +280,7 @@ expression: content
 |---|---|
 | Location | UK South |
 
-**Related**: app (nic_in_subnet) · vm-app-01 (attached_to) · vm-app-01-pip (attached_to)
+**Related**: agw-prod (attached to) · app (nic in subnet) · asg-web (nsg attached) · vm-app-01 (attached to) · vm-app-01-pip (attached to)
 
 `/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/networkInterfaces/vm-app-01-nic`
 
@@ -95,22 +294,41 @@ expression: content
 |---|---|
 | Location | UK South |
 
-**Related**: app (nic_in_subnet) · pe-sql.nic.4f2a (attached_to) · sql-prod (private_endpoint_for)
+**Related**: app (nic in subnet) · pe-sql.nic.4f2a (attached to) · sql-prod (private endpoint for)
 
 `/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/privateEndpoints/pe-sql`
+
+## pip-agw
+
+**Public IP Address** (`microsoft.network/publicipaddresses`)
+
+> ⚠️ **LOW** — pip-agw is missing tags: env
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Sku | Standard |
+| Ip Address | 20.0.0.20 |
+| Public IPAllocation Method | Static |
+
+**Related**: agw-prod (attached to)
+
+`/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/publicIPAddresses/pip-agw`
 
 ## vm-app-01-pip
 
 **Public IP Address** (`microsoft.network/publicipaddresses`)
 
+> ⚠️ **MEDIUM** — vm-app-01-pip uses the retiring Basic SKU
 > ⚠️ **LOW** — vm-app-01-pip is missing tags: env
 
 | Setting | Value |
 |---|---|
 | Location | UK South |
+| Sku | Basic |
 | Ip Address | 20.0.0.10 |
 
-**Related**: vm-app-01-nic (attached_to)
+**Related**: vm-app-01-nic (attached to)
 
 `/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/publicIPAddresses/vm-app-01-pip`
 
@@ -124,7 +342,7 @@ expression: content
 | Location | UK South |
 | Tags | env=prod |
 
-**Related**: app (subnet_of) · vnet-hub (peered_with)
+**Related**: agw (subnet of) · aks (subnet of) · app (subnet of) · cae (subnet of) · db (subnet of) · vnet-hub (peered with)
 
 `/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/virtualNetworks/vnet-app`
 
@@ -139,13 +357,32 @@ expression: content
 | Tags | env=prod |
 | Retention In Days | 30 |
 
+**Related**: aks-prod (logs to) · appi-prod (logs to) · dcr-prod (logs to)
 
 `/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.OperationalInsights/workspaces/law-prod`
+
+## rsv-prod
+
+**Recovery Services Vault** (`microsoft.recoveryservices/vaults`)
+
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Sku | RS0 |
+| Tags | env=prod |
+| Provisioning State | Succeeded |
+
+**Related**: vm-app-01 (monitors)
+
+`/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.RecoveryServices/vaults/rsv-prod`
 
 ## sql-prod
 
 **SQL Server** (`microsoft.sql/servers`)
 
+> ⚠️ **MEDIUM** — sql-prod accepts TLS 1.0
+> ⚠️ **LOW** — sql-prod does not require Entra-only authentication
 
 | Setting | Value |
 |---|---|
@@ -154,7 +391,7 @@ expression: content
 | Public Network Access | Disabled |
 | Version | 12.0 |
 
-**Related**: app-db (attached_to) · pe-sql (private_endpoint_for)
+**Related**: app-db (attached to) · pe-sql (private endpoint for)
 
 `/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Sql/servers/sql-prod`
 
@@ -170,7 +407,7 @@ expression: content
 | Status | Online |
 | Current Service Objective Name | S0 |
 
-**Related**: sql-prod (attached_to)
+**Related**: sql-prod (attached to)
 
 `/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Sql/servers/sql-prod/databases/app-db`
 
@@ -179,7 +416,9 @@ expression: content
 **Storage Account** (`microsoft.storage/storageaccounts`)
 
 > ⚠️ **HIGH** — stprodapp01 allows public blob access
+> ⚠️ **HIGH** — stprodapp01 allows public network access
 > ⚠️ **LOW** — stprodapp01 is missing tags: env
+> ⚠️ **LOW** — stprodapp01 allows shared key access
 
 | Setting | Value |
 |---|---|
@@ -187,6 +426,9 @@ expression: content
 | Kind | Storage V2 |
 | Allow Blob Public Access | true |
 | Supports Https Traffic Only | true |
+| Minimum Tls Version | TLS1_2 |
+| Allow Shared Key Access | true |
 
+**Related**: app (in vnet)
 
 `/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Storage/storageAccounts/stprodapp01`

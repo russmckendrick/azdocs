@@ -16,6 +16,19 @@ use include_dir::{Dir, include_dir};
 pub use schema::*;
 pub use template::{counted, fill};
 
+/// The reader's word for a relationship kind, from the one table every
+/// surface shares (`desktop.topology.edge_kinds`); the raw key when a pack
+/// lacks it, so nothing renders empty.
+pub fn edge_label(kind: crate::model::EdgeKind, labels: &Labels) -> &str {
+    labels
+        .desktop
+        .topology
+        .edge_kinds
+        .get(kind.as_str())
+        .map(String::as_str)
+        .unwrap_or(kind.as_str())
+}
+
 use crate::config::BrandingConfig;
 use crate::error::LabelsError;
 
@@ -201,6 +214,15 @@ mod tests {
     /// Every placeholder the code fills. A `{cnt}` typo in the built-in file
     /// fails here rather than printing itself.
     const KNOWN_PLACEHOLDERS: &[&str] = &[
+        "base",
+        "base_date",
+        "version",
+        "edges_added",
+        "edges_removed",
+        "fields",
+        "severity",
+        "new_findings",
+        "resolved",
         "state",
         "time",
         "url",

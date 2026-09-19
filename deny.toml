@@ -1,0 +1,63 @@
+# cargo-deny policy for the whole workspace. CI runs `cargo deny check` on
+# every push; a new dependency has to clear advisories, the licence
+# allowlist, the duplicate-version bans and the source allowlist.
+
+[graph]
+targets = [
+  "aarch64-apple-darwin",
+  "x86_64-apple-darwin",
+  "x86_64-unknown-linux-musl",
+  "aarch64-unknown-linux-musl",
+  "x86_64-unknown-linux-gnu",
+  "x86_64-pc-windows-msvc",
+]
+all-features = false
+
+[advisories]
+version = 2
+db-path = "$CARGO_HOME/advisory-dbs"
+db-urls = ["https://github.com/rustsec/advisory-db"]
+# An unmaintained crate we depend on directly is an error; one deep inside
+# typst, resvg or tauri is reported as a warning and moves when they do.
+# Vulnerabilities are errors wherever they sit; each ignore below names the
+# pinned dependency that drags it in and why it cannot reach user input.
+unmaintained = "workspace"
+ignore = [
+  { id = "RUSTSEC-2026-0194", reason = "quick-xml 0.36 via hayagriva/citationberg in typst 0.13, which parses only its bundled CSL styles, never user input" },
+  { id = "RUSTSEC-2026-0195", reason = "quick-xml 0.36 via hayagriva/citationberg in typst 0.13, which parses only its bundled CSL styles, never user input" },
+]
+
+[licenses]
+version = 2
+# The same set `about.toml` accepts for the notices report, so the two
+# tools cannot disagree about what is allowed to ship.
+allow = [
+  "MIT", "Apache-2.0", "Apache-2.0 WITH LLVM-exception", "BSD-2-Clause",
+  "BSD-3-Clause", "ISC", "Zlib", "Unicode-3.0", "Unicode-DFS-2016",
+  "MPL-2.0", "CC0-1.0", "MIT-0", "0BSD", "BSL-1.0", "Unlicense",
+  "CDLA-Permissive-2.0", "bzip2-1.0.6", "WTFPL", "OFL-1.1", "CC-BY-4.0",
+]
+confidence-threshold = 0.8
+exceptions = []
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+# The desktop crate depends on the CLI crate by path without a version, as
+# workspace members do; that is not the wildcard this rule is for.
+allow-wildcard-paths = true
+highlight = "all"
+# Crates that must never enter the graph: the hand-rolled auth behind
+# `TokenProvider` is a design decision, not a gap.
+deny = [
+  { crate = "azure_identity", reason = "auth stays hand-rolled behind TokenProvider" },
+  { crate = "openssl-sys", reason = "TLS is rustls; a musl build must not need OpenSSL" },
+]
+skip = []
+skip-tree = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

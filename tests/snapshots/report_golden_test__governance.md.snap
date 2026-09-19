@@ -1,0 +1,36 @@
+---
+source: tests/report_golden_test.rs
+assertion_line: 46
+expression: content
+---
+# Governance
+
+[← index](index.md)
+
+
+## policy_assignments
+
+Policy assignments, including inherited scope and enforcement settings
+
+| id | displayName | enforcementMode |
+|---|---|---|
+| /subscriptions/sub-prod/providers/microsoft.authorization/policyassignments/baseline | Production baseline | Default |
+| /subscriptions/sub-prod/providers/microsoft.authorization/policyassignments/not-evaluated | Pending initiative | DoNotEnforce |
+
+
+## policy_exemptions
+
+Azure Policy exemptions including category, assignment, and expiry
+
+| id | name | displayName | subscriptionId | exemptionCategory | expiresOn |
+|---|---|---|---|---|---|
+| /policy/exemption-1 | migration | Migration exception | sub-prod | Waiver | 2099-01-01T00:00:00Z |
+
+
+## policy_states
+
+Azure Policy evaluations with assignment, initiative, resource, state, and evaluation timestamp
+
+| id | subscriptionId | resourceId | policyAssignmentId | policyAssignmentName | policySetDefinitionId | complianceState | evaluatedAt |
+|---|---|---|---|---|---|---|---|
+| /policy/state-1 | sub-prod | /subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01 | /subscriptions/sub-prod/providers/microsoft.authorization/policyassignments/baseline | baseline | /providers/microsoft.authorization/policysetdefinitions/security-baseline | Exempt | 2026-09-01T12:00:00Z |

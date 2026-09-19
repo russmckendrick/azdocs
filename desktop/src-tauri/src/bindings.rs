@@ -59,15 +59,20 @@ pub fn generated_typescript() -> String {
     use crate::settings::*;
     use azdocs::auth::diagnostics::*;
     use azdocs::config::document::*;
-    use azdocs::config::{AuditConfig, BrandingConfig, CollectConfig, StorageConfig};
+    use azdocs::config::{
+        AuditConfig, BrandingConfig, CollectConfig, ReportConfig, RetryConfig, StorageConfig,
+    };
+    decl::<azdocs::cloud::Cloud>(&mut out, &cfg);
     decl::<SettingsValues>(&mut out, &cfg);
     decl::<TenantProfile>(&mut out, &cfg);
     decl::<CollectOverrides>(&mut out, &cfg);
     decl::<AuditOverrides>(&mut out, &cfg);
     decl::<BrandingOverrides>(&mut out, &cfg);
     decl::<CollectConfig>(&mut out, &cfg);
+    decl::<RetryConfig>(&mut out, &cfg);
     decl::<AuditConfig>(&mut out, &cfg);
     decl::<StorageConfig>(&mut out, &cfg);
+    decl::<ReportConfig>(&mut out, &cfg);
     decl::<BrandingConfig>(&mut out, &cfg);
     decl::<TenantSummary>(&mut out, &cfg);
     decl::<SettingsDocumentDto>(&mut out, &cfg);
@@ -83,6 +88,11 @@ pub fn generated_typescript() -> String {
     decl::<AppBootstrap>(&mut out, &cfg);
     decl::<SnapshotSummary>(&mut out, &cfg);
     decl::<SnapshotComparison>(&mut out, &cfg);
+    decl::<FieldChangeDto>(&mut out, &cfg);
+    decl::<FindingRefDto>(&mut out, &cfg);
+    decl::<EdgeRefDto>(&mut out, &cfg);
+    decl::<ComparisonCountsDto>(&mut out, &cfg);
+    decl::<TrendPointDto>(&mut out, &cfg);
     decl::<EstateSnapshot>(&mut out, &cfg);
     decl::<TotalsDto>(&mut out, &cfg);
     decl::<TagCoverageDto>(&mut out, &cfg);
@@ -96,6 +106,7 @@ pub fn generated_typescript() -> String {
     decl::<ResourceGroupDto>(&mut out, &cfg);
     decl::<ResourceGroupSummaryDto>(&mut out, &cfg);
     decl::<ResourceDto>(&mut out, &cfg);
+    decl::<ResourceDetailDto>(&mut out, &cfg);
     decl::<ResourceTypeDto>(&mut out, &cfg);
     decl::<NameCountDto>(&mut out, &cfg);
     decl::<FindingDto>(&mut out, &cfg);

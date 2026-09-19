@@ -23,6 +23,11 @@ flowchart LR
 
 Capture [website screenshots](website-screenshots.md) from the desktop and include them in offline exports.
 
-Stuck? See [troubleshooting](troubleshooting.md).
+The [command-line reference](cli.md) lists global flags, environment variables,
+machine-readable output and exit codes.
+
+Stuck? See the [FAQ](faq.md) and [troubleshooting](troubleshooting.md).
+[Data on disk and uninstalling](data-and-uninstall.md) lists every file
+azdocs writes and how to remove it.
 
 See [permission diagnostics](permissions.md) for connection tests and the limits of read-only RBAC evidence.

@@ -64,6 +64,40 @@ pub struct Palette {
     /// Alternating table row fill; only used when `layout.zebra_rows`.
     pub zebra: String,
     pub severity: Severity,
+    /// The HTML surfaces' `prefers-color-scheme: dark` remap. Expressions
+    /// may name any light field (`$surface`, `$ink`, ...); the defaults derive
+    /// everything from the light palette so a theme need not spell it out.
+    pub dark: DarkPalette,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct DarkPalette {
+    pub surface: String,
+    pub ink: String,
+    pub muted: String,
+    pub rule: String,
+    pub tint: String,
+    pub zebra: String,
+    /// Links and highlights on the dark surface; must stay readable there,
+    /// which is why the default lifts the accent rather than reusing it.
+    pub accent: String,
+}
+
+impl Default for DarkPalette {
+    fn default() -> Self {
+        Self {
+            surface: "darken($surface, 0.92)".to_owned(),
+            // Pure white on near-black glares; a touch of the paper colour
+            // gives the same warm off-white the light palette's ink sits on.
+            ink: "mix(readable_on($dark_surface), $surface, 0.12)".to_owned(),
+            muted: "mix($dark_ink, $dark_surface, 0.45)".to_owned(),
+            rule: "mix($dark_ink, $dark_surface, 0.78)".to_owned(),
+            tint: "lighten($dark_surface, 0.05)".to_owned(),
+            zebra: "lighten($dark_surface, 0.04)".to_owned(),
+            accent: "lighten($accent, 0.35)".to_owned(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -189,6 +223,7 @@ impl Default for Palette {
             surface: "#faf8f4".to_owned(),
             zebra: "#f3efe7".to_owned(),
             severity: Severity::default(),
+            dark: DarkPalette::default(),
         }
     }
 }
@@ -301,12 +336,64 @@ impl ThemeSpec {
         primary: &str,
         accent: &str,
     ) -> Result<ThemeTokens, ThemeError> {
-        let vars = ColorVars {
-            primary: Rgb::parse(primary).ok_or_else(|| branding_not_hex("primary", primary))?,
-            accent: Rgb::parse(accent).ok_or_else(|| branding_not_hex("accent", accent))?,
-        };
+        let mut vars = ColorVars::new(
+            Rgb::parse(primary).ok_or_else(|| branding_not_hex("primary", primary))?,
+            Rgb::parse(accent).ok_or_else(|| branding_not_hex("accent", accent))?,
+        );
 
         let p = &self.palette;
+        // Light fields resolve in declaration order and each becomes a named
+        // reference for the ones after it, then the dark block sees them all.
+        let resolve_named = |vars: &mut ColorVars,
+                             field: &str,
+                             expr: &str,
+                             name_as: &str|
+         -> Result<String, ThemeError> {
+            let hex = color::resolve(&format!("{name}: {field}"), expr, vars)?;
+            if let Some(rgb) = Rgb::parse(&hex) {
+                vars.named.insert(name_as.to_owned(), rgb);
+            }
+            Ok(hex)
+        };
+        let light = [
+            ("primary", &p.primary),
+            ("primary_dark", &p.primary_dark),
+            ("primary_tint", &p.primary_tint),
+            ("accent", &p.accent),
+            ("accent_tint", &p.accent_tint),
+            ("on_primary", &p.on_primary),
+            ("band", &p.band),
+            ("on_band", &p.on_band),
+            ("ink", &p.ink),
+            ("muted", &p.muted),
+            ("rule", &p.rule),
+            ("surface", &p.surface),
+            ("zebra", &p.zebra),
+        ];
+        let mut resolved: std::collections::BTreeMap<&str, String> = Default::default();
+        for (field, expr) in light {
+            let hex = resolve_named(&mut vars, &format!("palette.{field}"), expr, field)?;
+            resolved.insert(field, hex);
+        }
+        let dark = [
+            ("surface", &p.dark.surface),
+            ("ink", &p.dark.ink),
+            ("muted", &p.dark.muted),
+            ("rule", &p.dark.rule),
+            ("tint", &p.dark.tint),
+            ("zebra", &p.dark.zebra),
+            ("accent", &p.dark.accent),
+        ];
+        let mut dark_resolved: std::collections::BTreeMap<&str, String> = Default::default();
+        for (field, expr) in dark {
+            let hex = resolve_named(
+                &mut vars,
+                &format!("palette.dark.{field}"),
+                expr,
+                &format!("dark_{field}"),
+            )?;
+            dark_resolved.insert(field, hex);
+        }
         let at = |field: &str, expr: &str| color::resolve(&format!("{name}: {field}"), expr, &vars);
         let severity = |field: &str, s: &SeverityColors| -> Result<SeverityColors, ThemeError> {
             Ok(SeverityColors {
@@ -314,29 +401,41 @@ impl ThemeSpec {
                 fill: at(&format!("palette.severity.{field}.fill"), &s.fill)?,
             })
         };
+        let take = |map: &mut std::collections::BTreeMap<&str, String>, key: &str| {
+            map.remove(key).unwrap_or_default()
+        };
 
         Ok(ThemeTokens {
             name: name.to_owned(),
             description: self.description.clone(),
             palette: Palette {
-                primary: at("palette.primary", &p.primary)?,
-                primary_dark: at("palette.primary_dark", &p.primary_dark)?,
-                primary_tint: at("palette.primary_tint", &p.primary_tint)?,
-                accent: at("palette.accent", &p.accent)?,
-                accent_tint: at("palette.accent_tint", &p.accent_tint)?,
-                on_primary: at("palette.on_primary", &p.on_primary)?,
-                band: at("palette.band", &p.band)?,
-                on_band: at("palette.on_band", &p.on_band)?,
-                ink: at("palette.ink", &p.ink)?,
-                muted: at("palette.muted", &p.muted)?,
-                rule: at("palette.rule", &p.rule)?,
-                surface: at("palette.surface", &p.surface)?,
-                zebra: at("palette.zebra", &p.zebra)?,
+                primary: take(&mut resolved, "primary"),
+                primary_dark: take(&mut resolved, "primary_dark"),
+                primary_tint: take(&mut resolved, "primary_tint"),
+                accent: take(&mut resolved, "accent"),
+                accent_tint: take(&mut resolved, "accent_tint"),
+                on_primary: take(&mut resolved, "on_primary"),
+                band: take(&mut resolved, "band"),
+                on_band: take(&mut resolved, "on_band"),
+                ink: take(&mut resolved, "ink"),
+                muted: take(&mut resolved, "muted"),
+                rule: take(&mut resolved, "rule"),
+                surface: take(&mut resolved, "surface"),
+                zebra: take(&mut resolved, "zebra"),
                 severity: Severity {
                     high: severity("high", &p.severity.high)?,
                     medium: severity("medium", &p.severity.medium)?,
                     low: severity("low", &p.severity.low)?,
                     info: severity("info", &p.severity.info)?,
+                },
+                dark: DarkPalette {
+                    surface: take(&mut dark_resolved, "surface"),
+                    ink: take(&mut dark_resolved, "ink"),
+                    muted: take(&mut dark_resolved, "muted"),
+                    rule: take(&mut dark_resolved, "rule"),
+                    tint: take(&mut dark_resolved, "tint"),
+                    zebra: take(&mut dark_resolved, "zebra"),
+                    accent: take(&mut dark_resolved, "accent"),
                 },
             },
             typography: self.typography.clone(),
@@ -581,5 +680,53 @@ mod tests {
         let spec = pack.get(DEFAULT_THEME).unwrap();
         assert_eq!(spec.description, "local override");
         assert_eq!(spec.layout.cover, CoverStyle::Editorial);
+    }
+
+    #[test]
+    fn unit_dark_palette_derives_from_light_when_theme_omits_it() {
+        let tokens = ThemeSpec::default()
+            .resolve("t", "#0078d4", "#4da3e8")
+            .unwrap();
+        let dark = &tokens.palette.dark;
+
+        assert!(dark.surface.starts_with('#') && dark.surface != tokens.palette.surface);
+        assert_ne!(
+            dark.accent, tokens.palette.accent,
+            "the accent is lifted for a dark surface"
+        );
+        assert!(dark.ink != dark.surface);
+    }
+
+    #[test]
+    fn unit_dark_ink_is_readable_on_dark_surface() {
+        let tokens = ThemeSpec::default()
+            .resolve("t", "#0078d4", "#4da3e8")
+            .unwrap();
+        let surface = Rgb::parse(&tokens.palette.dark.surface).unwrap();
+        let ink = Rgb::parse(&tokens.palette.dark.ink).unwrap();
+        let accent = Rgb::parse(&tokens.palette.dark.accent).unwrap();
+
+        assert!(
+            ink.contrast(surface) >= 7.0,
+            "ink {:?}",
+            tokens.palette.dark
+        );
+        assert!(
+            accent.contrast(surface) >= 3.0,
+            "accent {:?}",
+            tokens.palette.dark
+        );
+    }
+
+    #[test]
+    fn unit_dark_palette_expressions_can_name_light_fields() {
+        let mut spec = ThemeSpec::default();
+        spec.palette.dark.surface = "$primary_dark".into();
+        spec.palette.dark.ink = "$surface".into();
+
+        let tokens = spec.resolve("t", "#0078d4", "#4da3e8").unwrap();
+
+        assert_eq!(tokens.palette.dark.surface, tokens.palette.primary_dark);
+        assert_eq!(tokens.palette.dark.ink, tokens.palette.surface);
     }
 }

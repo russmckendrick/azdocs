@@ -74,16 +74,46 @@ pub fn run_selected_with_progress(
     let out_root = args.out.clone().unwrap_or_else(|| PathBuf::from("output"));
     std::fs::create_dir_all(&out_root)?;
     let snapshot_id = store.resolve_snapshot(&args.snapshot)?;
-    let context = ReportContext::build(store, &snapshot_id)?;
+    let report_scope = args.scope();
+    // Screenshot bytes are only read by the formats that draw them; the data
+    // exports never touch the blobs.
+    let include_images = formats.iter().any(|f| {
+        matches!(
+            f,
+            ReportFormat::Md | ReportFormat::Html | ReportFormat::Pdf | ReportFormat::Docx
+        )
+    });
+    let context = ReportContext::build_with(
+        store,
+        &snapshot_id,
+        &report_scope,
+        include_images,
+        config.report.clone(),
+    )?;
     let branding = resolve_branding(&config.branding, config_dir, args.theme.as_deref())?;
-    let resources = store.resources(&snapshot_id)?;
-    let findings = store.findings(&snapshot_id)?;
+    let resources = scoped_resources(store, &snapshot_id, &report_scope)?;
+    let findings: Vec<_> = context
+        .findings
+        .iter()
+        .map(|row| crate::model::Finding {
+            query_name: row.query_name.clone(),
+            category: row.category.clone(),
+            severity: crate::model::Severity::parse(&row.severity)
+                .unwrap_or(crate::model::Severity::Info),
+            resource_id: row.resource_id.clone(),
+            title: row.title.clone(),
+            detail: None,
+        })
+        .collect();
 
     let print_selected = formats
         .iter()
         .any(|f| matches!(f, ReportFormat::Pdf | ReportFormat::Docx));
-    let scope = crate::diagram::DiagramScope::default();
-    let diagrams = if formats.contains(&ReportFormat::Html) {
+    let scope = crate::diagram::DiagramScope::from(&report_scope);
+    let diagrams = if formats
+        .iter()
+        .any(|f| matches!(f, ReportFormat::Html | ReportFormat::Md))
+    {
         crate::diagram::assets::build_overviews(
             store,
             &snapshot_id,
@@ -91,17 +121,22 @@ pub fn run_selected_with_progress(
             &branding.labels.diagram,
         )?
     } else if print_selected && args.include_reference {
-        crate::diagram::assets::build_group_summaries(
+        crate::diagram::assets::build_group_summaries_capped(
             store,
             &snapshot_id,
             &scope,
             &branding.labels.diagram,
+            config.report.max_group_diagrams,
         )?
     } else {
         Vec::new()
     };
     let assessment_diagrams = if print_selected {
-        crate::diagram::assets::build_assessment(&context.analysis, &branding.labels)
+        crate::diagram::assets::build_assessment(
+            &context.analysis,
+            &branding.labels,
+            config.report.max_figure_nodes,
+        )
     } else {
         Vec::new()
     };
@@ -114,7 +149,7 @@ pub fn run_selected_with_progress(
                 let out_dir = out_root.join("docs");
                 let out = out_dir.join("index.md");
                 on_artifact(&out);
-                report::markdown::write(&context, &branding.labels, &out_dir)?;
+                report::markdown::write(&context, &branding.labels, &diagrams, &out_dir)?;
                 println!(
                     "{}",
                     fill(&words.markdown_written, &[("path", &out.display())])
@@ -124,7 +159,7 @@ pub fn run_selected_with_progress(
             ReportFormat::Html => {
                 let out = out_root.join("report.html");
                 on_artifact(&out);
-                report::html::write(&context, &branding, &out)?;
+                report::html::write(&context, &branding, &diagrams, &out)?;
                 println!("{}", fill(&words.html_written, &[("path", &out.display())]));
                 outputs.push(out);
                 let site_dir = out_root.join("docs-html");
@@ -152,6 +187,14 @@ pub fn run_selected_with_progress(
                             ("inventory", &inventory.display()),
                             ("findings", &findings_path.display()),
                         ]
+                    )
+                );
+                let extra = report::csv::write_tables(&context, &branding.labels, &out_root)?;
+                println!(
+                    "{}",
+                    fill(
+                        &words.csv_extra_written,
+                        &[("count", &extra), ("path", &out_root.display())]
                     )
                 );
                 outputs.push(inventory);
@@ -202,6 +245,31 @@ pub fn run_selected_with_progress(
         }
     }
     Ok(outputs)
+}
+
+/// The resources the scoped context describes, in store order, for the flat
+/// exports that take the model rows rather than the report rows.
+fn scoped_resources(
+    store: &Store,
+    snapshot_id: &str,
+    scope: &report::ReportScope,
+) -> anyhow::Result<Vec<crate::model::Resource>> {
+    let mut resources = store.resources(snapshot_id)?;
+    if !scope.is_unscoped() {
+        resources.retain(|resource| {
+            scope
+                .subscription
+                .as_ref()
+                .is_none_or(|wanted| wanted.eq_ignore_ascii_case(&resource.subscription_id))
+                && scope.resource_group.as_ref().is_none_or(|wanted| {
+                    resource
+                        .resource_group
+                        .as_deref()
+                        .is_some_and(|group| wanted.eq_ignore_ascii_case(group))
+                })
+        });
+    }
+    Ok(resources)
 }
 
 fn resolve_branding(

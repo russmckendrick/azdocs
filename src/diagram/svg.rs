@@ -6,7 +6,7 @@ use super::text::*;
 use std::fmt::Write as _;
 
 use super::drawio::container_palette;
-use super::graph::{DiagEdge, EdgeStyle, EstateGraph, NodeKind};
+use super::graph::{DiagEdge, EdgeStyle, EstateGraph, NodeKind, has_aggregates, legend_kinds};
 use super::icons;
 use super::layout::{self, Placement};
 use super::page::{A4_PORTRAIT, DiagramDetail, PageFraction, Rung};
@@ -22,7 +22,10 @@ const TITLE_BAND: f64 = 40.0;
 const CORNER: f64 = 8.0;
 /// Room below the content for the border-convention key.
 const LEGEND_BAND: f64 = 26.0;
-const FONT: &str = "Arial, Helvetica, sans-serif";
+/// The vendored face first: the PNG rasteriser and the DOCX embed both load
+/// `data/fonts` before system fonts, so a font-less container still draws
+/// labels; browsers fall through to the platform stack.
+const FONT: &str = "IBM Plex Sans, Arial, Helvetica, sans-serif";
 const TEXT_PRIMARY: &str = "#323130";
 const TEXT_SECONDARY: &str = "#605E5C";
 
@@ -152,15 +155,27 @@ fn legend_entries<'a>(
     graph: &EstateGraph,
     labels: &'a DiagramLabels,
 ) -> Vec<(&'static str, &'a str, &'static str)> {
-    [
-        (NodeKind::Vnet, labels.legend.vnet.as_str(), "7,4"),
-        (NodeKind::Subnet, labels.legend.subnet.as_str(), "4,3"),
-        (NodeKind::Zone, labels.legend.zone.as_str(), "7,4"),
-    ]
-    .iter()
-    .filter(|(kind, _, _)| graph.nodes.iter().any(|node| &node.kind == kind))
-    .map(|(kind, label, dash)| (container_palette(kind).1, *label, *dash))
-    .collect()
+    legend_kinds(graph)
+        .into_iter()
+        .map(|kind| {
+            let (label, dash) = legend_words(&kind, labels);
+            (container_palette(&kind).1, label, dash)
+        })
+        .collect()
+}
+
+/// Caption and dash rhythm for a container kind; the dash matches what the
+/// container itself is drawn with, so the key is legible by border alone.
+pub(crate) fn legend_words<'a>(
+    kind: &NodeKind,
+    labels: &'a DiagramLabels,
+) -> (&'a str, &'static str) {
+    match kind {
+        NodeKind::Vnet => (labels.legend.vnet.as_str(), "7,4"),
+        NodeKind::Subnet => (labels.legend.subnet.as_str(), "4,3"),
+        NodeKind::Zone => (labels.legend.zone.as_str(), "7,4"),
+        _ => ("", ""),
+    }
 }
 
 /// Key to the border conventions, plus the count convention and the Azure mark.
@@ -195,11 +210,7 @@ fn legend(
         x += 28.0 + text_width(label, 10.0) + 22.0;
     }
     // The count convention only needs explaining when a tile actually carries one.
-    if graph
-        .nodes
-        .iter()
-        .any(|node| node.sublabel.as_deref().is_some_and(|s| s.starts_with('×')))
-    {
+    if has_aggregates(graph) {
         let _ = writeln!(
             out,
             r##"    <text x="{}" y="{}" font-size="10" fill="{TEXT_SECONDARY}"><tspan fill="#0078D4">×N</tspan>  {}</text>"##,

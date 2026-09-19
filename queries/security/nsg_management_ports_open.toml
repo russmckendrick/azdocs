@@ -1,0 +1,28 @@
+name = "nsg_management_ports_open"
+category = "security"
+kind = "finding"
+severity = "high"
+title_field = "summary"
+description = "NSG rules exposing RDP (3389) or SSH (22) to the Internet"
+kql = '''
+resources
+| where type == "microsoft.network/networksecuritygroups"
+| mv-expand rule = properties.securityRules
+| where rule.properties.direction =~ "Inbound" and rule.properties.access =~ "Allow"
+| extend sources = iff(isnotempty(rule.properties.sourceAddressPrefixes), rule.properties.sourceAddressPrefixes, pack_array(rule.properties.sourceAddressPrefix))
+| mv-expand source = sources
+| where tostring(source) in ("*", "0.0.0.0/0", "0.0.0.0", "::/0", "Internet")
+| extend ports = iff(isnotempty(rule.properties.destinationPortRanges), rule.properties.destinationPortRanges, pack_array(rule.properties.destinationPortRange))
+| mv-expand port = ports
+| extend port = tostring(port),
+         rangeStart = toint(split(port, "-")[0]),
+         rangeEnd = toint(split(port, "-")[1])
+| where port == "*"
+   or port in ("22", "3389")
+   or (isnotnull(rangeStart) and isnotnull(rangeEnd) and ((rangeStart <= 22 and rangeEnd >= 22) or (rangeStart <= 3389 and rangeEnd >= 3389)))
+| summarize by id, name, resourceGroup, subscriptionId,
+             ruleName = tostring(rule.name), port,
+             protocol = tostring(rule.properties.protocol)
+| extend summary = strcat(name, ": rule ", ruleName, " exposes management port ", port, " to the Internet")
+| order by id asc, ruleName asc, port asc
+'''

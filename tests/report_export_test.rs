@@ -35,6 +35,9 @@ fn unit_reference_receipts_include_only_selected_print_formats() {
             include_reference,
             theme: None,
             out: Some(out.path().into()),
+            subscription: None,
+            resource_group: None,
+            severity: None,
         };
         let mut started = Vec::new();
         let outputs = run_selected_with_progress(

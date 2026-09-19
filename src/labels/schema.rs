@@ -27,12 +27,21 @@ impl Plural {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Labels {
+    pub meta: MetaLabels,
     pub common: CommonLabels,
     pub report: ReportLabels,
     pub diagram: DiagramLabels,
     pub cli: CliLabels,
     pub tui: TuiLabels,
     pub desktop: DesktopLabels,
+}
+
+/// Document-level facts that are not wording: the BCP 47 language tag the
+/// HTML `lang` attribute and Typst hyphenation use.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MetaLabels {
+    pub lang: String,
 }
 
 // ------------------------------------------------------------------ common --
@@ -90,8 +99,6 @@ pub struct SeverityLabels {
     pub name: String,
     /// Stat and badge label: "High".
     pub label: String,
-    /// Section heading: "High priority".
-    pub heading: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,6 +109,7 @@ pub struct CoverLabels {
     pub collected: String,
     pub status: String,
     pub notes: String,
+    pub logo_alt: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -145,6 +153,11 @@ pub struct ColumnLabels {
     pub metric: String,
     pub setting: String,
     pub value: String,
+    pub field: String,
+    pub before: String,
+    pub after: String,
+    pub change: String,
+    pub tagged: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -157,6 +170,8 @@ pub struct GovernanceLabels {
     pub subscription_note: String,
     pub key_share: String,
     pub non_compliant_sentence: String,
+    pub top_keys_note: String,
+    pub worst_groups_note: String,
 }
 
 // ------------------------------------------------------------------ report --
@@ -170,12 +185,12 @@ pub struct ReportLabels {
     pub summary: SummaryLabels,
     pub findings: FindingsLabels,
     pub governance: ReportGovernanceLabels,
-    pub overview: ChapterLabels,
     pub type_index: ChapterLabels,
-    pub estate: EstateLabels,
     pub evidence: EvidenceLabels,
     pub pdf: PdfLabels,
     pub markdown: MarkdownLabels,
+    pub changes: ChangesLabels,
+    pub site: SiteLabels,
     pub html: HtmlLabels,
     pub xlsx: XlsxLabels,
     pub csv: CsvLabels,
@@ -185,12 +200,6 @@ pub struct ReportLabels {
 #[serde(deny_unknown_fields)]
 pub struct SummaryLabels {
     pub chapter: String,
-    pub sentence: String,
-    pub coverage_at_or_above: String,
-    pub coverage_below: String,
-    pub largest_types: String,
-    pub geographic_footprint: String,
-    pub priority_findings: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -198,14 +207,12 @@ pub struct SummaryLabels {
 pub struct FindingsLabels {
     pub chapter: String,
     pub empty: String,
-    pub intro: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ReportGovernanceLabels {
     pub chapter: String,
-    pub flagged_note: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -217,22 +224,7 @@ pub struct ChapterLabels {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct EstateLabels {
-    pub subscription_sentence: String,
-    pub group_summary: String,
-    pub group_findings: String,
-    pub relationships: String,
-    pub settings: String,
-    pub no_settings: String,
-    pub findings: String,
-    pub related: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
 pub struct EvidenceLabels {
-    pub chapter: String,
-    pub intro: String,
     pub no_results: String,
 }
 
@@ -257,6 +249,8 @@ pub struct MarkdownLabels {
     pub resources_by_type: String,
     pub resources_by_location: String,
     pub sections: String,
+    pub diagrams: String,
+    pub diagram_note: String,
     pub subscription_link: String,
     pub subscription_title: String,
     pub id: String,
@@ -265,6 +259,41 @@ pub struct MarkdownLabels {
     pub related: String,
     pub no_rows: String,
     pub no_resources: String,
+    pub settings_omitted: String,
+    pub website_image: String,
+}
+
+/// The "changes since the previous snapshot" chapter, shared by the print
+/// documents, Markdown, HTML and the workbook.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ChangesLabels {
+    pub chapter: String,
+    pub intro: String,
+    pub summary: String,
+    pub none: String,
+    pub added: String,
+    pub removed: String,
+    pub changed: String,
+    pub new_findings: String,
+    pub resolved_findings: String,
+    pub relationships: String,
+    pub scope: String,
+    pub added_marker: String,
+    pub removed_marker: String,
+    pub row_limit: String,
+    pub trend: String,
+    pub trend_intro: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SiteLabels {
+    pub index: String,
+    pub findings: String,
+    pub provenance: String,
+    /// `{category}` is the query category a page lists.
+    pub category: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -301,6 +330,13 @@ pub struct XlsxLabels {
     pub info_findings: String,
     pub tag_coverage_percent: String,
     pub share_of_tagged_percent: String,
+    pub sheet_locations: String,
+    pub sheet_websites: String,
+    pub sheet_changes: String,
+    pub sheet_trend: String,
+    pub kql_column: String,
+    pub change_column: String,
+    pub side_column: String,
     pub inventory_columns: XlsxInventoryColumns,
     pub findings_columns: FindingsColumns,
 }
@@ -391,6 +427,7 @@ pub struct DiagramLabels {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LegendLabels {
+    pub title: String,
     pub vnet: String,
     pub subnet: String,
     pub zone: String,
@@ -435,6 +472,20 @@ pub struct CollectLabels {
     pub collecting: String,
     pub snapshot_written: String,
     pub partial_hint: String,
+    pub failed_hint: String,
+    pub cancelled_hint: String,
+    pub no_subscriptions: String,
+    pub dry_run_header: String,
+    pub dry_run_columns: DryRunColumns,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DryRunColumns {
+    pub name: String,
+    pub category: String,
+    pub kind: String,
+    pub severity: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -456,7 +507,6 @@ pub struct InitLabels {
     pub client_prompt: String,
     pub secret_prompt: String,
     pub wrote: String,
-    pub plaintext_note: String,
     pub next_step: String,
 }
 
@@ -486,6 +536,7 @@ pub struct CliReportLabels {
     pub html_written: String,
     pub site_written: String,
     pub csv_written: String,
+    pub csv_extra_written: String,
     pub xlsx_written: String,
     pub pdf_written: String,
     pub docx_written: String,
@@ -500,12 +551,48 @@ pub struct SnapshotsLabels {
     pub tenant: String,
     pub status: String,
     pub tool: String,
+    pub schema: String,
+    pub interrupted: String,
     pub notes: String,
-    pub comparing: String,
     pub nothing_to_prune: String,
     pub deleted: String,
+    pub vacuumed: String,
+    pub verify_ok: String,
+    pub verify_problems: String,
+    pub reconciled: String,
     pub columns: SnapshotColumns,
     pub run_columns: RunColumns,
+    pub diff: DiffLabels,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DiffLabels {
+    pub summary: String,
+    pub no_changes: String,
+    pub section_resources: String,
+    pub section_findings: String,
+    pub section_edges: String,
+    pub section_scope: String,
+    pub added: String,
+    pub removed: String,
+    pub changed: String,
+    pub new_finding: String,
+    pub resolved: String,
+    pub columns: DiffColumns,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DiffColumns {
+    pub change: String,
+    pub resource: String,
+    pub field: String,
+    pub before: String,
+    pub after: String,
+    pub severity: String,
+    pub check: String,
+    pub title: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -513,6 +600,7 @@ pub struct SnapshotsLabels {
 pub struct SnapshotColumns {
     pub id: String,
     pub created: String,
+    pub tenant: String,
     pub status: String,
     pub subscriptions: String,
     pub resources: String,
@@ -525,6 +613,7 @@ pub struct RunColumns {
     pub query: String,
     pub category: String,
     pub rows: String,
+    pub dropped: String,
     pub ms: String,
     pub error: String,
 }
@@ -549,6 +638,7 @@ pub struct TuiPanes {
     pub resources: String,
     pub detail: String,
     pub findings: String,
+    pub help: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -556,6 +646,7 @@ pub struct TuiPanes {
 pub struct TuiKeys {
     pub snapshots: String,
     pub estate: String,
+    pub detail: String,
     pub filtering: String,
     pub filtered: String,
     pub findings: String,
@@ -587,6 +678,10 @@ pub struct TuiUnits {
 #[serde(deny_unknown_fields)]
 pub struct TuiMessages {
     pub no_selection: String,
+    pub load_failed: String,
+    pub severity_filter: String,
+    pub all_severities: String,
+    pub following: String,
 }
 
 // ----------------------------------------------------------------- desktop --
@@ -617,6 +712,32 @@ pub struct DesktopLabels {
     pub progressive: DesktopProgressiveLabels,
     pub exports: DesktopExportsLabels,
     pub backend: DesktopBackendLabels,
+    pub collection: DesktopCollectionLabels,
+    pub shortcuts: DesktopShortcutLabels,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DesktopCollectionLabels {
+    pub scope: String,
+    pub scope_detail: String,
+    pub notes: String,
+    pub notes_placeholder: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DesktopShortcutLabels {
+    pub title: String,
+    pub close: String,
+    pub search: String,
+    pub help: String,
+    pub zoom_in: String,
+    pub zoom_out: String,
+    pub zoom_reset: String,
+    pub escape: String,
+    pub mod_mac: String,
+    pub mod_other: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -649,6 +770,10 @@ pub struct DesktopEstateLabels {
     pub empty_title: String,
     pub empty_detail: String,
     pub quiet: String,
+    pub tag_filter_aria: String,
+    pub all_tags: String,
+    pub tag_value_aria: String,
+    pub any_value: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -670,6 +795,7 @@ pub struct DesktopRecordLabels {
     pub properties_title: String,
     pub properties_detail: String,
     pub properties: String,
+    pub loading_properties: String,
     pub sku: String,
     pub identity: String,
     pub relationships_title: String,
@@ -678,6 +804,8 @@ pub struct DesktopRecordLabels {
     pub inbound: String,
     pub relationship_evidence: String,
     pub no_relationship_rows: String,
+    pub copy_id: String,
+    pub copied: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -722,6 +850,13 @@ pub struct DesktopExportsLabels {
     pub choose_detail: String,
     pub legend: String,
     pub advanced_note: String,
+    pub scope_title: String,
+    pub scope_note: String,
+    pub scope_subscription: String,
+    pub scope_resource_group: String,
+    pub scope_severity: String,
+    pub scope_severity_option: String,
+    pub scope_any: String,
     pub run_title: String,
     pub destination: String,
     pub not_selected: String,
@@ -742,6 +877,10 @@ pub struct DesktopExportsLabels {
     pub incomplete: String,
     pub complete: String,
     pub preview_note: String,
+    pub cancel: String,
+    pub cancelled: String,
+    pub open_folder: String,
+    pub reveal: String,
     /// Keyed by the preset ids in `ExportsView.tsx`.
     pub presets: std::collections::BTreeMap<String, ExportPresetLabels>,
 }
@@ -857,6 +996,14 @@ pub struct DesktopFindingsLabels {
     pub query: String,
     pub category: String,
     pub snapshot: String,
+    pub select_aria: String,
+    pub select_all: String,
+    pub selected: Plural,
+    pub copy_ids: String,
+    pub export_csv: String,
+    pub copied: String,
+    pub csv_saved: String,
+    pub csv_name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -886,6 +1033,16 @@ pub struct DesktopHistoryLabels {
     pub health: String,
     pub health_summary: String,
     pub run_detail: String,
+    pub fields: String,
+    pub field_count: Plural,
+    pub new_findings: String,
+    pub resolved_findings: String,
+    pub relationships_added: String,
+    pub relationships_removed: String,
+    pub no_field_changes: String,
+    pub trend: String,
+    pub trend_note: String,
+    pub compare_failed: String,
     /// Keyed by change kind (`added`, `changed`, `removed`).
     pub kinds: std::collections::BTreeMap<String, String>,
 }
@@ -922,6 +1079,7 @@ pub struct DesktopInventoryLabels {
     pub visible_of: String,
     pub matching: String,
     pub collected_in: String,
+    pub rows_failed: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -957,8 +1115,14 @@ pub struct DesktopSettingsLabels {
     pub none_configured_key: String,
     pub active_snapshot: String,
     pub active_snapshot_detail: String,
+    pub about: String,
+    pub about_detail: String,
+    pub docs: String,
+    pub shortcuts: String,
     /// Keyed by theme preference (`system`, `light`, `dark`).
     pub theme_options: std::collections::BTreeMap<String, String>,
+    /// Keyed by `Cloud::as_str` (`public`, `usgov`, `china`).
+    pub cloud_options: std::collections::BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -972,6 +1136,7 @@ pub struct DesktopGovernanceLabels {
     pub subscription_caption: String,
     pub all_clear: String,
     pub worst_caption: String,
+    pub open_group_findings: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1017,6 +1182,8 @@ pub struct DesktopShellLabels {
     pub preparing_collection: String,
     pub snapshot_stored: String,
     pub collected: String,
+    pub collection_cancelled: String,
+    pub cancel_collection: String,
     pub source_note: String,
     pub dismiss: String,
     pub loading_title: String,
@@ -1033,6 +1200,8 @@ pub struct DesktopShellLabels {
     pub status_stored_relationships: String,
     pub status_export_ready: String,
     pub status_no_selection: String,
+    pub version: String,
+    pub shortcuts: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1047,6 +1216,7 @@ pub struct DesktopDialogLabels {
     pub open_database_title: String,
     pub sqlite_filter: String,
     pub export_directory_title: String,
+    pub save_file_title: String,
     pub preview_collecting: String,
     pub preview_exporting: String,
     pub collect_notes: String,
@@ -1256,8 +1426,6 @@ pub struct AssessmentLabels {
     pub study_dependency_summary: String,
     pub issue_group_scope: String,
     pub family_caption: String,
-    pub diagram_population: String,
-    pub diagram_external: String,
     pub executive: String,
     pub composition: String,
     pub architecture: String,
@@ -1317,7 +1485,6 @@ pub struct AssessmentLabels {
     pub group_dependencies_none: String,
     pub study_findings_heading: String,
     pub study_findings_none: String,
-    pub study_issue: String,
     pub connection_focus: String,
     pub diagram_caption: String,
     pub network_caption: String,
@@ -1344,7 +1511,6 @@ pub struct AssessmentLabels {
     pub operational_review: String,
     pub actions_intro: String,
     pub action: String,
-    pub action_verification: String,
     pub coverage_intro: String,
     pub coverage_summary: String,
     pub coverage_missing: String,
@@ -1366,19 +1532,10 @@ pub struct AssessmentLabels {
     pub reference_coverage_note: String,
     pub reference_scope: String,
     pub reference_occurrence_count: String,
-    pub reference_identity: String,
-    pub reference_resource_id: String,
     pub reference_sku: String,
     pub reference_auth_identity: String,
     pub reference_relationships: String,
-    pub reference_record_key: String,
-    pub reference_record_value: String,
-    pub original_evidence: String,
     pub reference_occurrences: String,
-    pub reference_query_note: String,
-    pub full_rows: String,
-    pub full_row: String,
-    pub findings_reference: String,
     pub reference_available: String,
     pub family_compute: String,
     pub family_network: String,
@@ -1397,12 +1554,9 @@ pub struct AssessmentLabels {
     pub replication: String,
     pub public_network: String,
     pub default_action: String,
-    pub https_only: String,
-    pub minimum_tls: String,
     pub blob_access: String,
     pub identity_type: String,
     pub logging_targets: String,
-    pub retention: String,
     pub vault_configuration: String,
     pub showing_rows: String,
     pub checks: std::collections::BTreeMap<String, CheckGuidance>,
@@ -1432,6 +1586,7 @@ pub struct WebsiteLabels {
     pub collect_again: String,
     pub stage_inventory: String,
     pub stage_discovery: String,
+    pub stage_cancelled: String,
     pub stages: String,
     pub elapsed: String,
     pub finished: String,

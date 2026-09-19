@@ -1,0 +1,14 @@
+name = "private_dns_zones_unlinked"
+category = "cost"
+kind = "finding"
+severity = "info"
+title_field = "summary"
+description = "Private DNS zones with no virtual network links"
+kql = '''
+resources
+| where type == "microsoft.network/privatednszones"
+| where coalesce(toint(properties.numberOfVirtualNetworkLinks), 0) == 0
+| project id, name, resourceGroup, subscriptionId,
+          summary = strcat(name, " is linked to no virtual network")
+| order by id asc
+'''

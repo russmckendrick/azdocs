@@ -4,10 +4,12 @@ pub mod ingest;
 pub mod websites;
 
 use std::sync::Arc;
-use std::time::Instant;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::{Duration, Instant};
 
 use indicatif::{ProgressBar, ProgressStyle};
 use tokio::sync::{Semaphore, mpsc};
+use tokio::task::JoinSet;
 
 use crate::arg::ArgClient;
 use crate::auth::TokenProvider;
@@ -25,6 +27,27 @@ pub struct CollectSummary {
     pub rows_ingested: u64,
 }
 
+/// A flag a caller flips to stop a run. Cloneable and cheap; the desktop
+/// shares one with its batch lease, the CLI wires Ctrl-C to it.
+#[derive(Clone, Debug, Default)]
+pub struct CancelToken(Arc<AtomicBool>);
+
+impl CancelToken {
+    pub fn cancel(&self) {
+        self.0.store(true, Ordering::Relaxed);
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.0.load(Ordering::Relaxed)
+    }
+}
+
+impl From<Arc<AtomicBool>> for CancelToken {
+    fn from(flag: Arc<AtomicBool>) -> Self {
+        Self(flag)
+    }
+}
+
 /// Everything a collect run needs beyond the store and client.
 #[derive(Debug)]
 pub struct CollectRequest {
@@ -33,8 +56,11 @@ pub struct CollectRequest {
     pub subscriptions: Vec<String>,
     pub concurrency: usize,
     pub notes: Option<String>,
-    pub required_tags: Vec<String>,
+    pub audit: crate::config::AuditConfig,
     pub quiet: bool,
+    /// Checked after every completed query; a cancelled run stops there,
+    /// skips the post-pass and is stored as `cancelled`.
+    pub cancel: CancelToken,
 }
 
 /// Runs the selected queries concurrently (bounded by `concurrency`), ingesting
@@ -57,6 +83,11 @@ pub struct CollectProgress {
     pub latest_query: Option<String>,
 }
 
+/// How often a live collect proves it is alive. Must stay well inside
+/// [`crate::store::STALE_RUNNING_AFTER`] or a slow-but-healthy run would be
+/// reconciled as abandoned by a concurrent open.
+const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(30);
+
 /// Emits progress only after a query's evidence and outcome have been stored.
 pub async fn run_with_progress<P: TokenProvider + 'static>(
     store: &Store,
@@ -70,8 +101,9 @@ pub async fn run_with_progress<P: TokenProvider + 'static>(
         subscriptions,
         concurrency,
         notes,
-        required_tags,
+        audit: audit_config,
         quiet,
+        cancel,
     } = request;
     let snapshot = store.create_snapshot(&tenant_id, notes.as_deref())?;
     let total = queries.len();
@@ -89,12 +121,15 @@ pub async fn run_with_progress<P: TokenProvider + 'static>(
     let (sender, mut receiver) =
         mpsc::channel::<(QueryDef, Result<QueryPageData, String>, u64)>(16);
 
+    // Tracked so a cancelled run can abort the in-flight queries instead of
+    // leaving them to finish (and pay for pages) in the background.
+    let mut tasks = JoinSet::new();
     for def in queries {
         let client = Arc::clone(&client);
         let semaphore = Arc::clone(&semaphore);
         let sender = sender.clone();
         let subscriptions = subscriptions.clone();
-        tokio::spawn(async move {
+        tasks.spawn(async move {
             let _permit = semaphore
                 .acquire_owned()
                 .await
@@ -122,13 +157,30 @@ pub async fn run_with_progress<P: TokenProvider + 'static>(
     let mut completed = 0;
     let mut queries_failed = 0;
     let mut rows_ingested: u64 = 0;
-    while let Some((def, result, duration_ms)) = receiver.recv().await {
+    let mut heartbeat = tokio::time::interval(HEARTBEAT_INTERVAL);
+    heartbeat.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    heartbeat.tick().await; // the first tick fires immediately; the row was just created
+    let mut cancelled = cancel.is_cancelled();
+    while !cancelled {
+        let (def, result, duration_ms) = tokio::select! {
+            received = receiver.recv() => match received {
+                Some(item) => item,
+                None => break,
+            },
+            _ = heartbeat.tick() => {
+                store.touch_snapshot(&snapshot.id, chrono::Utc::now())?;
+                if cancel.is_cancelled() {
+                    cancelled = true;
+                }
+                continue;
+            }
+        };
         let mut run_record = match result {
             Ok(data) => {
                 let count = data.rows.len() as u64;
                 match ingest::ingest(store, &snapshot.id, &def, &data.rows) {
-                    Ok(()) => {
-                        rows_ingested += count;
+                    Ok(outcome) => {
+                        rows_ingested += count - outcome.rows_dropped;
                         progress.set_message(format!("{} ({count} rows)", def.name));
                         QueryRun {
                             provenance: None,
@@ -137,6 +189,7 @@ pub async fn run_with_progress<P: TokenProvider + 'static>(
                             row_count: Some(count),
                             duration_ms: Some(duration_ms),
                             error: None,
+                            rows_dropped: Some(outcome.rows_dropped),
                         }
                     }
                     Err(err) => {
@@ -165,15 +218,38 @@ pub async fn run_with_progress<P: TokenProvider + 'static>(
             failed: queries_failed,
             latest_query: Some(def.description.clone()),
         });
+        cancelled = cancel.is_cancelled();
     }
     progress.finish_and_clear();
+
+    if cancelled {
+        // Whatever finished is real evidence and stays; the post-pass would
+        // describe an estate we never finished reading, so it is skipped.
+        tasks.abort_all();
+        drop(receiver);
+        tracing::warn!(completed, total, "collection cancelled");
+        store.set_snapshot_status(&snapshot.id, SnapshotStatus::Cancelled)?;
+        return Ok(CollectSummary {
+            snapshot_id: snapshot.id,
+            status: SnapshotStatus::Cancelled,
+            queries_run: completed,
+            queries_failed,
+            rows_ingested,
+        });
+    }
 
     // Post-pass over stored resources: derive relationship edges and run the
     // config-driven audits.
     let resources = store.resources(&snapshot.id)?;
-    let edges: Vec<_> = resources.iter().flat_map(extractors::extract).collect();
+    let mut edges = extractors::extract_all(&resources);
+    edges.extend(extractors::evidence_edges(store, &snapshot.id)?);
     store.insert_edges(&snapshot.id, &edges)?;
-    let tag_findings = audit::missing_required_tags(&resources, &required_tags);
+    let tag_findings = audit::required_tag_findings(
+        &audit_config,
+        &resources,
+        &store.resource_groups(&snapshot.id)?,
+        &store.subscriptions(&snapshot.id)?,
+    );
     store.insert_findings(&snapshot.id, &tag_findings)?;
     tracing::info!(
         edges = edges.len(),
@@ -211,5 +287,6 @@ fn query_failure(def: &QueryDef, duration_ms: u64, error: String) -> QueryRun {
         row_count: None,
         duration_ms: Some(duration_ms),
         error: Some(error),
+        rows_dropped: None,
     }
 }

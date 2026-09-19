@@ -1,5 +1,6 @@
 ---
 source: tests/report_golden_test.rs
+assertion_line: 46
 expression: content
 ---
 # Azure Estate Report
@@ -15,53 +16,83 @@ expression: content
 | Metric | Count |
 |---|---:|
 | Subscriptions | 2 |
-| Resource groups | 3 |
-| Resources | 18 |
-| Findings | 13 |
+| Resource groups | 4 |
+| Resources | 52 |
+| Findings | 35 |
 
-**Findings by severity**: 2 high · 1 medium · 9 low · 1 info — see [findings.md](findings.md)
+**Findings by severity**: 5 high · 8 medium · 17 low · 5 info — see [findings.md](findings.md)
 
-**Tag coverage**: 50% (9 tagged, 9 untagged)
+**Tag coverage**: 73% (38 tagged, 14 untagged)
 
 ## Governance
 
-**Coverage by tag key** — share of the 9 tagged resources carrying each key.
+**Coverage by tag key** — share of the 38 tagged resources carrying each key.
 
 | Tag key | Resources | Share |
 |---|---:|---:|
-| `env` | 9 | 100% |
+| `env` | 37 | 97% |
+| `aks-managed-clusterName` | 1 | 2% |
+| `aks-managed-poolName` | 1 | 2% |
 
 **Coverage by subscription** — any tag counts here; the required-tag sweep is stricter.
 
 | Subscription | Coverage | Status |
 |---|---:|---|
 | Development | 0% | below threshold |
-| Production | 60% | healthy |
+| Production | 84% | healthy |
 
-**Least compliant resource groups** — 9 resources are missing at least one required tag, recorded by the `missing_required_tags` audit.
+**Least compliant resource groups** — 15 resources are missing at least one required tag, recorded by the `missing_required_tags` audit.
 
 | Resource group | Subscription | Resources | Non-compliant | Missed tags | Status |
 |---|---|---:|---:|---|---|
-| rg-app | Production | 12 | 6 | env | — |
-| rg-dev | Development | 3 | 3 | env | called out |
+| rg-app | Production | 26 | 7 | env | — |
+| rg-dev | Development | 7 | 7 | env | called out |
+| MC_rg-app_aks-prod_uksouth | Production | 1 | 1 | env | called out |
 
 ## Resources by type
 
 | Type | Azure type | Count |
 |---|---|---:|
+| Public IP Address | `microsoft.network/publicipaddresses` | 5 |
+| Managed Identity | `microsoft.managedidentity/userassignedidentities` | 2 |
 | Network Interface | `microsoft.network/networkinterfaces` | 2 |
 | Network Security Group | `microsoft.network/networksecuritygroups` | 2 |
+| Private DNS Zone | `microsoft.network/privatednszones` | 2 |
+| Route Table | `microsoft.network/routetables` | 2 |
 | Virtual Network | `microsoft.network/virtualnetworks` | 2 |
+| Container App | `microsoft.app/containerapps` | 1 |
+| Container Apps Environment | `microsoft.app/managedenvironments` | 1 |
+| Redis Cache | `microsoft.cache/redis` | 1 |
+| Availability Set | `microsoft.compute/availabilitysets` | 1 |
+| Disk Encryption Set | `microsoft.compute/diskencryptionsets` | 1 |
 | Managed Disk | `microsoft.compute/disks` | 1 |
+| Disk Snapshot | `microsoft.compute/snapshots` | 1 |
 | Virtual Machine | `microsoft.compute/virtualmachines` | 1 |
+| VM Scale Set | `microsoft.compute/virtualmachinescalesets` | 1 |
+| AKS Cluster | `microsoft.containerservice/managedclusters` | 1 |
+| PostgreSQL Flexible Server | `microsoft.dbforpostgresql/flexibleservers` | 1 |
 | AVD Host Pool | `microsoft.desktopvirtualization/hostpools` | 1 |
-| Managed Identity | `microsoft.managedidentity/userassignedidentities` | 1 |
+| Application Insights | `microsoft.insights/components` | 1 |
+| Data Collection Rule | `microsoft.insights/datacollectionrules` | 1 |
+| Metric Alert | `microsoft.insights/metricalerts` | 1 |
+| Key Vault | `microsoft.keyvault/vaults` | 1 |
+| Application Gateway | `microsoft.network/applicationgateways` | 1 |
+| Application Gateway WAF Policy | `microsoft.network/applicationgatewaywebapplicationfirewallpolicies` | 1 |
+| Application Security Group | `microsoft.network/applicationsecuritygroups` | 1 |
+| Azure Firewall | `microsoft.network/azurefirewalls` | 1 |
+| Gateway Connection | `microsoft.network/connections` | 1 |
+| Firewall Policy | `microsoft.network/firewallpolicies` | 1 |
+| Local Network Gateway | `microsoft.network/localnetworkgateways` | 1 |
+| NAT Gateway | `microsoft.network/natgateways` | 1 |
+| Private DNS VNet Link | `microsoft.network/privatednszones/virtualnetworklinks` | 1 |
 | Private Endpoint | `microsoft.network/privateendpoints` | 1 |
-| Public IP Address | `microsoft.network/publicipaddresses` | 1 |
+| Virtual Network Gateway | `microsoft.network/virtualnetworkgateways` | 1 |
 | Log Analytics Workspace | `microsoft.operationalinsights/workspaces` | 1 |
+| Recovery Services Vault | `microsoft.recoveryservices/vaults` | 1 |
 | SQL Server | `microsoft.sql/servers` | 1 |
 | SQL Database | `microsoft.sql/servers/databases` | 1 |
 | Storage Account | `microsoft.storage/storageaccounts` | 1 |
+| App Service Certificate | `microsoft.web/certificates` | 1 |
 | App Service Plan | `microsoft.web/serverfarms` | 1 |
 | App Service / Function App | `microsoft.web/sites` | 1 |
 
@@ -69,8 +100,87 @@ expression: content
 
 | Location | Count |
 |---|---:|
-| UK South | 15 |
-| UK West | 3 |
+| UK South | 43 |
+| UK West | 7 |
+| Global | 2 |
+
+## Changes since the previous snapshot
+
+Compared with snapshot [snapshot-id], collected [timestamp]. Azure rewrites some properties on every read; those paths are ignored, so every difference below is a recorded configuration change, not collection noise.
+
+4 resources added, 1 removed and 2 changed (2 field changes). 3 new findings and 2 resolved. 5 relationships added and 0 removed.
+
+### Resources added
+
+| Name | Type | Resource group | Subscription |
+|---|---|---|---|
+| pe-sql.nic.4f2a | `microsoft.network/networkinterfaces` | rg-app | sub-prod |
+| pe-sql | `microsoft.network/privateendpoints` | rg-app | sub-prod |
+| sql-prod | `microsoft.sql/servers` | rg-app | sub-prod |
+| app-db | `microsoft.sql/servers/databases` | rg-app | sub-prod |
+
+### Resources removed
+
+| Name | Type | Resource group | Subscription |
+|---|---|---|---|
+| disk-old-test | `microsoft.compute/disks` | rg-dev | sub-dev |
+
+### Resources changed
+
+**vm-app-01** (`microsoft.compute/virtualmachines`)
+
+| Field | Before | After |
+|---|---|---|
+| `properties.hardwareProfile.vmSize` | Standard_B1s | Standard_B2s |
+
+**stprodapp01** (`microsoft.storage/storageaccounts`)
+
+| Field | Before | After |
+|---|---|---|
+| `properties.allowBlobPublicAccess` | false | true |
+
+### New findings
+
+| Severity | Check | Title | Resource |
+|---|---|---|---|
+| low | `missing_required_tags` | pe-sql.nic.4f2a is missing tags: env | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/networkinterfaces/pe-sql.nic.4f2a` |
+| low | `missing_required_tags` | pe-sql is missing tags: env | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/privateendpoints/pe-sql` |
+| high | `storage_public_blob_access` | stprodapp01 allows public blob access | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01` |
+
+### Resolved findings
+
+| Severity | Check | Title | Resource |
+|---|---|---|---|
+| low | `missing_required_tags` | disk-old-test is missing tags: env | `/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.compute/disks/disk-old-test` |
+| info | `orphaned_resources` | disk-old-test is an unattached managed disk | `/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.compute/disks/disk-old-test` |
+
+### Relationships added and removed
+
+| Change | Source | Relationship | Target |
+|---|---|---|---|
+| Added | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/networkinterfaces/pe-sql.nic.4f2a` | attached to | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/privateendpoints/pe-sql` |
+| Added | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/networkinterfaces/pe-sql.nic.4f2a` | nic in subnet | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/virtualnetworks/vnet-app/subnets/app` |
+| Added | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/privateendpoints/pe-sql` | nic in subnet | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/virtualnetworks/vnet-app/subnets/app` |
+| Added | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/privateendpoints/pe-sql` | private endpoint for | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.sql/servers/sql-prod` |
+| Added | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.sql/servers/sql-prod/databases/app-db` | attached to | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.sql/servers/sql-prod` |
+
+### Snapshot trend
+
+The most recent 2 usable snapshots of this tenant, oldest first. Counts describe what each collection stored; they are not a measure of change in Azure between collections.
+
+| Collected | Status | Resources | Tagged | Findings | high | medium | low | info |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| [timestamp] | complete | 49 | 36 | 34 | 4 | 8 | 16 | 6 |
+| [timestamp] | complete | 52 | 38 | 35 | 5 | 8 | 17 | 5 |
+
+## Website screenshots
+
+Saved website views from this machine. Capture time is separate from the Azure audit time.
+
+| Resource | Website | Status | Captured |
+|---|---|---|---|
+| web-dev | https://web-dev.azurewebsites.net/ | Not captured |  |
+| agw-prod | listener | No hostname configured |  |
 
 ## Sections
 
@@ -190,6 +300,13 @@ Counts describe pending updates at the recorded assessment time and may overlap 
 | --- | --- | --- | --- | --- |
 | Linux | Succeeded | 1 | 2 | Unknown |
 
+
+
+### Backup protection evidence
+
+Collection: Evidence incomplete or collection status unverified
+
+Protection state, backup status and recovery-point time are separate evidence. Missing fields remain unknown; the age threshold is a configurable review aid, not a workload RPO.
 
 
 ### Backup and restore outcomes

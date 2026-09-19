@@ -1,6 +1,8 @@
 //! File editing and resolution are independent of credential acquisition.
 use super::secrets::SecretStore;
-use super::{AuditConfig, AuthConfig, BrandingConfig, CollectConfig, Config, StorageConfig};
+use super::{
+    AuditConfig, AuthConfig, BrandingConfig, CollectConfig, Config, ReportConfig, StorageConfig,
+};
 use crate::error::ConfigError;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -98,6 +100,8 @@ pub struct CollectOverrides {
     pub subscriptions: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub concurrency: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub retry: Option<super::RetryConfig>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
@@ -106,6 +110,10 @@ pub struct CollectOverrides {
 pub struct AuditOverrides {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub required_tags: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tag_resource_groups: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tag_subscriptions: Option<bool>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
@@ -115,6 +123,9 @@ pub struct TenantProfile {
     pub name: String,
     pub tenant_id: String,
     pub client_id: String,
+    /// Overrides the shared `cloud` for this tenant.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cloud: Option<crate::cloud::Cloud>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub secret_ref: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -132,11 +143,14 @@ pub struct SettingsValues {
     pub schema_version: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_tenant: Option<String>,
+    /// Shared cloud default; `TenantProfile.cloud` overrides it.
+    pub cloud: crate::cloud::Cloud,
     pub tenants: BTreeMap<String, TenantProfile>,
     pub collect: CollectConfig,
     pub audit: AuditConfig,
     pub storage: StorageConfig,
     pub branding: BrandingConfig,
+    pub report: ReportConfig,
 }
 
 impl Default for SettingsValues {
@@ -145,11 +159,13 @@ impl Default for SettingsValues {
         Self {
             schema_version: 2,
             default_tenant: None,
+            cloud: config.cloud,
             tenants: BTreeMap::new(),
             collect: config.collect,
             audit: config.audit,
             storage: config.storage,
             branding: config.branding,
+            report: config.report,
         }
     }
 }
@@ -221,7 +237,7 @@ impl SettingsValues {
                 .collect
                 .subscriptions
                 .iter()
-                .any(|id| uuid::Uuid::parse_str(id).is_err())
+                .any(|id| parse_subscription_id(id).is_err())
             {
                 return invalid(&format!(
                     "tenants.{reference}.collect.subscriptions must contain subscription UUIDs"
@@ -266,11 +282,13 @@ impl SettingsValues {
 
     pub fn resolved_defaults(&self) -> Config {
         Config {
+            cloud: self.cloud,
             auth: AuthConfig::default(),
             collect: self.collect.clone(),
             audit: self.audit.clone(),
             storage: self.storage.clone(),
             branding: self.branding.clone(),
+            report: self.report.clone(),
         }
     }
 
@@ -294,8 +312,20 @@ impl SettingsValues {
             if let Some(concurrency) = profile.collect.concurrency {
                 config.collect.concurrency = concurrency;
             }
+            if let Some(retry) = &profile.collect.retry {
+                config.collect.retry = retry.clone();
+            }
+            if let Some(cloud) = profile.cloud {
+                config.cloud = cloud;
+            }
             if let Some(tags) = &profile.audit.required_tags {
                 config.audit.required_tags = tags.clone();
+            }
+            if let Some(groups) = profile.audit.tag_resource_groups {
+                config.audit.tag_resource_groups = groups;
+            }
+            if let Some(subscriptions) = profile.audit.tag_subscriptions {
+                config.audit.tag_subscriptions = subscriptions;
             }
             profile.branding.apply(&mut config.branding);
         }
@@ -307,10 +337,35 @@ fn invalid<T>(message: &str) -> Result<T, ConfigError> {
     Err(ConfigError::Invalid(message.into()))
 }
 
+/// The one rule for a subscription id, shared by the config validator and
+/// the command line so `--subscriptions` cannot smuggle in what the file
+/// would reject.
+pub fn parse_subscription_id(value: &str) -> Result<String, String> {
+    if uuid::Uuid::parse_str(value).is_ok() {
+        Ok(value.to_owned())
+    } else {
+        Err(format!("`{value}` is not a subscription UUID"))
+    }
+}
+
+/// The one rule for query concurrency, shared with the command line.
+pub fn parse_concurrency(value: &str) -> Result<usize, String> {
+    let parsed: usize = value
+        .parse()
+        .map_err(|_| format!("`{value}` is not a number"))?;
+    if (1..=64).contains(&parsed) {
+        Ok(parsed)
+    } else {
+        Err("concurrency must be between 1 and 64".into())
+    }
+}
+
 fn validate_runtime(config: &Config) -> Result<(), ConfigError> {
-    if config.collect.concurrency == 0 || config.collect.concurrency > 64 {
+    if parse_concurrency(&config.collect.concurrency.to_string()).is_err() {
         return invalid("collect.concurrency must be between 1 and 64");
     }
+    config.collect.retry.validate()?;
+    config.report.validate()?;
     for color in [
         &config.branding.primary_color,
         &config.branding.accent_color,
@@ -347,9 +402,19 @@ impl ConfigDocument {
             .map(Path::to_path_buf)
             .or_else(|| Config::default_paths().into_iter().find(|p| p.exists()));
         let raw = match &source {
-            Some(path) => std::fs::read_to_string(path).map_err(|source| ConfigError::Read {
-                path: path.clone(),
-                source,
+            Some(path) => std::fs::read_to_string(path).map_err(|source| {
+                // An explicit `--config` that does not exist is a typo, not
+                // an invitation to run with defaults; say where we looked.
+                if explicit.is_some() && source.kind() == std::io::ErrorKind::NotFound {
+                    ConfigError::NotFound {
+                        paths_tried: vec![path.clone()],
+                    }
+                } else {
+                    ConfigError::Read {
+                        path: path.clone(),
+                        source,
+                    }
+                }
             })?,
             None => String::new(),
         };

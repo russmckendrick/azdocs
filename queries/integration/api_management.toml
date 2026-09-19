@@ -1,0 +1,19 @@
+name = "api_management"
+category = "integration"
+kind = "inventory"
+description = "API Management services with SKU, capacity, VNet mode and public network posture"
+kql = '''
+resources
+| where type == "microsoft.apimanagement/service"
+| project id, name, location, resourceGroup, subscriptionId,
+          sku = tostring(sku.name),
+          capacity = toint(sku.capacity),
+          gatewayUrl = tostring(properties.gatewayUrl),
+          virtualNetworkType = tostring(properties.virtualNetworkType),
+          publicNetworkAccess = tostring(properties.publicNetworkAccess),
+          publicIpAddresses = tostring(properties.publicIPAddresses),
+          privateIpAddresses = tostring(properties.privateIPAddresses),
+          platformVersion = tostring(properties.platformVersion),
+          developerPortalUrl = tostring(properties.developerPortalUrl)
+| order by id asc
+'''

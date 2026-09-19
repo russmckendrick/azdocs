@@ -1,0 +1,15 @@
+name = "local_network_gateways"
+category = "networking"
+kind = "inventory"
+description = "Local network gateways with on-premises address, prefixes and BGP settings"
+kql = '''
+resources
+| where type == "microsoft.network/localnetworkgateways"
+| project id, name, location, resourceGroup, subscriptionId,
+          gatewayIpAddress = tostring(properties.gatewayIpAddress),
+          fqdn = tostring(properties.fqdn),
+          addressPrefixes = tostring(properties.localNetworkAddressSpace.addressPrefixes),
+          bgpAsn = toint(properties.bgpSettings.asn),
+          bgpPeeringAddress = tostring(properties.bgpSettings.bgpPeeringAddress)
+| order by id asc
+'''

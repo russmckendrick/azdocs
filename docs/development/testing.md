@@ -7,7 +7,7 @@ cargo test -p azdocs-desktop        # desktop topology, DTO and command helpers
 cargo test --test collect_test      # one integration suite
 cargo insta review                  # accept intended golden changes
 INSTA_UPDATE=always cargo test      # regenerate all goldens (eyeball the diff!)
-cd desktop && pnpm test             # relationship UI helpers and Rust↔TS mirrors
+cd desktop && pnpm test             # unit project (node) + component project (jsdom)
 ```
 
 ## Layers
@@ -42,6 +42,7 @@ flowchart TD
 | Desktop relationship UI | Vitest at 1440/1060/800px: deterministic zones, rail alignment, directional neighbourhoods, camera targets, spatial navigation, per-edge boundary ports, taxi channels, label placement, trace priority, and retained-error state | `desktop/src/components/topology-layout.test.ts`, `desktop/src/components/topology-presentation.test.ts`, `desktop/src/components/topology-view-state.test.ts` |
 | Rust↔TypeScript mirrors | Reads `src/model/mod.rs` and `topology.rs` and asserts the browser preview classifies every `EdgeKind` into the same family the Rust `match` does | `desktop/src/components/topology-fallback.test.ts` |
 | Desktop navigation | History-aware drill-down and the relationship workspace reducer | `desktop/src/navigation-state.test.ts` |
+| Desktop components | React Testing Library in jsdom: the shell's empty and opened states, search and shortcut keys, the stored theme; explorer facets and remembered filters; findings filters, drawer and multi-select copy/CSV; history counts, field rows and a failed comparison keeping the last good one; governance notes and group links; Settings › About and the dirty guard. `api` is mocked from `desktop/src/api-mock.ts`, which answers from the illustrative estate | `desktop/src/**/*.test.tsx`, `desktop/src/test-setup.ts` |
 | Wire contract | Regenerates `desktop/src/generated.ts` from the DTOs; CI then fails on `git diff` if it is stale. Also pins the serialised bytes of the event enums | `desktop/src-tauri/src/bindings.rs`, `dto.rs` |
 | Display metadata | Asserts the Rust and TypeScript `humanize_identifier` agree on a shared case list — both are live, one renders the reports and one the desktop | `desktop/src/azure-values.test.ts`, `src/model/azure_values.rs` |
 
@@ -51,17 +52,38 @@ The full relationship rendering and screenshot review contract is in
 ## The fixture estate
 
 `tests/common/mod.rs` seeds the canonical estate every golden test renders:
-two subscriptions, peered hub/spoke VNets, a VM with NIC + public IP, a
-storage account with findings, a private endpoint → SQL server with a
-database child, and a web app on its plan carrying a user-assigned identity.
+two subscriptions, peered hub/spoke VNets with a firewall, VPN gateway,
+NAT gateway and private DNS zone, a VM with NIC, public IP, availability
+set and customer-managed disk encryption, an application gateway in front
+of it, a storage account and key vault with VNet rules, a private endpoint
+→ SQL server with a database child, AKS with its node scale set in the
+managed node group, a PostgreSQL flexible server, a Container Apps
+environment, monitoring plumbing (data collection rule, Application
+Insights, metric alert, backup vault) and a web app on its plan carrying a
+user-assigned identity. One row per finding query is stored, so every
+check the assessment explains has an occurrence.
+
+`seed_estate` writes that estate as one snapshot. `seed_history` first
+writes an **older sibling** (no private endpoint or SQL server yet, a
+smaller VM, public blob access still off, a test disk that has since gone)
+so the report goldens carry a real "changes since the previous snapshot"
+section and a two-point trend. `tests/extractor_coverage_test.rs` fails
+if the fixture ever stops producing one of the thirteen edge kinds or if
+the history stops describing that change set.
 
 **When you add a feature, extend the fixture so goldens exercise it**, then
-regenerate and review:
+regenerate and review. `cargo insta` is optional; without it, write every
+new golden at once and read the diffs before accepting:
 
 ```sh
-INSTA_UPDATE=always cargo test
-git diff tests/snapshots/    # the diff IS the review
+INSTA_FORCE_PASS=1 INSTA_UPDATE=new cargo test --test report_golden_test --test diagram_golden_test
+git diff --no-index tests/snapshots/x.snap tests/snapshots/x.snap.new   # the diff IS the review
+for f in tests/snapshots/*.snap.new; do mv "$f" "${f%.new}"; done
 ```
+
+The Markdown golden covers every page `render_pages` emits, so a new
+category or resource group cannot ship unreviewed; the site, CSV and
+workbook-structure goldens sit beside it.
 
 ## Rules for stable goldens
 

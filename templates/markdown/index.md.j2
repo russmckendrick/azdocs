@@ -35,6 +35,10 @@
 {%- for key in governance.top_keys %}
 | `{{ key.key | md_escape }}` | {{ key.count }} | {{ key.percent }}% |
 {%- endfor %}
+{%- if governance.top_keys_total > governance.top_keys | length %}
+
+{{ gov.top_keys_note | fill(shown=governance.top_keys | length, total=governance.top_keys_total) }}
+{%- endif %}
 {% else %}
 {{ gov.no_tags }}
 {% endif %}
@@ -55,6 +59,10 @@
 {%- for group in governance.worst_groups %}
 | {{ group.name | md_escape }} | {{ group.subscription_name | md_escape }} | {{ group.resources }} | {{ group.non_compliant }} | {{ group.missed_tags | join(", ") | md_escape }} | {{ verdict.called_out if group.flagged else verdict.none }} |
 {%- endfor %}
+{%- if governance.worst_groups_total > governance.worst_groups | length %}
+
+{{ gov.worst_groups_note | fill(shown=governance.worst_groups | length, total=governance.worst_groups_total) }}
+{%- endif %}
 {%- endif %}
 
 ## {{ md.resources_by_type }}
@@ -72,6 +80,113 @@
 {%- for lc in location_counts %}
 | {{ lc.display | md_escape }} | {{ lc.count }} |
 {%- endfor %}
+{%- if diagrams %}
+
+## {{ md.diagrams }}
+
+{{ md.diagram_note }}
+{% for d in diagrams %}
+### {{ d.title | md_escape }}
+
+![{{ d.title | md_escape }}](diagrams/{{ d.slug }}.svg)
+{% if d.mermaid %}
+```mermaid
+{{ d.mermaid }}```
+{% endif %}
+{%- endfor %}
+{%- endif %}
+{%- if changes %}
+{%- set ch = labels.report.changes %}
+
+## {{ ch.chapter }}
+
+{{ ch.intro | fill(base=changes.base.id, base_date=changes.base.created_at) }}
+{% if changes.resources.added or changes.resources.removed or changes.resources.changed or changes.findings.added or changes.findings.resolved or changes.edges.added or changes.edges.removed or changes.subscriptions.added or changes.subscriptions.removed or changes.resource_groups.added or changes.resource_groups.removed %}
+{{ ch.summary | fill(added=changes.resources.added | length, removed=changes.resources.removed | length, changed=changes.resources.changed | length, fields=field_changes, new_findings=changes.findings.added | length, resolved=changes.findings.resolved | length, edges_added=changes.edges.added | length, edges_removed=changes.edges.removed | length) }}
+{% else %}
+{{ ch.none }}
+{% endif %}
+{%- for title, rows in [(ch.added, changes.resources.added), (ch.removed, changes.resources.removed)] %}
+{%- if rows %}
+### {{ title }}
+
+| {{ col.name }} | {{ col.type }} | {{ col.resource_group }} | {{ col.subscription }} |
+|---|---|---|---|
+{%- for r in rows %}
+| {{ r.name | md_escape }} | `{{ r.azure_type }}` | {{ r.resource_group or "" | md_escape }} | {{ r.subscription_id }} |
+{%- endfor %}
+{% endif %}
+{%- endfor %}
+{%- if changes.resources.changed %}
+### {{ ch.changed }}
+{% for change in changes.resources.changed %}
+**{{ change.resource.name | md_escape }}** (`{{ change.resource.azure_type }}`)
+
+| {{ col.field }} | {{ col.before }} | {{ col.after }} |
+|---|---|---|
+{%- for f in change.fields %}
+| `{{ f.field }}{% if f.path %}.{{ f.path }}{% endif %}` | {{ f.before | md_cell }} | {{ f.after | md_cell }} |
+{%- endfor %}
+{% endfor %}
+{%- endif %}
+{%- for title, rows in [(ch.new_findings, changes.findings.added), (ch.resolved_findings, changes.findings.resolved)] %}
+{%- if rows %}
+### {{ title }}
+
+| {{ col.severity }} | {{ col.check }} | {{ col.title }} | {{ col.resource }} |
+|---|---|---|---|
+{%- for f in rows %}
+| {{ sev[f.severity].name }} | `{{ f.query_name }}` | {{ f.title | md_escape }} | {% if f.resource_id %}`{{ f.resource_id }}`{% endif %} |
+{%- endfor %}
+{% endif %}
+{%- endfor %}
+{%- if changes.edges.added or changes.edges.removed %}
+### {{ ch.relationships }}
+
+| {{ col.change }} | {{ labels.report.assessment.source }} | {{ labels.report.assessment.relationship }} | {{ labels.report.assessment.target }} |
+|---|---|---|---|
+{%- for e in changes.edges.added %}
+| {{ ch.added_marker }} | `{{ e.source_id }}` | {{ labels.desktop.topology.edge_kinds[e.kind] | default(e.kind) }} | `{{ e.target_id }}` |
+{%- endfor %}
+{%- for e in changes.edges.removed %}
+| {{ ch.removed_marker }} | `{{ e.source_id }}` | {{ labels.desktop.topology.edge_kinds[e.kind] | default(e.kind) }} | `{{ e.target_id }}` |
+{%- endfor %}
+{% endif %}
+{%- if changes.subscriptions.added or changes.subscriptions.removed or changes.resource_groups.added or changes.resource_groups.removed %}
+### {{ ch.scope }}
+
+| {{ col.change }} | {{ col.kind }} | {{ col.name }} |
+|---|---|---|
+{%- for marker, kind, ids in [(ch.added_marker, col.subscription, changes.subscriptions.added), (ch.removed_marker, col.subscription, changes.subscriptions.removed), (ch.added_marker, col.resource_group, changes.resource_groups.added), (ch.removed_marker, col.resource_group, changes.resource_groups.removed)] %}
+{%- for id in ids %}
+| {{ marker }} | {{ kind }} | `{{ id }}` |
+{%- endfor %}
+{%- endfor %}
+{% endif %}
+{%- if trend | length > 1 %}
+### {{ ch.trend }}
+
+{{ ch.trend_intro | fill(count=trend | length) }}
+
+| {{ labels.common.cover.collected }} | {{ col.status }} | {{ col.resources }} | {{ col.tagged }} | {{ col.findings }} | {{ sev.high.name }} | {{ sev.medium.name }} | {{ sev.low.name }} | {{ sev.info.name }} |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+{%- for t in trend %}
+| {{ t.created_at }} | {{ t.status }} | {{ t.resources }} | {{ t.tagged }} | {{ t.findings }} | {{ t.high }} | {{ t.medium }} | {{ t.low }} | {{ t.info }} |
+{%- endfor %}
+{%- endif %}
+{%- endif %}
+{%- if website_rows %}
+
+## {{ labels.common.websites.title }}
+
+{{ labels.common.websites.detail }}
+
+| {{ col.resource }} | {{ labels.common.websites.website }} | {{ col.status }} | {{ labels.common.websites.capture_time }} |
+|---|---|---|---|
+{%- for w in website_rows %}
+| {{ w.resource_name | md_escape }} | {% if w.image %}[{{ w.target | md_escape }}](websites/{{ w.image }}.png){% else %}{{ w.target | md_escape }}{% endif %} | {{ w.status }} | {{ w.captured_at or "" }} |
+{%- endfor %}
+{%- endif %}
 
 ## {{ md.sections }}
 

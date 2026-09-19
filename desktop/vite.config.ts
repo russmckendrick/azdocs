@@ -13,9 +13,9 @@ export default defineConfig({
   define: {
     __BROWSER_PREVIEW__: JSON.stringify(!buildingForTauri),
   },
-  // Ship the complete vendored Microsoft Azure icon catalogue with the app.
-  // This also serves the IBM Plex Sans/Mono faces styles.css loads from /fonts/.
-  publicDir: "../data",
+  // `public/` holds only the icons and fonts the app references, copied
+  // from ../data by scripts/sync-assets.mjs before dev and build; it is not
+  // checked in. The whole data/ tree used to be the public root.
   clearScreen: false,
   server: {
     strictPort: true,

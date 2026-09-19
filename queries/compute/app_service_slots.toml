@@ -1,0 +1,16 @@
+name = "app_service_slots"
+category = "compute"
+kind = "inventory"
+description = "App Service deployment slots with their parent site, state and HTTPS-only setting"
+kql = '''
+resources
+| where type == "microsoft.web/sites/slots"
+| extend siteId = tolower(substring(id, 0, indexof(tolower(id), "/slots/")))
+| project id, name, location, resourceGroup, subscriptionId, kind,
+          siteId,
+          state = tostring(properties.state),
+          httpsOnly = properties.httpsOnly,
+          defaultHostName = tostring(properties.defaultHostName),
+          serverFarmId = tostring(properties.serverFarmId)
+| order by id asc
+'''

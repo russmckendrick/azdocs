@@ -7,7 +7,8 @@ description = "NSGs not associated with any subnet or network interface"
 kql = '''
 resources
 | where type == "microsoft.network/networksecuritygroups"
-| where isnull(properties.networkInterfaces) and isnull(properties.subnets)
+| where coalesce(array_length(properties.networkInterfaces), 0) == 0
+  and coalesce(array_length(properties.subnets), 0) == 0
 | project id, name, resourceGroup, subscriptionId,
           summary = strcat(name, " is not associated with any subnet or NIC")
 | order by id asc

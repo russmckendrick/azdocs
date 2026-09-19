@@ -9,6 +9,14 @@
 - **{{ col.location }}**: {{ page.location }}
 {%- endif %}
 - **{{ col.resources }}**: {{ page.resources | length }}
+{%- for d in diagrams %}
+
+![{{ d.title | md_escape }}](../../diagrams/{{ d.slug }}.svg)
+{% if d.mermaid %}
+```mermaid
+{{ d.mermaid }}```
+{% endif %}
+{%- endfor %}
 
 {% for r in page.resources %}
 ## {{ r.name }}
@@ -23,9 +31,13 @@
 {%- for s in r.settings %}
 | {{ s.key | md_escape }} | {{ s.value | md_escape }} |
 {%- endfor %}
+{%- if r.settings_omitted %}
+
+{{ md.settings_omitted | fill(count=r.settings_omitted) }}
+{%- endif %}
 
 {% if r.related -%}
-**{{ md.related }}**: {% for rel in r.related %}{{ rel | md_escape }}{% if not loop.last %} · {% endif %}{% endfor %}
+**{{ md.related }}**: {% for rel in r.related %}{{ rel.name | md_escape }} ({{ labels.desktop.topology.edge_kinds[rel.kind] | default(rel.kind) }}){% if not loop.last %} · {% endif %}{% endfor %}
 {% endif %}
 `{{ r.arm_id }}`
 {% endfor %}

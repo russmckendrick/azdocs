@@ -1,0 +1,18 @@
+name = "basic_sku_public_ips_and_lbs"
+category = "cost"
+kind = "finding"
+severity = "medium"
+title_field = "summary"
+description = "Public IPs and load balancers on the retired Basic SKU"
+kql = '''
+resources
+| where type in ("microsoft.network/publicipaddresses", "microsoft.network/loadbalancers")
+| where tostring(sku.name) =~ "Basic"
+| project id, name, type, resourceGroup, subscriptionId,
+          summary = strcat(name, " uses the retired Basic SKU")
+| order by id asc
+'''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/load-balancer/skus"]
+reviewed_on = "2026-09-19"

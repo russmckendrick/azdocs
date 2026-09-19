@@ -1,0 +1,20 @@
+name = "waf_policies"
+category = "networking"
+kind = "inventory"
+description = "Web application firewall policies for Front Door and Application Gateway with mode, rule sets and linked services"
+kql = '''
+resources
+| where type in ("microsoft.network/frontdoorwebapplicationfirewallpolicies",
+                 "microsoft.network/applicationgatewaywebapplicationfirewallpolicies")
+| project id, name, type, location, resourceGroup, subscriptionId,
+          sku = tostring(sku.name),
+          mode = tostring(properties.policySettings.mode),
+          state = tostring(coalesce(properties.policySettings.state, properties.policySettings.enabledState)),
+          requestBodyCheck = properties.policySettings.requestBodyCheck,
+          managedRuleSetCount = coalesce(array_length(properties.managedRules.managedRuleSets), 0),
+          customRuleCount = coalesce(array_length(properties.customRules.rules), array_length(properties.customRules), 0),
+          linkedGatewayCount = coalesce(array_length(properties.applicationGateways), 0),
+          linkedFrontDoorEndpointCount = coalesce(array_length(properties.frontendEndpointLinks), 0),
+          linkedSecurityPolicyCount = coalesce(array_length(properties.securityPolicyLinks), 0)
+| order by id asc
+'''

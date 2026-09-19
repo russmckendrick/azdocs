@@ -106,7 +106,12 @@ in [Fonts](themes.md#fonts). Serif Regular/SemiBold is bundled with the frontend
 | Label | Plex Sans 600 caps | 11px | column labels, metadata, tracking `0.1em` |
 | Evidence | Plex Mono 400 | 11–12px | ARM ids, tags, deltas, query names |
 
-**Nothing below 11px** — the old 6–10px floor is retired.
+**Nothing below 11px** at the default scale — the old 6–10px floor is
+retired. Type and spacing are written in `rem` off a 13px base
+(`html { font-size: calc(81.25% * var(--ui-scale)) }`), so `Cmd`/`Ctrl`
+`+`, `−` and `0` step the whole interface through 100–150% together while
+hairlines, radii, fixed sizes and the graph canvas stay in `px`. The sizes
+in this table are the default-scale values.
 
 ## Structure
 

@@ -1,0 +1,19 @@
+name = "defender_pricings"
+category = "security"
+kind = "inventory"
+description = "Defender for Cloud plan coverage per subscription with pricing tier and sub-plan"
+kql = '''
+// Plan coverage frames every Defender assessment: an assessment can only exist for a plan that is on.
+securityresources
+| where type =~ 'microsoft.security/pricings'
+| project id, name, subscriptionId, resourceGroup,
+          pricingTier = tostring(properties.pricingTier),
+          subPlan = tostring(properties.subPlan),
+          freeTrialRemainingTime = tostring(properties.freeTrialRemainingTime),
+          enablementTime = properties.enablementTime
+| order by id asc
+'''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/defender-for-cloud/resource-graph-samples"]
+reviewed_on = "2026-09-19"

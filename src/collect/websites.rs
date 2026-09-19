@@ -407,10 +407,11 @@ pub struct WebsiteManagement<P> {
 }
 
 impl<P: TokenProvider> WebsiteManagement<P> {
-    pub fn new(provider: P) -> Result<Self, EnrichmentError> {
+    pub fn new(provider: P, cloud: crate::cloud::Cloud) -> Result<Self, EnrichmentError> {
         Self::with_base(
             provider,
-            Url::parse("https://management.azure.com/").expect("static management URL is valid"),
+            Url::parse(&format!("{}/", cloud.endpoints().arm))
+                .expect("static management URLs are valid"),
         )
     }
 

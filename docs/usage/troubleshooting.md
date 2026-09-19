@@ -16,7 +16,18 @@ selected identity, scope and permission diagnostic details.
 
 **`ARG throttled (429); backing off` during collect** — normal on larger
 tenants; azdocs paces from quota headers and retries automatically. Lower
-`--concurrency` if it persists. See [Collecting](collecting.md#throttling).
+`--concurrency` if it persists, or raise `max_attempts` / `max_delay_secs` in
+`[collect.retry]`. See [Collecting](collecting.md#throttling) and
+[Retries and timeouts](configuration.md#retries-and-timeouts).
+
+**`gave up after N attempts; last failure: …`** — a query hit the retry limit
+on transport errors or 5xx responses. The snapshot is `partial` and the query
+can be re-run once the network is stable; `[collect.retry]` tunes the limit.
+
+**`AADSTS50059` / `AADSTS90002` against a Government or China tenant** — the
+profile is signing in to the public cloud. Set `cloud = "usgov"` or
+`cloud = "china"` on the tenant; see
+[Sovereign clouds](configuration.md#sovereign-clouds).
 
 **`resource graph returned HTTP 400: BadRequest`** on a custom query — the
 KQL is invalid for ARG (the classic: naming a column `count`). Test with

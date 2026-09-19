@@ -12,7 +12,7 @@ use clap_complete::Shell;
 ///
 /// Collects resource data with read-only credentials into a local SQLite
 /// database, then exports reports (Markdown, HTML, CSV, XLSX, PDF, DOCX) and
-/// diagrams (draw.io, Mermaid) without further network access.
+/// diagrams (draw.io, Mermaid, SVG, PNG) without further network access.
 #[derive(Debug, Parser)]
 #[command(name = "azdocs", version, propagate_version = true)]
 pub struct Cli {
@@ -47,13 +47,21 @@ pub enum Command {
         /// Overwrite an existing config file
         #[arg(long)]
         force: bool,
-        /// Fail instead of prompting when values are missing
+        /// Fail instead of prompting when values are missing; identity comes
+        /// from AZDOCS_TENANT_ID and AZDOCS_CLIENT_ID
         #[arg(long)]
         non_interactive: bool,
+        /// Reference the client secret through this environment variable
+        /// instead of storing it in the OS credential store
+        #[arg(long, value_name = "VAR")]
+        secret_env: Option<String>,
     },
 
     /// Validate config, acquire a token, and run a probe query
-    Check,
+    Check {
+        #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
+        format: OutputFormat,
+    },
 
     /// Inspect, validate, migrate or update configuration securely
     #[command(subcommand)]
@@ -90,10 +98,26 @@ pub enum Command {
     },
 }
 
+/// How a command prints its result.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum OutputFormat {
+    Table,
+    Json,
+}
+
+/// Which snapshot outcomes make `collect` exit non-zero.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum FailOn {
+    /// Exit non-zero when any query failed
+    Partial,
+    /// Exit non-zero only when every query failed
+    Failed,
+}
+
 #[derive(Debug, Args)]
 pub struct CollectArgs {
     /// Subscription ids to collect (default: all visible to the credential)
-    #[arg(long, value_delimiter = ',', value_name = "ID")]
+    #[arg(long, value_delimiter = ',', value_name = "ID", value_parser = crate::config::document::parse_subscription_id)]
     pub subscriptions: Vec<String>,
 
     /// Only run queries in these categories
@@ -113,19 +137,37 @@ pub struct CollectArgs {
     pub notes: Option<String>,
 
     /// Maximum concurrent queries (overrides config)
-    #[arg(long)]
+    #[arg(long, value_parser = crate::config::document::parse_concurrency)]
     pub concurrency: Option<usize>,
+
+    /// List the queries and subscriptions a run would use without contacting
+    /// Azure or writing a snapshot
+    #[arg(long)]
+    pub dry_run: bool,
+
+    /// Print only the final snapshot line
+    #[arg(long)]
+    pub quiet: bool,
+
+    /// Snapshot outcome that makes the command exit non-zero
+    #[arg(long, value_enum, default_value_t = FailOn::Failed)]
+    pub fail_on: FailOn,
 }
 
 #[derive(Debug, Subcommand)]
 pub enum SnapshotsCommand {
     /// List stored snapshots
-    List,
+    List {
+        #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
+        format: OutputFormat,
+    },
     /// Show a snapshot's summary and query run details
     Show {
         /// Snapshot id or "latest"
         #[arg(default_value = "latest")]
         snapshot: String,
+        #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
+        format: OutputFormat,
     },
     /// Compare two snapshots: added, removed, and changed resources
     Diff {
@@ -136,7 +178,21 @@ pub enum SnapshotsCommand {
         #[arg(long, value_enum, default_value_t = DiffFormat::Table)]
         format: DiffFormat,
     },
-    /// Delete old snapshots
+    /// Delete one snapshot by id
+    Delete {
+        /// Snapshot id (or unique prefix)
+        snapshot: String,
+        /// Do not ask for confirmation
+        #[arg(long)]
+        yes: bool,
+        /// Delete even if the snapshot is still marked running
+        #[arg(long)]
+        force: bool,
+        /// Reclaim file space afterwards
+        #[arg(long)]
+        vacuum: bool,
+    },
+    /// Delete old snapshots (running snapshots are never selected)
     Prune {
         /// Keep the most recent N snapshots
         #[arg(long, value_name = "N")]
@@ -147,6 +203,15 @@ pub enum SnapshotsCommand {
         /// Do not ask for confirmation
         #[arg(long)]
         yes: bool,
+        /// Reclaim file space afterwards
+        #[arg(long)]
+        vacuum: bool,
+    },
+    /// Check database integrity, apply pending migrations and reconcile
+    /// abandoned collects
+    Verify {
+        #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
+        format: OutputFormat,
     },
 }
 
@@ -178,6 +243,49 @@ pub struct ReportArgs {
     /// Output directory (default: ./output)
     #[arg(long, value_name = "DIR")]
     pub out: Option<PathBuf>,
+
+    /// Restrict the report to one subscription id
+    #[arg(long, value_name = "ID")]
+    pub subscription: Option<String>,
+
+    /// Restrict the report to one resource group name (needs --subscription
+    /// when the name repeats across subscriptions)
+    #[arg(long, value_name = "NAME")]
+    pub resource_group: Option<String>,
+
+    /// Only include findings at this severity or higher
+    #[arg(long, value_enum, value_name = "LEVEL")]
+    pub severity: Option<SeverityArg>,
+}
+
+impl ReportArgs {
+    pub fn scope(&self) -> crate::report::ReportScope {
+        crate::report::ReportScope {
+            subscription: self.subscription.clone(),
+            resource_group: self.resource_group.clone(),
+            min_severity: self.severity.map(Into::into),
+        }
+    }
+}
+
+/// `--severity` on the command line; mirrors `model::Severity`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum SeverityArg {
+    High,
+    Medium,
+    Low,
+    Info,
+}
+
+impl From<SeverityArg> for crate::model::Severity {
+    fn from(value: SeverityArg) -> Self {
+        match value {
+            SeverityArg::High => Self::High,
+            SeverityArg::Medium => Self::Medium,
+            SeverityArg::Low => Self::Low,
+            SeverityArg::Info => Self::Info,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -300,6 +408,8 @@ pub enum QueryCommand {
         /// Only list queries in this category
         #[arg(long)]
         category: Option<String>,
+        #[arg(long, value_enum, default_value_t = OutputFormat::Table)]
+        format: OutputFormat,
     },
     /// Print a query's KQL
     Show {
@@ -313,7 +423,7 @@ pub enum QueryCommand {
         #[arg(long, value_enum, default_value_t = QueryOutputFormat::Table)]
         format: QueryOutputFormat,
         /// Subscription ids to scope the query to
-        #[arg(long, value_delimiter = ',', value_name = "ID")]
+        #[arg(long, value_delimiter = ',', value_name = "ID", value_parser = crate::config::document::parse_subscription_id)]
         subscriptions: Vec<String>,
     },
 }
@@ -337,17 +447,75 @@ mod tests {
 
     #[test]
     fn collect_parses_comma_separated_subscriptions() {
-        let cli = Cli::parse_from(["azdocs", "collect", "--subscriptions", "a,b"]);
+        let a = "11111111-1111-4111-8111-111111111111";
+        let b = "22222222-2222-4222-8222-222222222222";
+        let cli = Cli::parse_from(["azdocs", "collect", "--subscriptions", &format!("{a},{b}")]);
         let Command::Collect(args) = cli.command else {
             panic!("expected collect subcommand");
         };
-        assert_eq!(args.subscriptions, vec!["a", "b"]);
+        assert_eq!(args.subscriptions, vec![a, b]);
+    }
+
+    #[test]
+    fn unit_collect_rejects_concurrency_outside_range() {
+        for value in ["0", "65"] {
+            assert!(
+                Cli::try_parse_from(["azdocs", "collect", "--concurrency", value]).is_err(),
+                "{value} must be rejected"
+            );
+        }
+        assert!(Cli::try_parse_from(["azdocs", "collect", "--concurrency", "8"]).is_ok());
+    }
+
+    #[test]
+    fn unit_collect_rejects_non_uuid_subscription() {
+        assert!(Cli::try_parse_from(["azdocs", "collect", "--subscriptions", "prod"]).is_err());
+        assert!(
+            Cli::try_parse_from([
+                "azdocs",
+                "collect",
+                "--subscriptions",
+                "11111111-1111-4111-8111-111111111111"
+            ])
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn unit_collect_defaults_fail_on_to_failed() {
+        let cli = Cli::parse_from(["azdocs", "collect"]);
+        let Command::Collect(args) = cli.command else {
+            panic!("expected collect subcommand");
+        };
+        assert_eq!(args.fail_on, FailOn::Failed);
+        assert!(!args.dry_run && !args.quiet);
     }
 
     #[test]
     fn diagram_requires_type() {
         let result = Cli::try_parse_from(["azdocs", "diagram"]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn report_parses_scope_flags() {
+        let cli = Cli::parse_from([
+            "azdocs",
+            "report",
+            "--subscription",
+            "sub-1",
+            "--resource-group",
+            "RG-App",
+            "--severity",
+            "medium",
+        ]);
+        let Command::Report(args) = cli.command else {
+            panic!("expected report subcommand");
+        };
+        let scope = args.scope();
+        assert_eq!(scope.subscription.as_deref(), Some("sub-1"));
+        assert_eq!(scope.resource_group.as_deref(), Some("RG-App"));
+        assert_eq!(scope.min_severity, Some(crate::model::Severity::Medium));
     }
 
     #[test]

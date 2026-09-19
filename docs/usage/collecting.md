@@ -49,7 +49,13 @@ azdocs collect --queries all_resources         # only named queries
 azdocs collect --skip-queries orphaned_resources
 azdocs collect --concurrency 2                 # gentler on ARG quota
 azdocs collect --notes "pre-migration baseline"
+azdocs collect --dry-run                       # show the plan; contacts nothing
+azdocs collect --quiet --fail-on partial       # pipeline-friendly
 ```
+
+`--subscriptions` values must be subscription UUIDs and `--concurrency` must be
+between 1 and 64, the same rules the config file enforces. A credential that
+can see no subscriptions stops before a snapshot is created.
 
 Filters apply to the query pack; they do not automatically add dependency
 queries. For example, omitting `all_resources` leaves the typed resource inventory
@@ -57,16 +63,34 @@ empty and limits derived relationships, required-tag checks and resource views.
 Omitting `subscriptions` or `resource_groups` also reduces stored scope metadata.
 For a full estate report, collect the complete pack.
 
+## What Resource Graph cannot see
+
+ARG indexes control-plane resources. Diagnostic settings, resource locks,
+budgets, SQL auditing and TDE, blob soft-delete, Key Vault contents and the
+full activity log are extension or data-plane objects it does not return, so no
+query in the pack can check them and no report should be read as proving them.
+See the [query reference](../reference/queries.md#blind-spots).
+
+## Required-tag audit scope
+
+`[audit] required_tags` is checked on every resource, on every resource group
+(`tag_resource_groups`, default `true`) and optionally on subscriptions
+(`tag_subscriptions`, default `false`). Group and subscription findings carry
+the scope's ARM id and appear as estate-level findings in reports.
+
 ## Snapshot status
 
 | Status | Meaning |
 |---|---|
 | `complete` | Every query succeeded |
 | `partial` | Some queries failed; the rest of the data is usable |
-| `failed` | Everything failed |
+| `failed` | Everything failed, or the collect was abandoned and reconciled on a later open |
+| `cancelled` | Stopped on request (Ctrl-C, or the desktop's Cancel) before every query ran; what finished is kept |
 
-Per-query results (row counts, durations, errors) are recorded — inspect with
-`azdocs snapshots show <id>`.
+Only `complete` and `partial` snapshots resolve as `latest`. Per-query results
+(row counts, rows ingest could not shape, durations, errors) are recorded —
+inspect with `azdocs snapshots show <id>`. `--fail-on` decides which outcome
+makes the command exit non-zero; see the [CLI reference](cli.md#exit-codes).
 
 ## Throttling
 

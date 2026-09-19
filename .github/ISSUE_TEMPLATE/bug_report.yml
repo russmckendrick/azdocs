@@ -1,0 +1,43 @@
+name: Bug report
+description: Something azdocs did wrong
+labels: [bug]
+body:
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "`azdocs --version`, or the desktop's Settings › About."
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where
+      options: [CLI, TUI, Desktop app, Reports or diagrams, Collection]
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Operating system
+      placeholder: macOS 15.3 (Apple Silicon), Ubuntu 24.04, Windows 11
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Use synthetic Azure ids and names. Never paste credentials, real databases, configuration backups or unredacted reports.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: Command output with `-vv`, or the error strip's text.

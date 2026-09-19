@@ -19,6 +19,7 @@ fn run(name: &str, rows: usize) -> QueryRun {
         duration_ms: Some(1),
         error: None,
         provenance: Some(def.provenance(&[])),
+        rows_dropped: None,
     }
 }
 
@@ -216,6 +217,7 @@ fn unit_reports_keep_removed_query_overrides_and_their_recorded_description() {
                 duration_ms: Some(1),
                 error: None,
                 provenance: Some(def.provenance(&[])),
+                rows_dropped: None,
             },
         )
         .unwrap();

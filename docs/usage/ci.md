@@ -38,7 +38,8 @@ jobs:
           AZDOCS_CLIENT_ID: ${{ secrets.AZDOCS_CLIENT_ID }}
           AZDOCS_CLIENT_SECRET: ${{ secrets.AZDOCS_CLIENT_SECRET }}
         run: |
-          azdocs collect --notes "$GITHUB_SHA"
+          azdocs check
+          azdocs collect --quiet --fail-on partial --notes "$GITHUB_SHA"
           azdocs report --format all --include-reference
       - uses: actions/upload-artifact@v4
         with:
@@ -58,6 +59,9 @@ restore a protected snapshot database before collection and persist it afterward
 Use the same explicit `--db <path>` for collection, reports and comparisons.
 Close all azdocs processes before copying a SQLite database, or use a SQLite
 backup operation; copying only an active `.db` can omit data still in its WAL.
+Reports, diagrams and `snapshots list|show|diff` open the database read-only,
+so an archived baseline is never migrated or rewritten by a newer azdocs; a
+database written by a newer schema is refused rather than opened blind.
 A baseline ID must exist in that database and belong to the same tenant:
 
 ```sh
@@ -66,10 +70,22 @@ azdocs --db history.db snapshots list
 azdocs --db history.db snapshots diff "$BASELINE" latest --format json > drift.json
 ```
 
-Hard failures return a non-zero exit code. A `partial` snapshot does not fail
-collection; inspect `azdocs snapshots show latest` for query outcomes when your
-pipeline needs stricter gating. This command prints a human-readable table,
-not JSON. Findings are observations and do not themselves set a failing exit code.
+Exit codes are the gate. `azdocs check` exits non-zero when the credential can
+see no subscriptions or Azure cannot describe its identity, so a preflight with
+an unassigned principal fails instead of passing on a valid token. `collect`
+exits non-zero when the snapshot outcome matches `--fail-on`: the default
+`failed` fails only when every query failed; `--fail-on partial` also fails
+when any query failed. Either way the snapshot line is printed first. A
+`failed` snapshot is never resolved as `latest`, so a later `report` step in
+the same job sees the last good collection rather than an empty estate.
+
+```sh
+azdocs check --format json | jq -e .ok
+azdocs collect --quiet --fail-on partial --notes "$GITHUB_SHA"
+azdocs snapshots show latest --format json | jq '.query_runs[] | select(.error != null)'
+```
+
+Findings are observations and do not themselves set a failing exit code.
 
 ## Named profiles in automation
 

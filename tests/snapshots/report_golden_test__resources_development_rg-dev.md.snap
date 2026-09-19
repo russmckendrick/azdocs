@@ -1,0 +1,130 @@
+---
+source: tests/report_golden_test.rs
+assertion_line: 46
+expression: content
+---
+# rg-dev
+
+[← index](../../index.md) · [subscription: Development](../../subscriptions/development.md)
+
+- **Subscription**: Development
+- **Location**: UK West
+- **Resources**: 7
+
+
+## redis-dev
+
+**Redis Cache** (`microsoft.cache/redis`)
+
+> ⚠️ **MEDIUM** — redis-dev accepts non-SSL connections
+> ⚠️ **LOW** — redis-dev is missing tags: env
+
+| Setting | Value |
+|---|---|
+| Location | UK West |
+| Sku | Basic |
+| Enable Non Ssl Port | true |
+| Minimum Tls Version | 1.0 |
+| Redis Version | 6.0 |
+
+
+`/subscriptions/sub-dev/resourceGroups/rg-dev/providers/Microsoft.Cache/Redis/redis-dev`
+
+## web-dev-snap
+
+**Disk Snapshot** (`microsoft.compute/snapshots`)
+
+> ⚠️ **LOW** — web-dev-snap is missing tags: env
+> ⚠️ **INFO** — web-dev-snap's source disk no longer exists
+
+| Setting | Value |
+|---|---|
+| Location | UK West |
+| Disk Size GB | 32 |
+
+
+`/subscriptions/sub-dev/resourceGroups/rg-dev/providers/Microsoft.Compute/snapshots/web-dev-snap`
+
+## id-unused
+
+**Managed Identity** (`microsoft.managedidentity/userassignedidentities`)
+
+> ⚠️ **LOW** — id-unused is missing tags: env
+> ⚠️ **INFO** — id-unused is assigned to no resource
+
+| Setting | Value |
+|---|---|
+| Location | UK West |
+| Client Id | [snapshot-id] |
+
+
+`/subscriptions/sub-dev/resourceGroups/rg-dev/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-unused`
+
+## id-web-dev
+
+**Managed Identity** (`microsoft.managedidentity/userassignedidentities`)
+
+> ⚠️ **LOW** — id-web-dev is missing tags: env
+
+| Setting | Value |
+|---|---|
+| Location | UK West |
+| Client Id | [snapshot-id] |
+
+**Related**: web-dev (uses identity)
+
+`/subscriptions/sub-dev/resourceGroups/rg-dev/providers/Microsoft.ManagedIdentity/userAssignedIdentities/id-web-dev`
+
+## web-dev-cert
+
+**App Service Certificate** (`microsoft.web/certificates`)
+
+> ⚠️ **MEDIUM** — web-dev-cert expires within 30 days
+> ⚠️ **LOW** — web-dev-cert is missing tags: env
+
+| Setting | Value |
+|---|---|
+| Location | UK West |
+| Subject Name | web-dev.example.test |
+| Expiration Date | 2026-10-01T00:00:00Z |
+| Issuer | Example CA |
+
+
+`/subscriptions/sub-dev/resourceGroups/rg-dev/providers/Microsoft.Web/certificates/web-dev-cert`
+
+## asp-dev
+
+**App Service Plan** (`microsoft.web/serverfarms`)
+
+> ⚠️ **LOW** — asp-dev is missing tags: env
+
+| Setting | Value |
+|---|---|
+| Location | UK West |
+| Sku | B1 |
+| Number Of Sites | 1 |
+
+**Related**: web-dev (runs on)
+
+`/subscriptions/sub-dev/resourceGroups/rg-dev/providers/Microsoft.Web/serverfarms/asp-dev`
+
+## web-dev
+
+**App Service / Function App** (`microsoft.web/sites`)
+
+> ⚠️ **MEDIUM** — web-dev does not enforce HTTPS-only traffic
+> ⚠️ **LOW** — web-dev is missing tags: env
+
+| Setting | Value |
+|---|---|
+| Location | UK West |
+| Kind | App, Linux |
+| Identity Type | UserAssigned |
+| State | Running |
+| Https Only | false |
+| Default Host Name | web-dev.azurewebsites.net |
+| Server Farm Id | /subscriptions/sub-dev/resourceGroups/rg-dev/providers/Microsoft.Web/serverfarms/asp-dev |
+
+**Related**: asp-dev (runs on) · id-web-dev (uses identity)
+
+`/subscriptions/sub-dev/resourceGroups/rg-dev/providers/Microsoft.Web/sites/web-dev`

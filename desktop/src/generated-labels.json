@@ -30,6 +30,7 @@
       "collect_again": "Collect another snapshot",
       "stage_inventory": "Azure inventory",
       "stage_discovery": "Domains and routes",
+      "stage_cancelled": "Collection stopped",
       "stages": "Collection stages",
       "elapsed": "Elapsed",
       "finished": "Collection finished",
@@ -110,23 +111,19 @@
     "severity": {
       "high": {
         "name": "high",
-        "label": "High",
-        "heading": "High priority"
+        "label": "High"
       },
       "medium": {
         "name": "medium",
-        "label": "Medium",
-        "heading": "Medium priority"
+        "label": "Medium"
       },
       "low": {
         "name": "low",
-        "label": "Low",
-        "heading": "Low priority"
+        "label": "Low"
       },
       "info": {
         "name": "info",
-        "label": "Info",
-        "heading": "Informational"
+        "label": "Info"
       }
     },
     "cover": {
@@ -134,7 +131,8 @@
       "snapshot": "Snapshot",
       "collected": "Collected",
       "status": "Status",
-      "notes": "Notes"
+      "notes": "Notes",
+      "logo_alt": "Logo"
     },
     "verdict": {
       "healthy": "healthy",
@@ -171,7 +169,12 @@
       "count": "Count",
       "metric": "Metric",
       "setting": "Setting",
-      "value": "Value"
+      "value": "Value",
+      "field": "Field",
+      "before": "Before",
+      "after": "After",
+      "change": "Change",
+      "tagged": "Tagged"
     },
     "governance": {
       "coverage_by_key": "Coverage by tag key",
@@ -180,7 +183,9 @@
       "no_tags": "No tags are stored in this snapshot.",
       "subscription_note": "Any tag counts here; the required-tag sweep is stricter.",
       "key_share": "Share of the {tagged} tagged resources carrying each key.",
-      "non_compliant_sentence": "{count} resources are missing at least one required tag, recorded by the {audit} audit."
+      "non_compliant_sentence": "{count} resources are missing at least one required tag, recorded by the {audit} audit.",
+      "top_keys_note": "Showing the {shown} busiest of {total} tag keys; the data exports list them all.",
+      "worst_groups_note": "Showing the {shown} worst of {total} groups with recorded misses; the findings list every resource."
     }
   },
   "desktop": {
@@ -225,6 +230,8 @@
       "preparing_collection": "Preparing read-only collection",
       "snapshot_stored": "Snapshot stored; rebuilding estate view",
       "collected": "Collected {rows} rows into a {status} snapshot.",
+      "collection_cancelled": "Collection stopped on request; the finished queries were kept as a cancelled snapshot.",
+      "cancel_collection": "Stop collection",
       "source_note": "Azure Resource Graph · read-only",
       "dismiss": "Dismiss",
       "loading_title": "Opening the estate record",
@@ -240,7 +247,9 @@
       "status_selection": "{edges} relationships · {findings} findings",
       "status_stored_relationships": "{count} stored relationships",
       "status_export_ready": "{id} · ready for offline export",
-      "status_no_selection": "No resource selected"
+      "status_no_selection": "No resource selected",
+      "version": "v{version}",
+      "shortcuts": "Keyboard shortcuts"
     },
     "errors": {
       "generic": "Something went wrong."
@@ -249,6 +258,7 @@
       "open_database_title": "Open an azdocs SQLite database",
       "sqlite_filter": "SQLite database",
       "export_directory_title": "Choose an export directory",
+      "save_file_title": "Save file",
       "preview_collecting": "Running read-only Azure queries",
       "preview_exporting": "Composing offline export preview",
       "collect_notes": "Collected from azdocs desktop"
@@ -545,7 +555,18 @@
       "audit_context": "Audit context",
       "query": "Query",
       "category": "Category",
-      "snapshot": "Snapshot"
+      "snapshot": "Snapshot",
+      "select_aria": "Select finding",
+      "select_all": "Select all shown",
+      "selected": {
+        "one": "{count} selected",
+        "other": "{count} selected"
+      },
+      "copy_ids": "Copy resource ids",
+      "export_csv": "Export CSV",
+      "copied": "Copied {count} resource ids.",
+      "csv_saved": "Saved {count} findings.",
+      "csv_name": "findings.csv"
     },
     "history": {
       "title": "Changes",
@@ -572,6 +593,19 @@
       "health": "Collection health",
       "health_summary": "{succeeded} of {total} queries succeeded",
       "run_detail": "{rows} rows · {ms} ms",
+      "fields": "Changed fields",
+      "field_count": {
+        "one": "{count} field",
+        "other": "{count} fields"
+      },
+      "new_findings": "New findings",
+      "resolved_findings": "Resolved findings",
+      "relationships_added": "Relationships added",
+      "relationships_removed": "Relationships removed",
+      "no_field_changes": "No field-level differences were recorded.",
+      "trend": "Snapshot trend",
+      "trend_note": "Usable snapshots up to the open one, oldest first.",
+      "compare_failed": "The comparison could not be loaded: {error}",
       "kinds": {
         "added": "added",
         "changed": "changed",
@@ -610,7 +644,8 @@
       },
       "visible_of": "{visible} of ",
       "matching": " matching “{search}”",
-      "collected_in": " · collected in {ms} ms"
+      "collected_in": " · collected in {ms} ms",
+      "rows_failed": "The stored rows could not be read: {error}. The previous table is still shown."
     },
     "settings": {
       "editor": {
@@ -627,6 +662,7 @@
         "choose_file": "Choose configuration",
         "client_id": "Application (client) ID",
         "close_test": "Close connection test",
+        "cloud_detail": "Sets the sign-in authority and management endpoints. Sovereign clouds need a service principal created in that cloud.",
         "collection": "Collection",
         "collection_audit": "Collection & audit",
         "config_detail": "The CLI and desktop share this file. Relative paths are resolved beside it.",
@@ -650,6 +686,7 @@
         "export": "Export redacted diagnostics",
         "exported": "Redacted diagnostics exported",
         "field_accent_color": "Accent colour",
+        "field_cloud": "Azure cloud",
         "field_company": "Company",
         "field_concurrency": "Concurrent queries",
         "field_db_path": "Database path",
@@ -765,10 +802,19 @@
       "none_configured_key": "[audit] required_tags",
       "active_snapshot": "Active snapshot",
       "active_snapshot_detail": "Everything on screen reads from this stored observation.",
+      "about": "About",
+      "about_detail": "azdocs desktop {version}. Everything on screen reads from the local SQLite snapshot; nothing here contacts Azure.",
+      "docs": "Open documentation",
+      "shortcuts": "Keyboard shortcuts",
       "theme_options": {
         "dark": "Dark",
         "light": "Light",
         "system": "System"
+      },
+      "cloud_options": {
+        "china": "Azure China (21Vianet)",
+        "public": "Azure (public)",
+        "usgov": "Azure Government"
       }
     },
     "governance": {
@@ -779,7 +825,8 @@
       "key_caption": "Share of the {tagged} tagged resources carrying each key. One measure, one hue.",
       "subscription_caption": "Any tag counts here; the required-tag sweep below is stricter.",
       "all_clear": "Every resource carries all required tags.",
-      "worst_caption": "Least compliant resource groups, from the {audit} audit rules."
+      "worst_caption": "Least compliant resource groups, from the {audit} audit rules.",
+      "open_group_findings": "Findings in {group}"
     },
     "estate": {
       "hierarchy_aria": "Estate hierarchy",
@@ -808,7 +855,11 @@
       "list_aria": "Resources",
       "empty_title": "No resources match this view",
       "empty_detail": "Clear a filter or search the whole snapshot.",
-      "quiet": "Quiet"
+      "quiet": "Quiet",
+      "tag_filter_aria": "Filter by tag key",
+      "all_tags": "Any tag",
+      "tag_value_aria": "Filter by tag value",
+      "any_value": "Any value"
     },
     "record": {
       "unknown_subscription": "Unknown",
@@ -830,6 +881,7 @@
       "properties_title": "Resource properties",
       "properties_detail": "Stored fields and collections from Azure Resource Graph.",
       "properties": "Properties",
+      "loading_properties": "Reading stored properties…",
       "sku": "SKU",
       "identity": "Managed identity",
       "relationships_title": "Relationships",
@@ -837,7 +889,9 @@
       "outbound": "OUT",
       "inbound": "IN",
       "relationship_evidence": "Relationship evidence",
-      "no_relationship_rows": "No derived relationships touch this resource."
+      "no_relationship_rows": "No derived relationships touch this resource.",
+      "copy_id": "Copy ARM id",
+      "copied": "Copied"
     },
     "data_view": {
       "no_value": "No value stored",
@@ -878,7 +932,14 @@
       "choose_title": "Choose a deliverable",
       "choose_detail": "Each option has one clear purpose and a stable output format.",
       "legend": "Export deliverable",
-      "advanced_note": "Need HTML, CSV, Markdown, scoped diagrams or image exports? Those specialist formats remain available in the CLI.",
+      "advanced_note": "Need HTML, CSV, Markdown or image exports? Those specialist formats remain available in the CLI.",
+      "scope_title": "Scope",
+      "scope_note": "Narrow the document to one subscription or resource group, or to findings at a severity or above. Leave everything blank for the whole estate.",
+      "scope_subscription": "Subscription",
+      "scope_resource_group": "Resource group",
+      "scope_severity": "Findings at or above",
+      "scope_severity_option": "{severity} and above",
+      "scope_any": "All",
       "run_title": "Export run",
       "destination": "Output directory",
       "not_selected": "Not selected",
@@ -902,6 +963,10 @@
       "incomplete": "Export did not complete.",
       "complete": "Export complete",
       "preview_note": "Preview only — the browser workspace does not write files.",
+      "cancel": "Stop export",
+      "cancelled": "Export stopped on request; the files written so far remain.",
+      "open_folder": "Open folder",
+      "reveal": "Reveal",
       "presets": {
         "data-workbook": {
           "label": "Data Workbook",
@@ -945,6 +1010,24 @@
         "destination_not_dir": "output destination is not a directory: {path}",
         "unsupported_kind": "unsupported export kind `{kind}`"
       }
+    },
+    "collection": {
+      "scope": "Subscriptions",
+      "scope_detail": "Leave every subscription unticked to collect all the credential can see; tick some to collect only those. The list comes from the open snapshot.",
+      "notes": "Notes",
+      "notes_placeholder": "Why this snapshot was taken (optional)"
+    },
+    "shortcuts": {
+      "title": "Keyboard shortcuts",
+      "close": "Close shortcuts",
+      "search": "Focus resource search",
+      "help": "Show this list",
+      "zoom_in": "Larger text",
+      "zoom_out": "Smaller text",
+      "zoom_reset": "Reset text size",
+      "escape": "Close a record, dialog or drawer",
+      "mod_mac": "⌘",
+      "mod_other": "Ctrl"
     }
   }
 }

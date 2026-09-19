@@ -98,14 +98,37 @@ pub struct ConnectionCheck {
     pub issues: Vec<AccessIssue>,
 }
 
+impl ConnectionCheck {
+    /// Issues that mean a collect cannot produce useful evidence: nothing to
+    /// audit, or an identity Azure would not describe. Everything else stays
+    /// advisory. `check` exits non-zero on these so a CI preflight with a
+    /// principal that has no Reader grant does not pass.
+    pub fn blocking_issues(&self) -> impl Iterator<Item = &AccessIssue> {
+        self.issues.iter().filter(|issue| {
+            matches!(
+                issue.kind,
+                AccessIssueKind::NoSubscriptions | AccessIssueKind::IdentityUnavailable
+            )
+        })
+    }
+
+    /// True when collecting would audit nothing.
+    pub fn has_no_subscriptions(&self) -> bool {
+        self.issues
+            .iter()
+            .any(|issue| matches!(issue.kind, AccessIssueKind::NoSubscriptions))
+    }
+}
+
 const SUBSCRIPTIONS: &str = "resourcecontainers | where type =~ 'microsoft.resources/subscriptions' | project id, subscriptionId, name | order by id asc";
 
 pub async fn inspect<P: TokenProvider>(
     http: reqwest::Client,
     provider: &P,
     configured: &[String],
+    cloud: crate::cloud::Cloud,
 ) -> Result<ConnectionCheck, DiagnosticError> {
-    inspect_at(http, provider, configured, "https://management.azure.com").await
+    inspect_at(http, provider, configured, cloud.endpoints().arm).await
 }
 
 pub async fn inspect_at<P: TokenProvider>(

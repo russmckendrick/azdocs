@@ -1,0 +1,21 @@
+name = "defender_plan_off"
+category = "security"
+kind = "finding"
+severity = "medium"
+title_field = "summary"
+resource_id_field = "resourceId"
+description = "Defender for Cloud plans left on the Free tier"
+kql = '''
+// Subscription-scope observation: no resource is associated, by design.
+securityresources
+| where type =~ 'microsoft.security/pricings'
+| where properties.pricingTier =~ 'Free'
+| project id, name, subscriptionId, resourceGroup,
+          resourceId = "",
+          summary = strcat("Defender plan ", name, " is off in subscription ", subscriptionId)
+| order by id asc
+'''
+
+[source]
+urls = ["https://learn.microsoft.com/en-us/azure/defender-for-cloud/resource-graph-samples"]
+reviewed_on = "2026-09-19"

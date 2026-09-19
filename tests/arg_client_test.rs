@@ -12,20 +12,31 @@ fn test_credentials() -> Credentials {
         tenant_id: "test-tenant".into(),
         client_id: "test-client".into(),
         client_secret: "test-secret".into(),
+        cloud: azdocs::cloud::Cloud::Public,
+    }
+}
+
+fn fast_retry() -> RetryPolicy {
+    RetryPolicy {
+        max_attempts: 3,
+        base_delay: std::time::Duration::from_millis(1),
+        max_delay: std::time::Duration::from_millis(50),
+        default_retry_after: std::time::Duration::from_millis(1),
+        jitter: 0.0,
     }
 }
 
 fn arg_client(server: &MockServer) -> ArgClient<StaticTokenProvider> {
+    arg_client_with(server, reqwest::Client::new())
+}
+
+fn arg_client_with(server: &MockServer, http: reqwest::Client) -> ArgClient<StaticTokenProvider> {
     ArgClient::with_endpoint(
-        reqwest::Client::new(),
+        http,
         StaticTokenProvider("test-token".into()),
         &server.uri(),
     )
-    .with_retry_policy(RetryPolicy {
-        max_attempts: 3,
-        base_delay: std::time::Duration::from_millis(1),
-        default_retry_after: std::time::Duration::from_millis(1),
-    })
+    .with_retry_policy(fast_retry())
 }
 
 const ARG_PATH: &str = "/providers/Microsoft.ResourceGraph/resources";
@@ -116,6 +127,84 @@ mod token_provider {
         let second = provider.token().await.unwrap();
 
         assert_eq!(second, "tok-1");
+    }
+
+    #[tokio::test]
+    async fn unit_token_acquisition_retries_5xx_then_succeeds() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(503))
+            .up_to_n_times(1)
+            .expect(1)
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({"access_token": "tok-2", "expires_in": 3600})),
+            )
+            .expect(1)
+            .mount(&server)
+            .await;
+        let provider = ClientCredentialsProvider::with_authority(
+            reqwest::Client::new(),
+            test_credentials(),
+            &server.uri(),
+        )
+        .with_retry_policy(fast_retry());
+
+        assert_eq!(provider.token().await.unwrap(), "tok-2");
+    }
+
+    #[tokio::test]
+    async fn unit_token_4xx_is_not_retried() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(400).set_body_json(json!({
+                "error": "invalid_request", "error_description": "AADSTS90002: tenant not found"
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let provider = ClientCredentialsProvider::with_authority(
+            reqwest::Client::new(),
+            test_credentials(),
+            &server.uri(),
+        )
+        .with_retry_policy(fast_retry());
+
+        assert!(matches!(
+            provider.token().await.unwrap_err(),
+            AuthError::Rejected { status: 400, .. }
+        ));
+    }
+
+    #[tokio::test]
+    async fn unit_usgov_credentials_request_the_usgov_scope() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(move |req: &Request| {
+                let body = String::from_utf8_lossy(&req.body);
+                assert!(
+                    body.contains("scope=https%3A%2F%2Fmanagement.usgovcloudapi.net%2F.default"),
+                    "{body}"
+                );
+                ResponseTemplate::new(200)
+                    .set_body_json(json!({"access_token": "gov", "expires_in": 3600}))
+            })
+            .expect(1)
+            .mount(&server)
+            .await;
+        let provider = ClientCredentialsProvider::with_authority(
+            reqwest::Client::new(),
+            Credentials {
+                cloud: azdocs::cloud::Cloud::UsGov,
+                ..test_credentials()
+            },
+            &server.uri(),
+        );
+
+        assert_eq!(provider.token().await.unwrap(), "gov");
     }
 
     #[tokio::test]
@@ -295,6 +384,70 @@ mod query_all {
             .unwrap();
 
         assert_eq!(outcome.rows.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn unit_retries_timeout_then_succeeds_on_second_attempt() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path(ARG_PATH))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_delay(std::time::Duration::from_millis(400))
+                    .set_body_json(json!({"totalRecords": 0, "count": 0, "data": []})),
+            )
+            .up_to_n_times(1)
+            .expect(1)
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path(ARG_PATH))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "totalRecords": 1, "count": 1, "data": [{"id": "a"}]
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let http = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_millis(100))
+            .build()
+            .unwrap();
+
+        let outcome = arg_client_with(&server, http)
+            .query_all("resources", &[])
+            .await
+            .unwrap();
+
+        assert_eq!(outcome.rows.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn unit_reports_retries_exhausted_when_5xx_persists() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path(ARG_PATH))
+            .respond_with(ResponseTemplate::new(502).set_body_json(json!({
+                "error": {"code": "GatewayTimeout", "message": "upstream"}
+            })))
+            .expect(3)
+            .mount(&server)
+            .await;
+
+        let err = arg_client(&server)
+            .query_all("resources", &[])
+            .await
+            .unwrap_err();
+
+        let ArgError::RetriesExhausted { attempts, last } = err else {
+            panic!("expected RetriesExhausted, got {err:?}");
+        };
+        assert_eq!(attempts, 3);
+        assert!(matches!(*last, ArgError::Api { status: 502, .. }));
+        assert!(err_text(&last).contains("GatewayTimeout"));
+    }
+
+    fn err_text(error: &ArgError) -> String {
+        error.to_string()
     }
 
     #[tokio::test]

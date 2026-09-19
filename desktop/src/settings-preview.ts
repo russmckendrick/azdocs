@@ -17,6 +17,7 @@ export const previewSettings: SettingsDocumentDto = {
   check: null,
   values: {
     schema_version: 2,
+    cloud: "public",
     default_tenant: "contoso",
     tenants: {
       contoso: {
@@ -38,8 +39,22 @@ export const previewSettings: SettingsDocumentDto = {
         branding: {},
       },
     },
-    collect: { subscriptions: [], concurrency: 4 },
-    audit: { required_tags: ["environment", "owner"] },
+    collect: {
+      subscriptions: [],
+      concurrency: 4,
+      retry: {
+        max_attempts: 5,
+        base_delay_ms: 500,
+        max_delay_secs: 60,
+        timeout_secs: 120,
+        connect_timeout_secs: 15,
+      },
+    },
+    audit: {
+      required_tags: ["environment", "owner"],
+      tag_resource_groups: true,
+      tag_subscriptions: false,
+    },
     storage: { db_path: mockBootstrap.databasePath },
     branding: {
       company: "",
@@ -56,6 +71,11 @@ export const previewSettings: SettingsDocumentDto = {
       font_family: "",
       mono_family: "",
       font_dir: null,
+    },
+    report: {
+      max_group_diagrams: 60,
+      max_figure_nodes: 6,
+      max_evidence_rows: 20,
     },
   },
 };

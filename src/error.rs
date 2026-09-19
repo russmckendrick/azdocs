@@ -102,6 +102,8 @@ pub enum ArgError {
     Api { status: u16, detail: String },
     #[error("still throttled after {attempts} attempts")]
     ThrottledOut { attempts: u32 },
+    #[error("gave up after {attempts} attempts; last failure: {last}")]
+    RetriesExhausted { attempts: u32, last: Box<ArgError> },
     #[error("invalid resource graph response: {0}")]
     InvalidResponse(String),
     #[error("resource graph returned incomplete results without a continuation token")]
@@ -122,6 +124,27 @@ pub enum StoreError {
     SnapshotNotFound(String),
     #[error("no snapshots stored yet — run `azdocs collect` first")]
     NoSnapshots,
+    #[error("database {0} does not exist — run `azdocs collect` first")]
+    DatabaseMissing(PathBuf),
+    #[error(
+        "database schema version {found} is newer than this azdocs supports ({supported}); upgrade azdocs"
+    )]
+    SchemaTooNew { found: usize, supported: usize },
+    #[error(
+        "database schema version {found} needs migrating to {required}; run `azdocs snapshots verify` or any collect"
+    )]
+    MigrationRequired { found: usize, required: usize },
+    #[error("stored snapshot `{snapshot}` is still being written")]
+    SnapshotRunning { snapshot: String },
+}
+
+/// A stored value this build cannot decode. Surfaced through
+/// `rusqlite::Error::FromSqlConversionFailure` so callers see the column.
+#[derive(Debug, thiserror::Error)]
+#[error("cannot decode stored {column}: `{value}`")]
+pub struct StoreDecodeError {
+    pub column: &'static str,
+    pub value: String,
 }
 
 #[derive(Debug, thiserror::Error)]

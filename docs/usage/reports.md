@@ -2,6 +2,7 @@
 
 ```text
 azdocs report --format md|html|csv|xlsx|pdf|docx|all [--include-reference] [--theme <name>] [--snapshot <id|latest>] [--out <dir>]
+              [--subscription <id>] [--resource-group <name>] [--severity high|medium|low|info]
 ```
 
 Reports are generated from the stored snapshot — no network access, no
@@ -10,16 +11,54 @@ Everything lands under `./output/` by default:
 
 | Format | Output | Contents |
 |---|---|---|
-| `md` | `output/docs/` | Markdown docs tree (works in any Git host or wiki) |
-| `html` | `output/report.html` + `output/docs-html/` | Single self-contained report **and** a multi-page HTML site |
-| `csv` | `output/inventory.csv`, `output/findings.csv` | Flat exports |
-| `xlsx` | `output/azdocs.xlsx` | Summary, Inventory (autofilter), Findings (severity colours), Governance (tag coverage and the least compliant groups), one sheet per category |
+| `md` | `output/docs/` | Markdown docs tree (works in any Git host or wiki) with overview and per-group diagrams as SVG plus Mermaid source under `docs/diagrams/` |
+| `html` | `output/report.html` + `output/docs-html/` | Single self-contained report (overview diagrams inlined as SVG) **and** a multi-page HTML site |
+| `csv` | `output/inventory.csv`, `output/findings.csv`, `output/queries/<category>/<query>.csv`, `output/governance-*.csv`, `output/posture/<dataset>.csv` | Flat exports: every recorded query row, the governance analysis and each operational evidence table, uncapped |
+| `xlsx` | `output/azdocs.xlsx` | Summary, Inventory (autofilter), Findings (severity colours), Governance (tag coverage and the least compliant groups), Locations, Websites, Changes and Trend (when a previous snapshot exists), Provenance with the executed KQL, one sheet per category |
 | `pdf` | `output/report.pdf` | Print-ready document — see below |
 | `docx` | `output/report.docx` | The same document, editable in Word |
 
 Use `--tenant <reference-or-tenant-id>` to select the estate. Explicit snapshot
 IDs remain usable offline without credentials; a supplied tenant selection
 enforces ownership. See [tenant history](snapshots.md#tenant-isolation).
+
+## Scoping
+
+`--subscription`, `--resource-group` and `--severity` narrow every format to
+one part of the estate, the same way `azdocs diagram` does. The filter is
+applied once, right after the snapshot is read, so composition, figures,
+studies, findings, evidence tables and screenshots all describe the same
+subset. A scoped document describes its scope, not the estate: subscription
+comparisons and group studies are drawn from what is in scope.
+
+- `--subscription <id>` keeps one subscription. Findings that name no stored
+  resource are kept when their id lies under that subscription.
+- `--resource-group <name>` keeps one group (case-insensitive; combine with
+  `--subscription` when the name repeats). Estate-level findings are dropped.
+- `--severity <level>` keeps findings at that severity or higher; a
+  `--severity high` PDF is a findings-led brief. Resources are untouched.
+
+The desktop's Exports workspace offers the same three controls.
+
+## Changes since the previous snapshot
+
+When the tenant has an earlier usable snapshot, every format describes what
+differs from it: resources added, removed and changed field by field, new and
+resolved findings, relationships and scope that appeared or disappeared, and a
+trend table over the last twelve usable snapshots. The PDF and DOCX print it
+as a chapter, Markdown and HTML as a section, the workbook as `Changes` and
+`Trend` sheets. The comparison is the one `azdocs snapshots diff` makes; see
+[snapshots](snapshots.md#diffing-estates-over-time) for what is ignored as noise.
+
+## Honest caps
+
+The printed formats stop tables at `[report] max_evidence_rows` (default 20)
+and say how many rows they left out; the tag-key and worst-group summaries
+say how many keys or groups they were cut from; a resource page that drops
+scalar settings past its limit says so. Figures split past
+`max_figure_nodes` boxes and the technical reference draws at most
+`max_group_diagrams` groups. The CSV and XLSX exports carry the full tables.
+See [configuration](configuration.md#report-limits).
 
 ## The PDF and DOCX
 
@@ -142,6 +181,12 @@ output/docs/
 └── resources/<sub>/<rg>.md      # per-resource detail pages
 ```
 
+`index.md` embeds the estate hierarchy and network overview; each resource-group
+page opens with its summarised diagram. Every figure is written twice under
+`docs/diagrams/`: `<slug>.svg` for the image link and `<slug>.mmd` for the
+Mermaid source, which the page also inlines in a fenced block so GitHub and
+most wikis render it natively.
+
 The **detail pages** are the deep end: one section per resource with settings
 flattened from its properties, warning callouts for findings on that resource,
 and related-resource links derived from the relationship edges. The Markdown
@@ -151,8 +196,8 @@ reference uses selected, labelled operational settings in bordered tables.
 ## The HTML report
 
 `output/report.html` is one self-contained file (inline CSS/JS, dark-mode
-aware) with severity badges and client-side table filtering — suitable for
-email or SharePoint. `output/docs-html/` is the docs tree as static HTML with
+aware) with the overview diagrams inlined as SVG, severity badges and
+client-side table filtering — suitable for email or SharePoint. `output/docs-html/` is the docs tree as static HTML with
 navigation.
 
 

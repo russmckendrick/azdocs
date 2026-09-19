@@ -34,7 +34,7 @@ pub fn run_with_outputs(
     match args.diagram_type {
         DiagramType::Hierarchy => single(
             args,
-            &EstateGraph::hierarchy(store, &snapshot_id, words)?,
+            &EstateGraph::hierarchy(store, &snapshot_id, &scope, words)?,
             "hierarchy",
             labels,
         ),
@@ -131,8 +131,10 @@ fn render_one(
         .extension()
         .ok_or_else(|| anyhow!("{format:?} names a set of formats; expand it first"))?;
     let bytes = match format {
-        DiagramFormat::Drawio => drawio::render_for(graph, DiagramDetail::Full).into_bytes(),
-        DiagramFormat::Mermaid => mermaid::render(graph).into_bytes(),
+        DiagramFormat::Drawio => {
+            drawio::render_for(graph, DiagramDetail::Full, &labels.diagram).into_bytes()
+        }
+        DiagramFormat::Mermaid => mermaid::render(graph, &labels.diagram).into_bytes(),
         DiagramFormat::Svg => {
             svg::render_for(graph, DiagramDetail::Full, &labels.diagram).into_bytes()
         }
@@ -320,7 +322,12 @@ fn workbook(
                     .collect();
                 write_out(
                     &out,
-                    drawio::render_workbook_for(&named_sheets, DiagramDetail::Full).as_bytes(),
+                    drawio::render_workbook_for(
+                        &named_sheets,
+                        DiagramDetail::Full,
+                        &labels.diagram,
+                    )
+                    .as_bytes(),
                 )?;
                 println!(
                     "{}",

@@ -29,6 +29,7 @@ import { EmptyState } from "./view-chrome";
 import { useResourceTypeMap } from "../estate-lookups";
 import { errorMessage, fill, plural } from "../format";
 import { labels, useLabels } from "../labels";
+import { cssToken, kindClassColor } from "./graph-tokens";
 
 export type GraphMode = "neighbourhood" | "estate";
 
@@ -65,19 +66,6 @@ const AGGREGATE_W = GRAPH_SIZE.aggregateWidth;
 const AGGREGATE_H = GRAPH_SIZE.aggregateHeight;
 const LANE_BAR_W = GRAPH_SIZE.laneBarWidth;
 const LANE_BAR_H = GRAPH_SIZE.laneBarHeight;
-
-const KIND_CLASSES = new Set(["network", "structure", "data", "identity", "monitoring"]);
-
-/// Every colour the canvas paints comes from the design-language tokens in
-/// styles.css, resolved at graph build time so both themes use one palette.
-function cssToken(name: string, fallback: string) {
-  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return value || fallback;
-}
-
-export function kindClassColor(kindClass: string) {
-  return cssToken(KIND_CLASSES.has(kindClass) ? `--kind-${kindClass}` : "--cat-other", "#5a6470");
-}
 
 interface GraphPalette {
   nodeFill: string;

@@ -4,8 +4,10 @@ on:
   push:
     tags: ["v*"]
 
+# Read-only by default; the publish job alone writes the release, and the
+# packaging jobs request the OIDC token they need to attest what they built.
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -18,12 +20,13 @@ jobs:
 
   release-metadata:
     name: "🔎 Validate release metadata"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - name: "📥 Check out source"
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: "🏷️ Match tag, package versions and release notes"
         id: version
         shell: bash
@@ -81,14 +84,15 @@ jobs:
   notices:
     name: "📜 Generate dependency licence notices"
     needs: [ci, release-metadata]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - name: "📥 Check out source"
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: "🦀 Set up Rust"
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
       - name: "🧰 Install cargo-about"
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@9114bf4d891761788c546334fd37538eae1bf8b3 # v2
         with:
           tool: cargo-about@0.9.2
       - name: "📦 Fetch locked dependencies"
@@ -98,7 +102,7 @@ jobs:
           mkdir -p output/licenses
           cargo about generate --offline --locked --fail docs/licenses/about.hbs -o output/licenses/dependency-licenses.html
       - name: "⬆️ Upload dependency notices"
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: dependency-notices
           path: output/licenses/dependency-licenses.html
@@ -108,6 +112,11 @@ jobs:
     name: "⌨️ CLI · ${{ matrix.archive }}"
     needs: notices
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     strategy:
       fail-fast: false
       matrix:
@@ -118,7 +127,7 @@ jobs:
           - os: macos-latest
             target: x86_64-apple-darwin
             archive: azdocs-darwin-amd64.tar.gz
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             target: x86_64-unknown-linux-musl
             archive: azdocs-linux-amd64.tar.gz
           - os: ubuntu-24.04-arm
@@ -129,20 +138,20 @@ jobs:
             archive: azdocs-windows-amd64.zip
     steps:
       - name: "📥 Check out source"
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: "🦀 Set up Rust target"
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           targets: ${{ matrix.target }}
       - name: "🐧 Install musl tools"
         if: contains(matrix.target, 'musl')
         run: sudo apt-get update && sudo apt-get install -y musl-tools
       - name: "⚡ Restore Rust cache"
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - name: "🏗️ Build release CLI"
         run: cargo build --release --locked --target ${{ matrix.target }}
       - name: "⬇️ Download dependency notices"
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: dependency-notices
           path: target/${{ matrix.target }}/release/package
@@ -174,37 +183,58 @@ jobs:
           Compress-Archive -Path "target/${{ matrix.target }}/release/package/*" -DestinationPath "${{ matrix.archive }}"
           $hash = (Get-FileHash -Algorithm SHA256 "${{ matrix.archive }}").Hash.ToLower()
           "$hash  ${{ matrix.archive }}" | Out-File -Encoding ascii "${{ matrix.archive }}.sha256"
+      # A software bill of materials for what the archive contains, and a
+      # signed provenance statement tying it to this workflow run, so a
+      # downloaded archive can be checked with `gh attestation verify`.
+      - name: "🧾 Generate SBOM"
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          path: target/${{ matrix.target }}/release/package
+          format: spdx-json
+          output-file: ${{ matrix.archive }}.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: "🔏 Attest build provenance"
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-path: ${{ matrix.archive }}
       - name: "⬆️ Upload CLI archive"
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: release-cli-${{ matrix.target }}
           if-no-files-found: error
           path: |
             ${{ matrix.archive }}
             ${{ matrix.archive }}.sha256
+            ${{ matrix.archive }}.spdx.json
 
   desktop-macos:
     name: "🍎 Desktop · macOS arm64 DMG"
-    needs: [ci, release-metadata]
+    needs: [ci, release-metadata, notices]
     runs-on: macos-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     env:
       DESKTOP_DMG: azdocs-desktop-macos-arm64.dmg
     steps:
       - name: "📥 Check out source"
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: "🦀 Set up Rust target"
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           targets: aarch64-apple-darwin
       - name: "⚡ Restore Rust cache"
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - name: "📦 Set up pnpm"
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
         with:
           version: 10
           run_install: false
       - name: "🟢 Set up Node.js"
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "22"
           cache: pnpm
@@ -212,6 +242,14 @@ jobs:
       - name: "📦 Install desktop dependencies"
         working-directory: desktop
         run: pnpm install --frozen-lockfile
+      - name: "⬇️ Download dependency notices"
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: dependency-notices
+          path: output/licenses
+      - name: "⚖️ Check the frontend licence report is current"
+        working-directory: desktop
+        run: node scripts/frontend-licenses.mjs --check
       - name: "🔏 Import Apple Developer certificate"
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -266,7 +304,7 @@ jobs:
           echo "APPLE_API_KEY_PATH=${API_KEY_PATH}" >> "${GITHUB_ENV}"
       - name: "🏗️ Build signed and notarized DMG"
         working-directory: desktop
-        run: pnpm tauri build --target aarch64-apple-darwin --bundles dmg --ci
+        run: pnpm tauri build --target aarch64-apple-darwin --bundles dmg --ci --config '{"bundle":{"resources":{"../../output/licenses/dependency-licenses.html":"notices/dependency-licenses.html"}}}'
       - name: "✅ Verify signed and notarized app"
         shell: bash
         run: |
@@ -295,8 +333,12 @@ jobs:
           DMG=$(find target/aarch64-apple-darwin/release/bundle/dmg -name '*.dmg' -type f | head -n 1)
           cp "${DMG}" "${DESKTOP_DMG}"
           shasum -a 256 "${DESKTOP_DMG}" > "${DESKTOP_DMG}.sha256"
+      - name: "🔏 Attest build provenance"
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-path: ${{ env.DESKTOP_DMG }}
       - name: "⬆️ Upload macOS desktop package"
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: release-desktop-macos-arm64
           if-no-files-found: error
@@ -306,25 +348,34 @@ jobs:
 
   desktop-windows:
     name: "🪟 Desktop · Windows amd64"
-    needs: [ci, release-metadata]
+    needs: [ci, release-metadata, notices]
     runs-on: windows-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     env:
       DESKTOP_SETUP: azdocs-desktop-windows-amd64-setup.exe
       DESKTOP_MSI: azdocs-desktop-windows-amd64.msi
+      # Azure Trusted Signing is optional: when the endpoint secret is unset
+      # the installers ship unsigned and SmartScreen warns, which the
+      # installation guide explains. Setting the four secrets turns signing on.
+      TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
     steps:
       - name: "📥 Check out source"
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: "🦀 Set up Rust"
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
       - name: "⚡ Restore Rust cache"
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - name: "📦 Set up pnpm"
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
         with:
           version: 10
           run_install: false
       - name: "🟢 Set up Node.js"
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "22"
           cache: pnpm
@@ -334,7 +385,33 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: "🏗️ Build desktop installers"
         working-directory: desktop
-        run: pnpm tauri build --bundles nsis,msi --ci
+        run: pnpm tauri build --bundles nsis,msi --ci --config '{"bundle":{"resources":{"../../output/licenses/dependency-licenses.html":"notices/dependency-licenses.html"}}}'
+      - name: "🔑 Sign in to Azure for Trusted Signing"
+        if: env.TRUSTED_SIGNING_ENDPOINT != ''
+        uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2
+        with:
+          client-id: ${{ secrets.AZURE_TRUSTED_SIGNING_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TRUSTED_SIGNING_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_TRUSTED_SIGNING_SUBSCRIPTION_ID }}
+      - name: "🔏 Sign installers with Azure Trusted Signing"
+        if: env.TRUSTED_SIGNING_ENDPOINT != ''
+        uses: azure/trusted-signing-action@1d365fec12862c4aa68fcac418143d73f0cea293 # v0
+        with:
+          endpoint: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ secrets.AZURE_TRUSTED_SIGNING_PROFILE }}
+          files-folder: target/release/bundle
+          files-folder-filter: exe,msi
+          files-folder-recurse: true
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+      - name: "⚠️ Note unsigned installers"
+        if: env.TRUSTED_SIGNING_ENDPOINT == ''
+        shell: bash
+        run: |
+          echo "::notice::Windows installers are unsigned: AZURE_TRUSTED_SIGNING_ENDPOINT is not configured. SmartScreen will warn on first run."
+          echo "Windows installers in this release are **unsigned** (no Trusted Signing secrets configured); SmartScreen will warn on first run. See docs/usage/installation.md." >> "$GITHUB_STEP_SUMMARY"
       - name: "🧹 Normalize desktop artifacts"
         shell: pwsh
         run: |
@@ -350,8 +427,14 @@ jobs:
             $hash = (Get-FileHash -Algorithm SHA256 $file).Hash.ToLower()
             "$hash  $file" | Out-File -Encoding ascii "$file.sha256"
           }
+      - name: "🔏 Attest build provenance"
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-path: |
+            ${{ env.DESKTOP_SETUP }}
+            ${{ env.DESKTOP_MSI }}
       - name: "⬆️ Upload Windows desktop packages"
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: release-desktop-windows-amd64
           if-no-files-found: error
@@ -363,34 +446,39 @@ jobs:
 
   desktop-linux:
     name: "🐧 Desktop · Linux ${{ matrix.arch }}"
-    needs: [ci, release-metadata]
+    needs: [ci, release-metadata, notices]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             arch: amd64
           - os: ubuntu-24.04-arm
             arch: arm64
     steps:
       - name: "📥 Check out source"
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: "🦀 Set up Rust"
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
       - name: "🧰 Install Tauri Linux packaging dependencies"
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf rpm
       - name: "⚡ Restore Rust cache"
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - name: "📦 Set up pnpm"
-        uses: pnpm/action-setup@v6
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
         with:
           version: 10
           run_install: false
       - name: "🟢 Set up Node.js"
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "22"
           cache: pnpm
@@ -398,9 +486,17 @@ jobs:
       - name: "📦 Install desktop dependencies"
         working-directory: desktop
         run: pnpm install --frozen-lockfile
+      - name: "⬇️ Download dependency notices"
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: dependency-notices
+          path: output/licenses
+      - name: "⚖️ Check the frontend licence report is current"
+        working-directory: desktop
+        run: node scripts/frontend-licenses.mjs --check
       - name: "🏗️ Build desktop packages"
         working-directory: desktop
-        run: pnpm tauri build --bundles appimage,deb,rpm --ci
+        run: pnpm tauri build --bundles appimage,deb,rpm --ci --config '{"bundle":{"resources":{"../../output/licenses/dependency-licenses.html":"notices/dependency-licenses.html"}}}'
       - name: "🧹 Normalize desktop artifacts"
         shell: bash
         run: |
@@ -414,8 +510,15 @@ jobs:
           cp "${DEB}" "azdocs-desktop-linux-${{ matrix.arch }}.deb"
           cp "${RPM}" "azdocs-desktop-linux-${{ matrix.arch }}.rpm"
           sha256sum "azdocs-desktop-linux-${{ matrix.arch }}.AppImage" "azdocs-desktop-linux-${{ matrix.arch }}.deb" "azdocs-desktop-linux-${{ matrix.arch }}.rpm" > "azdocs-desktop-linux-${{ matrix.arch }}.sha256"
+      - name: "🔏 Attest build provenance"
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-path: |
+            azdocs-desktop-linux-${{ matrix.arch }}.AppImage
+            azdocs-desktop-linux-${{ matrix.arch }}.deb
+            azdocs-desktop-linux-${{ matrix.arch }}.rpm
       - name: "⬆️ Upload Linux desktop packages"
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: release-desktop-linux-${{ matrix.arch }}
           if-no-files-found: error
@@ -433,12 +536,15 @@ jobs:
       - desktop-macos
       - desktop-windows
       - desktop-linux
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
     steps:
       - name: "📥 Check out source"
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: "⬇️ Download release packages"
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           pattern: release-*
           merge-multiple: true
@@ -448,7 +554,7 @@ jobs:
           set -euo pipefail
           find . -maxdepth 1 -name '*.sha256' ! -name 'azdocs-checksums.sha256' -print0 | sort -z | xargs -0 cat > azdocs-checksums.sha256
       - name: "🎉 Create GitHub release"
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           body_path: docs/releases/${{ needs.release-metadata.outputs.version }}.md
           fail_on_unmatched_files: true
@@ -462,10 +568,13 @@ jobs:
             azdocs-desktop-*.deb
             azdocs-desktop-*.rpm
             *.sha256
+            *.spdx.json
 
   update-tap:
     name: "🍺 Publish Homebrew formula and cask"
     needs: publish
+    permissions:
+      contents: read
     uses: ./.github/workflows/update-tap.yml
     with:
       release_tag: ${{ github.ref_name }}

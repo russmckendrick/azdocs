@@ -203,6 +203,7 @@ fn unit_redacts_parse_debug_and_auth_debug() {
         tenant_id: TENANT.into(),
         client_id: CLIENT.into(),
         client_secret: secret.into(),
+        cloud: azdocs::cloud::Cloud::Public,
     };
     assert!(!format!("{credentials:?}").contains(secret));
 }
@@ -337,5 +338,50 @@ fn unit_rolls_back_staged_secrets_when_the_file_changes_during_credential_storag
     assert_eq!(
         std::fs::read_to_string(path).unwrap(),
         "# external change\n"
+    );
+}
+
+#[test]
+fn unit_config_load_reports_paths_tried_when_explicit_path_missing() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("nope.toml");
+
+    let error = ConfigDocument::load(Some(&path)).err().unwrap();
+
+    assert!(
+        matches!(&error, ConfigError::NotFound { paths_tried } if paths_tried == &vec![path.clone()]),
+        "{error}"
+    );
+}
+
+#[test]
+fn unit_init_non_interactive_round_trips_through_memory_secret_store() {
+    use azdocs::commands::init::{InitInputs, SecretChoice, build_settings};
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("azdocs.toml");
+    let store = MemorySecrets::default();
+    let inputs = InitInputs {
+        tenant_id: TENANT.into(),
+        client_id: CLIENT.into(),
+        secret: SecretChoice::Native("s3cret".into()),
+    };
+    let (values, secrets) = build_settings(&inputs, "Default tenant");
+    let document = ConfigDocument::parse("", Some(path.clone())).unwrap();
+    document
+        .save(&path, &document.revision, values, &secrets, true, &store)
+        .unwrap();
+
+    let reloaded = ConfigDocument::load(Some(&path)).unwrap();
+    let profile = &reloaded.values.tenants["default"];
+
+    assert!(
+        profile.secret_ref.is_some(),
+        "secret went to the store by reference"
+    );
+    assert!(!std::fs::read_to_string(&path).unwrap().contains("s3cret"));
+    assert_eq!(
+        store.get(profile.secret_ref.as_deref().unwrap()).unwrap(),
+        "s3cret"
     );
 }

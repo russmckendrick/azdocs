@@ -1,0 +1,91 @@
+---
+source: tests/report_golden_test.rs
+assertion_line: 46
+expression: content
+---
+# Query provenance
+
+The executed query and request scope are preserved with this snapshot. Source review dates are not upstream release dates.
+
+## backup\_jobs
+
+| Field | Value |
+| --- | --- |
+| KQL SHA-256 | cb61f0676de911c80ba3e531f5ec6f6ef259cf75db1161ecaec5c106b88ee742 |
+| Authorization scope | AtScopeAndBelow |
+| Requested subscriptions | sub-prod |
+| Sources | https://learn.microsoft.com/en-us/azure/backup/query-backups-using-azure-resource-graph |
+| Source reviewed | 2026-09-13 |
+
+    // ARG retains up to 14 days of jobs. No jobs is not evidence of successful backups; target IDs may be unavailable on some job types.
+    recoveryservicesresources
+    | where type in~ ('microsoft.recoveryservices/vaults/backupjobs', 'microsoft.dataprotection/backupvaults/backupjobs')
+    | project id, name, type, subscriptionId, resourceGroup,
+              resourceId = coalesce(tostring(properties.dataSourceId), tostring(properties.sourceResourceId)),
+              friendlyName = coalesce(tostring(properties.entityFriendlyName), tostring(properties.dataSourceName)),
+              operation = coalesce(tostring(properties.operation), tostring(properties.operationCategory)),
+              status = tostring(properties.status), startedAt = properties.startTime, endedAt = properties.endTime,
+              duration = properties.duration, backupInstanceId = tostring(properties.backupInstanceId), properties
+    | order by id asc
+
+
+## patch\_assessments
+
+| Field | Value |
+| --- | --- |
+| KQL SHA-256 | 8ef4dc6295f4389a1836e534969793c389f3cf6a721839b1dc4f8c1185716b37 |
+| Authorization scope | AtScopeAndBelow |
+| Requested subscriptions | sub-prod |
+| Sources | https://learn.microsoft.com/en-us/azure/update-manager/query-logs |
+| Source reviewed | 2026-09-13 |
+
+    // Only summary records: per-patch rows would duplicate the machine totals. ARG assessment history is limited to seven days.
+    patchassessmentresources
+    | where type in~ ('microsoft.compute/virtualmachines/patchassessmentresults', 'microsoft.hybridcompute/machines/patchassessmentresults')
+    | project id, name, subscriptionId, resourceGroup,
+              resourceId = tostring(split(tolower(id), '/patchassessmentresults/')[0]),
+              assessedAt = properties.lastModifiedDateTime, osType = tostring(properties.osType),
+              status = tostring(properties.status), rebootPending = tobool(properties.rebootPending),
+              securityUpdates = toint(properties.availablePatchCountByClassification.security),
+              criticalUpdates = toint(properties.availablePatchCountByClassification.critical),
+              classifications = properties.availablePatchCountByClassification, errorDetails = properties.errorDetails
+    | order by id asc
+
+
+## policy\_assignments
+
+| Field | Value |
+| --- | --- |
+| KQL SHA-256 | b0d05b23d5aa6b47f7dfdd8fff0de86a88a02f0f4252a0c7f0d288a4f5b0dabd |
+| Authorization scope | AtScopeAboveAndBelow |
+| Requested subscriptions | sub-prod |
+| Sources | https://learn.microsoft.com/en-us/azure/governance/policy/samples/resource-graph-samples |
+| Source reviewed | 2026-09-13 |
+
+    // Assignments without state rows are still evidence. Do not infer a passed evaluation from this inventory.
+    policyresources
+    | where type =~ 'microsoft.authorization/policyassignments'
+    | project id, name, subscriptionId, scope = tostring(properties.scope), policyDefinitionId = tostring(properties.policyDefinitionId),
+              displayName = tostring(properties.displayName), enforcementMode = tostring(properties.enforcementMode),
+              notScopes = properties.notScopes, parameters = properties.parameters, metadata = properties.metadata
+    | order by id asc
+
+
+## resource\_changes
+
+| Field | Value |
+| --- | --- |
+| KQL SHA-256 | 53f687e9350c4e3bb469c14d3eb0439573fcda49215f91481d4c8d3369fabfaa |
+| Authorization scope | AtScopeAndBelow |
+| Requested subscriptions | sub-prod |
+| Sources | https://learn.microsoft.com/en-us/azure/governance/resource-graph/changes/get-resource-changes |
+| Source reviewed | 2026-09-13 |
+
+    // ARG change history lasts 14 days and does not represent a complete activity/data-plane log. Missing actor information stays unknown.
+    resourcechanges
+    | project id, name, subscriptionId, resourceGroup, resourceId = tostring(properties.targetResourceId),
+              changeType = tostring(properties.changeType), changedAt = properties.changeAttributes.timestamp,
+              changedBy = tostring(properties.changeAttributes.changedBy), changedByType = tostring(properties.changeAttributes.changedByType),
+              clientType = tostring(properties.changeAttributes.clientType), correlationId = tostring(properties.changeAttributes.correlationId),
+              changes = properties.changes
+    | order by id asc

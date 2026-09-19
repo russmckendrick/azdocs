@@ -5,6 +5,7 @@ import type {
   EstateSnapshot,
   Finding,
   Resource,
+  SnapshotComparison,
 } from "../types";
 
 export function resourceMatchesDashboard(
@@ -15,6 +16,8 @@ export function resourceMatchesDashboard(
     !filter ||
     ((!filter.subscriptionId ||
       resource.subscriptionId === filter.subscriptionId) &&
+      (!filter.resourceGroup ||
+        resource.resourceGroup === filter.resourceGroup) &&
       (!filter.azureType || resource.azureType === filter.azureType) &&
       (filter.location === undefined ||
         (resource.location ?? "") === filter.location) &&
@@ -37,6 +40,14 @@ export function findingMatchesDashboard(
           (resource) =>
             resource.id === finding.resourceId &&
             resource.subscriptionId === filter.subscriptionId,
+        )) &&
+      (!filter.resourceGroup ||
+        estate.resources.some(
+          (resource) =>
+            resource.id === finding.resourceId &&
+            resource.resourceGroup === filter.resourceGroup &&
+            (!filter.subscriptionId ||
+              resource.subscriptionId === filter.subscriptionId),
         )) &&
       (!filter.resourceIds ||
         (!!finding.resourceId &&
@@ -150,8 +161,9 @@ export function dashboardHistory(
 export function dashboardComparison(
   bootstrap: AppBootstrap,
   estate: EstateSnapshot,
+  diff: SnapshotComparison | undefined,
 ) {
-  const diff = estate.previousDiff;
+  if (diff && diff.targetSnapshotId !== estate.id) return undefined;
   const base = bootstrap.snapshots.find(
     (snapshot) => snapshot.id === diff?.baseSnapshotId,
   );

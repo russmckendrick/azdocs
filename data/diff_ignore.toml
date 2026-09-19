@@ -1,0 +1,39 @@
+# Property paths ignored when two snapshots are compared.
+#
+# Azure rewrites these on every read or on activity unrelated to configuration,
+# so a diff that reported them would call every resource "changed" every month.
+# Paths are dotted, relative to the resource's `properties` bag. `*` matches
+# exactly one segment; a trailing `*` matches everything beneath the prefix.
+# A user file at <config dir>/azdocs/diff_ignore.toml extends this list.
+
+[properties]
+paths = [
+  "provisioningState",
+  "etag",
+  "*.etag",
+  "*.*.etag",
+  "*.*.*.etag",
+  "resourceGuid",
+  "timeCreated",
+  "creationTime",
+  "createdTime",
+  "lastModifiedTime",
+  "lastModifiedTimeUtc",
+  "changedTime",
+  "lastModified*",
+  "modifiedDate",
+  "modifiedTime",
+  "modifiedAt",
+  "*.quotaNextResetTime",
+  "statusOfPrimary",
+  "statusOfSecondary",
+  "lastGeoFailoverTime",
+  "uniqueId",
+  "vmId",
+  "*.provisioningState",
+  "*.*.provisioningState",
+  "*.*.*.provisioningState",
+  "*.*.*.*.provisioningState",
+  "instanceView*",
+  "subnets.*.properties.provisioningState",
+]

@@ -1,6 +1,8 @@
 import { WebsiteContext, useWebsiteCapture } from "./website-capture";
 import { collectionFeedback } from "./collection-feedback";
 import { CollectionDialog } from "./components/CollectionDialog";
+import { ShortcutsDialog } from "./components/ShortcutsDialog";
+import { readPreference, writePreference } from "./preferences";
 import {
   lazy,
   Suspense,
@@ -12,7 +14,6 @@ import {
   useState,
 } from "react";
 import {
-  AlertTriangle,
   ChevronDown,
   FolderSearch2,
   LoaderCircle,
@@ -22,8 +23,11 @@ import {
   Search,
 } from "lucide-react";
 import {
+  cancelCollect,
   chooseDatabase,
   collectEstate,
+  compareSnapshots,
+  type CollectOptions,
   getBootstrap,
   getSnapshot,
   isTauri,
@@ -51,12 +55,14 @@ import type {
   CollectionEvent,
   EstateSnapshot,
   ScopeSelection,
+  SnapshotComparison,
   ThemePreference,
   ViewId,
 } from "./types";
 import { dayMonthTime, errorMessage, fill } from "./format";
 import { installLabels, useLabels, type Labels } from "./labels";
 import { matchesResourceSearch, useResourceTypeMap } from "./estate-lookups";
+import { ErrorStrip } from "./components/view-chrome";
 
 const TopologyView = lazy(() =>
   import("./components/TopologyView").then((module) => ({
@@ -65,6 +71,14 @@ const TopologyView = lazy(() =>
 );
 
 /** The side-nav entries; labels come from `desktop.nav` under the same ids. */
+/** Text-size steps for mod +/-/0; the CSS scales rem-based type and spacing. */
+const UI_SCALES = [1, 1.1, 1.2, 1.3, 1.5] as const;
+
+function readUiScale(): number {
+  const stored = readPreference<number>("ui-scale", 1);
+  return UI_SCALES.includes(stored as (typeof UI_SCALES)[number]) ? stored : 1;
+}
+
 const views: Array<{ id: Exclude<ViewId, "settings"> }> = [
   { id: "overview" },
   { id: "estate" },
@@ -76,15 +90,9 @@ const views: Array<{ id: Exclude<ViewId, "settings"> }> = [
   { id: "exports" },
 ];
 
-const THEME_STORAGE_KEY = "azdocs-theme";
-
 function readThemePreference(): ThemePreference {
-  try {
-    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
-    return stored === "light" || stored === "dark" ? stored : "system";
-  } catch {
-    return "system";
-  }
+  const stored = readPreference<string>("theme", "system");
+  return stored === "light" || stored === "dark" ? stored : "system";
 }
 
 function frameLabel(
@@ -120,27 +128,37 @@ function frameLabel(
 }
 
 export default function App() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    try {
-      return localStorage.getItem("azdocs-sidebar-collapsed") === "true";
-    } catch {
-      return false;
-    }
-  });
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
+    readPreference("sidebar-collapsed", false),
+  );
   function toggleSidebar() {
     setSidebarCollapsed((current) => {
-      try {
-        localStorage.setItem("azdocs-sidebar-collapsed", String(!current));
-      } catch {
-        /* The preference still applies for this session. */
-      }
+      writePreference("sidebar-collapsed", !current);
       return !current;
+    });
+  }
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [uiScale, setUiScale] = useState(readUiScale);
+  useEffect(() => {
+    document.documentElement.style.setProperty("--ui-scale", String(uiScale));
+    writePreference("ui-scale", uiScale);
+  }, [uiScale]);
+  function stepUiScale(direction: 1 | -1 | 0) {
+    setUiScale((current) => {
+      if (direction === 0) return 1;
+      const index = UI_SCALES.indexOf(current as (typeof UI_SCALES)[number]);
+      const next = UI_SCALES[Math.min(UI_SCALES.length - 1, Math.max(0, index + direction))];
+      return next ?? 1;
     });
   }
   const [settingsDirty, setSettingsDirty] = useState(false);
   const snapshotRequest = useRef(0);
   const [bootstrap, setBootstrap] = useState<AppBootstrap>();
   const [estate, setEstate] = useState<EstateSnapshot>();
+  // The diff against the previous usable snapshot is fetched after the
+  // estate has painted: it loads a second snapshot, and nothing on the
+  // first screen needs it.
+  const [comparison, setComparison] = useState<SnapshotComparison>();
   const [navigation, dispatchNavigation] = useReducer(
     navigationReducer,
     undefined,
@@ -196,11 +214,7 @@ export default function App() {
     if (themePreference === "system")
       delete document.documentElement.dataset.theme;
     else document.documentElement.dataset.theme = themePreference;
-    try {
-      window.localStorage.setItem(THEME_STORAGE_KEY, themePreference);
-    } catch {
-      // Preference persistence is a convenience; the session still themes.
-    }
+    writePreference("theme", themePreference);
   }, [themePreference]);
 
   const loadSnapshot = useCallback(async (snapshotId?: string) => {
@@ -250,10 +264,42 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    setComparison(undefined);
+    const previous = estate?.previousSnapshotId;
+    const target = estate?.id;
+    if (!previous || !target) return;
+    let active = true;
+    compareSnapshots(previous, target)
+      .then((next) => {
+        if (active) setComparison(next);
+      })
+      .catch(() => {
+        // The overview and history say there is nothing to compare yet;
+        // the history view can still request a comparison explicitly.
+      });
+    return () => {
+      active = false;
+    };
+  }, [estate?.id, estate?.previousSnapshotId]);
+
+  useEffect(() => {
     function handleShortcut(event: KeyboardEvent) {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      if (!(event.metaKey || event.ctrlKey)) return;
+      if (event.key.toLowerCase() === "k") {
         event.preventDefault();
         searchRef.current?.focus();
+      } else if (event.key === "/") {
+        event.preventDefault();
+        setShortcutsOpen((current) => !current);
+      } else if (event.key === "=" || event.key === "+") {
+        event.preventDefault();
+        stepUiScale(1);
+      } else if (event.key === "-") {
+        event.preventDefault();
+        stepUiScale(-1);
+      } else if (event.key === "0") {
+        event.preventDefault();
+        stepUiScale(0);
       }
     }
     window.addEventListener("keydown", handleShortcut);
@@ -360,7 +406,7 @@ export default function App() {
     }
   }
 
-  async function handleCollect() {
+  async function handleCollect(options: CollectOptions) {
     if (websites.blocked || settingsDirty) return;
     let active = true;
     setCollecting(true);
@@ -386,9 +432,15 @@ export default function App() {
         if (event.event === "phase") setCollectionMessage(event.data.message);
         if (event.event === "complete")
           setCollectionMessage(shell.snapshot_stored);
+        if (event.event === "cancelled")
+          setCollectionMessage(shell.collection_cancelled);
         if (event.event === "failed") setCollectionMessage(event.data.message);
-      });
-      updateFeedback({ type: "finish", at: Date.now(), result });
+      }, options);
+      updateFeedback(
+        result.status === "cancelled"
+          ? { type: "cancel", at: Date.now() }
+          : { type: "finish", at: Date.now(), result },
+      );
       const nextBootstrap = await getBootstrap();
       installLabels(nextBootstrap.labels);
       setBootstrap(nextBootstrap);
@@ -447,6 +499,22 @@ export default function App() {
   const openResource = useCallback((resourceId: string) => {
     dispatchNavigation({ type: "open-resource", resourceId });
   }, []);
+
+  /** Findings for one resource, through the same result chip the dashboard uses. */
+  const openResourceFindings = useCallback(
+    (resourceId: string, name: string) => {
+      setSearch("");
+      dispatchNavigation({
+        type: "open-results",
+        destination: {
+          view: "findings",
+          label: name,
+          filter: { resourceIds: [resourceId] },
+        },
+      });
+    },
+    [],
+  );
 
   const openRelationships = useCallback((resourceId: string) => {
     dispatchNavigation({ type: "open-relationships", resourceId });
@@ -720,13 +788,7 @@ export default function App() {
               </div>
             ) : null}
             {error ? (
-              <div className="error-strip" role="alert">
-                <AlertTriangle size={16} />
-                <span>{error}</span>
-                <button onClick={() => setError(undefined)}>
-                  {shell.dismiss}
-                </button>
-              </div>
+              <ErrorStrip message={error} onDismiss={() => setError(undefined)} />
             ) : null}
 
             {navigation.result &&
@@ -768,6 +830,7 @@ export default function App() {
                 onOpenDatabase={handleDatabase}
                 onConfigChange={applyConfiguration}
                 onDirtyChange={setSettingsDirty}
+                onShowShortcuts={() => setShortcutsOpen(true)}
                 blocked={websites.blocked}
               />
             ) : null}
@@ -777,6 +840,7 @@ export default function App() {
                   <OverviewView
                     bootstrap={bootstrap}
                     estate={estate}
+                    comparison={comparison}
                     onOpenResults={openDashboardResults}
                     onOpenResource={openResource}
                     onOpenRelationships={openRelationships}
@@ -839,13 +903,18 @@ export default function App() {
                   <GovernanceView
                     estate={estate}
                     requiredTags={bootstrap.requiredTags}
-                    onOpenFindings={() => openSection("findings")}
+                    onOpenFindings={(destination) =>
+                      destination
+                        ? openDashboardResults(destination)
+                        : openSection("findings")
+                    }
                   />
                 ) : null}
                 {view === "history" && bootstrap && !selectedResource ? (
                   <HistoryView
                     bootstrap={bootstrap}
                     estate={estate}
+                    previousComparison={comparison}
                     onLoadSnapshot={(id) => void loadSnapshot(id)}
                     dashboardFilter={navigation.result?.filter}
                     onOpenResource={openResource}
@@ -878,7 +947,12 @@ export default function App() {
                       onOpenTopology={() =>
                         openRelationships(selectedResource.id)
                       }
-                      onOpenFindings={() => openSection("findings")}
+                      onOpenFindings={() =>
+                        openResourceFindings(
+                          selectedResource.id,
+                          selectedResource.name,
+                        )
+                      }
                     />
                   </div>
                 ) : null}
@@ -898,6 +972,14 @@ export default function App() {
           <span className="mono">
             {bootstrap?.databasePath ?? shell.status_resolving}
           </span>
+          {bootstrap ? (
+            <>
+              <span className="status-divider" />
+              <span className="mono">
+                {fill(shell.version, { version: bootstrap.appVersion })}
+              </span>
+            </>
+          ) : null}
           <span className="status-spacer" />
           <span>
             {(selectedResource ?? relationshipResource)
@@ -933,11 +1015,17 @@ export default function App() {
                 })
               : undefined
           }
+          subscriptions={estate?.subscriptions ?? []}
           message={collectionMessage}
           error={collectionError}
           feedback={feedback}
           onClose={() => setCollectionOpen(false)}
-          onCollect={() => void handleCollect()}
+          onCollect={(options) => void handleCollect(options)}
+          onCancel={() => void cancelCollect()}
+        />
+        <ShortcutsDialog
+          open={shortcutsOpen}
+          onClose={() => setShortcutsOpen(false)}
         />
       </div>
     </WebsiteContext.Provider>

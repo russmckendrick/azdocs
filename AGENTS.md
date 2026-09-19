@@ -54,9 +54,11 @@ cli → commands → collect / report / diagram / tui → store / model ← arg 
   workbook), and svg emitters; png rasterises the svg. Layout math in
   `diagram/layout.rs` (measure then justify), page geometry in `diagram/page.rs`,
   orthogonal connector routing in `diagram/route.rs`. `diagram/assets.rs` feeds
-  diagrams to the reports — overviews, one summarised graph per resource group
-  (capped at `MAX_GROUP_DIAGRAMS`) and one `neighbourhood` graph per connected
-  resource (capped at `MAX_RESOURCE_DIAGRAMS`); truncation always logged.
+  diagrams to the reports — overviews and one summarised graph per resource
+  group (capped by `[report] max_group_diagrams`, default `MAX_GROUP_DIAGRAMS`),
+  each rendered once as SVG and once as Mermaid; truncation always logged.
+  Every emitter keys its legend off `graph::legend_kinds`. drawio legend cells
+  use their own `l{i}` id family, so the frozen `n{i}`/`e{i}` scheme is untouched.
   Full standards: [docs/reference/diagrams.md](docs/reference/diagrams.md).
 - Report emitters: md/csv plus the themed set — html/site/xlsx, pdf (embedded
   Typst, `templates/typst/`) and docx (`report/docx/`). The themed ones take
@@ -315,8 +317,15 @@ shared ports, name-only grids or indiscriminate Fit all.
 - rusqlite stays `bundled`; Excel sheet names are case-insensitive/31-char
   (category sheets are suffixed `" queries"` for this reason).
 - typst/typst-pdf/typst-assets are pinned to the same minor (0.13); the World
-  impl in `report/pdf.rs` derives today()/timestamps from the snapshot so PDF
-  bytes stay deterministic for a fixed snapshot, theme and font files.
+  impl in `report/pdf.rs` derives today()/timestamps and the document id from
+  the snapshot so PDF bytes stay deterministic within a process for a fixed
+  snapshot, theme and font files. Across processes typst-pdf orders font and
+  image objects from `HashMap`s, so bytes can differ while content does not;
+  do not promise cross-process PDF byte identity.
+- docx-rs numbers hyperlinks, pictures, bookmarks and paragraphs from
+  process-global counters: a second render in one process gets higher ids.
+  `report/docx/mod.rs` sorts the relationship part so separate processes
+  produce identical bytes; in-process tests compare modulo those numbers.
   Bundled fallback faces live in `data/fonts`; typst-assets' two families stay loaded
   behind it purely as a glyph fallback, and font-book insertion order is
   load-bearing.

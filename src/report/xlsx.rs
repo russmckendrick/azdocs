@@ -1,13 +1,52 @@
 use std::path::Path;
 
 use anyhow::Context;
-use rust_xlsxwriter::{Color, Format, FormatBorder, Workbook, Worksheet};
+use rust_xlsxwriter::{Color, DocProperties, Format, FormatBorder, Workbook, Worksheet};
 
 use super::branding::BrandingContext;
 use super::theme::{TableStyle, ThemeTokens};
 use super::{ReportContext, cell_to_string};
 use crate::labels::{Labels, fill};
 use crate::model::Resource;
+
+/// Excel refuses any cell text past this many characters, and
+/// `rust_xlsxwriter` fails the whole save rather than the one cell. Query
+/// rows carry JSON bags and policy definitions that can run far past it, so
+/// every data-driven string goes through [`cell_text`] before it is written.
+const EXCEL_CELL_LIMIT: usize = 32_767;
+
+/// A value bounded to what Excel will store; the snapshot keeps the rest.
+fn cell_text(value: &str) -> std::borrow::Cow<'_, str> {
+    if value.chars().count() <= EXCEL_CELL_LIMIT {
+        std::borrow::Cow::Borrowed(value)
+    } else {
+        tracing::warn!(
+            chars = value.chars().count(),
+            limit = EXCEL_CELL_LIMIT,
+            "cell text exceeds Excel's limit; truncated in the workbook"
+        );
+        std::borrow::Cow::Owned(crate::model::truncate(value, EXCEL_CELL_LIMIT))
+    }
+}
+
+/// Document properties from the snapshot, never from the clock. The
+/// creation stamp is the snapshot's collection time, so writing the same
+/// snapshot twice gives the same bytes; a workbook that changed its own
+/// timestamp on every export defeated any checksum a reader kept.
+fn document_properties(report: &ReportContext, branding: &BrandingContext) -> DocProperties {
+    let created = chrono::DateTime::parse_from_rfc3339(&report.created_at)
+        .map(|stamp| stamp.with_timezone(&chrono::Utc))
+        .unwrap_or_default();
+    let mut properties = DocProperties::new()
+        .set_title(&branding.title)
+        .set_subject(&report.snapshot_id)
+        .set_author("azdocs")
+        .set_creation_datetime(&created);
+    if !branding.company.is_empty() {
+        properties = properties.set_company(&branding.company);
+    }
+    properties
+}
 
 /// `#rrggbb` from the theme as the packed integer `rust_xlsxwriter` wants.
 /// The palette is validated on the way in, so a malformed value here would be
@@ -44,6 +83,7 @@ pub fn write(
     out_path: &Path,
 ) -> anyhow::Result<()> {
     let mut workbook = Workbook::new();
+    workbook.set_properties(&document_properties(report, branding));
     let tokens = &branding.tokens;
     let labels = &branding.labels;
     let words = &labels.report.xlsx;
@@ -98,7 +138,7 @@ pub fn write(
         row += 1;
         for values in evidence.rows {
             for (column, value) in values.iter().enumerate() {
-                sheet.write(row, column as u16, value)?;
+                sheet.write(row, column as u16, cell_text(value).as_ref())?;
             }
             row += 1;
         }
@@ -107,24 +147,63 @@ pub fn write(
     sheet.set_column_width(0, 36)?;
     sheet.set_column_range_width(1, 5, 24)?;
 
+    locations_sheet(
+        workbook.add_worksheet().set_name(&words.sheet_locations)?,
+        report,
+        labels,
+        &header,
+    )?;
+    let websites = report.websites.rows(labels);
+    if !websites.is_empty() {
+        websites_sheet(
+            workbook.add_worksheet().set_name(&words.sheet_websites)?,
+            &websites,
+            labels,
+            &header,
+        )?;
+    }
+    if let Some(changes) = &report.changes {
+        changes_sheet(
+            workbook.add_worksheet().set_name(&words.sheet_changes)?,
+            report,
+            changes,
+            labels,
+            &header,
+        )?;
+        trend_sheet(
+            workbook.add_worksheet().set_name(&words.sheet_trend)?,
+            report,
+            labels,
+            &header,
+        )?;
+    }
+
     let records = super::provenance::records(&report.analysis.query_runs, labels);
     if !records.is_empty() {
-        let words = &labels.report.posture.values;
-        let sheet = workbook.add_worksheet().set_name(&words["provenance"])?;
+        let values = &labels.report.posture.values;
+        let sheet = workbook.add_worksheet().set_name(&values["provenance"])?;
         for (column, key) in ["query", "field", "value"].iter().enumerate() {
-            sheet.write_with_format(0, column as u16, &words[*key], &header)?;
+            sheet.write_with_format(0, column as u16, &values[*key], &header)?;
         }
+        sheet.write_with_format(0, 3, &words.kql_column, &header)?;
         let mut row = 1;
         for record in records {
+            // The query text sits beside the record's first field, so one
+            // row per query carries it and the rest stay blank.
+            let mut kql = Some(record.kql.as_str());
             for field in record.fields {
                 sheet.write(row, 0, &record.name)?;
                 sheet.write(row, 1, &field[0])?;
-                sheet.write(row, 2, &field[1])?;
+                sheet.write(row, 2, cell_text(&field[1]).as_ref())?;
+                if let Some(text) = kql.take() {
+                    sheet.write(row, 3, cell_text(text).as_ref())?;
+                }
                 row += 1;
             }
         }
         sheet.set_column_range_width(0, 1, 32)?;
         sheet.set_column_width(2, 100)?;
+        sheet.set_column_width(3, 100)?;
     }
 
     for category in &report.categories {
@@ -260,7 +339,7 @@ fn inventory_sheet(
         sheet.write(
             row,
             6,
-            r.tags.as_ref().map(ToString::to_string).unwrap_or_default(),
+            cell_text(&r.tags.as_ref().map(ToString::to_string).unwrap_or_default()).as_ref(),
         )?;
         sheet.write(row, 7, &r.display_id)?;
     }
@@ -385,6 +464,20 @@ fn governance_sheet(
         sheet.write(row, 2, key.percent)?;
         row += 1;
     }
+    if governance.top_keys_total > governance.top_keys.len() {
+        sheet.write(
+            row,
+            0,
+            fill(
+                &labels.common.governance.top_keys_note,
+                &[
+                    ("shown", &governance.top_keys.len()),
+                    ("total", &governance.top_keys_total),
+                ],
+            ),
+        )?;
+        row += 1;
+    }
     row += 1;
 
     row = table(
@@ -438,12 +531,341 @@ fn governance_sheet(
         sheet.write(row, 4, group.missed_tags.join(", "))?;
         row += 1;
     }
+    if governance.worst_groups_total > governance.worst_groups.len() {
+        sheet.write(
+            row,
+            0,
+            fill(
+                &labels.common.governance.worst_groups_note,
+                &[
+                    ("shown", &governance.worst_groups.len()),
+                    ("total", &governance.worst_groups_total),
+                ],
+            ),
+        )?;
+    }
 
     sheet.set_column_width(0, 28)?;
     sheet.set_column_width(1, 24)?;
     sheet.set_column_width(2, 18)?;
     sheet.set_column_width(3, 16)?;
     sheet.set_column_width(4, 32)?;
+    Ok(())
+}
+
+fn locations_sheet(
+    sheet: &mut Worksheet,
+    report: &ReportContext,
+    labels: &Labels,
+    header: &Format,
+) -> anyhow::Result<()> {
+    let columns = &labels.common.columns;
+    let start = table(
+        sheet,
+        0,
+        &[&columns.location, &columns.kind, &columns.resources],
+        header,
+    )?;
+    for (offset, location) in report.location_counts.iter().enumerate() {
+        let row = start + offset as u32;
+        sheet.write(row, 0, &location.display)?;
+        sheet.write(row, 1, &location.name)?;
+        sheet.write(row, 2, location.count as u32)?;
+    }
+    sheet.set_column_range_width(0, 1, 24)?;
+    Ok(())
+}
+
+fn websites_sheet(
+    sheet: &mut Worksheet,
+    rows: &[super::websites::WebsiteRow],
+    labels: &Labels,
+    header: &Format,
+) -> anyhow::Result<()> {
+    let columns = &labels.common.columns;
+    let words = &labels.common.websites;
+    let start = table(
+        sheet,
+        0,
+        &[
+            &columns.resource,
+            &words.website,
+            &columns.status,
+            &words.capture_time,
+            &words.final_url,
+            &words.failure_detail,
+        ],
+        header,
+    )?;
+    for (offset, website) in rows.iter().enumerate() {
+        let row = start + offset as u32;
+        sheet.write(row, 0, &website.resource_name)?;
+        sheet.write(row, 1, cell_text(&website.target).as_ref())?;
+        sheet.write(row, 2, &website.status)?;
+        sheet.write(row, 3, website.captured_at.as_deref().unwrap_or(""))?;
+        sheet.write(
+            row,
+            4,
+            cell_text(website.final_url.as_deref().unwrap_or("")).as_ref(),
+        )?;
+        sheet.write(
+            row,
+            5,
+            cell_text(website.error.as_deref().unwrap_or("")).as_ref(),
+        )?;
+    }
+    sheet.set_column_width(0, 28)?;
+    sheet.set_column_range_width(1, 5, 36)?;
+    Ok(())
+}
+
+/// The full diff, uncapped: every changed field, finding, relationship and
+/// scope change in blocks, the way the governance sheet is laid out.
+fn changes_sheet(
+    sheet: &mut Worksheet,
+    report: &ReportContext,
+    changes: &crate::model::diff::SnapshotChanges,
+    labels: &Labels,
+    header: &Format,
+) -> anyhow::Result<()> {
+    let columns = &labels.common.columns;
+    let words = &labels.report.changes;
+    let xlsx = &labels.report.xlsx;
+    let assessment = &labels.report.assessment;
+    let subscription = |id: &str| {
+        report
+            .analysis
+            .subscriptions
+            .get(id)
+            .cloned()
+            .unwrap_or_else(|| id.to_owned())
+    };
+
+    let mut row = table(
+        sheet,
+        0,
+        &[
+            &xlsx.side_column,
+            &labels.common.cover.snapshot,
+            &labels.common.cover.collected,
+            &columns.status,
+        ],
+        header,
+    )?;
+    for (side, snapshot) in [
+        (&words.removed_marker, &changes.base),
+        (&words.added_marker, &changes.target),
+    ] {
+        sheet.write(row, 0, side)?;
+        sheet.write(row, 1, &snapshot.id)?;
+        sheet.write(row, 2, &snapshot.created_at)?;
+        sheet.write(row, 3, &snapshot.status)?;
+        row += 1;
+    }
+    row += 1;
+
+    row = table(
+        sheet,
+        row,
+        &[
+            &xlsx.change_column,
+            &columns.name,
+            &columns.azure_type,
+            &columns.resource_group,
+            &columns.subscription,
+            &columns.field,
+            &columns.before,
+            &columns.after,
+        ],
+        header,
+    )?;
+    let mut resource = |row: &mut u32,
+                        marker: &str,
+                        r: &crate::model::diff::ResourceRef,
+                        field: [&str; 3]|
+     -> anyhow::Result<()> {
+        sheet.write(*row, 0, marker)?;
+        sheet.write(*row, 1, &r.name)?;
+        sheet.write(*row, 2, &r.azure_type)?;
+        sheet.write(*row, 3, r.resource_group.as_deref().unwrap_or(""))?;
+        sheet.write(*row, 4, subscription(&r.subscription_id))?;
+        for (offset, value) in field.iter().enumerate() {
+            sheet.write(*row, 5 + offset as u16, cell_text(value).as_ref())?;
+        }
+        *row += 1;
+        Ok(())
+    };
+    for r in &changes.resources.added {
+        resource(&mut row, &words.added_marker, r, ["", "", ""])?;
+    }
+    for r in &changes.resources.removed {
+        resource(&mut row, &words.removed_marker, r, ["", "", ""])?;
+    }
+    for change in &changes.resources.changed {
+        for f in &change.fields {
+            let field = if f.path.is_empty() {
+                f.field.as_str().to_owned()
+            } else {
+                format!("{}.{}", f.field.as_str(), f.path)
+            };
+            resource(
+                &mut row,
+                &words.changed,
+                &change.resource,
+                [
+                    &field,
+                    &cell_to_string(f.before.as_ref()),
+                    &cell_to_string(f.after.as_ref()),
+                ],
+            )?;
+        }
+    }
+    row += 1;
+
+    row = table(
+        sheet,
+        row,
+        &[
+            &xlsx.change_column,
+            &columns.severity,
+            &columns.check,
+            &columns.title,
+            &columns.resource,
+        ],
+        header,
+    )?;
+    for (marker, findings) in [
+        (&words.new_findings, &changes.findings.added),
+        (&words.resolved_findings, &changes.findings.resolved),
+    ] {
+        for f in findings {
+            sheet.write(row, 0, marker)?;
+            sheet.write(row, 1, f.severity.as_str())?;
+            sheet.write(row, 2, &f.query_name)?;
+            sheet.write(row, 3, cell_text(&f.title).as_ref())?;
+            sheet.write(row, 4, f.resource_id.as_deref().unwrap_or(""))?;
+            row += 1;
+        }
+    }
+    row += 1;
+
+    row = table(
+        sheet,
+        row,
+        &[
+            &xlsx.change_column,
+            &assessment.source,
+            &assessment.relationship,
+            &assessment.target,
+        ],
+        header,
+    )?;
+    for (marker, edges) in [
+        (&words.added_marker, &changes.edges.added),
+        (&words.removed_marker, &changes.edges.removed),
+    ] {
+        for e in edges {
+            sheet.write(row, 0, marker)?;
+            sheet.write(row, 1, &e.source_id)?;
+            sheet.write(row, 2, &e.kind)?;
+            sheet.write(row, 3, &e.target_id)?;
+            row += 1;
+        }
+    }
+    row += 1;
+
+    row = table(
+        sheet,
+        row,
+        &[&xlsx.change_column, &columns.kind, &columns.name],
+        header,
+    )?;
+    for (marker, kind, ids) in [
+        (
+            &words.added_marker,
+            &columns.subscription,
+            &changes.subscriptions.added,
+        ),
+        (
+            &words.removed_marker,
+            &columns.subscription,
+            &changes.subscriptions.removed,
+        ),
+        (
+            &words.added_marker,
+            &columns.resource_group,
+            &changes.resource_groups.added,
+        ),
+        (
+            &words.removed_marker,
+            &columns.resource_group,
+            &changes.resource_groups.removed,
+        ),
+    ] {
+        for id in ids {
+            sheet.write(row, 0, marker)?;
+            sheet.write(row, 1, kind)?;
+            sheet.write(row, 2, id)?;
+            row += 1;
+        }
+    }
+
+    sheet.set_column_width(0, 18)?;
+    sheet.set_column_range_width(1, 4, 28)?;
+    sheet.set_column_range_width(5, 7, 40)?;
+    Ok(())
+}
+
+fn trend_sheet(
+    sheet: &mut Worksheet,
+    report: &ReportContext,
+    labels: &Labels,
+    header: &Format,
+) -> anyhow::Result<()> {
+    let columns = &labels.common.columns;
+    let sev = &labels.common.severity;
+    let start = table(
+        sheet,
+        0,
+        &[
+            &labels.common.cover.snapshot,
+            &labels.common.cover.collected,
+            &columns.status,
+            &columns.subscriptions,
+            &columns.resources,
+            &columns.tagged,
+            &columns.findings,
+            &sev.high.label,
+            &sev.medium.label,
+            &sev.low.label,
+            &sev.info.label,
+            &labels.report.assessment.relationships,
+        ],
+        header,
+    )?;
+    for (offset, point) in report.trend.iter().enumerate() {
+        let row = start + offset as u32;
+        sheet.write(row, 0, &point.snapshot_id)?;
+        sheet.write(row, 1, &point.created_at)?;
+        sheet.write(row, 2, &point.status)?;
+        for (offset, value) in [
+            point.subscriptions,
+            point.resources,
+            point.tagged,
+            point.findings,
+            point.high,
+            point.medium,
+            point.low,
+            point.info,
+            point.edges,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            sheet.write(row, 3 + offset as u16, value as u32)?;
+        }
+    }
+    sheet.set_column_range_width(0, 1, 36)?;
     Ok(())
 }
 
@@ -488,7 +910,7 @@ fn category_sheet(
             for (col, name) in query.columns.iter().enumerate() {
                 let value = cell_to_string(data_row.get(name));
                 widths[col] = widths[col].max(display_width(&value));
-                sheet.write(row, col as u16, value)?;
+                sheet.write(row, col as u16, cell_text(&value).as_ref())?;
             }
             row += 1;
         }
@@ -509,4 +931,18 @@ fn display_width(value: &str) -> usize {
         .map(|line| line.chars().count())
         .max()
         .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unit_cell_text_keeps_short_values_and_bounds_long_ones() {
+        assert_eq!(cell_text("short"), "short");
+        let long = "x".repeat(EXCEL_CELL_LIMIT + 5);
+        let bounded = cell_text(&long);
+        assert_eq!(bounded.chars().count(), EXCEL_CELL_LIMIT);
+        assert!(bounded.ends_with('…'));
+    }
 }

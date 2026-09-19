@@ -4,6 +4,10 @@ version = "0.1.1"
 description = "Desktop explorer for azdocs Azure estate snapshots"
 authors = ["azdocs contributors"]
 edition = "2024"
+rust-version = "1.89"
+# The desktop app ships as installers, never as a crate; this also lets
+# cargo-deny accept its versionless path dependency on the CLI crate.
+publish = false
 license = "MIT"
 repository = "https://github.com/russmckendrick/azdocs"
 readme = "../../README.md"
@@ -33,6 +37,10 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 base64 = "0.22"
 chrono = "0.4"
 uuid = { version = "1", features = ["v4"] }
+tauri-plugin-single-instance = "2"
+tauri-plugin-window-state = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-clipboard-manager = "2"
 
 [dev-dependencies]
 tempfile = "3.27.0"

@@ -24,7 +24,11 @@ pub struct AppState {
     session: RwLock<settings::Session>,
     pending_secrets: std::sync::Mutex<std::collections::BTreeMap<String, settings::PendingSecret>>,
     checks: Arc<RwLock<std::collections::BTreeMap<String, settings::SavedCheck>>>,
-    captures: capture::CaptureControl,
+    captures: capture::BatchControl,
+    exports: capture::BatchControl,
+    /// Destinations this session has exported to; the reveal and open-folder
+    /// commands refuse any path outside them.
+    export_roots: std::sync::Mutex<std::collections::BTreeSet<PathBuf>>,
 }
 
 impl AppState {
@@ -33,7 +37,9 @@ impl AppState {
             session: RwLock::new(settings::Session::initial(database_path, labels)),
             pending_secrets: std::sync::Mutex::new(std::collections::BTreeMap::new()),
             checks: Arc::new(RwLock::new(std::collections::BTreeMap::new())),
-            captures: capture::CaptureControl::default(),
+            captures: capture::BatchControl::default(),
+            exports: capture::BatchControl::default(),
+            export_roots: std::sync::Mutex::new(std::collections::BTreeSet::new()),
         }
     }
 }
@@ -58,6 +64,18 @@ pub fn run() {
     let window_title = labels.desktop.app.window_title.clone();
 
     let app = tauri::Builder::default()
+        // First, so a second launch is handed to this one before anything
+        // else initialises: the existing window is focused and the new
+        // process exits.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.set_focus();
+            }
+        }))
+        .plugin(tauri_plugin_window_state::Builder::default().build())
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState::new(database_path, labels))
         .setup(move |app| {
@@ -85,9 +103,17 @@ pub fn run() {
                     commands::topology_graph,
                     commands::compare_snapshots,
                     commands::collect_snapshot,
+                    commands::cancel_collect,
                     commands::query_pack_metadata,
                     commands::query_rows,
+                    commands::resource_detail,
                     commands::export_snapshot,
+                    commands::cancel_export,
+                    commands::copy_text,
+                    commands::save_text_file,
+                    commands::reveal_export_path,
+                    commands::open_export_folder,
+                    commands::open_docs,
                     websites::website_state,
                     websites::website_image,
                     websites::capture_websites,

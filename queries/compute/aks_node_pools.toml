@@ -1,0 +1,24 @@
+name = "aks_node_pools"
+category = "compute"
+kind = "inventory"
+description = "AKS node pools expanded from every cluster with mode, VM size, node counts, autoscale, OS and subnet"
+kql = '''
+resources
+| where type == "microsoft.containerservice/managedclusters"
+| mv-expand pool = properties.agentPoolProfiles
+| project id, name, location, resourceGroup, subscriptionId,
+          poolName = tostring(pool.name),
+          mode = tostring(pool.mode),
+          vmSize = tostring(pool.vmSize),
+          nodeCount = toint(pool["count"]),
+          minCount = toint(pool.minCount),
+          maxCount = toint(pool.maxCount),
+          autoscale = pool.enableAutoScaling,
+          osType = tostring(pool.osType),
+          osSku = tostring(pool.osSKU),
+          orchestratorVersion = tostring(pool.orchestratorVersion),
+          availabilityZones = tostring(pool.availabilityZones),
+          vnetSubnetId = tostring(pool.vnetSubnetID),
+          powerState = tostring(pool.powerState.code)
+| order by id asc, poolName asc
+'''

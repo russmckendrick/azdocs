@@ -1,11 +1,12 @@
 use quick_xml::events::{BytesDecl, BytesStart, Event};
 use quick_xml::writer::Writer;
 
-use super::graph::{EdgeStyle, EstateGraph, NodeKind, node_label};
+use super::graph::{EdgeStyle, EstateGraph, NodeKind, has_aggregates, legend_kinds, node_label};
 use super::icons;
 use super::layout::{self, Placement};
 use super::page::{DiagramDetail, Rung};
 use super::route;
+use crate::labels::DiagramLabels;
 
 /// Guard against a cycle in the parent chain; real graphs nest three deep.
 const MAX_DEPTH: usize = 8;
@@ -20,32 +21,41 @@ fn has_children(graph: &EstateGraph, index: usize) -> bool {
 }
 
 /// Render the graph as a single-sheet draw.io `mxfile` at the default detail.
-pub fn render(graph: &EstateGraph) -> String {
-    render_for(graph, DiagramDetail::default())
+pub fn render(graph: &EstateGraph, labels: &DiagramLabels) -> String {
+    render_for(graph, DiagramDetail::default(), labels)
 }
 
 /// Render one sheet at a given detail level. Containers are swimlanes with
 /// children parented to them at relative coordinates; edges anchor to the
 /// boundary sides [`super::route`] picked and are otherwise routed by draw.io,
 /// so a reader who drags a node keeps a sensible connector.
-pub fn render_for(graph: &EstateGraph, detail: DiagramDetail) -> String {
+pub fn render_for(graph: &EstateGraph, detail: DiagramDetail, labels: &DiagramLabels) -> String {
     // The empty prefix keeps single-sheet cell ids `n{i}`/`e{i}`; the id scheme
     // is frozen even though the geometry under it is not.
-    render_file(&[(graph.title.as_str(), graph)], false, detail)
+    render_file(&[(graph.title.as_str(), graph)], false, detail, labels)
 }
 
 /// Render several graphs as one multi-sheet `mxfile` workbook. Sheet ids are
 /// `azdocs-{i}`; cell ids are prefixed `s{i}-` so they are file-wide unique.
-pub fn render_workbook(sheets: &[(&str, &EstateGraph)]) -> String {
-    render_workbook_for(sheets, DiagramDetail::default())
+pub fn render_workbook(sheets: &[(&str, &EstateGraph)], labels: &DiagramLabels) -> String {
+    render_workbook_for(sheets, DiagramDetail::default(), labels)
 }
 
 /// Render a workbook at a given detail level.
-pub fn render_workbook_for(sheets: &[(&str, &EstateGraph)], detail: DiagramDetail) -> String {
-    render_file(sheets, true, detail)
+pub fn render_workbook_for(
+    sheets: &[(&str, &EstateGraph)],
+    detail: DiagramDetail,
+    labels: &DiagramLabels,
+) -> String {
+    render_file(sheets, true, detail, labels)
 }
 
-fn render_file(sheets: &[(&str, &EstateGraph)], prefixed: bool, detail: DiagramDetail) -> String {
+fn render_file(
+    sheets: &[(&str, &EstateGraph)],
+    prefixed: bool,
+    detail: DiagramDetail,
+    labels: &DiagramLabels,
+) -> String {
     let mut writer = Writer::new_with_indent(Vec::new(), b' ', 2);
 
     writer
@@ -62,7 +72,7 @@ fn render_file(sheets: &[(&str, &EstateGraph)], prefixed: bool, detail: DiagramD
             } else {
                 String::new()
             };
-            sheet(writer, index, name, graph, &prefix, detail);
+            sheet(writer, index, name, graph, &prefix, detail, labels);
         }
     });
 
@@ -76,6 +86,7 @@ fn sheet(
     graph: &EstateGraph,
     prefix: &str,
     detail: DiagramDetail,
+    labels: &DiagramLabels,
 ) {
     let rung = layout::rung(graph);
     let depths = depths(graph);
@@ -86,7 +97,14 @@ fn sheet(
     let routes = route::route(graph, &absolute, &rung);
     let (content_width, content_height) = content_bounds(&absolute, &routes);
     let stamp_top = content_height + STAMP_GAP;
-    let (page_width, page_height) = page_size(content_width, stamp_top + STAMP_SIZE);
+    let legend_entries = legend_entries(graph, labels);
+    let legend_height = if legend_entries.is_empty() {
+        0.0
+    } else {
+        LEGEND_ROW
+    };
+    let (page_width, page_height) =
+        page_size(content_width, stamp_top + STAMP_SIZE.max(legend_height));
     let mut diagram = BytesStart::new("diagram");
     diagram.push_attribute(("name", name));
     diagram.push_attribute(("id", format!("azdocs-{index}").as_str()));
@@ -157,6 +175,7 @@ fn sheet(
                     edge_cell(writer, routed, &graph.edges[routed.edge], prefix);
                 }
                 stamp_cell(writer, stamp_top, prefix);
+                legend_cells(writer, &legend_entries, stamp_top, prefix);
             });
         });
     });
@@ -444,6 +463,81 @@ fn stamp_cell(writer: &mut Writer<Vec<u8>>, top: f64, prefix: &str) {
     });
 }
 
+/// Height of the legend row beside the stamp.
+const LEGEND_ROW: f64 = 20.0;
+const LEGEND_SWATCH: f64 = 28.0;
+const LEGEND_LEFT: f64 = 60.0;
+
+/// The same key the SVG draws: `(fill, stroke, dash, caption)` per container
+/// kind present, then the count convention. Empty for a graph with nothing
+/// to explain.
+fn legend_entries(
+    graph: &EstateGraph,
+    labels: &DiagramLabels,
+) -> Vec<(&'static str, &'static str, &'static str, String)> {
+    let mut entries: Vec<_> = legend_kinds(graph)
+        .into_iter()
+        .map(|kind| {
+            let (fill, stroke) = container_palette(&kind);
+            let (label, dash) = super::svg::legend_words(&kind, labels);
+            (fill, stroke, dash, label.to_owned())
+        })
+        .collect();
+    if has_aggregates(graph) {
+        entries.push((
+            "#FFFFFF",
+            "#0078D4",
+            "",
+            format!("×N — {}", labels.legend.aggregate),
+        ));
+    }
+    entries
+}
+
+/// Legend swatches to the right of the stamp. Ids are a new `l{i}` family:
+/// the frozen `n{i}`/`e{i}` scheme is untouched, and a workbook prefixes them
+/// like every other cell.
+fn legend_cells(
+    writer: &mut Writer<Vec<u8>>,
+    entries: &[(&str, &str, &str, String)],
+    top: f64,
+    prefix: &str,
+) {
+    let mut x = LEGEND_LEFT;
+    for (index, (fill, stroke, dash, caption)) in entries.iter().enumerate() {
+        let dashed = if dash.is_empty() {
+            String::new()
+        } else {
+            format!("dashed=1;dashPattern={};", dash.replace(',', " "))
+        };
+        let style = format!(
+            "rounded=1;html=1;whiteSpace=wrap;fillColor={fill};strokeColor={stroke};{dashed}\
+             labelPosition=right;align=left;verticalLabelPosition=middle;verticalAlign=middle;\
+             spacingLeft=4;fontSize=10;fontColor=#605E5C;movable=0;resizable=0;connectable=0;"
+        );
+        let mut cell = BytesStart::new("mxCell");
+        cell.push_attribute(("id", format!("{prefix}l{index}").as_str()));
+        cell.push_attribute(("value", caption.as_str()));
+        cell.push_attribute(("style", style.as_str()));
+        cell.push_attribute(("parent", format!("{prefix}1").as_str()));
+        cell.push_attribute(("vertex", "1"));
+        with_element(writer, cell, |writer| {
+            let mut geometry = BytesStart::new("mxGeometry");
+            geometry.push_attribute(("x", trim_float(x).as_str()));
+            geometry.push_attribute(("y", trim_float(top + 4.0).as_str()));
+            geometry.push_attribute(("width", trim_float(LEGEND_SWATCH).as_str()));
+            geometry.push_attribute(("height", trim_float(LEGEND_ROW).as_str()));
+            geometry.push_attribute(("as", "geometry"));
+            writer
+                .write_event(Event::Empty(geometry))
+                .expect("writing to Vec cannot fail");
+        });
+        // Rough advance: the caption sits to the right of the swatch and the
+        // next swatch must clear it. 6px per character at 10pt is generous.
+        x += LEGEND_SWATCH + caption.chars().count() as f64 * 6.0 + 24.0;
+    }
+}
+
 /// Extent of everything drawn, boxes and routed connectors alike.
 fn content_bounds(absolute: &[Placement], routes: &[route::EdgeRoute]) -> (f64, f64) {
     let mut width = absolute
@@ -579,6 +673,10 @@ fn trim_float(value: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn labels() -> DiagramLabels {
+        crate::labels::Labels::default().diagram
+    }
     use crate::diagram::graph::LayoutMode;
     use crate::diagram::graph::{DiagEdge, Node};
 
@@ -639,8 +737,8 @@ mod tests {
     fn unit_a_full_detail_sheet_is_wider_than_a_summary_one() {
         let graph = graph(4);
 
-        let summary = page_width(&render_for(&graph, DiagramDetail::Summary));
-        let full = page_width(&render_for(&graph, DiagramDetail::Full));
+        let summary = page_width(&render_for(&graph, DiagramDetail::Summary, &labels()));
+        let full = page_width(&render_for(&graph, DiagramDetail::Full, &labels()));
 
         assert!(
             full > summary,
@@ -650,7 +748,7 @@ mod tests {
 
     #[test]
     fn unit_the_page_is_sized_to_the_drawing_rather_than_to_a4() {
-        let wide = page_width(&render_for(&graph(24), DiagramDetail::Full));
+        let wide = page_width(&render_for(&graph(24), DiagramDetail::Full, &labels()));
 
         assert!(wide > 1169.0, "still clipped to A4 landscape: {wide}");
     }
@@ -659,7 +757,7 @@ mod tests {
     /// width, so neighbouring subnet titles printed over each other.
     #[test]
     fn unit_container_titles_wrap() {
-        let xml = render_for(&graph(2), DiagramDetail::Full);
+        let xml = render_for(&graph(2), DiagramDetail::Full, &labels());
 
         for style in xml
             .split("style=\"")
@@ -674,7 +772,7 @@ mod tests {
     /// over the row beneath it.
     #[test]
     fn unit_the_glyph_never_outgrows_its_layout_slot() {
-        let xml = render_for(&graph(64), DiagramDetail::Full);
+        let xml = render_for(&graph(64), DiagramDetail::Full, &labels());
         let rung = layout::rung(&graph(64));
 
         // Container header icons are `image;` cells too, so match the
@@ -701,7 +799,7 @@ mod tests {
             style: EdgeStyle::Solid,
         });
 
-        let xml = render_for(&graph, DiagramDetail::Full);
+        let xml = render_for(&graph, DiagramDetail::Full, &labels());
 
         let style = xml
             .split("style=\"")
@@ -723,7 +821,7 @@ mod tests {
             style: EdgeStyle::Solid,
         });
 
-        let xml = render_for(&graph, DiagramDetail::Full);
+        let xml = render_for(&graph, DiagramDetail::Full, &labels());
 
         assert!(
             !xml.contains("edge=\"1\""),
@@ -735,7 +833,7 @@ mod tests {
     /// child cell — one that must not renumber the frozen `n{i}` scheme.
     #[test]
     fn unit_a_container_carries_its_stencil_without_taking_a_node_id() {
-        let xml = render_for(&graph(2), DiagramDetail::Full);
+        let xml = render_for(&graph(2), DiagramDetail::Full, &labels());
 
         assert!(
             xml.contains("azure2/networking/Virtual_Networks.svg"),
@@ -756,7 +854,7 @@ mod tests {
         let mut graph = graph(6);
         graph.nodes[1].label = "snet-n4-corp-dwh-shared-dev-uks".into();
         graph.nodes[1].sublabel = Some("10.221.41.64/26".into());
-        let xml = render_for(&graph, DiagramDetail::Full);
+        let xml = render_for(&graph, DiagramDetail::Full, &labels());
 
         let mut bands: Vec<(String, f64)> = Vec::new();
         let mut children: Vec<(String, f64)> = Vec::new();
@@ -801,7 +899,7 @@ mod tests {
 
     #[test]
     fn unit_every_sheet_carries_the_product_mark() {
-        let xml = render_for(&graph(2), DiagramDetail::Full);
+        let xml = render_for(&graph(2), DiagramDetail::Full, &labels());
 
         assert!(xml.contains("value=\"azdocs\""), "no wordmark: {xml}");
         assert!(xml.contains("image=data:image/svg+xml,"), "no glyph: {xml}");
@@ -818,7 +916,7 @@ mod tests {
             .map(|p| p.y + p.height)
             .fold(0.0_f64, f64::max);
 
-        let xml = render_for(&graph, DiagramDetail::Full);
+        let xml = render_for(&graph, DiagramDetail::Full, &labels());
         let height: f64 = xml
             .split_once("pageHeight=\"")
             .expect("a page height")
@@ -837,7 +935,7 @@ mod tests {
     /// as a break — it silently became a run-on that word-wrapped.
     #[test]
     fn unit_a_leaf_label_breaks_between_its_name_and_its_type() {
-        let xml = render_for(&graph(2), DiagramDetail::Full);
+        let xml = render_for(&graph(2), DiagramDetail::Full, &labels());
 
         assert!(xml.contains("&lt;br&gt;"), "no line break emitted: {xml}");
         for value in xml
@@ -886,7 +984,7 @@ mod tests {
     /// spans the canvas — layout justifies to it — but height must not.
     #[test]
     fn unit_the_page_hugs_a_short_drawing() {
-        let xml = render_for(&graph(2), DiagramDetail::Full);
+        let xml = render_for(&graph(2), DiagramDetail::Full, &labels());
         let height: f64 = xml
             .split_once("pageHeight=\"")
             .expect("a page height")

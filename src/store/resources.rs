@@ -1,7 +1,7 @@
 use rusqlite::params;
 use serde_json::Value;
 
-use super::{Store, json_text, parse_json};
+use super::{Store, decode_error, json_text, parse_json};
 use crate::error::StoreError;
 use crate::model::{QueryRun, Resource, ResourceGroup, Subscription};
 
@@ -122,8 +122,8 @@ impl Store {
     pub fn record_query_run(&self, snapshot_id: &str, run: &QueryRun) -> Result<(), StoreError> {
         self.conn().execute(
             "INSERT OR REPLACE INTO query_runs
-             (snapshot_id, query_name, category, row_count, duration_ms, error, provenance)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+             (snapshot_id, query_name, category, row_count, duration_ms, error, provenance, rows_dropped)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             params![
                 snapshot_id,
                 run.query_name,
@@ -135,6 +135,7 @@ impl Store {
                     .as_ref()
                     .map(serde_json::to_value)
                     .transpose()?,
+                run.rows_dropped.map(|v| v as i64),
             ],
         )?;
         Ok(())
@@ -150,7 +151,7 @@ impl Store {
                 subscription_id: row.get(0)?,
                 display_name: row.get(1)?,
                 state: row.get(2)?,
-                tags: parse_json(row.get(3)?),
+                tags: parse_json("subscriptions.tags", row.get(3)?)?,
             })
         })?;
         Ok(rows.collect::<Result<_, _>>()?)
@@ -167,7 +168,7 @@ impl Store {
                 name: row.get(1)?,
                 subscription_id: row.get(2)?,
                 location: row.get(3)?,
-                tags: parse_json(row.get(4)?),
+                tags: parse_json("resource_groups.tags", row.get(4)?)?,
             })
         })?;
         Ok(rows.collect::<Result<_, _>>()?)
@@ -181,6 +182,19 @@ impl Store {
         )?;
         let rows = statement.query_map([snapshot_id], resource_from_row)?;
         Ok(rows.collect::<Result<_, _>>()?)
+    }
+
+    /// One resource by its normalised id; the desktop loads the heavy bags
+    /// (properties, SKU, identity) this way when a record is opened rather
+    /// than shipping them with every row of the estate.
+    pub fn resource(&self, snapshot_id: &str, id: &str) -> Result<Option<Resource>, StoreError> {
+        let mut statement = self.conn().prepare(
+            "SELECT id, display_id, name, type, kind, location, resource_group,
+                    subscription_id, tags, sku, identity, properties
+             FROM resources WHERE snapshot_id = ?1 AND id = ?2",
+        )?;
+        let mut rows = statement.query_map([snapshot_id, id], resource_from_row)?;
+        rows.next().transpose().map_err(Into::into)
     }
 
     /// Stored queries may outlive or replace their query-pack definition.
@@ -202,14 +216,15 @@ impl Store {
         )?;
         let rows = statement.query_map([snapshot_id, query_name], |row| {
             let text: String = row.get(0)?;
-            Ok(serde_json::from_str(&text).unwrap_or(Value::Null))
+            serde_json::from_str(&text)
+                .map_err(|_| decode_error("query_results.row", text.chars().take(80).collect()))
         })?;
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
     pub fn query_runs(&self, snapshot_id: &str) -> Result<Vec<QueryRun>, StoreError> {
         let mut statement = self.conn().prepare(
-            "SELECT query_name, category, row_count, duration_ms, error, provenance
+            "SELECT query_name, category, row_count, duration_ms, error, provenance, rows_dropped
              FROM query_runs WHERE snapshot_id = ?1 ORDER BY category, query_name",
         )?;
         let rows = statement.query_map([snapshot_id], |row| {
@@ -231,6 +246,7 @@ impl Store {
                 row_count: row.get::<_, Option<i64>>(2)?.map(|v| v as u64),
                 duration_ms: row.get::<_, Option<i64>>(3)?.map(|v| v as u64),
                 error: row.get(4)?,
+                rows_dropped: row.get::<_, Option<i64>>(6)?.map(|v| v as u64),
             })
         })?;
         Ok(rows.collect::<Result<_, _>>()?)
@@ -247,9 +263,56 @@ fn resource_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Resource> {
         location: row.get(5)?,
         resource_group: row.get(6)?,
         subscription_id: row.get(7)?,
-        tags: parse_json(row.get(8)?),
-        sku: parse_json(row.get(9)?),
-        identity: parse_json(row.get(10)?),
-        properties: parse_json(row.get(11)?),
+        tags: parse_json("resources.tags", row.get(8)?)?,
+        sku: parse_json("resources.sku", row.get(9)?)?,
+        identity: parse_json("resources.identity", row.get(10)?)?,
+        properties: parse_json("resources.properties", row.get(11)?)?,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::model::QueryRun;
+
+    #[test]
+    fn unit_corrupt_query_result_row_is_an_error() {
+        let store = Store::open_in_memory().unwrap();
+        let id = store.create_snapshot("tenant", None).unwrap().id;
+        store
+            .conn()
+            .execute(
+                "INSERT INTO query_results VALUES (?1, 'q', 0, '{not json')",
+                [&id],
+            )
+            .unwrap();
+
+        let error = store.query_results(&id, "q").unwrap_err().to_string();
+
+        assert!(error.contains("query_results.row"), "{error}");
+    }
+
+    #[test]
+    fn unit_query_run_round_trips_rows_dropped() {
+        let store = Store::open_in_memory().unwrap();
+        let id = store.create_snapshot("tenant", None).unwrap().id;
+        store
+            .record_query_run(
+                &id,
+                &QueryRun {
+                    provenance: None,
+                    query_name: "all_resources".into(),
+                    category: "inventory".into(),
+                    row_count: Some(3),
+                    duration_ms: Some(1),
+                    error: None,
+                    rows_dropped: Some(2),
+                },
+            )
+            .unwrap();
+
+        let runs = store.query_runs(&id).unwrap();
+
+        assert_eq!(runs[0].rows_dropped, Some(2));
+    }
 }

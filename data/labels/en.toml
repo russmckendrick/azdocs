@@ -9,6 +9,9 @@
 # (or <name>.toml, selected with `[branding] labels = "<name>"`); its keys are
 # deep-merged over these built-ins. Unknown keys are an error.
 
+[meta]
+lang = "en"
+
 [common]
 subscription_scope = "Subscription scope"
 counted = "{count} {noun}"
@@ -21,22 +24,18 @@ relationship = { one = "relationship", other = "relationships" }
 [common.severity.high]
 name = "high"
 label = "High"
-heading = "High priority"
 
 [common.severity.medium]
 name = "medium"
 label = "Medium"
-heading = "Medium priority"
 
 [common.severity.low]
 name = "low"
 label = "Low"
-heading = "Low priority"
 
 [common.severity.info]
 name = "info"
 label = "Info"
-heading = "Informational"
 
 [common.cover]
 tenant = "Tenant"
@@ -44,6 +43,7 @@ snapshot = "Snapshot"
 collected = "Collected"
 status = "Status"
 notes = "Notes"
+logo_alt = "Logo"
 
 [common.verdict]
 healthy = "healthy"
@@ -81,6 +81,11 @@ count = "Count"
 metric = "Metric"
 setting = "Setting"
 value = "Value"
+field = "Field"
+before = "Before"
+after = "After"
+change = "Change"
+tagged = "Tagged"
 
 [common.governance]
 coverage_by_key = "Coverage by tag key"
@@ -90,49 +95,27 @@ no_tags = "No tags are stored in this snapshot."
 subscription_note = "Any tag counts here; the required-tag sweep is stricter."
 key_share = "Share of the {tagged} tagged resources carrying each key."
 non_compliant_sentence = "{count} resources are missing at least one required tag, recorded by the {audit} audit."
+top_keys_note = "Showing the {shown} busiest of {total} tag keys; the data exports list them all."
+worst_groups_note = "Showing the {shown} worst of {total} groups with recorded misses; the findings list every resource."
 
 [report]
 toc_title = "Contents"
 
 [report.summary]
 chapter = "Executive Summary"
-sentence = "This snapshot covers {resources} resources across {resource_groups} resource groups in {subscriptions} subscriptions. It records {findings} findings, including {high} high and {medium} medium priority items. {tagged} resources are tagged and {untagged} are untagged, giving {percent} tag coverage, {comparison} {threshold} this report treats as healthy."
-coverage_at_or_above = "at or above the"
-coverage_below = "below the"
-largest_types = "Largest resource types"
-geographic_footprint = "Geographic footprint"
-priority_findings = "Priority findings"
 
 [report.findings]
 chapter = "Findings"
 empty = "No findings."
-intro = "Findings are grouped by priority so the most consequential work can be reviewed first. The evidence appendix retains the underlying query output."
 
 [report.governance]
 chapter = "Governance"
-flagged_note = "Past the {share}% share this report calls out: {groups}."
-
-[report.overview]
-chapter = "Estate overview"
-intro = "These overview diagrams orient the detailed subscription and resource-group sections that follow. Resource-group diagrams remain with their own sections."
 
 [report.type_index]
 chapter = "Resources by type"
 intro = "This index keeps a compliance sweep by resource type available before the estate is documented in its Azure hierarchy."
 
-[report.estate]
-subscription_sentence = "{resources} resources across {groups} resource groups, with {findings} findings recorded in this snapshot."
-group_summary = "{resources} resources across {types} resource types"
-group_findings = "{findings} findings"
-relationships = "Relationships"
-settings = "Settings"
-no_settings = "No settings recorded."
-findings = "Findings"
-related = "Related resources"
-
 [report.evidence]
-chapter = "Evidence appendix"
-intro = "The following sections preserve the collected inventory evidence. Compact results are presented as facts; larger result sets remain tables for comparison and audit use."
 no_results = "No results."
 
 [report.pdf]
@@ -150,6 +133,8 @@ subscription_note = "any tag counts here; the required-tag sweep is stricter."
 resources_by_type = "Resources by type"
 resources_by_location = "Resources by location"
 sections = "Sections"
+diagrams = "Diagrams"
+diagram_note = "Each figure is an SVG for print and Mermaid source for Git hosts that render it."
 subscription_link = "subscription: {name}"
 subscription_title = "Subscription: {name}"
 id = "Id"
@@ -158,6 +143,32 @@ resource_details = "Resource details →"
 related = "Related"
 no_rows = "_No rows._"
 no_resources = "_No resources._"
+settings_omitted = "{count} further settings are in the snapshot database."
+website_image = "Screenshot of {url}"
+
+[report.changes]
+chapter = "Changes since the previous snapshot"
+intro = "Compared with snapshot {base}, collected {base_date}. Azure rewrites some properties on every read; those paths are ignored, so every difference below is a recorded configuration change, not collection noise."
+summary = "{added} resources added, {removed} removed and {changed} changed ({fields} field changes). {new_findings} new findings and {resolved} resolved. {edges_added} relationships added and {edges_removed} removed."
+none = "No differences are recorded between the two snapshots."
+added = "Resources added"
+removed = "Resources removed"
+changed = "Resources changed"
+new_findings = "New findings"
+resolved_findings = "Resolved findings"
+relationships = "Relationships added and removed"
+scope = "Subscriptions and resource groups"
+added_marker = "Added"
+removed_marker = "Removed"
+row_limit = "Showing {shown} of {total} rows; the CLI diff and the workbook list them all."
+trend = "Snapshot trend"
+trend_intro = "The most recent {count} usable snapshots of this tenant, oldest first. Counts describe what each collection stored; they are not a measure of change in Azure between collections."
+
+[report.site]
+index = "Overview"
+findings = "Findings"
+provenance = "Query provenance"
+category = "{category}"
 
 [report.html]
 collected = "collected"
@@ -188,6 +199,13 @@ low_findings = "Low findings"
 info_findings = "Info findings"
 tag_coverage_percent = "Tag coverage %"
 share_of_tagged_percent = "Share of tagged %"
+sheet_locations = "Locations"
+sheet_websites = "Websites"
+sheet_changes = "Changes"
+sheet_trend = "Trend"
+kql_column = "Query text"
+change_column = "Change"
+side_column = "Snapshot"
 
 [report.xlsx.inventory_columns]
 name = "name"
@@ -247,6 +265,7 @@ remote_vnet = "remote vnet"
 private_link = "private link"
 
 [diagram.legend]
+title = "Legend"
 vnet = "Virtual network"
 subnet = "Subnet"
 zone = "Outside the topology"
@@ -268,6 +287,16 @@ some_subscriptions = "{count} subscriptions"
 collecting = "Collecting {queries} queries across {scope} (concurrency {concurrency})..."
 snapshot_written = "Snapshot {id} — {status} ({queries} queries, {failed} failed, {rows} rows)"
 partial_hint = "Some queries failed; see `azdocs snapshots show {id}`"
+failed_hint = "Every query failed; see `azdocs snapshots show {id}` — this snapshot will not be used as `latest`"
+cancelled_hint = "Collection stopped on request; {id} holds what finished and will not be used as `latest`"
+no_subscriptions = "the credential can see no subscriptions; grant Reader on at least one subscription before collecting"
+dry_run_header = "Would run {queries} queries across {scope} (concurrency {concurrency}); nothing was contacted or written."
+
+[cli.collect.dry_run_columns]
+name = "query"
+category = "category"
+kind = "kind"
+severity = "severity"
 
 [cli.diagram]
 large_warning = "Warning: {name}: {count} nodes — large diagrams get unreadable; consider --subscription or --resource-group scoping."
@@ -283,7 +312,6 @@ tenant_prompt = "Tenant ID"
 client_prompt = "Client (app) ID"
 secret_prompt = "Client secret (leave empty to supply via AZDOCS_CLIENT_SECRET)"
 wrote = "Wrote {path}"
-plaintext_note = "Note: the client secret is stored in plaintext. For CI or shared machines, remove it from the file and set {env} instead."
 next_step = "Next: run `azdocs check` to verify connectivity."
 
 [cli.query]
@@ -306,6 +334,7 @@ csv_written = "CSV -> {inventory} + {findings}"
 xlsx_written = "XLSX workbook -> {path}"
 pdf_written = "PDF report -> {path}"
 docx_written = "DOCX report -> {path}"
+csv_extra_written = "wrote {count} further CSV files under {path}"
 
 [cli.snapshots]
 none_yet = "No snapshots yet — run `azdocs collect` first."
@@ -314,14 +343,20 @@ created = "Created    {value}"
 tenant = "Tenant     {value}"
 status = "Status     {value}"
 tool = "Tool       azdocs {value}"
+schema = "Schema     version {value}"
+interrupted = "Interrupted {value} (collect abandoned; reconciled at open)"
 notes = "Notes      {value}"
-comparing = "Comparing {a} -> {b}\n  added: {added}\n  removed: {removed}\n  changed: {changed}"
 nothing_to_prune = "Nothing to prune."
 deleted = "Deleted {count} snapshot(s)."
+vacuumed = "Reclaimed free space."
+verify_ok = "Integrity OK."
+verify_problems = "Integrity problems:"
+reconciled = "{count} snapshot(s) were reconciled from running to failed:"
 
 [cli.snapshots.columns]
 id = "id"
 created = "created (UTC)"
+tenant = "tenant"
 status = "status"
 subscriptions = "subs"
 resources = "resources"
@@ -331,8 +366,32 @@ findings = "findings"
 query = "query"
 category = "category"
 rows = "rows"
+dropped = "dropped"
 ms = "ms"
 error = "error"
+
+[cli.snapshots.diff]
+summary = "Comparing {a} -> {b}: {added} added, {removed} removed, {changed} changed ({fields} field changes); {new_findings} new findings, {resolved} resolved"
+no_changes = "No changes."
+section_resources = "Resources"
+section_findings = "Findings"
+section_edges = "Relationships"
+section_scope = "Subscriptions and resource groups"
+added = "added"
+removed = "removed"
+changed = "changed"
+new_finding = "new"
+resolved = "resolved"
+
+[cli.snapshots.diff.columns]
+change = "change"
+resource = "resource"
+field = "field"
+before = "before"
+after = "after"
+severity = "severity"
+check = "check"
+title = "title"
 
 [tui.panes]
 snapshots = "Snapshots"
@@ -340,13 +399,15 @@ estate = "Estate"
 resources = "Resources ({count})"
 detail = "Detail"
 findings = "Findings ({count})"
+help = "Keys (? or Esc closes)"
 
 [tui.keys]
-snapshots = "↑↓ select · Enter open · q quit"
-estate = "Tab pane · ↑↓ move · Enter drill in · / filter · f findings · s snapshots · q quit"
+snapshots = "↑↓ select · Enter open · ? help · q quit"
+estate = "Tab pane · ↑↓ move · Enter drill in · / filter · f findings · s snapshots · ? help · q quit"
+detail = "n/p next related · Enter follow · ↑↓ scroll · Esc back · ? help · q quit"
 filtering = "filter: {filter}▌ (Enter keep · Esc clear)"
 filtered = "filter: {filter} · / re-filter · Tab pane · f findings · q quit"
-findings = "↑↓ select · Enter jump to resource · Esc back · q quit"
+findings = "↑↓ select · Tab severity · Enter jump to resource · Esc back · ? help · q quit"
 
 [tui.fields]
 name = "name"
@@ -366,6 +427,10 @@ findings = "findings"
 
 [tui.messages]
 no_selection = "No resource selected."
+load_failed = "Could not open snapshot {id}: {error}"
+severity_filter = "severity ≥ {severity}"
+all_severities = "all severities"
+following = "▶ {name}"
 
 # ------------------------------------------------------------------- desktop --
 # The Tauri explorer. `desktop.topology.nodes` and `desktop.backend` are read
@@ -455,6 +520,8 @@ primary_navigation = "Primary navigation"
 preparing_collection = "Preparing read-only collection"
 snapshot_stored = "Snapshot stored; rebuilding estate view"
 collected = "Collected {rows} rows into a {status} snapshot."
+collection_cancelled = "Collection stopped on request; the finished queries were kept as a cancelled snapshot."
+cancel_collection = "Stop collection"
 source_note = "Azure Resource Graph · read-only"
 dismiss = "Dismiss"
 loading_title = "Opening the estate record"
@@ -471,6 +538,8 @@ status_selection = "{edges} relationships · {findings} findings"
 status_stored_relationships = "{count} stored relationships"
 status_export_ready = "{id} · ready for offline export"
 status_no_selection = "No resource selected"
+version = "v{version}"
+shortcuts = "Keyboard shortcuts"
 
 [desktop.errors]
 generic = "Something went wrong."
@@ -479,6 +548,7 @@ generic = "Something went wrong."
 open_database_title = "Open an azdocs SQLite database"
 sqlite_filter = "SQLite database"
 export_directory_title = "Choose an export directory"
+save_file_title = "Save file"
 preview_collecting = "Running read-only Azure queries"
 preview_exporting = "Composing offline export preview"
 collect_notes = "Collected from azdocs desktop"
@@ -577,6 +647,14 @@ audit_context = "Audit context"
 query = "Query"
 category = "Category"
 snapshot = "Snapshot"
+select_aria = "Select finding"
+select_all = "Select all shown"
+selected = { one = "{count} selected", other = "{count} selected" }
+copy_ids = "Copy resource ids"
+export_csv = "Export CSV"
+copied = "Copied {count} resource ids."
+csv_saved = "Saved {count} findings."
+csv_name = "findings.csv"
 
 [desktop.history]
 title = "Changes"
@@ -603,6 +681,16 @@ no_older = "There is no older snapshot to compare against."
 health = "Collection health"
 health_summary = "{succeeded} of {total} queries succeeded"
 run_detail = "{rows} rows · {ms} ms"
+fields = "Changed fields"
+field_count = { one = "{count} field", other = "{count} fields" }
+new_findings = "New findings"
+resolved_findings = "Resolved findings"
+relationships_added = "Relationships added"
+relationships_removed = "Relationships removed"
+no_field_changes = "No field-level differences were recorded."
+trend = "Snapshot trend"
+trend_note = "Usable snapshots up to the open one, oldest first."
+compare_failed = "The comparison could not be loaded: {error}"
 
 [desktop.history.kinds]
 added = "added"
@@ -639,6 +727,7 @@ row_count = { one = "{count} row", other = "{count} rows" }
 visible_of = "{visible} of "
 matching = " matching “{search}”"
 collected_in = " · collected in {ms} ms"
+rows_failed = "The stored rows could not be read: {error}. The previous table is still shown."
 
 [desktop.settings]
 title = "Settings"
@@ -670,11 +759,20 @@ none_configured = "None configured — add {key} to azdocs.toml."
 none_configured_key = "[audit] required_tags"
 active_snapshot = "Active snapshot"
 active_snapshot_detail = "Everything on screen reads from this stored observation."
+about = "About"
+about_detail = "azdocs desktop {version}. Everything on screen reads from the local SQLite snapshot; nothing here contacts Azure."
+docs = "Open documentation"
+shortcuts = "Keyboard shortcuts"
 
 [desktop.settings.theme_options]
 system = "System"
 light = "Light"
 dark = "Dark"
+
+[desktop.settings.cloud_options]
+public = "Azure (public)"
+usgov = "Azure Government"
+china = "Azure China (21Vianet)"
 
 [desktop.governance]
 title = "Governance & tags"
@@ -685,6 +783,7 @@ key_caption = "Share of the {tagged} tagged resources carrying each key. One mea
 subscription_caption = "Any tag counts here; the required-tag sweep below is stricter."
 all_clear = "Every resource carries all required tags."
 worst_caption = "Least compliant resource groups, from the {audit} audit rules."
+open_group_findings = "Findings in {group}"
 
 [desktop.estate]
 hierarchy_aria = "Estate hierarchy"
@@ -714,6 +813,28 @@ list_aria = "Resources"
 empty_title = "No resources match this view"
 empty_detail = "Clear a filter or search the whole snapshot."
 quiet = "Quiet"
+tag_filter_aria = "Filter by tag key"
+all_tags = "Any tag"
+tag_value_aria = "Filter by tag value"
+any_value = "Any value"
+
+[desktop.collection]
+scope = "Subscriptions"
+scope_detail = "Leave every subscription unticked to collect all the credential can see; tick some to collect only those. The list comes from the open snapshot."
+notes = "Notes"
+notes_placeholder = "Why this snapshot was taken (optional)"
+
+[desktop.shortcuts]
+title = "Keyboard shortcuts"
+close = "Close shortcuts"
+search = "Focus resource search"
+help = "Show this list"
+zoom_in = "Larger text"
+zoom_out = "Smaller text"
+zoom_reset = "Reset text size"
+escape = "Close a record, dialog or drawer"
+mod_mac = "⌘"
+mod_other = "Ctrl"
 
 [desktop.record]
 unknown_subscription = "Unknown"
@@ -732,6 +853,7 @@ context_detail = "Identity, tags, ARM identifiers, and snapshot provenance for t
 properties_title = "Resource properties"
 properties_detail = "Stored fields and collections from Azure Resource Graph."
 properties = "Properties"
+loading_properties = "Reading stored properties…"
 sku = "SKU"
 identity = "Managed identity"
 relationships_title = "Relationships"
@@ -740,6 +862,8 @@ outbound = "OUT"
 inbound = "IN"
 relationship_evidence = "Relationship evidence"
 no_relationship_rows = "No derived relationships touch this resource."
+copy_id = "Copy ARM id"
+copied = "Copied"
 
 [desktop.data_view]
 no_value = "No value stored"
@@ -774,7 +898,14 @@ resources = "{count} resources"
 choose_title = "Choose a deliverable"
 choose_detail = "Each option has one clear purpose and a stable output format."
 legend = "Export deliverable"
-advanced_note = "Need HTML, CSV, Markdown, scoped diagrams or image exports? Those specialist formats remain available in the CLI."
+advanced_note = "Need HTML, CSV, Markdown or image exports? Those specialist formats remain available in the CLI."
+scope_title = "Scope"
+scope_note = "Narrow the document to one subscription or resource group, or to findings at a severity or above. Leave everything blank for the whole estate."
+scope_subscription = "Subscription"
+scope_resource_group = "Resource group"
+scope_severity = "Findings at or above"
+scope_severity_option = "{severity} and above"
+scope_any = "All"
 run_title = "Export run"
 destination = "Output directory"
 not_selected = "Not selected"
@@ -795,6 +926,10 @@ failed = "The export could not be completed."
 incomplete = "Export did not complete."
 complete = "Export complete"
 preview_note = "Preview only — the browser workspace does not write files."
+cancel = "Stop export"
+cancelled = "Export stopped on request; the files written so far remain."
+open_folder = "Open folder"
+reveal = "Reveal"
 
 # Keyed by the preset ids in ExportsView.tsx; ids, formats and extensions
 # stay in code because they name files and CLI values.
@@ -965,8 +1100,6 @@ study_mix = "{type} is the largest recorded service type, with {count} of the gr
 study_dependency_summary = "{incoming} directed connections enter this group and {outgoing} leave it; {peerings} peerings cross its boundary. Changes to the named shared targets need coordination with their consumers. These are recorded configuration links, so application dependencies may extend beyond them."
 issue_group_scope = "{count} affected resources are in {group} ({subscription}), the largest resolved group concentration for this check."
 family_caption = "Share of recorded resources by service family. Counts include supporting infrastructure and do not measure cost or business importance."
-diagram_population = "{hosts} resources + {folded} attached"
-diagram_external = "External {type}"
 executive = "Executive assessment"
 composition = "Estate composition"
 architecture = "Architecture and dependencies"
@@ -1026,7 +1159,6 @@ group_dependencies = "Dependencies across the group boundary"
 group_dependencies_none = "No cross-group dependencies are recorded. Resource Graph does not capture every application-level connection, so this does not establish isolation."
 study_findings_heading = "Observations to follow up"
 study_findings_none = "No finding occurrences resolve to this group. Read this alongside collection coverage; it is not a clean bill of health."
-study_issue = "{title}: {count} affected resource IDs in this group. See the linked assessment for interpretation and verification steps."
 connection_focus = "{relationship}: {target} ({connections} recorded links)"
 diagram_caption = "Recorded service connections for {group}. Attached NICs and disks fold into their host where possible; repeated types are aggregated with counts. External endpoints show dependencies outside this group. Lines count observed links, not every member of an aggregate."
 network_caption = "Virtual-network peerings recorded in this snapshot. Reciprocal records are shown once; lines describe configuration, not traffic or reachability."
@@ -1053,7 +1185,6 @@ operational_questions = "Operational checks to complete"
 operational_review = "Confirm which services require central logging, verify that telemetry arrives and alerts reach an accountable team, and record the last successful restore test for each recovery-critical workload. Review retention and replication against the organisation's own recovery objectives."
 actions_intro = "Use this register to organise review work. The order preserves recorded severity, then the number of affected resources; it is not a business-impact score or an automatic remediation schedule. Establish owners and change dependencies before implementation."
 action = "Recommended review"
-action_verification = "Evidence to close the review"
 coverage_intro = "The report describes the selected stored snapshot. Successful zero-row queries, query failures and missing run evidence are different states. A completed collection does not establish that every Azure service or control was assessed."
 coverage_summary = "Snapshot status: {status}. {successful} queries have successful run records, including {empty} with zero rows; {failed} failed and {unknown} have no recorded outcome."
 coverage_missing = "No query-run evidence is available. The report cannot establish which checks completed or whether an empty result reflects successful collection."
@@ -1074,19 +1205,10 @@ reference_findings_note = "Occurrences are grouped by check, resource and record
 reference_coverage_note = "This summary distinguishes successful, empty, failed and unknown collection outcomes. The snapshot database retains provider policy and role catalogues, query rows, exact executed queries and collection scope."
 reference_scope = "Subscription / group"
 reference_occurrence_count = "Occurrences"
-reference_identity = "Resource identity"
-reference_resource_id = "Resource ID"
 reference_sku = "SKU and service plan"
 reference_auth_identity = "Managed identity"
 reference_relationships = "Resource relationships"
-reference_record_key = "Record key"
-reference_record_value = "Stored value"
-original_evidence = "Original finding evidence"
 reference_occurrences = "Findings by resource"
-reference_query_note = "Shown columns: {shown} of {total}. Values longer than 512 characters are shortened unless the value is a standalone URL; use the snapshot database or the matching data export for full values."
-full_rows = "Complete collected rows"
-full_row = "Collected row {index}"
-findings_reference = "Assessment"
 reference_available = "The optional technical reference contains key settings for every resource, grouped findings and collection coverage. Use the snapshot database and data exports for the underlying evidence."
 family_compute = "Compute and hosting"
 family_network = "Networking"
@@ -1105,14 +1227,155 @@ zones = "Zones"
 replication = "SKU or replication"
 public_network = "Public network access"
 default_action = "Default network action"
-https_only = "HTTPS only"
-minimum_tls = "Minimum TLS"
 blob_access = "Anonymous access permitted"
 identity_type = "Identity type"
 logging_targets = "Logging targets"
-retention = "Retention days"
 vault_configuration = "Vault configuration"
 showing_rows = "Showing {shown} of {total} rows; the snapshot database and data exports retain the underlying evidence."
+
+[report.assessment.checks.nsg_management_ports_open]
+title = "Management ports open to the Internet"
+observation = "The audit recorded inbound NSG rules that allow RDP (3389) or SSH (22) from any Internet source, including rules written with address and port arrays."
+significance = "Exposed management ports are the most common brute-force and credential-stuffing target on Azure. A permissive rule does not prove a listener exists behind it, but it removes the network boundary that would otherwise contain one."
+verification = "Confirm which NICs and subnets the NSG protects and whether a VM listens on the port. Replace Internet-wide rules with Bastion, just-in-time access or a source-restricted rule, then re-test the intended administrative path."
+policy = "Administrative access should terminate on a bastion or VPN, never on a public listener. Record any approved exception with its source restriction and review date."
+action = "Close management ports to the Internet"
+source = "https://learn.microsoft.com/en-us/azure/virtual-network/network-security-groups-overview"
+
+[report.assessment.checks.storage_public_network_access]
+title = "Storage accounts open to all networks"
+observation = "The audit recorded storage accounts whose public network access is enabled and whose firewall default action allows every source."
+significance = "The account accepts requests from any network; authentication, shared-key settings and container access levels still decide what those requests can do. This is the widest network posture a storage account can have."
+verification = "Review the clients that reach each account, then move to selected networks, private endpoints or trusted-service exceptions. Test the dependent workloads before changing the default action to deny."
+policy = "Storage accounts holding regulated or internal data should default to deny with explicit allowances. Public delivery accounts can stay open but should be documented as such."
+action = "Restrict storage network access"
+source = "https://learn.microsoft.com/en-us/azure/storage/common/storage-network-security"
+
+[report.assessment.checks.storage_shared_key_access]
+title = "Shared key authorisation permitted"
+observation = "The audit recorded storage accounts that still accept account-key (shared key) authorisation, including accounts where the setting was not present and therefore defaults to permitted."
+significance = "Account keys grant full data-plane access without identity, cannot be scoped and are a common leak vector in pipelines and configuration files. Disabling them forces Entra-based authorisation."
+verification = "Inventory the consumers of each account's keys and SAS tokens, migrate them to managed identities or user delegation SAS, then disable shared key access and confirm the workloads still run."
+policy = "New accounts should disable shared key access from the start. Existing accounts should carry a migration date or a documented exception."
+action = "Retire shared key authorisation"
+source = "https://learn.microsoft.com/en-us/azure/storage/common/shared-key-authorization-prevent"
+
+[report.assessment.checks.sql_weak_tls]
+title = "SQL TLS floor below 1.2"
+observation = "The audit recorded SQL servers or managed instances whose minimal TLS version explicitly permits 1.0, 1.1 or none."
+significance = "Older TLS versions have known weaknesses and are disabled by most current clients. The setting only matters for clients that would negotiate below 1.2, but it removes the guarantee that no connection does."
+verification = "Confirm no legacy client still negotiates old TLS, then raise the floor to 1.2 and re-test connectivity from every application."
+policy = "A 1.2 floor is the platform baseline; anything lower should be a documented exception with a retirement plan."
+action = "Raise the SQL TLS floor"
+source = "https://learn.microsoft.com/en-us/azure/azure-sql/database/connectivity-settings"
+
+[report.assessment.checks.sql_entra_only_auth_off]
+title = "SQL authentication still accepted"
+observation = "The audit recorded SQL servers that still accept SQL logins alongside Microsoft Entra authentication, or that have no Entra-only setting recorded."
+significance = "SQL logins are passwords stored outside the identity platform, without conditional access or MFA. Entra-only authentication removes that surface entirely."
+verification = "Identify workloads still using SQL logins, move them to managed identities or Entra service principals, then enable Entra-only authentication."
+policy = "Entra-only authentication should be the default for new servers; legacy dependencies should be listed with owners."
+action = "Move SQL access to Entra-only authentication"
+source = "https://learn.microsoft.com/en-us/azure/azure-sql/database/authentication-azure-ad-only-authentication"
+
+[report.assessment.checks.redis_insecure_transport]
+title = "Redis insecure transport"
+observation = "The audit recorded Redis caches with the non-SSL port enabled or a minimum TLS version below 1.2."
+significance = "The non-SSL port carries credentials and cached data in clear text; an old TLS floor allows weak negotiation. Neither proves a client uses them, but both keep the option open."
+verification = "Check client connection strings for port 6379 and old TLS settings, switch them to 6380 with TLS 1.2, then disable the non-SSL port."
+policy = "Caches should expose only the TLS port with a 1.2 floor; exceptions need an owner and a date."
+action = "Disable the Redis non-SSL port"
+source = "https://learn.microsoft.com/en-us/azure/azure-cache-for-redis/cache-remove-tls-10-11"
+
+[report.assessment.checks.local_auth_enabled]
+title = "Key-based local authentication permitted"
+observation = "The audit recorded Cognitive Services and AI Search accounts that still accept API keys, including accounts where the setting was not present and therefore defaults to permitted."
+significance = "API keys are long-lived, unscoped secrets that bypass conditional access. Disabling local authentication forces Entra identities and role assignments."
+verification = "Find the callers using keys, migrate them to managed identities with the appropriate data-plane roles, then disable local authentication and confirm the callers still succeed."
+policy = "AI and search endpoints handling internal data should be Entra-only; public demo endpoints may keep keys with a documented scope."
+action = "Retire API-key authentication"
+source = "https://learn.microsoft.com/en-us/azure/ai-services/authentication"
+
+[report.assessment.checks.aks_local_accounts_enabled]
+title = "AKS local accounts enabled"
+observation = "The audit recorded AKS clusters whose Kubernetes local accounts remain enabled, or where the setting was not present and therefore defaults to enabled."
+significance = "Local accounts provide a static cluster-admin credential outside Entra. With Entra integration on, they are a bypass; with it off, they are the only path and the cluster has no identity-backed access at all."
+verification = "Enable Entra integration if it is not already on, move administrators to Entra groups with Azure RBAC for Kubernetes, then disable local accounts and rotate any previously issued kubeconfig."
+policy = "Production clusters should run Entra-only access; break-glass access should be documented rather than left permanently enabled."
+action = "Disable AKS local accounts"
+source = "https://learn.microsoft.com/en-us/azure/aks/manage-local-accounts-managed-azure-ad"
+
+[report.assessment.checks.certificates_expiring]
+title = "Certificates expiring"
+observation = "The audit recorded App Service certificates that had expired, or were due to expire within 30 days of the collection time."
+significance = "An expired certificate breaks TLS for every hostname bound to it. Auto-renewal covers managed certificates, but imported and Key Vault certificates depend on someone renewing them."
+verification = "Confirm whether the certificate is still bound, whether renewal is automated, and renew or retire it before the expiry date. Re-collect afterwards to clear the observation."
+policy = "Track certificate ownership and renewal dates outside the platform; treat an expiry inside the review window as a scheduled task, not an incident."
+action = "Renew expiring certificates"
+source = "https://learn.microsoft.com/en-us/azure/app-service/configure-ssl-certificate"
+
+[report.assessment.checks.defender_unhealthy_high]
+title = "High-severity Defender recommendations"
+observation = "The audit recorded Defender for Cloud recommendations that were in an unhealthy state at high severity for the affected resource."
+significance = "Defender's own assessment already ranks these as the most consequential gaps. They are recommendations, not confirmed exploits, and depend on the plans enabled in each subscription."
+verification = "Open each recommendation in Defender for Cloud, confirm the affected resource and its remediation steps, and record exemptions where the finding is accepted."
+policy = "High-severity Defender recommendations should have an owner and a target date; exemptions should be recorded in Defender, not in a spreadsheet."
+action = "Work the high-severity Defender recommendations"
+source = "https://learn.microsoft.com/en-us/azure/defender-for-cloud/review-security-recommendations"
+
+[report.assessment.checks.defender_plan_off]
+title = "Defender plans on the Free tier"
+observation = "The audit recorded Defender for Cloud plans set to the Free tier in a subscription, meaning that workload type has no threat protection and its assessments are limited to the foundational set."
+significance = "Every other Defender observation in this report is bounded by which plans are on. A plan on the Free tier is a blind spot, not a finding of safety."
+verification = "Decide per subscription which plans the workloads warrant, enable them, and re-collect to see the assessments and alerts they produce."
+policy = "Plan coverage is a budget decision; record which plans are deliberately off and why so the gap is understood rather than rediscovered."
+action = "Review Defender plan coverage"
+source = "https://learn.microsoft.com/en-us/azure/defender-for-cloud/enable-all-plans"
+
+[report.assessment.checks.basic_sku_public_ips_and_lbs]
+title = "Retired Basic SKU networking"
+observation = "The audit recorded public IP addresses and load balancers on the Basic SKU, which Azure retired on 30 September 2025."
+significance = "Retired SKUs receive no support and may stop working at Microsoft's discretion. Basic SKUs also lack availability zones and the Standard security-by-default posture."
+verification = "Plan the migration to Standard SKU following Microsoft's upgrade guidance, which changes the default inbound posture and may need NSG rules added."
+policy = "No new Basic SKU resources should be created; existing ones need a migration owner and date."
+action = "Migrate Basic SKU networking to Standard"
+source = "https://learn.microsoft.com/en-us/azure/load-balancer/skus"
+
+[report.assessment.checks.private_dns_zones_unlinked]
+title = "Private DNS zones without links"
+observation = "The audit recorded private DNS zones linked to no virtual network."
+significance = "A zone with no links resolves nothing; it may be a leftover, a zone awaiting a link, or one used only for private-endpoint registration that has since been removed."
+verification = "Check whether a private endpoint or workload still expects the zone, link it or remove it."
+policy = "Zone ownership should be recorded alongside the private endpoints that use it."
+action = "Review unlinked private DNS zones"
+source = "https://learn.microsoft.com/en-us/azure/dns/private-dns-virtual-network-links"
+
+[report.assessment.checks.orphaned_snapshots]
+title = "Snapshots of deleted disks"
+observation = "The audit recorded disk snapshots whose source disk no longer exists in the estate."
+significance = "Such snapshots cost storage indefinitely and are rarely restorable to their original purpose. They may still be an intentional archive."
+verification = "Confirm whether the snapshot backs an image or a retention requirement; delete or move it to a documented archive otherwise."
+policy = "Snapshot retention should be a policy with a lifetime, not the default of forever."
+action = "Review orphaned snapshots"
+source = "https://learn.microsoft.com/en-us/azure/virtual-machines/snapshot-copy-managed-disk"
+
+[report.assessment.checks.route_tables_without_subnets]
+title = "Route tables without subnets"
+observation = "The audit recorded route tables associated with no subnet."
+significance = "A detached route table affects nothing; it may be a leftover from a redesign or a table prepared for a subnet not yet created."
+verification = "Confirm intent with the network owner and remove tables that no design references."
+policy = "Network artefacts should be removed with the design that created them."
+action = "Review detached route tables"
+source = "https://learn.microsoft.com/en-us/azure/virtual-network/manage-route-table"
+
+[report.assessment.checks.unused_user_assigned_identities]
+title = "Unreferenced managed identities"
+observation = "The audit recorded user-assigned managed identities that no collected resource references. Federated credentials and AKS kubelet identities are not visible to this check."
+significance = "An identity nobody uses may still hold role assignments, which is standing privilege with no consumer. It may also be used by a resource type outside the inventory."
+verification = "Check role assignments and federated credentials on each identity, confirm no workload uses it, then remove it and its assignments."
+policy = "Identities should be created with their consumer and removed with it."
+action = "Review unreferenced managed identities"
+source = "https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/overview"
 
 [report.assessment.checks.sql_public_network_access]
 title = "Database public-network configuration"
@@ -1222,6 +1485,15 @@ storage_size = "Storage size (GB)"
 retention_days = "Retention (days)"
 ingestion_mode = "Ingestion mode"
 workspace_network = "Managed virtual network"
+waf_mode = "WAF mode"
+waf_policy = "WAF policy"
+admin_user = "Admin user enabled"
+anonymous_pull = "Anonymous pull"
+next_hop_routes = "User-defined routes"
+certificate_expiry = "Certificate expiry"
+pricing_tier = "Defender plan tier"
+local_accounts = "Local accounts disabled"
+vnet_type = "Virtual network mode"
 sql_admin_auth = "Microsoft Entra-only authentication"
 
 [report.assessment.checks.web_app_https_only_disabled]
@@ -1333,6 +1605,7 @@ failure_detail = "Failure details"
 collect_again = "Collect another snapshot"
 stage_inventory = "Azure inventory"
 stage_discovery = "Domains and routes"
+stage_cancelled = "Collection stopped"
 stages = "Collection stages"
 elapsed = "Elapsed"
 finished = "Collection finished"
@@ -1872,6 +2145,8 @@ diagnostics_filter = "JSON diagnostics"
 appearance = "Appearance"
 database = "Shared database"
 field_subscriptions = "Subscription IDs"
+field_cloud = "Azure cloud"
+cloud_detail = "Sets the sign-in authority and management endpoints. Sovereign clouds need a service principal created in that cloud."
 field_concurrency = "Concurrent queries"
 field_required_tags = "Required tags"
 list_hint = "Separate values with commas or new lines. An empty subscription list means all visible subscriptions."

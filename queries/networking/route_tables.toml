@@ -1,0 +1,13 @@
+name = "route_tables"
+category = "networking"
+kind = "inventory"
+description = "Route tables with route and subnet counts and BGP propagation setting"
+kql = '''
+resources
+| where type == "microsoft.network/routetables"
+| project id, name, location, resourceGroup, subscriptionId,
+          routeCount = coalesce(array_length(properties.routes), 0),
+          subnetCount = coalesce(array_length(properties.subnets), 0),
+          disableBgpRoutePropagation = properties.disableBgpRoutePropagation
+| order by id asc
+'''

@@ -20,6 +20,25 @@ all come from the selected local snapshot.
 
 Website endpoints also have [saved screenshots](website-screenshots.md), captured automatically after desktop collection or on request. Browsing saved images stays offline.
 
+## Screens
+
+The browser preview's illustrative estate, captured at 1440×900 in both
+themes by `pnpm run screenshots` (see [browser preview](#browser-preview)).
+
+![Overview in the light theme](assets/desktop-overview-light.png)
+
+![Map in the dark theme](assets/desktop-map-dark.png)
+
+| View | Light | Dark |
+|---|---|---|
+| Overview | [light](assets/desktop-overview-light.png) | [dark](assets/desktop-overview-dark.png) |
+| Estate | [light](assets/desktop-estate-light.png) | [dark](assets/desktop-estate-dark.png) |
+| Map | [light](assets/desktop-map-light.png) | [dark](assets/desktop-map-dark.png) |
+| Inventory | [light](assets/desktop-inventory-light.png) | [dark](assets/desktop-inventory-dark.png) |
+| Findings | [light](assets/desktop-findings-light.png) | [dark](assets/desktop-findings-dark.png) |
+| Governance | [light](assets/desktop-governance-light.png) | [dark](assets/desktop-governance-dark.png) |
+| Changes | [light](assets/desktop-changes-light.png) | [dark](assets/desktop-changes-dark.png) |
+
 ## Install a release
 
 On Apple Silicon macOS:
@@ -116,24 +135,44 @@ pnpm run tauri build
   Rust post-pass edges already stored in SQLite; opening this view does not add
   API calls.
 - **Findings** orders stored audit evidence by severity and links every
-  resource-scoped result back to its resource properties.
-- **Snapshots** shows collection history, query health, and added, changed, or
-  removed resource IDs compared with the preceding snapshot.
-- **Exports** generates four outcome-led artifacts from the active snapshot:
+  resource-scoped result back to its resource properties. Tick findings to
+  copy their resource ids or save them as a CSV with the same columns as
+  `findings.csv` from the CLI. A resource record's **Review findings** and a
+  group in **Governance** open the list already narrowed to that resource or
+  group, with the same result chip the overview uses.
+- **Changes** shows collection history, query health and the comparison with
+  the preceding usable snapshot: added and removed resources, every changed
+  resource with its field-level before and after values, new and resolved
+  findings, relationships added or removed, and a trend table over the last
+  usable snapshots. Any older snapshot can be chosen as the base; if a
+  comparison fails the last good one stays on screen with the error above it.
+  The comparison is fetched after the estate has painted, so opening a large
+  snapshot never waits on it.
+- **Exports** generates four outcome-led artifacts from the active snapshot,
+  optionally scoped to one subscription, one resource group or findings at a
+  severity or above:
   the print-ready PDF Field Report, an editable Word Report, the Excel Data
   Workbook, or the Draw.io Diagram Workbook. The app deliberately omits format
   matrices and theme choice; HTML, CSV, Markdown, scoped diagrams, Mermaid,
   SVG and PNG remain available to CLI and automation users.
 
 The global search shortcut is `Cmd+K` on macOS or `Ctrl+K` on Windows and
-Linux. Every resource pane and navigation action is keyboard reachable.
+Linux; `Cmd+/` (`Ctrl+/`) lists every shortcut, as does **Settings ›
+About**; `Cmd` (`Ctrl`) with `+`, `-` and `0` scales the text between 100%
+and 150%, remembered between sessions. Every resource pane and navigation action is keyboard reachable. The
+estate explorer's type, location, tag and sort filters are remembered per
+tenant between sessions, and a resource record's ARM id copies to the
+clipboard with one click.
 
 ## Settings
 
 Settings stays available before the first collection and with missing or invalid
 configuration. To start, add a tenant, enter its directory and application IDs,
 choose a secret source, test the connection and save. **Collect snapshot** then
-collects the active tenant. Invalid fields and failures appear inside Settings;
+collects the active tenant. The collection dialog offers the subscriptions the
+open snapshot knows as an optional scope, a free-text note stored with the
+snapshot, and **Stop collection** while queries are running; a stopped run
+keeps the finished queries as a `cancelled` snapshot. Invalid fields and failures appear inside Settings;
 parse errors omit source lines that could contain secrets.
 
 - **Tenants:** search profiles, add or rename one, choose the CLI default, or
@@ -146,6 +185,8 @@ parse errors omit source lines that could contain secrets.
   to reset it; an explicit empty list replaces the shared list.
 - **Application:** choose System/Light/Dark appearance, edit the shared database
   path, load or reload the active config and export redacted diagnostics.
+  **About** shows the running version, opens the documentation and lists the
+  keyboard shortcuts.
 
 The form scrolls inside the workspace. **Save changes / Discard changes** stays
 visible beneath it, including in smaller windows. Unsaved configuration blocks
@@ -216,7 +257,10 @@ the selected deliverables; query provenance stays in the snapshot database.
 The **Exports** workspace uses a native directory picker; the selected path is
 sent to Rust only for the duration of the export. The webview receives progress
 and a sorted manifest of completed files, but it never receives general file
-system access. Existing configuration still supplies report branding, custom
+system access. **Stop export** ends a run between documents and keeps what was
+written; the receipt's **Open folder** and **Reveal** buttons ask Rust to show
+the files, and Rust only agrees for paths under a destination this session
+exported to. Existing configuration still supplies report branding, custom
 themes, logos, fonts and labels. The app's own wording comes from the same
 `[branding] labels` set, resolved for the active tenant — see
 [reference/labels.md](../reference/labels.md).
@@ -227,9 +271,21 @@ workbook. CLI users can additionally request per-VNet/per-group diagrams and
 SVG/PNG files per workbook sheet. Every export reads only the selected SQLite snapshot and does not
 contact Azure.
 
+## Window, clipboard and security
+
+The app runs as a single instance: launching it again focuses the open
+window. Window size and position are restored between launches. The clipboard
+and the file manager are reached through Rust commands rather than webview
+permissions, and the production content-security policy allows only the
+app's own origin, inline styles and data URIs; the development policy adds
+the Vite server. Only the Azure icons and fonts the app references are
+copied into its bundle.
+
 ## Browser preview
 
-`pnpm run dev` starts the web development server without Tauri. Open the local
+`pnpm run dev` starts the web development server without Tauri. With it
+running, `pnpm run screenshots` drives a local Chrome through every view in
+both themes and rewrites the pictures under `docs/usage/assets/`. Open the local
 URL printed by Vite (normally `http://127.0.0.1:1420`) in a browser. In that mode the app uses
 the canonical fixture-shaped illustrative estate and labels the toolbar
 **Illustrative workspace**. This is for responsive and visual development;

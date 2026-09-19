@@ -12,12 +12,14 @@ serde = { version = "1.0.229", features = ["derive"] }
 # bare `serde_json = "1"` that silently drops the feature.
 serde_json = { version = "1.0.151", features = ["preserve_order"] }
 thiserror = "2.0.20"
-tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "time", "sync"] }
+tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "time", "sync", "signal"] }
 
 [package]
 name = "azdocs"
 version = "0.1.1"
 edition = "2024"
+# Edition 2024, let chains and File::try_lock; CI's msrv job checks this floor still builds.
+rust-version = "1.89"
 description = "Audit, explore and document Azure estates from local SQLite snapshots"
 license = "MIT"
 repository = "https://github.com/russmckendrick/azdocs"
@@ -49,7 +51,7 @@ ratatui = "0.30.2"
 reqwest = { version = "0.13.4", default-features = false, features = ["json", "rustls", "gzip", "http2", "charset", "form"] }
 resvg = { version = "0.47", default-features = false, features = ["text", "system-fonts", "memmap-fonts"] }
 rusqlite = { version = "0.40.2", features = ["bundled", "serde_json"] }
-rust_xlsxwriter = "0.98.1"
+rust_xlsxwriter = { version = "0.98.1", features = ["chrono"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = "0.10.9"
@@ -78,6 +80,13 @@ zip = "4"
 
 # Debug-mode rasterisation is unusably slow without optimising the pixel
 # pipeline; these only affect dev builds of the named dependencies.
+# Release binaries: whole-program optimisation and symbols stripped. `panic`
+# stays `unwind` so the collector's task boundaries keep their error paths.
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+
 [profile.dev.package.tiny-skia]
 opt-level = 2
 [profile.dev.package.resvg]

@@ -42,6 +42,8 @@ export interface ScopeSelection {
 /** Exact constraints carried from a dashboard selection to its result view. */
 export interface DashboardFilter {
   subscriptionId?: string;
+  /** Lowercased group name, as the resource rows carry it. */
+  resourceGroup?: string;
   azureType?: string;
   location?: string;
   resourceIds?: string[];

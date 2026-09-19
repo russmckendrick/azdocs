@@ -1,0 +1,17 @@
+---
+source: tests/report_golden_test.rs
+assertion_line: 46
+expression: content
+---
+# Operations
+
+[← index](index.md)
+
+
+## patch_assessments
+
+VM and Arc patch assessments with pending updates, reboot status and observation time
+
+| id | resourceId | assessedAt | osType | status | securityUpdates | criticalUpdates |
+|---|---|---|---|---|---|---|
+| /patch/assessment-1 | /subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-app-01 |  | Linux | Succeeded | 2 |  |

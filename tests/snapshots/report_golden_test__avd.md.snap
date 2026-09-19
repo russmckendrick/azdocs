@@ -1,0 +1,17 @@
+---
+source: tests/report_golden_test.rs
+assertion_line: 46
+expression: content
+---
+# Avd
+
+[← index](index.md)
+
+
+## avd_host_pools
+
+Azure Virtual Desktop host pools with type, load balancing, and session limits
+
+| id | name | location | resourceGroup | subscriptionId | hostPoolType | loadBalancerType | maxSessionLimit | preferredAppGroupType |
+|---|---|---|---|---|---|---|---|---|
+| /subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.desktopvirtualization/hostpools/hp-prod | hp-prod | uksouth | rg-app | sub-prod | Pooled | BreadthFirst | 10 | Desktop |

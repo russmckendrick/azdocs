@@ -131,13 +131,20 @@ fn snapshot_diff_reports_added_removed_changed() {
 
     ingest::ingest(&store, &a.id, def, &base).unwrap();
     ingest::ingest(&store, &b.id, def, &altered).unwrap();
-    let diff = store.diff_snapshots(&a.id, &b.id).unwrap();
+    let changes = store.snapshot_changes(&a.id, &b.id).unwrap();
 
     assert_eq!(
-        (diff.added.len(), diff.removed.len(), diff.changed.len()),
+        (
+            changes.resources.added.len(),
+            changes.resources.removed.len(),
+            changes.resources.changed.len()
+        ),
         (1, 1, 1),
-        "diff: {diff:?}"
+        "changes: {changes:?}"
     );
+    let field = &changes.resources.changed[0].fields[0];
+    assert_eq!(field.path, "addressSpace.addressPrefixes.0");
+    assert_eq!(field.after, Some(json!("10.9.0.0/16")));
 }
 
 #[test]
@@ -191,7 +198,219 @@ mod end_to_end {
     use azdocs::collect::{CollectRequest, run_with_progress};
     use serde_json::json;
     use wiremock::matchers::method;
-    use wiremock::{Mock, MockServer, ResponseTemplate};
+    use wiremock::{Mock, MockServer, Request, ResponseTemplate};
+
+    fn resource(name: &str, azure_type: &str) -> serde_json::Value {
+        json!({
+            "id": format!("/subscriptions/s1/resourceGroups/rg/providers/{azure_type}/{name}"),
+            "name": name, "type": azure_type.to_lowercase(),
+            "subscriptionId": "s1", "resourceGroup": "rg",
+            "tags": {"env": "prod"}
+        })
+    }
+
+    #[tokio::test]
+    async fn unit_collect_marks_snapshot_cancelled_when_token_is_set_before_start() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "totalRecords": 0, "count": 0, "data": []
+            })))
+            .mount(&server)
+            .await;
+        let store = azdocs::store::Store::open_in_memory().unwrap();
+        let client = Arc::new(ArgClient::with_endpoint(
+            reqwest::Client::new(),
+            StaticTokenProvider("t".into()),
+            &server.uri(),
+        ));
+        let pack = azdocs::querypack::QueryPack::builtin().unwrap();
+        let cancel = azdocs::collect::CancelToken::default();
+        cancel.cancel();
+
+        let summary = run_with_progress(
+            &store,
+            client,
+            CollectRequest {
+                tenant_id: "tenant-1".into(),
+                queries: vec![pack.get("all_resources").unwrap().clone()],
+                subscriptions: vec![],
+                concurrency: 1,
+                notes: None,
+                audit: Default::default(),
+                quiet: true,
+                cancel,
+            },
+            |_| {},
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(summary.status, azdocs::model::SnapshotStatus::Cancelled);
+        assert_eq!(summary.queries_run, 0);
+        assert!(matches!(
+            store.resolve_snapshot("latest"),
+            Err(azdocs::error::StoreError::NoSnapshots)
+        ));
+        assert_eq!(
+            store.get_snapshot(&summary.snapshot_id).unwrap().status,
+            azdocs::model::SnapshotStatus::Cancelled
+        );
+    }
+
+    #[tokio::test]
+    async fn unit_collect_stops_after_the_in_flight_query_when_cancelled_mid_run() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_delay(std::time::Duration::from_millis(150))
+                    .set_body_json(json!({"totalRecords": 0, "count": 0, "data": []})),
+            )
+            .mount(&server)
+            .await;
+        let store = azdocs::store::Store::open_in_memory().unwrap();
+        let client = Arc::new(ArgClient::with_endpoint(
+            reqwest::Client::new(),
+            StaticTokenProvider("t".into()),
+            &server.uri(),
+        ));
+        let pack = azdocs::querypack::QueryPack::builtin().unwrap();
+        let queries: Vec<_> = ["all_resources", "subscriptions", "resource_groups"]
+            .iter()
+            .map(|name| pack.get(name).unwrap().clone())
+            .collect();
+        let cancel = azdocs::collect::CancelToken::default();
+        let trigger = cancel.clone();
+
+        let summary = run_with_progress(
+            &store,
+            client,
+            CollectRequest {
+                tenant_id: "tenant-1".into(),
+                queries,
+                subscriptions: vec![],
+                concurrency: 1,
+                notes: None,
+                audit: Default::default(),
+                quiet: true,
+                cancel,
+            },
+            move |progress| {
+                if progress.completed == 1 {
+                    trigger.cancel();
+                }
+            },
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(summary.status, azdocs::model::SnapshotStatus::Cancelled);
+        assert_eq!(
+            summary.queries_run, 1,
+            "stopped after the first completed query"
+        );
+        assert_eq!(store.query_runs(&summary.snapshot_id).unwrap().len(), 1);
+    }
+
+    /// Pagination, a failing sibling query, ingest, extractors and the
+    /// required-tag audit all in one run: the shape of a real collect.
+    #[tokio::test]
+    async fn unit_collect_follows_skip_token_pages_and_marks_partial_when_a_query_fails() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(|request: &Request| {
+                let body: serde_json::Value = serde_json::from_slice(&request.body).unwrap();
+                let query = body["query"].as_str().unwrap_or_default();
+                if query.contains("authorizationresources") {
+                    return ResponseTemplate::new(400).set_body_json(json!({
+                        "error": {"code": "BadRequest", "message": "no such table"}
+                    }));
+                }
+                if body["options"]["$skipToken"].is_null() {
+                    ResponseTemplate::new(200).set_body_json(json!({
+                        "totalRecords": 3, "count": 2, "$skipToken": "page-2",
+                        "data": [
+                            resource("vnet-1", "Microsoft.Network/virtualNetworks"),
+                            resource("vm-1", "Microsoft.Compute/virtualMachines"),
+                        ]
+                    }))
+                } else {
+                    ResponseTemplate::new(200).set_body_json(json!({
+                        "totalRecords": 3, "count": 1,
+                        "data": [{"id": "/subscriptions/s1/resourceGroups/rg/providers/Microsoft.Web/sites/app", "type": "microsoft.web/sites", "subscriptionId": "s1", "resourceGroup": "rg"}]
+                    }))
+                }
+            })
+            .mount(&server)
+            .await;
+        let store = azdocs::store::Store::open_in_memory().unwrap();
+        let client = Arc::new(
+            ArgClient::with_endpoint(
+                reqwest::Client::new(),
+                StaticTokenProvider("t".into()),
+                &server.uri(),
+            )
+            .with_retry_policy(azdocs::arg::RetryPolicy {
+                max_attempts: 1,
+                ..azdocs::arg::RetryPolicy::default()
+            }),
+        );
+        let pack = azdocs::querypack::QueryPack::builtin().unwrap();
+        let queries = vec![
+            pack.get("all_resources").unwrap().clone(),
+            pack.get("role_assignments").unwrap().clone(),
+        ];
+
+        let summary = run_with_progress(
+            &store,
+            client,
+            CollectRequest {
+                tenant_id: "tenant-1".into(),
+                queries,
+                subscriptions: vec![],
+                concurrency: 2,
+                notes: None,
+                audit: azdocs::config::AuditConfig {
+                    required_tags: vec!["env".into()],
+                    ..Default::default()
+                },
+                quiet: true,
+                cancel: Default::default(),
+            },
+            |_| {},
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(summary.status, azdocs::model::SnapshotStatus::Partial);
+        assert_eq!((summary.queries_run, summary.queries_failed), (2, 1));
+        // Three rows came back over two pages; one had no name and was dropped.
+        assert_eq!(store.resources(&summary.snapshot_id).unwrap().len(), 2);
+        let runs = store.query_runs(&summary.snapshot_id).unwrap();
+        let all = runs
+            .iter()
+            .find(|r| r.query_name == "all_resources")
+            .unwrap();
+        let failed = runs
+            .iter()
+            .find(|r| r.query_name == "role_assignments")
+            .unwrap();
+        assert_eq!((all.row_count, all.rows_dropped), (Some(3), Some(1)));
+        assert!(
+            failed
+                .error
+                .as_deref()
+                .unwrap_or_default()
+                .contains("BadRequest")
+        );
+        assert!(failed.provenance.is_some(), "failed runs keep provenance");
+        assert_eq!(store.findings(&summary.snapshot_id).unwrap().len(), 0);
+        assert_eq!(
+            store.resolve_snapshot("latest").unwrap(),
+            summary.snapshot_id
+        );
+    }
 
     #[tokio::test]
     async fn collect_run_stores_resources_edges_and_tag_findings() {
@@ -235,8 +454,12 @@ mod end_to_end {
                 subscriptions: vec![],
                 concurrency: 2,
                 notes: None,
-                required_tags: vec!["env".into()],
+                audit: azdocs::config::AuditConfig {
+                    required_tags: vec!["env".into()],
+                    ..Default::default()
+                },
                 quiet: true,
+                cancel: Default::default(),
             },
             |progress| updates.lock().unwrap().push(progress),
         )
@@ -322,8 +545,9 @@ async fn unit_failed_collection_preserves_the_attempted_query_and_scope() {
             subscriptions: vec!["SUB-A".into()],
             concurrency: 1,
             notes: None,
-            required_tags: vec![],
+            audit: Default::default(),
             quiet: true,
+            cancel: Default::default(),
         },
     )
     .await

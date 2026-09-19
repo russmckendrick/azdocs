@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::*;
 use crate::labels::fill;
-use crate::labels::{AssessmentLabels, CheckGuidance};
+use crate::labels::{AssessmentLabels, CheckGuidance, Labels};
 use crate::model::{EdgeKind, Resource, azure_types, azure_values};
 use crate::report::analysis::{GroupProfile, Issue, StudyReason};
 use crate::report::governance::{HEALTHY_TAG_COVERAGE_PERCENT, percent, tag_keys};
@@ -215,8 +215,334 @@ pub(super) fn build<'a>(
     issues(report, branding, blocks);
     governance(report, branding, blocks);
     microsoft_evidence(report, branding, blocks);
+    website_evidence(report, branding, blocks);
+    changes(report, branding, blocks);
     actions(report, branding, blocks);
     coverage(report, branding, blocks, true);
+}
+
+/// A printed table stops at the `[report] max_evidence_rows` cap and says
+/// so; the data exports carry the rest.
+fn capped<'a>(
+    blocks: &mut Vec<Block<'a>>,
+    columns: &[&str],
+    rows: Vec<Vec<String>>,
+    cap: usize,
+    limit_note: &str,
+) {
+    let total = rows.len();
+    table(blocks, columns, rows.into_iter().take(cap).collect());
+    if total > cap {
+        note(
+            blocks,
+            fill(limit_note, &[("shown", &cap), ("total", &total)]),
+        );
+    }
+}
+
+fn subscription_name<'a>(report: &'a ReportContext, id: &'a str) -> &'a str {
+    report
+        .analysis
+        .subscriptions
+        .get(id)
+        .map_or(id, String::as_str)
+}
+
+fn resource_row(report: &ReportContext, resource: &crate::model::diff::ResourceRef) -> Vec<String> {
+    vec![
+        resource.name.clone(),
+        azure_types::display_name(&resource.azure_type).to_owned(),
+        resource.resource_group.clone().unwrap_or_default(),
+        subscription_name(report, &resource.subscription_id).to_owned(),
+    ]
+}
+
+fn finding_row(labels: &Labels, finding: &crate::model::diff::FindingRef) -> Vec<String> {
+    vec![
+        labels
+            .common
+            .severity
+            .get(finding.severity.as_str())
+            .label
+            .clone(),
+        display_label(&finding.query_name),
+        finding.title.clone(),
+        finding.resource_id.clone().unwrap_or_default(),
+    ]
+}
+
+/// What differs from the previous usable snapshot, and the trend behind it.
+/// Absent entirely when this is the tenant's earliest snapshot.
+fn changes<'a>(
+    report: &'a ReportContext,
+    branding: &'a BrandingContext,
+    blocks: &mut Vec<Block<'a>>,
+) {
+    let Some(diff) = &report.changes else {
+        return;
+    };
+    let labels = &branding.labels;
+    let w = &labels.report.changes;
+    let c = &labels.common.columns;
+    let cap = report.limits.max_evidence_rows;
+    major_chapter(blocks, w.chapter.as_str(), true);
+    para(
+        blocks,
+        fill(
+            &w.intro,
+            &[
+                ("base", &diff.base.id),
+                ("base_date", &diff.base.created_at),
+            ],
+        ),
+    );
+    if diff.is_empty() {
+        super::empty(blocks, &w.none);
+    } else {
+        para(
+            blocks,
+            fill(
+                &w.summary,
+                &[
+                    ("added", &diff.resources.added.len()),
+                    ("removed", &diff.resources.removed.len()),
+                    ("changed", &diff.resources.changed.len()),
+                    ("fields", &diff.field_changes()),
+                    ("new_findings", &diff.findings.added.len()),
+                    ("resolved", &diff.findings.resolved.len()),
+                    ("edges_added", &diff.edges.added.len()),
+                    ("edges_removed", &diff.edges.removed.len()),
+                ],
+            ),
+        );
+    }
+    let resource_columns = [
+        c.name.as_str(),
+        c.r#type.as_str(),
+        c.resource_group.as_str(),
+        c.subscription.as_str(),
+    ];
+    for (title, rows) in [
+        (&w.added, &diff.resources.added),
+        (&w.removed, &diff.resources.removed),
+    ] {
+        if !rows.is_empty() {
+            heading(blocks, 2, title.as_str(), None);
+            capped(
+                blocks,
+                &resource_columns,
+                rows.iter().map(|r| resource_row(report, r)).collect(),
+                cap,
+                &w.row_limit,
+            );
+        }
+    }
+    if !diff.resources.changed.is_empty() {
+        heading(blocks, 2, w.changed.as_str(), None);
+        let shown = diff.resources.changed.len().min(cap);
+        for change in diff.resources.changed.iter().take(cap) {
+            heading(
+                blocks,
+                3,
+                format!(
+                    "{} ({})",
+                    change.resource.name,
+                    azure_types::display_name(&change.resource.azure_type)
+                ),
+                None,
+            );
+            capped(
+                blocks,
+                &[&c.field, &c.before, &c.after],
+                change
+                    .fields
+                    .iter()
+                    .map(|f| {
+                        vec![
+                            if f.path.is_empty() {
+                                f.field.as_str().to_owned()
+                            } else {
+                                format!("{}.{}", f.field.as_str(), f.path)
+                            },
+                            cell_to_string(f.before.as_ref()),
+                            cell_to_string(f.after.as_ref()),
+                        ]
+                    })
+                    .collect(),
+                cap,
+                &w.row_limit,
+            );
+        }
+        if diff.resources.changed.len() > shown {
+            note(
+                blocks,
+                fill(
+                    &w.row_limit,
+                    &[("shown", &shown), ("total", &diff.resources.changed.len())],
+                ),
+            );
+        }
+    }
+    let finding_columns = [
+        c.severity.as_str(),
+        c.check.as_str(),
+        c.title.as_str(),
+        c.resource.as_str(),
+    ];
+    for (title, rows) in [
+        (&w.new_findings, &diff.findings.added),
+        (&w.resolved_findings, &diff.findings.resolved),
+    ] {
+        if !rows.is_empty() {
+            heading(blocks, 2, title.as_str(), None);
+            capped(
+                blocks,
+                &finding_columns,
+                rows.iter().map(|f| finding_row(labels, f)).collect(),
+                cap,
+                &w.row_limit,
+            );
+        }
+    }
+    if !diff.edges.added.is_empty() || !diff.edges.removed.is_empty() {
+        let a = &labels.report.assessment;
+        heading(blocks, 2, w.relationships.as_str(), None);
+        let edge_rows = |marker: &str, edges: &[crate::model::diff::EdgeRef]| {
+            edges
+                .iter()
+                .map(|e| {
+                    vec![
+                        marker.to_owned(),
+                        report.analysis.display_name(&e.source_id).to_owned(),
+                        crate::model::EdgeKind::parse(&e.kind)
+                            .map(|kind| edge_label(kind, labels).to_owned())
+                            .unwrap_or_else(|| e.kind.clone()),
+                        report.analysis.display_name(&e.target_id).to_owned(),
+                    ]
+                })
+                .collect::<Vec<_>>()
+        };
+        let mut rows = edge_rows(&w.added_marker, &diff.edges.added);
+        rows.extend(edge_rows(&w.removed_marker, &diff.edges.removed));
+        capped(
+            blocks,
+            &[&c.change, &a.source, &a.relationship, &a.target],
+            rows,
+            cap,
+            &w.row_limit,
+        );
+    }
+    if !diff.subscriptions.added.is_empty()
+        || !diff.subscriptions.removed.is_empty()
+        || !diff.resource_groups.added.is_empty()
+        || !diff.resource_groups.removed.is_empty()
+    {
+        heading(blocks, 2, w.scope.as_str(), None);
+        let mut rows = Vec::new();
+        for (marker, kind, ids) in [
+            (&w.added_marker, &c.subscription, &diff.subscriptions.added),
+            (
+                &w.removed_marker,
+                &c.subscription,
+                &diff.subscriptions.removed,
+            ),
+            (
+                &w.added_marker,
+                &c.resource_group,
+                &diff.resource_groups.added,
+            ),
+            (
+                &w.removed_marker,
+                &c.resource_group,
+                &diff.resource_groups.removed,
+            ),
+        ] {
+            rows.extend(
+                ids.iter()
+                    .map(|id| vec![marker.clone(), kind.clone(), id.clone()]),
+            );
+        }
+        capped(
+            blocks,
+            &[&c.change, &c.kind, &c.name],
+            rows,
+            cap,
+            &w.row_limit,
+        );
+    }
+    if report.trend.len() > 1 {
+        heading(blocks, 2, w.trend.as_str(), None);
+        para(
+            blocks,
+            fill(&w.trend_intro, &[("count", &report.trend.len())]),
+        );
+        let sev = &labels.common.severity;
+        table(
+            blocks,
+            &[
+                &labels.common.cover.collected,
+                &c.status,
+                &c.resources,
+                &c.tagged,
+                &c.findings,
+                &sev.high.name,
+                &sev.medium.name,
+                &sev.low.name,
+                &sev.info.name,
+            ],
+            report
+                .trend
+                .iter()
+                .map(|t| {
+                    vec![
+                        t.created_at.clone(),
+                        t.status.clone(),
+                        t.resources.to_string(),
+                        t.tagged.to_string(),
+                        t.findings.to_string(),
+                        t.high.to_string(),
+                        t.medium.to_string(),
+                        t.low.to_string(),
+                        t.info.to_string(),
+                    ]
+                })
+                .collect(),
+        );
+    }
+}
+
+/// Website endpoints and whether a screenshot was saved, as a register. The
+/// technical reference carries the images beside each resource.
+fn website_evidence<'a>(
+    report: &'a ReportContext,
+    branding: &'a BrandingContext,
+    blocks: &mut Vec<Block<'a>>,
+) {
+    let labels = &branding.labels;
+    let rows = report.websites.rows(labels);
+    if rows.is_empty() {
+        return;
+    }
+    let w = &labels.common.websites;
+    let c = &labels.common.columns;
+    major_chapter(blocks, w.title.as_str(), true);
+    para(blocks, w.detail.as_str());
+    capped(
+        blocks,
+        &[&c.resource, &w.website, &c.status, &w.capture_time],
+        rows.into_iter()
+            .map(|r| {
+                vec![
+                    r.resource_name,
+                    r.target,
+                    r.status,
+                    r.captured_at.unwrap_or_default(),
+                ]
+            })
+            .collect(),
+        report.limits.max_evidence_rows,
+        &labels.report.assessment.showing_rows,
+    );
 }
 
 fn executive<'a>(
@@ -384,15 +710,7 @@ fn composition<'a>(
     );
 }
 
-fn edge_label(kind: EdgeKind, labels: &Labels) -> &str {
-    labels
-        .desktop
-        .topology
-        .edge_kinds
-        .get(kind.as_str())
-        .map(String::as_str)
-        .unwrap_or(kind.as_str())
-}
+use crate::labels::edge_label;
 
 fn architecture<'a>(
     report: &'a ReportContext,
@@ -1291,6 +1609,18 @@ fn governance<'a>(
             })
             .collect(),
     );
+    if report.governance.top_keys_total > report.governance.top_keys.len() {
+        note(
+            blocks,
+            fill(
+                &labels.common.governance.top_keys_note,
+                &[
+                    ("shown", &report.governance.top_keys.len()),
+                    ("total", &report.governance.top_keys_total),
+                ],
+            ),
+        );
+    }
     if report.governance.non_compliant == 0 {
         para(blocks, w.tag_scope_unknown.as_str());
     } else {
@@ -1317,6 +1647,18 @@ fn governance<'a>(
                 })
                 .collect(),
         );
+        if report.governance.worst_groups_total > report.governance.worst_groups.len() {
+            note(
+                blocks,
+                fill(
+                    &labels.common.governance.worst_groups_note,
+                    &[
+                        ("shown", &report.governance.worst_groups.len()),
+                        ("total", &report.governance.worst_groups_total),
+                    ],
+                ),
+            );
+        }
     }
     heading(blocks, 2, w.operations.as_str(), None);
     let a = &report.analysis;
@@ -1715,25 +2057,18 @@ fn microsoft_evidence<'a>(
     let w = &branding.labels.report.posture;
     major_chapter(blocks, w.chapter.as_str(), true);
     para(blocks, w.intro.as_str());
+    let cap = report.limits.max_evidence_rows;
     for evidence in report.posture.tables(&branding.labels) {
         heading(blocks, 2, evidence.title, None);
-        let total = evidence.rows.len();
         let headers: Vec<&str> = evidence.columns.iter().map(String::as_str).collect();
-        table(
+        capped(
             blocks,
             &headers,
-            evidence.rows.into_iter().take(20).collect(),
+            evidence.rows,
+            cap,
+            &branding.labels.report.assessment.showing_rows,
         );
         para(blocks, evidence.status);
         note(blocks, evidence.note);
-        if total > 20 {
-            note(
-                blocks,
-                fill(
-                    &branding.labels.report.assessment.showing_rows,
-                    &[("shown", &20), ("total", &total)],
-                ),
-            );
-        }
     }
 }

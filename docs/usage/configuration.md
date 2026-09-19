@@ -43,7 +43,7 @@ the config file, including database, logo and font directory paths.
 |---|---|---|
 | macOS | `~/Library/Application Support/azdocs/azdocs.toml` | `~/Library/Application Support/azdocs/azdocs.db` |
 | Linux | `~/.config/azdocs/azdocs.toml` | `~/.local/share/azdocs/azdocs.db` |
-| Windows | `%APPDATA%\azdocs\azdocs.toml` | `%APPDATA%\azdocs\azdocs.db` |
+| Windows | `%APPDATA%\azdocs\config\azdocs.toml` | `%APPDATA%\azdocs\data\azdocs.db` |
 
 ## Version 2 format
 
@@ -74,6 +74,13 @@ company = "Northwind Traders"
 subscriptions = []
 concurrency = 4
 
+[collect.retry]
+max_attempts = 5          # per request, 1–10
+base_delay_ms = 500       # first backoff; doubles per attempt
+max_delay_secs = 60       # ceiling for any wait, including Retry-After
+timeout_secs = 120        # whole-request timeout
+connect_timeout_secs = 15
+
 [audit]
 required_tags = ["environment", "owner"]
 
@@ -95,11 +102,53 @@ labels = "en"
 # font_dir = "fonts/"
 # font_family = "Acme Grotesk"
 # mono_family = "Acme Mono"
+
+[report]
+max_group_diagrams = 60
+max_figure_nodes = 6
+max_evidence_rows = 20
 ```
 
 Profile references use letters, digits, underscores or hyphens. Directory and
 application IDs must be UUIDs. Each tenant ID has one profile. Unknown keys,
-invalid colours and concurrency outside 1–64 fail validation.
+invalid colours, concurrency outside 1–64 and retry attempts outside 1–10 fail
+validation.
+
+## Sovereign clouds
+
+`cloud` selects the Azure environment and may be set as a shared default at
+the top of the file or per tenant:
+
+```toml
+cloud = "public"                  # default
+
+[tenants.federal]
+name = "Federal"
+tenant_id = "55555555-5555-4555-8555-555555555555"
+client_id = "66666666-6666-4666-8666-666666666666"
+secret_env = "AZDOCS_FEDERAL_SECRET"
+cloud = "usgov"
+```
+
+| Value | Sign-in authority | Management endpoint |
+|---|---|---|
+| `public` | `login.microsoftonline.com` | `management.azure.com` |
+| `usgov` | `login.microsoftonline.us` | `management.usgovcloudapi.net` |
+| `china` | `login.chinacloudapi.cn` | `management.chinacloudapi.cn` |
+
+The service principal must exist in that cloud's Entra tenant. Resource Graph,
+the RBAC diagnostics and the desktop's website management calls all follow the
+same setting; the desktop exposes it under **Settings → Collection**.
+
+## Retries and timeouts
+
+Every request to Entra, Resource Graph and ARM shares `[collect.retry]`.
+Transport failures (connection reset, timeout), HTTP 5xx and 429 are retried
+with exponential backoff and jitter up to `max_attempts`; a server's
+`Retry-After` is honoured but capped at `max_delay_secs`. A 4xx from the token
+endpoint or Resource Graph is a real answer and is never retried. A query that
+exhausts its attempts is recorded as failed with the last error, and the
+snapshot becomes `partial`. Tenant profiles may override the block.
 
 Shared `[collect]`, `[audit]` and `[branding]` values are defaults. Tenant
 sections override only the fields they name. Lists replace inherited lists;
@@ -108,6 +157,16 @@ sections override only the fields they name. Lists replace inherited lists;
 An omitted field inherits. Storage is always shared. In Settings, clear an
 **Overridden** checkbox to restore inheritance. Empty logo/font-directory
 overrides clear the inherited path.
+
+## Report limits
+
+`[report]` sets how much the printed formats show before pointing at the data
+exports. `max_evidence_rows` caps every evidence, change and website table in
+the PDF, DOCX, Markdown and HTML; `max_figure_nodes` is the number of boxes an
+assessment figure holds before a relationship family is split across pages;
+`max_group_diagrams` is how many resource groups the technical reference draws
+individually. Each value must be at least 1. Every cap is stated in the
+output where it applies, and the CSV and XLSX exports are never capped.
 
 ## Tenant selection
 

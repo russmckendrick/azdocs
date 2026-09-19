@@ -8,6 +8,7 @@ Run these commands from the repository root:
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
+cargo deny check                    # cargo install cargo-deny --locked
 
 cd desktop
 pnpm install --frozen-lockfile
@@ -15,6 +16,7 @@ pnpm run lint
 pnpm run typecheck
 pnpm test
 pnpm run build
+pnpm run licenses:check
 ```
 
 For CLI-only work, `cargo test --locked` and

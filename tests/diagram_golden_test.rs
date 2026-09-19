@@ -50,7 +50,7 @@ fn workbook_xml(store: &Store, id: &str) -> String {
     for named in &groups {
         sheets.push((named.sheet_name.as_str(), &named.graph));
     }
-    drawio::render_workbook_for(&sheets, DiagramDetail::Full)
+    drawio::render_workbook_for(&sheets, DiagramDetail::Full, &labels())
 }
 
 #[test]
@@ -61,7 +61,7 @@ fn mermaid_outputs_match_golden_files() {
     for (name, graph) in [
         (
             "hierarchy",
-            EstateGraph::hierarchy(&store, &id, &labels()).unwrap(),
+            EstateGraph::hierarchy(&store, &id, &DiagramScope::default(), &labels()).unwrap(),
         ),
         (
             "resources",
@@ -72,7 +72,10 @@ fn mermaid_outputs_match_golden_files() {
             EstateGraph::network(&store, &id, &scope, &labels()).unwrap(),
         ),
     ] {
-        insta::assert_snapshot!(format!("mermaid_{name}"), mermaid::render(&graph));
+        insta::assert_snapshot!(
+            format!("mermaid_{name}"),
+            mermaid::render(&graph, &labels())
+        );
     }
 }
 
@@ -84,7 +87,11 @@ fn drawio_outputs_match_golden_files() {
     for (name, graph) in [
         (
             "hierarchy",
-            EstateGraph::hierarchy(&store, &id, &labels()).unwrap(),
+            EstateGraph::hierarchy(&store, &id, &DiagramScope::default(), &labels()).unwrap(),
+        ),
+        (
+            "resources",
+            EstateGraph::resources(&store, &id, &scope, &labels()).unwrap(),
         ),
         (
             "network",
@@ -93,7 +100,7 @@ fn drawio_outputs_match_golden_files() {
     ] {
         insta::assert_snapshot!(
             format!("drawio_{name}"),
-            drawio::render_for(&graph, DiagramDetail::Full)
+            drawio::render_for(&graph, DiagramDetail::Full, &labels())
         );
     }
 }
@@ -132,6 +139,7 @@ fn drawio_xml_is_well_formed_with_unique_resolving_ids() {
     let xml = drawio::render_for(
         &EstateGraph::network(&store, &id, &scope, &labels()).unwrap(),
         DiagramDetail::Full,
+        &labels(),
     );
 
     assert_unique_resolving_ids(&xml);
@@ -160,7 +168,7 @@ fn svg_outputs_match_golden_files() {
         for (name, graph) in [
             (
                 "hierarchy",
-                EstateGraph::hierarchy(&store, &id, &labels()).unwrap(),
+                EstateGraph::hierarchy(&store, &id, &DiagramScope::default(), &labels()).unwrap(),
             ),
             (
                 "resources",
@@ -185,14 +193,18 @@ fn svg_fan_out_graphs_match_golden_files() {
         EstateGraph::per_resource_group(&store, &id, &scope, DiagramDetail::Full, &labels())
             .unwrap();
 
+    // Named groups rather than the first by slug: the AKS node group sorts
+    // ahead of rg-app, and rg-app is the picture worth reviewing.
+    let vnet = vnets.iter().find(|v| v.slug == "vnet-app").unwrap();
+    let group = groups.iter().find(|g| g.slug == "rg-app").unwrap();
     svg_insta_settings().bind(|| {
         insta::assert_snapshot!(
-            format!("svg_vnet_{}", vnets[0].slug),
-            svg::render(&vnets[0].graph, &labels())
+            format!("svg_vnet_{}", vnet.slug),
+            svg::render(&vnet.graph, &labels())
         );
         insta::assert_snapshot!(
-            format!("svg_rg_{}", groups[0].slug),
-            svg::render(&groups[0].graph, &labels())
+            format!("svg_rg_{}", group.slug),
+            svg::render(&group.graph, &labels())
         );
     });
 }
@@ -263,7 +275,7 @@ fn png_renders_every_graph_at_twice_the_svg_size() {
     let scope = DiagramScope::default();
 
     let mut graphs = vec![
-        EstateGraph::hierarchy(&store, &id, &labels()).unwrap(),
+        EstateGraph::hierarchy(&store, &id, &DiagramScope::default(), &labels()).unwrap(),
         EstateGraph::resources(&store, &id, &scope, &labels()).unwrap(),
         EstateGraph::network(&store, &id, &scope, &labels()).unwrap(),
         EstateGraph::peerings(&store, &id, &scope, &labels()).unwrap(),

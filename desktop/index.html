@@ -13,12 +13,21 @@
       // Apply a stored explicit theme before first paint so the app never
       // flashes the wrong mode; "system" leaves prefers-color-scheme in charge.
       try {
-        var theme = localStorage.getItem("azdocs-theme");
+        // preferences.ts stores JSON; a bare value from an older build still reads.
+        var read = function (key) {
+          var raw = localStorage.getItem(key);
+          try { return JSON.parse(raw); } catch (error) { return raw; }
+        };
+        var theme = read("azdocs-theme");
         if (theme === "light" || theme === "dark") {
           document.documentElement.dataset.theme = theme;
         }
+        var scale = Number(read("azdocs-ui-scale"));
+        if (scale >= 1 && scale <= 1.5) {
+          document.documentElement.style.setProperty("--ui-scale", String(scale));
+        }
       } catch (error) {
-        /* storage may be unavailable; the system preference still applies */
+        // Storage may be unavailable; the app applies preferences on load.
       }
     </script>
   </head>

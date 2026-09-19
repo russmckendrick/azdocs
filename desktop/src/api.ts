@@ -10,6 +10,7 @@ import type {
   EstateSnapshot,
   QueryDefMeta,
   QueryRows,
+  ResourceDetail,
   SnapshotComparison,
   TopologyGraph,
   TopologyRequest,
@@ -118,11 +119,66 @@ export async function compareSnapshots(
     });
   }
   await pause();
-  return (await import("./mock-data")).mockEstate.previousDiff!;
+  return (await import("./mock-data")).mockComparison;
+}
+
+/** The stored bags of one resource, read when its record opens. */
+export async function getResourceDetail(
+  snapshotId: string,
+  resourceId: string,
+): Promise<ResourceDetail | null> {
+  if (!PREVIEW || isTauri)
+    return invoke<ResourceDetail | null>("resource_detail", {
+      snapshotId,
+      resourceId,
+    });
+  await pause(120);
+  return (await import("./mock-data")).mockResourceDetails[resourceId] ?? null;
+}
+
+export async function copyText(text: string): Promise<void> {
+  if (!PREVIEW || isTauri) return invoke("copy_text", { text });
+  await navigator.clipboard?.writeText(text);
+}
+
+/** Saves text through the native picker; false when the user cancelled. */
+export async function saveTextFile(
+  suggestedName: string,
+  contents: string,
+): Promise<boolean> {
+  if (!PREVIEW || isTauri)
+    return invoke<boolean>("save_text_file", { suggestedName, contents });
+  const url = URL.createObjectURL(new Blob([contents], { type: "text/plain" }));
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = suggestedName;
+  anchor.click();
+  URL.revokeObjectURL(url);
+  return true;
+}
+
+export async function revealExportPath(path: string): Promise<void> {
+  if (!PREVIEW || isTauri) return invoke("reveal_export_path", { path });
+}
+
+export async function openExportFolder(path: string): Promise<void> {
+  if (!PREVIEW || isTauri) return invoke("open_export_folder", { path });
+}
+
+export async function openDocs(): Promise<void> {
+  if (!PREVIEW || isTauri) return invoke("open_docs");
+  window.open("https://github.com/russmckendrick/azdocs/tree/main/docs", "_blank");
+}
+
+export interface CollectOptions {
+  /** Empty means every subscription the credential can see. */
+  subscriptions: string[];
+  notes?: string;
 }
 
 export async function collectEstate(
   onUpdate: (event: CollectionEvent) => void,
+  options: CollectOptions = { subscriptions: [] },
 ): Promise<CollectResult> {
   if (PREVIEW && !isTauri) {
     const { mockEstate } = await import("./mock-data");
@@ -204,8 +260,8 @@ export async function collectEstate(
   channel.onmessage = onUpdate;
   return invoke<CollectResult>("collect_snapshot", {
     request: {
-      subscriptions: [],
-      notes: labels().desktop.dialogs.collect_notes,
+      subscriptions: options.subscriptions,
+      notes: options.notes?.trim() || labels().desktop.dialogs.collect_notes,
     },
     onEvent: channel,
   });
@@ -276,6 +332,14 @@ export async function captureWebsites(
   return invoke("capture_websites", { request, onEvent: channel });
 }
 
+export async function cancelCollect(): Promise<void> {
+  if (!PREVIEW || isTauri) await invoke("cancel_collect");
+}
+
+export async function cancelExport(): Promise<void> {
+  if (!PREVIEW || isTauri) await invoke("cancel_export");
+}
+
 export async function cancelWebsiteCapture(): Promise<void> {
   if (!PREVIEW || isTauri) await invoke("cancel_website_capture");
 }
@@ -301,7 +365,7 @@ export async function exportSnapshot(
     await pause(720);
     const outputs = (await import("./mock-data")).mockExportOutputs(request);
     onUpdate({ event: "complete", data: { outputCount: outputs.length } });
-    return { destination: request.destination, outputs };
+    return { destination: request.destination, outputs, cancelled: false };
   }
   const channel = new Channel<ExportEvent>();
   channel.onmessage = onUpdate;
@@ -355,6 +419,7 @@ export async function migrateSettings(
   reference: string,
   name: string,
 ): Promise<AppBootstrap> {
+  if (PREVIEW && !isTauri) return (await import("./mock-data")).mockBootstrap;
   return invoke("settings_migrate", { reference, name });
 }
 export async function exportSettings(): Promise<boolean> {

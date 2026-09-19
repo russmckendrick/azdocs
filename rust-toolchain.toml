@@ -1,0 +1,5 @@
+# The toolchain contributors and CI build with. `rust-version` in Cargo.toml
+# is the floor CI's msrv job checks; this pins what `cargo` picks up here.
+[toolchain]
+channel = "stable"
+components = ["rustfmt", "clippy"]

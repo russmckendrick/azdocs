@@ -4,8 +4,14 @@ use ratatui::crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
 
 use crate::error::StoreError;
 use crate::labels::TuiLabels;
-use crate::model::{Edge, Finding, Resource, ResourceGroup, Subscription};
+use crate::model::{Edge, Finding, Resource, ResourceGroup, Severity, Subscription};
 use crate::store::{SnapshotCounts, Store};
+
+/// The first characters of an id for a column; never a byte slice, which
+/// panicked on a short or non-ASCII id.
+pub fn short_id(id: &str) -> String {
+    id.chars().take(8).collect()
+}
 
 /// Which screen is active.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -58,6 +64,14 @@ pub struct App {
     pub filter: String,
     pub filtering: bool,
     pub quit: bool,
+    /// The keys overlay is open.
+    pub help: bool,
+    /// Findings at this severity or higher; None shows every severity.
+    pub severity_filter: Option<Severity>,
+    /// Which of the selected resource's relationships `Enter` would follow.
+    pub related_index: usize,
+    /// The last failure to say in the footer, e.g. a snapshot that would not open.
+    pub status: Option<String>,
     /// Every word the screens draw, resolved once at startup.
     pub labels: TuiLabels,
 }
@@ -77,11 +91,17 @@ impl App {
             filter: String::new(),
             filtering: false,
             quit: false,
+            help: false,
+            severity_filter: None,
+            related_index: 0,
+            status: None,
             labels,
         }
     }
 
     pub fn load_estate(&mut self, store: &Store, snapshot_id: &str) -> Result<(), StoreError> {
+        // An unknown id would otherwise open as an empty estate; say so instead.
+        store.get_snapshot(snapshot_id)?;
         let subscriptions = store.subscriptions(snapshot_id)?;
         let resource_groups = store.resource_groups(snapshot_id)?;
         let mut tree = Vec::new();
@@ -115,7 +135,33 @@ impl App {
         self.pane = Pane::Tree;
         self.tree_index = 0;
         self.list_index = 0;
+        self.related_index = 0;
+        self.status = None;
         Ok(())
+    }
+
+    /// Findings the severity filter keeps, in stored (severity-first) order.
+    pub fn visible_findings(&self) -> Vec<&Finding> {
+        let Some(estate) = &self.estate else {
+            return Vec::new();
+        };
+        estate
+            .findings
+            .iter()
+            .filter(|f| self.severity_filter.is_none_or(|min| f.severity <= min))
+            .collect()
+    }
+
+    /// The selected resource's relationships, source first, in stored order.
+    pub fn related_edges(&self) -> Vec<&Edge> {
+        let (Some(estate), Some(resource)) = (&self.estate, self.selected_resource()) else {
+            return Vec::new();
+        };
+        estate
+            .edges
+            .iter()
+            .filter(|e| e.source_id == resource.id || e.target_id == resource.id)
+            .collect()
     }
 
     /// Resources matching the current tree selection and filter text.
@@ -176,6 +222,9 @@ impl App {
             KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.quit = true;
             }
+            KeyCode::Char('?') => self.help = !self.help,
+            KeyCode::Esc if self.help => self.help = false,
+            _ if self.help => {}
             _ => match self.screen {
                 Screen::Snapshots => self.handle_snapshots_key(key, store),
                 Screen::Estate => self.handle_estate_key(key),
@@ -196,8 +245,13 @@ impl App {
             KeyCode::Enter => {
                 if let Some(entry) = self.snapshots.get(self.snapshot_index) {
                     let id = entry.snapshot.id.clone();
-                    // Load failures leave the picker on screen; nothing to lose.
-                    let _ = self.load_estate(store, &id);
+                    // A load failure leaves the picker on screen and says why.
+                    if let Err(error) = self.load_estate(store, &id) {
+                        self.status = Some(crate::labels::fill(
+                            &self.labels.messages.load_failed,
+                            &[("id", &short_id(&id)), ("error", &error)],
+                        ));
+                    }
                 }
             }
             _ => {}
@@ -237,9 +291,34 @@ impl App {
                     let max = self.visible_resources().len().saturating_sub(1);
                     self.list_index = (self.list_index + 1).min(max);
                     self.detail_scroll = 0;
+                    self.related_index = 0;
                 }
                 Pane::Detail => self.detail_scroll = self.detail_scroll.saturating_add(1),
             },
+            KeyCode::Char('n') if self.pane == Pane::Detail => {
+                let count = self.related_edges().len();
+                if count > 0 {
+                    self.related_index = (self.related_index + 1) % count;
+                }
+            }
+            KeyCode::Char('p') if self.pane == Pane::Detail => {
+                let count = self.related_edges().len();
+                if count > 0 {
+                    self.related_index = (self.related_index + count - 1) % count;
+                }
+            }
+            KeyCode::Enter if self.pane == Pane::Detail => {
+                // Follow the highlighted relationship to its other end.
+                let target = self.selected_resource().and_then(|resource| {
+                    self.related_edges()
+                        .get(self.related_index)
+                        .and_then(|edge| edge.other_end(&resource.id))
+                        .map(str::to_owned)
+                });
+                if let Some(target) = target {
+                    self.jump_to_resource(&target);
+                }
+            }
             KeyCode::Up | KeyCode::Char('k') => match self.pane {
                 Pane::Tree => {
                     self.tree_index = self.tree_index.saturating_sub(1);
@@ -248,6 +327,7 @@ impl App {
                 Pane::List => {
                     self.list_index = self.list_index.saturating_sub(1);
                     self.detail_scroll = 0;
+                    self.related_index = 0;
                 }
                 Pane::Detail => self.detail_scroll = self.detail_scroll.saturating_sub(1),
             },
@@ -259,7 +339,7 @@ impl App {
     }
 
     fn handle_findings_key(&mut self, key: KeyEvent) {
-        let count = self.estate.as_ref().map_or(0, |e| e.findings.len());
+        let count = self.visible_findings().len();
         match key.code {
             KeyCode::Down | KeyCode::Char('j') => {
                 self.findings_index = (self.findings_index + 1).min(count.saturating_sub(1));
@@ -267,14 +347,24 @@ impl App {
             KeyCode::Up | KeyCode::Char('k') => {
                 self.findings_index = self.findings_index.saturating_sub(1);
             }
+            // all → high → medium → low → all: each step shows that severity
+            // and everything above it.
+            KeyCode::Tab => {
+                self.severity_filter = match self.severity_filter {
+                    None => Some(Severity::High),
+                    Some(Severity::High) => Some(Severity::Medium),
+                    Some(Severity::Medium) => Some(Severity::Low),
+                    Some(Severity::Low) | Some(Severity::Info) => None,
+                };
+                self.findings_index = 0;
+            }
             KeyCode::Esc | KeyCode::Char('f') => self.screen = Screen::Estate,
             KeyCode::Enter => {
                 // Jump to the finding's resource in the estate view.
-                let target = self.estate.as_ref().and_then(|e| {
-                    e.findings
-                        .get(self.findings_index)
-                        .and_then(|f| f.resource_id.clone())
-                });
+                let target = self
+                    .visible_findings()
+                    .get(self.findings_index)
+                    .and_then(|f| f.resource_id.clone());
                 if let Some(resource_id) = target {
                     self.jump_to_resource(&resource_id);
                 }
@@ -306,6 +396,7 @@ impl App {
                 self.screen = Screen::Estate;
                 self.pane = Pane::Detail;
                 self.detail_scroll = 0;
+                self.related_index = 0;
             }
         }
     }

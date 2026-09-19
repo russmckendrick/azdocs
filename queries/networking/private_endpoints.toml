@@ -11,5 +11,5 @@ resources
           targetId = tostring(connection.properties.privateLinkServiceId),
           groupIds = connection.properties.groupIds,
           status = tostring(connection.properties.privateLinkServiceConnectionState.status)
-| order by id asc
+| order by id asc, targetId asc
 '''

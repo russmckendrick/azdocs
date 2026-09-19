@@ -22,6 +22,21 @@ pub struct WebsiteReport {
     pub captures: BTreeMap<String, WebsiteCapture>,
 }
 
+/// A website endpoint as a table row, already worded.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct WebsiteRow {
+    pub resource_id: String,
+    pub resource_name: String,
+    /// The URL, else the hostname, else the source the endpoint came from.
+    pub target: String,
+    pub status: String,
+    pub captured_at: Option<String>,
+    pub final_url: Option<String>,
+    /// Slug of the saved PNG under `websites/`, when one exists.
+    pub image: Option<String>,
+    pub error: Option<String>,
+}
+
 impl WebsiteReport {
     pub fn build(store: &Store, snapshot: &str, include_images: bool) -> Result<Self, StoreError> {
         Ok(Self {
@@ -32,6 +47,20 @@ impl WebsiteReport {
                 .map(|c| (c.url.clone(), c))
                 .collect(),
         })
+    }
+
+    /// Keep only the endpoints (and the captures they reference) of the given
+    /// resources, for a scoped report.
+    pub fn retain_resources(&mut self, resource_ids: &std::collections::HashSet<&str>) {
+        self.endpoints
+            .retain(|endpoint| resource_ids.contains(endpoint.resource_id.as_str()));
+        let referenced: BTreeSet<&str> = self
+            .endpoints
+            .iter()
+            .filter_map(|endpoint| endpoint.url.as_deref())
+            .collect();
+        self.captures
+            .retain(|url, _| referenced.contains(url.as_str()));
     }
 
     pub fn image_slug(&self, url: &str) -> String {
@@ -62,6 +91,45 @@ impl WebsiteReport {
             .iter()
             .filter(|e| resource_ids.is_none_or(|ids| ids.contains(&e.resource_id)))
             .filter(|e| seen.insert((&e.resource_id, &e.url, &e.hostname, e.status.as_str())))
+            .collect()
+    }
+
+    /// One row per website endpoint, worded for a table: the assessment, the
+    /// Markdown index and the workbook all draw this instead of reading the
+    /// endpoint and capture records themselves.
+    pub fn rows(&self, labels: &Labels) -> Vec<WebsiteRow> {
+        let words = &labels.common.websites;
+        self.entries(None)
+            .into_iter()
+            .map(|endpoint| {
+                let capture = endpoint.url.as_ref().and_then(|url| self.captures.get(url));
+                let state = capture.map(|c| c.status.as_str()).unwrap_or(
+                    if endpoint.status.as_str() == "ready" {
+                        "pending"
+                    } else {
+                        endpoint.status.as_str()
+                    },
+                );
+                let captured = capture.filter(|c| !c.png.is_empty() && c.captured_at.is_some());
+                WebsiteRow {
+                    resource_id: endpoint.resource_id.clone(),
+                    resource_name: endpoint.resource_name.clone(),
+                    target: endpoint
+                        .url
+                        .clone()
+                        .or_else(|| endpoint.hostname.clone())
+                        .unwrap_or_else(|| endpoint.source.clone()),
+                    status: words.states.get(state).unwrap_or(&words.no_image).clone(),
+                    captured_at: captured
+                        .and_then(|c| c.captured_at.as_deref())
+                        .map(print_time),
+                    final_url: capture
+                        .and_then(|c| c.final_url.clone())
+                        .filter(|url| capture.is_some_and(|c| *url != c.url)),
+                    image: captured.map(|c| self.image_slug(&c.url)),
+                    error: capture.and_then(|c| c.error.clone()),
+                }
+            })
             .collect()
     }
 

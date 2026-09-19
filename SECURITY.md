@@ -9,8 +9,21 @@ steps. Use synthetic data wherever possible and arrange a private transfer
 before sending sensitive evidence. Do not open a public issue containing an
 exploit, credential, database or customer estate details.
 
-There is no guaranteed response time or commercial support commitment. The
-project is preparing its first release; fixes are developed on `main`.
+There is no guaranteed response time or commercial support commitment.
+Fixes are developed on `main` and shipped in the next release.
+
+## Supported versions
+
+| Version | Supported |
+|---|---|
+| The latest release on GitHub Releases and the Homebrew tap | Yes: security fixes ship as a new patch or minor release |
+| Older releases | No: upgrade to the latest release |
+| `main` between releases | Best effort; it carries fixes before they are tagged |
+
+Dependencies are checked on every push by `cargo deny` (advisories, licences,
+duplicate versions and registries) and `pnpm audit`, and CLI archives carry a
+signed build-provenance attestation and an SPDX SBOM; see
+[releasing](docs/development/releasing.md#supply-chain).
 
 ## Security boundaries
 

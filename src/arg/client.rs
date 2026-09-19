@@ -3,7 +3,8 @@ use serde_json::{Value, json};
 
 use super::throttle::{RetryPolicy, quota_pause};
 use crate::auth::TokenProvider;
-use crate::error::ArgError;
+use crate::cloud::Cloud;
+use crate::error::{ArgError, AuthError};
 use crate::model::AuthorizationScope;
 
 pub const DEFAULT_ENDPOINT: &str = "https://management.azure.com";
@@ -39,8 +40,13 @@ struct QueryResponse {
 }
 
 impl<P: TokenProvider> ArgClient<P> {
+    /// The public cloud. Prefer [`ArgClient::for_cloud`] outside tests.
     pub fn new(http: reqwest::Client, tokens: P) -> Self {
         Self::with_endpoint(http, tokens, DEFAULT_ENDPOINT)
+    }
+
+    pub fn for_cloud(http: reqwest::Client, tokens: P, cloud: Cloud) -> Self {
+        Self::with_endpoint(http, tokens, cloud.endpoints().arm)
     }
 
     /// `endpoint` override exists for tests (wiremock).
@@ -139,15 +145,45 @@ impl<P: TokenProvider> ArgClient<P> {
             body["subscriptions"] = json!(subscriptions);
         }
 
-        for attempt in 0..self.retry.max_attempts {
-            let token = self.tokens.token().await?;
-            let response = self
+        // Every attempt records why it failed so exhaustion can say what
+        // actually went wrong, and whether every attempt was a 429.
+        let mut last: Option<ArgError> = None;
+        let mut only_throttled = true;
+        let attempts = self.retry.max_attempts.max(1);
+        for attempt in 0..attempts {
+            let token = match self.tokens.token().await {
+                Ok(token) => token,
+                // A token endpoint that is down is transient; a rejected
+                // credential is not and no retry will fix it.
+                Err(err @ AuthError::Rejected { .. }) => return Err(err.into()),
+                Err(err @ AuthError::InvalidResponse(_)) => return Err(err.into()),
+                Err(err) => {
+                    only_throttled = false;
+                    let wait = self.retry.backoff_delay(attempt);
+                    tracing::warn!(%err, ?wait, attempt, "token acquisition failed; retrying");
+                    last = Some(err.into());
+                    tokio::time::sleep(wait).await;
+                    continue;
+                }
+            };
+            let response = match self
                 .http
                 .post(&self.query_url)
                 .bearer_auth(token)
                 .json(&body)
                 .send()
-                .await?;
+                .await
+            {
+                Ok(response) => response,
+                Err(err) => {
+                    only_throttled = false;
+                    let wait = self.retry.backoff_delay(attempt);
+                    tracing::warn!(%err, ?wait, attempt, "ARG request failed; retrying");
+                    last = Some(ArgError::Http(err));
+                    tokio::time::sleep(wait).await;
+                    continue;
+                }
+            };
             let status = response.status();
 
             if status.is_success() {
@@ -155,6 +191,8 @@ impl<P: TokenProvider> ArgClient<P> {
                     tracing::debug!(?pause, "ARG quota exhausted; pausing before next request");
                     tokio::time::sleep(pause).await;
                 }
+                // A body that is not the documented shape is not retried:
+                // the same request would yield the same body.
                 return response
                     .json()
                     .await
@@ -164,13 +202,22 @@ impl<P: TokenProvider> ArgClient<P> {
             if status.as_u16() == 429 {
                 let wait = self.retry.retry_after(response.headers());
                 tracing::warn!(?wait, attempt, "ARG throttled (429); backing off");
+                last = Some(ArgError::Api {
+                    status: 429,
+                    detail: "throttled".into(),
+                });
                 tokio::time::sleep(wait).await;
                 continue;
             }
 
             if status.is_server_error() {
+                only_throttled = false;
                 let wait = self.retry.backoff_delay(attempt);
                 tracing::warn!(%status, ?wait, attempt, "ARG server error; retrying");
+                last = Some(ArgError::Api {
+                    status: status.as_u16(),
+                    detail: summarize_api_error(&response.text().await.unwrap_or_default()),
+                });
                 tokio::time::sleep(wait).await;
                 continue;
             }
@@ -182,8 +229,13 @@ impl<P: TokenProvider> ArgClient<P> {
             });
         }
 
-        Err(ArgError::ThrottledOut {
-            attempts: self.retry.max_attempts,
+        if only_throttled {
+            return Err(ArgError::ThrottledOut { attempts });
+        }
+        Err(ArgError::RetriesExhausted {
+            attempts,
+            // Statically infallible: every `continue` above sets `last`.
+            last: Box::new(last.expect("a failed attempt records its error")),
         })
     }
 }

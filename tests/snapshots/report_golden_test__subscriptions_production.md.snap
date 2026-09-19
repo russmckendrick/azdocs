@@ -1,5 +1,6 @@
 ---
 source: tests/report_golden_test.rs
+assertion_line: 46
 expression: content
 ---
 # Subscription: Production
@@ -8,7 +9,16 @@ expression: content
 
 - **Id**: `sub-prod`
 - **State**: Enabled
-- **Resources**: 15
+- **Resources**: 45
+
+
+## MC_rg-app_aks-prod_uksouth (UK South)
+
+[Resource details →](../resources/production/mc-rg-app-aks-prod-uksouth.md)
+
+| Name | Type | Location |
+|---|---|---|
+| aks-nodepool1-12345678-vmss | VM Scale Set | UK South |
 
 
 ## rg-app (UK South)
@@ -17,15 +27,29 @@ expression: content
 
 | Name | Type | Location |
 |---|---|---|
+| ca-api | Container App | UK South |
+| cae-prod | Container Apps Environment | UK South |
+| avset-app | Availability Set | UK South |
+| des-prod | Disk Encryption Set | UK South |
 | vm-app-01-os | Managed Disk | UK South |
 | vm-app-01 | Virtual Machine | UK South |
+| aks-prod | AKS Cluster | UK South |
+| psql-prod | PostgreSQL Flexible Server | UK South |
 | hp-prod | AVD Host Pool | UK South |
+| appi-prod | Application Insights | UK South |
+| dcr-prod | Data Collection Rule | UK South |
+| alert-cpu | Metric Alert | Global |
+| kv-prod | Key Vault | UK South |
+| agw-prod | Application Gateway | UK South |
+| wafpol-prod | Application Gateway WAF Policy | UK South |
 | pe-sql.nic.4f2a | Network Interface | UK South |
 | vm-app-01-nic | Network Interface | UK South |
 | pe-sql | Private Endpoint | UK South |
+| pip-agw | Public IP Address | UK South |
 | vm-app-01-pip | Public IP Address | UK South |
 | vnet-app | Virtual Network | UK South |
 | law-prod | Log Analytics Workspace | UK South |
+| rsv-prod | Recovery Services Vault | UK South |
 | sql-prod | SQL Server | UK South |
 | app-db | SQL Database | UK South |
 | stprodapp01 | Storage Account | UK South |
@@ -37,6 +61,21 @@ expression: content
 
 | Name | Type | Location |
 |---|---|---|
+| asg-web | Application Security Group | UK South |
+| fw-hub | Azure Firewall | UK South |
+| cn-onprem | Gateway Connection | UK South |
+| fwpol-hub | Firewall Policy | UK South |
+| lng-onprem | Local Network Gateway | UK South |
+| natgw-hub | NAT Gateway | UK South |
 | nsg-app | Network Security Group | UK South |
 | nsg-unused | Network Security Group | UK South |
+| privatelink.blob.core.windows.net | Private DNS Zone | UK South |
+| privatelink.database.windows.net | Private DNS Zone | UK South |
+| link-hub | Private DNS VNet Link | Global |
+| pip-fw | Public IP Address | UK South |
+| pip-natgw | Public IP Address | UK South |
+| pip-vgw | Public IP Address | UK South |
+| rt-shared | Route Table | UK South |
+| rt-unused | Route Table | UK South |
+| vgw-hub | Virtual Network Gateway | UK South |
 | vnet-hub | Virtual Network | UK South |

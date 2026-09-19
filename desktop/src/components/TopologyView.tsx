@@ -25,11 +25,11 @@ import { getTopology } from "../api";
 import { RESOURCE_GROUP_ICON } from "../azure-icons";
 import {
   CytoscapeResourceGraph,
-  kindClassColor,
   type GraphActivation,
   type GraphCameraMode,
   type GraphCameraRequest,
 } from "./CytoscapeResourceGraph";
+import { kindClassColor } from "./graph-tokens";
 import {
   refreshFailed,
   refreshStarted,

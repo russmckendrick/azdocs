@@ -1,6 +1,7 @@
 ---
 source: tests/diagram_golden_test.rs
-expression: "mermaid::render(&graph)"
+assertion_line: 75
+expression: "mermaid::render(&graph, &labels())"
 ---
 ---
 title: Azure resources
@@ -8,64 +9,149 @@ title: Azure resources
 flowchart LR
     subgraph n0["Development"]
         subgraph n1["rg-dev"]
-            n2["id-web-dev<br/><i>Managed Identity</i>"]
+            n2["redis-dev<br/><i>Redis Cache</i>"]
             class n2 resource
-            n3["asp-dev<br/><i>App Service Plan</i>"]
+            n3["web-dev-snap<br/><i>Disk Snapshot</i>"]
             class n3 resource
-            n4["web-dev<br/><i>App Service / Function App</i>"]
+            n4["id-unused<br/><i>Managed Identity</i>"]
             class n4 resource
+            n5["id-web-dev<br/><i>Managed Identity</i>"]
+            class n5 resource
+            n6["web-dev-cert<br/><i>App Service Certificate</i>"]
+            class n6 resource
+            n7["asp-dev<br/><i>App Service Plan</i>"]
+            class n7 resource
+            n8["web-dev<br/><i>App Service / Function App</i>"]
+            class n8 resource
         end
         class n1 rg
     end
     class n0 subscription
-    subgraph n5["Production"]
-        subgraph n6["rg-app"]
-            n7["vm-app-01-os<br/><i>Managed Disk</i>"]
-            class n7 resource
-            n8["vm-app-01<br/><i>Virtual Machine</i>"]
-            class n8 resource
-            n9["hp-prod<br/><i>AVD Host Pool</i>"]
-            class n9 resource
-            n10["pe-sql.nic.4f2a<br/><i>Network Interface</i>"]
-            class n10 resource
-            n11["vm-app-01-nic<br/><i>Network Interface</i>"]
+    subgraph n9["Production"]
+        subgraph n10["MC_rg-app_aks-prod_uksouth"]
+            n11["aks-nodepool1-12345678-vmss<br/><i>VM Scale Set</i>"]
             class n11 resource
-            n12["pe-sql<br/><i>Private Endpoint</i>"]
-            class n12 resource
-            n13["vm-app-01-pip<br/><i>Public IP Address</i>"]
+        end
+        class n10 rg
+        subgraph n12["rg-app"]
+            n13["ca-api<br/><i>Container App</i>"]
             class n13 resource
-            n14["vnet-app<br/><i>Virtual Network</i>"]
+            n14["cae-prod<br/><i>Container Apps Environment</i>"]
             class n14 resource
-            n15["law-prod<br/><i>Log Analytics Workspace</i>"]
+            n15["avset-app<br/><i>Availability Set</i>"]
             class n15 resource
-            n16["sql-prod<br/><i>SQL Server</i>"]
+            n16["des-prod<br/><i>Disk Encryption Set</i>"]
             class n16 resource
-            n17["app-db<br/><i>SQL Database</i>"]
+            n17["vm-app-01-os<br/><i>Managed Disk</i>"]
             class n17 resource
-            n18["stprodapp01<br/><i>Storage Account</i>"]
+            n18["vm-app-01<br/><i>Virtual Machine</i>"]
             class n18 resource
-        end
-        class n6 rg
-        subgraph n19["rg-network"]
-            n20["nsg-app<br/><i>Network Security Group</i>"]
+            n19["aks-prod<br/><i>AKS Cluster</i>"]
+            class n19 resource
+            n20["psql-prod<br/><i>PostgreSQL Flexible Server</i>"]
             class n20 resource
-            n21["nsg-unused<br/><i>Network Security Group</i>"]
+            n21["hp-prod<br/><i>AVD Host Pool</i>"]
             class n21 resource
-            n22["vnet-hub<br/><i>Virtual Network</i>"]
+            n22["appi-prod<br/><i>Application Insights</i>"]
             class n22 resource
+            n23["dcr-prod<br/><i>Data Collection Rule</i>"]
+            class n23 resource
+            n24["alert-cpu<br/><i>Metric Alert</i>"]
+            class n24 resource
+            n25["kv-prod<br/><i>Key Vault</i>"]
+            class n25 resource
+            n26["agw-prod<br/><i>Application Gateway</i>"]
+            class n26 resource
+            n27["wafpol-prod<br/><i>Application Gateway WAF Policy</i>"]
+            class n27 resource
+            n28["pe-sql.nic.4f2a<br/><i>Network Interface</i>"]
+            class n28 resource
+            n29["vm-app-01-nic<br/><i>Network Interface</i>"]
+            class n29 resource
+            n30["pe-sql<br/><i>Private Endpoint</i>"]
+            class n30 resource
+            n31["pip-agw<br/><i>Public IP Address</i>"]
+            class n31 resource
+            n32["vm-app-01-pip<br/><i>Public IP Address</i>"]
+            class n32 resource
+            n33["vnet-app<br/><i>Virtual Network</i>"]
+            class n33 resource
+            n34["law-prod<br/><i>Log Analytics Workspace</i>"]
+            class n34 resource
+            n35["rsv-prod<br/><i>Recovery Services Vault</i>"]
+            class n35 resource
+            n36["sql-prod<br/><i>SQL Server</i>"]
+            class n36 resource
+            n37["app-db<br/><i>SQL Database</i>"]
+            class n37 resource
+            n38["stprodapp01<br/><i>Storage Account</i>"]
+            class n38 resource
         end
-        class n19 rg
+        class n12 rg
+        subgraph n39["rg-network"]
+            n40["asg-web<br/><i>Application Security Group</i>"]
+            class n40 resource
+            n41["fw-hub<br/><i>Azure Firewall</i>"]
+            class n41 resource
+            n42["cn-onprem<br/><i>Gateway Connection</i>"]
+            class n42 resource
+            n43["fwpol-hub<br/><i>Firewall Policy</i>"]
+            class n43 resource
+            n44["lng-onprem<br/><i>Local Network Gateway</i>"]
+            class n44 resource
+            n45["natgw-hub<br/><i>NAT Gateway</i>"]
+            class n45 resource
+            n46["nsg-app<br/><i>Network Security Group</i>"]
+            class n46 resource
+            n47["nsg-unused<br/><i>Network Security Group</i>"]
+            class n47 resource
+            n48["privatelink.blob.core.windows…<br/><i>Private DNS Zone</i>"]
+            class n48 resource
+            n49["privatelink.database.windows.…<br/><i>Private DNS Zone</i>"]
+            class n49 resource
+            n50["link-hub<br/><i>Private DNS VNet Link</i>"]
+            class n50 resource
+            n51["pip-fw<br/><i>Public IP Address</i>"]
+            class n51 resource
+            n52["pip-natgw<br/><i>Public IP Address</i>"]
+            class n52 resource
+            n53["pip-vgw<br/><i>Public IP Address</i>"]
+            class n53 resource
+            n54["rt-shared<br/><i>Route Table</i>"]
+            class n54 resource
+            n55["rt-unused<br/><i>Route Table</i>"]
+            class n55 resource
+            n56["vgw-hub<br/><i>Virtual Network Gateway</i>"]
+            class n56 resource
+            n57["vnet-hub<br/><i>Virtual Network</i>"]
+            class n57 resource
+        end
+        class n39 rg
     end
-    class n5 subscription
-    n7---n8
-    n10---n12
-    n11---n8
-    n12-.-|private link|n16
-    n13---n11
-    n17---n16
+    class n9 subscription
+    n11---n19
+    n17---n18
+    n18---n15
+    n28---n30
+    n29---n18
+    n29---n26
+    n29-.-n40
+    n30-.-|private link|n36
+    n31---n26
+    n32---n29
+    n37---n36
+    n42---n44
+    n42---n56
+    n50---n49
+    n51---n41
+    n52---n45
+    n53---n56
+    linkStyle 6 stroke-dasharray:1 3
+    linkStyle 7 stroke-dasharray:1 3
     classDef subscription fill:#e8f1fa,stroke:#0078d4
     classDef rg fill:#f3f2f1,stroke:#8a8886
     classDef vnet fill:#e6f5e6,stroke:#107c10
     classDef subnet fill:#fff,stroke:#8a8886
-    classDef unnetworked fill:#fdf6ec,stroke:#d97706
+    classDef zone fill:#fdf6ec,stroke:#d97706
     classDef resource fill:#fff,stroke:#605e5c
+    classDef legend fill:#fff,stroke:#8a8886,stroke-dasharray:4 3

@@ -1,0 +1,14 @@
+name = "route_tables_without_subnets"
+category = "cost"
+kind = "finding"
+severity = "info"
+title_field = "summary"
+description = "Route tables not associated with any subnet"
+kql = '''
+resources
+| where type == "microsoft.network/routetables"
+| where coalesce(array_length(properties.subnets), 0) == 0
+| project id, name, resourceGroup, subscriptionId,
+          summary = strcat(name, " is associated with no subnet")
+| order by id asc
+'''

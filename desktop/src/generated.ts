@@ -21,13 +21,23 @@ import type {
   Labels,
 } from "./labels";
 
-export type SettingsValues = { schema_version: number, default_tenant?: string | null, tenants: { [key in string]: TenantProfile }, collect: CollectConfig, audit: AuditConfig, storage: StorageConfig, branding: BrandingConfig, };
+export type Cloud = "public" | "usgov" | "china";
 
-export type TenantProfile = { name: string, tenant_id: string, client_id: string, secret_ref?: string | null, secret_env?: string | null, collect: CollectOverrides, audit: AuditOverrides, branding: BrandingOverrides, };
+export type SettingsValues = { schema_version: number, default_tenant?: string | null,
+/**
+ * Shared cloud default; `TenantProfile.cloud` overrides it.
+ */
+cloud: Cloud, tenants: { [key in string]: TenantProfile }, collect: CollectConfig, audit: AuditConfig, storage: StorageConfig, branding: BrandingConfig, report: ReportConfig, };
 
-export type CollectOverrides = { subscriptions?: Array<string> | null, concurrency?: number | null, };
+export type TenantProfile = { name: string, tenant_id: string, client_id: string,
+/**
+ * Overrides the shared `cloud` for this tenant.
+ */
+cloud?: Cloud | null, secret_ref?: string | null, secret_env?: string | null, collect: CollectOverrides, audit: AuditOverrides, branding: BrandingOverrides, };
 
-export type AuditOverrides = { required_tags?: Array<string> | null, };
+export type CollectOverrides = { subscriptions?: Array<string> | null, concurrency?: number | null, retry?: RetryConfig | null, };
+
+export type AuditOverrides = { required_tags?: Array<string> | null, tag_resource_groups?: boolean | null, tag_subscriptions?: boolean | null, };
 
 export type BrandingOverrides = { company?: string | null, title?: string | null, subtitle?: string | null, primary_color?: string | null, accent_color?: string | null, logo?: string | null, page_size?: string | null, margin?: string | null, footer?: string | null, theme?: string | null, labels?: string | null, font_family?: string | null, mono_family?: string | null, font_dir?: string | null, };
 
@@ -35,11 +45,60 @@ export type CollectConfig = {
 /**
  * Subscription ids to collect; empty means all visible to the credential.
  */
-subscriptions: Array<string>, concurrency: number, };
+subscriptions: Array<string>, concurrency: number, retry: RetryConfig, };
 
-export type AuditConfig = { required_tags: Array<string>, };
+export type RetryConfig = {
+/**
+ * Attempts per request, 1–10.
+ */
+max_attempts: number,
+/**
+ * First backoff wait in milliseconds; doubles per attempt.
+ */
+base_delay_ms: number,
+/**
+ * Longest single wait in seconds, including a server's Retry-After.
+ */
+max_delay_secs: number,
+/**
+ * Whole-request timeout in seconds.
+ */
+timeout_secs: number,
+/**
+ * TCP/TLS connect timeout in seconds.
+ */
+connect_timeout_secs: number, };
+
+export type AuditConfig = { required_tags: Array<string>,
+/**
+ * Also require the tags on resource groups (tag-at-group is a common
+ * governance rule). On by default.
+ */
+tag_resource_groups: boolean,
+/**
+ * Also require the tags on subscriptions. Off by default: few estates
+ * tag subscriptions, and every miss would be an estate-level finding.
+ */
+tag_subscriptions: boolean, };
 
 export type StorageConfig = { db_path: string, };
+
+export type ReportConfig = {
+/**
+ * Resource groups drawn individually in the technical reference; the
+ * remainder are described without a figure.
+ */
+max_group_diagrams: number,
+/**
+ * Boxes per assessment figure before a relationship family is split
+ * across pages. The shared A4 layout keeps labels readable up to here.
+ */
+max_figure_nodes: number,
+/**
+ * Rows a printed evidence, change or website table shows before
+ * pointing at the data exports.
+ */
+max_evidence_rows: number, };
 
 export type BrandingConfig = {
 /**
@@ -129,6 +188,10 @@ export type AccessIssueKind = "identity_unavailable" | "no_subscriptions" | "ass
 
 export type AppBootstrap = { tenants: Array<TenantSummary>, activeTenantId?: string | null, configError?: string | null, databasePath: string, configPath: string, configFound: boolean, hasCredentials: boolean, requiredTags: Array<string>, snapshots: Array<SnapshotSummary>, latestSnapshotId?: string | null,
 /**
+ * The running app's version, for the About panel and the status bar.
+ */
+appVersion: string,
+/**
  * Every word the frontend shows, already resolved against the user's
  * overrides. Typed in TypeScript from `generated-labels.json`.
  */
@@ -136,7 +199,29 @@ labels: Labels, };
 
 export type SnapshotSummary = { id: string, createdAt: string, tenantId: string, status: SnapshotStatus, notes?: string | null, subscriptions: number, resources: number, findings: number, };
 
-export type SnapshotComparison = { baseSnapshotId: string, targetSnapshotId: string, added: Array<string>, removed: Array<string>, changed: Array<string>, };
+export type SnapshotComparison = { baseSnapshotId: string, targetSnapshotId: string, added: Array<string>, removed: Array<string>, changed: Array<string>,
+/**
+ * Field changes per changed resource id.
+ */
+fields: { [key in string]: Array<FieldChange> }, findingsAdded: Array<FindingRef>, findingsResolved: Array<FindingRef>, edgesAdded: Array<EdgeRef>, edgesRemoved: Array<EdgeRef>, subscriptionsAdded: Array<string>, subscriptionsRemoved: Array<string>, resourceGroupsAdded: Array<string>, resourceGroupsRemoved: Array<string>, baseCounts: ComparisonCounts, targetCounts: ComparisonCounts, };
+
+export type FieldChange = {
+/**
+ * Which stored column: `name`, `tags`, `properties`, ...
+ */
+field: string,
+/**
+ * Dotted path inside the column; empty for scalar columns.
+ */
+path: string, before: unknown, after: unknown, };
+
+export type FindingRef = { queryName: string, category: string, severity: Severity, resourceId?: string | null, title: string, };
+
+export type EdgeRef = { sourceId: string, targetId: string, kind: EdgeKind, };
+
+export type ComparisonCounts = { resources: number, findings: number, high: number, medium: number, low: number, info: number, edges: number, subscriptions: number, resourceGroups: number, };
+
+export type TrendPoint = { snapshotId: string, createdAt: string, status: SnapshotStatus, subscriptions: number, resources: number, tagged: number, findings: number, high: number, medium: number, low: number, info: number, edges: number, };
 
 export type EstateSnapshot = { id: string, createdAt: string, tenantId: string, status: SnapshotStatus, notes?: string | null, totals: Totals, tagCoverage: TagCoverage, severityCounts: SeverityCounts, azureMetadata: AzureMetadata, governance: Governance, subscriptions: Array<Subscription>, resourceGroups: Array<ResourceGroup>,
 /**
@@ -146,7 +231,17 @@ resourceGroupSummaries: Array<ResourceGroupSummary>, resources: Array<Resource>,
 /**
  * Already interpreted and labelled in Rust; the frontend only renders cells.
  */
-evidenceSummaries: Array<EvidenceTable>, previousDiff?: SnapshotComparison | null, };
+evidenceSummaries: Array<EvidenceTable>,
+/**
+ * The usable snapshot this one is compared against; None for the
+ * earliest. The comparison itself is fetched on demand with
+ * `compare_snapshots`, so opening a snapshot never waits on a diff.
+ */
+previousSnapshotId?: string | null,
+/**
+ * Usable snapshots of this tenant up to this one, oldest first.
+ */
+trend: Array<TrendPoint>, };
 
 export type Totals = { subscriptions: number, resourceGroups: number, resources: number, findings: number, };
 
@@ -166,6 +261,10 @@ distinctKeys: number,
  */
 topKeys: Array<TagKeyCoverage>,
 /**
+ * How many keys `top_keys` was cut from, so the view can say so.
+ */
+topKeysTotal: number,
+/**
  * Coverage per subscription that holds resources, by name.
  */
 subscriptions: Array<SubscriptionCoverage>,
@@ -176,7 +275,11 @@ nonCompliant: number,
 /**
  * The groups holding most of them, worst first.
  */
-worstGroups: Array<GroupCompliance>, };
+worstGroups: Array<GroupCompliance>,
+/**
+ * How many groups with misses `worst_groups` was cut from.
+ */
+worstGroupsTotal: number, };
 
 export type TagKeyCoverage = { key: string, count: number,
 /**
@@ -218,7 +321,14 @@ subscriptionName: string, resourceCount: number, findingCount: number,
  */
 resourceIds: Array<string>, };
 
-export type Resource = { id: string, displayId: string, name: string, azureType: string, kind?: string | null, location?: string | null, resourceGroup?: string | null, subscriptionId: string, tags?: Record<string, unknown>, sku?: unknown, identity?: unknown, properties?: Record<string, unknown>, findingCount: number, edgeCount: number, };
+export type Resource = { id: string, displayId: string, name: string, azureType: string, kind?: string | null, location?: string | null, resourceGroup?: string | null, subscriptionId: string, tags?: Record<string, unknown>,
+/**
+ * The heavy bags stay in SQLite until a record is opened
+ * (`resource_detail`); these say whether there is anything to fetch.
+ */
+hasSku: boolean, hasIdentity: boolean, hasProperties: boolean, findingCount: number, edgeCount: number, };
+
+export type ResourceDetail = { id: string, sku?: unknown, identity?: unknown, properties?: Record<string, unknown>, };
 
 export type ResourceType = { azureType: string, displayName: string, count: number, icon: string, color: string, };
 
@@ -333,7 +443,7 @@ export type CollectionStage = "inventory" | "discovery" | "capture";
 
 export type CollectionQueryProgress = { completed: number, total: number, rows: number, failed: number, latestQuery?: string | null, };
 
-export type CollectionEvent = { "event": "permissions", "data": { check: ConnectionCheck, } } | { "event": "stage", "data": { stage: CollectionStage, } } | { "event": "queries", "data": { progress: CollectionQueryProgress, } } | { "event": "phase", "data": { message: string, } } | { "event": "complete", "data": { snapshotId: string, } } | { "event": "failed", "data": { message: string, } } | { "event": "screenshots", "data": { progress: WebsiteProgress, } };
+export type CollectionEvent = { "event": "permissions", "data": { check: ConnectionCheck, } } | { "event": "stage", "data": { stage: CollectionStage, } } | { "event": "queries", "data": { progress: CollectionQueryProgress, } } | { "event": "phase", "data": { message: string, } } | { "event": "complete", "data": { snapshotId: string, } } | { "event": "cancelled", "data": { snapshotId: string, } } | { "event": "failed", "data": { message: string, } } | { "event": "screenshots", "data": { progress: WebsiteProgress, } };
 
 export type WebsiteState = { endpoints: Array<WebsiteEndpoint>, captures: Array<WebsiteCapture>, evidenceErrors: Array<string>, };
 
@@ -347,9 +457,19 @@ export type WebsiteProgress = { completed: number, total: number, url?: string |
 
 export type WebsiteBatchResult = { captured: number, failed: number, skipped: number, cancelled: boolean, error?: string | null, };
 
-export type ExportRequest = { includeReference?: boolean | null, snapshotId: string, destination: string, exportKind: ExportKind, formats: Array<string>, diagramType?: string | null, subscriptionId?: string | null, resourceGroup?: string | null, };
+export type ExportRequest = { includeReference?: boolean | null, snapshotId: string, destination: string, exportKind: ExportKind, formats: Array<string>, diagramType?: string | null, subscriptionId?: string | null, resourceGroup?: string | null,
+/**
+ * Reports only: keep findings at this severity or higher (a `Severity`
+ * name; validated against the CLI enum on the Rust side).
+ */
+minSeverity?: string | null, };
 
-export type ExportResult = { destination: string, outputs: Array<string>, };
+export type ExportResult = { destination: string, outputs: Array<string>,
+/**
+ * True when the run was stopped on request; `outputs` lists what was
+ * written before that.
+ */
+cancelled: boolean, };
 
-export type ExportEvent = { "event": "phase", "data": { message: string, } } | { "event": "complete", "data": { outputCount: number, } } | { "event": "failed", "data": { message: string, } };
+export type ExportEvent = { "event": "phase", "data": { message: string, } } | { "event": "complete", "data": { outputCount: number, } } | { "event": "cancelled", "data": { outputCount: number, } } | { "event": "failed", "data": { message: string, } };
 

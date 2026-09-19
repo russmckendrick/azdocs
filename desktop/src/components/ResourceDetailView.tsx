@@ -1,18 +1,21 @@
 import { WebsiteScreenshots } from "./WebsiteScreenshots";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
   ChevronRight,
   CircleDot,
+  ClipboardCopy,
   GitBranch,
   ListTree,
 } from "lucide-react";
 import { resourceIcon } from "../azure-icons";
 import { displayKind, displayLocation } from "../azure-values";
-import type { EstateSnapshot, Resource, ResourceType } from "../types";
-import { AdaptiveDataView, describeStoredValue, hasStoredValue } from "./AdaptiveDataView";
-import { plural, resourceName, spaced } from "../format";
+import type { EstateSnapshot, Resource, ResourceDetail, ResourceType } from "../types";
+import { copyText, getResourceDetail } from "../api";
+import { AdaptiveDataView } from "./AdaptiveDataView";
+import { describeStoredValue, hasStoredValue } from "./stored-values";
+import { errorMessage, plural, resourceName, spaced } from "../format";
 import { useLabels } from "../labels";
 import { EmptyState } from "./view-chrome";
 import { useEscapeKey, useResourceTypeMap } from "../estate-lookups";
@@ -43,6 +46,33 @@ export function ResourceDetailView({
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const resourceTypeMap = useResourceTypeMap(estate);
+  // The estate rows carry only flags for the heavy bags; the record reads
+  // them from SQLite when it opens, so a large snapshot loads without them.
+  const [detail, setDetail] = useState<ResourceDetail | null>();
+  const [detailError, setDetailError] = useState<string>();
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    setCopied(false);
+  }, [resource.id]);
+  useEffect(() => {
+    let active = true;
+    setDetail(undefined);
+    setDetailError(undefined);
+    if (!resource.hasProperties && !resource.hasSku && !resource.hasIdentity) {
+      setDetail(null);
+      return;
+    }
+    getResourceDetail(estate.id, resource.id)
+      .then((next) => {
+        if (active) setDetail(next);
+      })
+      .catch((caught) => {
+        if (active) setDetailError(errorMessage(caught));
+      });
+    return () => {
+      active = false;
+    };
+  }, [estate.id, resource.id, resource.hasProperties, resource.hasSku, resource.hasIdentity]);
   const { common, desktop: { record: words, topology: { edge_kinds: edgeKinds } } } = useLabels();
   const subscription = estate.subscriptions.find((item) => item.id === resource.subscriptionId);
   const resourceGroup = estate.resourceGroups.find(
@@ -112,6 +142,17 @@ export function ResourceDetailView({
             <div><dt>{common.columns.tags}</dt><dd>{tags.length}</dd></div>
           </dl>
           <div className="resource-record-actions">
+            <button
+              className="quiet-button"
+              onClick={() => {
+                copyText(resource.displayId)
+                  .then(() => setCopied(true))
+                  .catch(() => setCopied(false));
+              }}
+              title={resource.displayId}
+            >
+              <ClipboardCopy size={15} /> {copied ? words.copied : words.copy_id}
+            </button>
             {relatedFindings.length > 0 ? (
               <button className="quiet-button" onClick={onOpenFindings}>
                 <AlertTriangle size={15} /> {words.review_findings}
@@ -170,11 +211,16 @@ export function ResourceDetailView({
               <div><h2>{words.properties_title}</h2><p>{words.properties_detail}</p></div>
               <ListTree size={18} />
             </div>
-            <div className="resource-property-stack">
-              <EvidenceData label={words.properties} value={resource.properties} />
-              <EvidenceData label={words.sku} value={resource.sku} />
-              <EvidenceData label={words.identity} value={resource.identity} />
-            </div>
+            {detailError ? <p className="muted-copy risk">{detailError}</p> : null}
+            {detail === undefined && !detailError ? (
+              <p className="muted-copy" role="status">{words.loading_properties}</p>
+            ) : (
+              <div className="resource-property-stack">
+                <EvidenceData label={words.properties} value={detail?.properties} />
+                <EvidenceData label={words.sku} value={detail?.sku} />
+                <EvidenceData label={words.identity} value={detail?.identity} />
+              </div>
+            )}
           </section>
 
           <section className="resource-record-section">

@@ -1,0 +1,24 @@
+---
+source: tests/report_golden_test.rs
+assertion_line: 119
+expression: structure
+---
+Summary: 57 rows
+Inventory: 53 rows
+Findings: 36 rows
+Governance: 13 rows
+Operational evidence: 72 rows
+Locations: 4 rows
+Websites: 3 rows
+Changes: 24 rows
+Trend: 3 rows
+Query provenance: 21 rows
+avd queries: 3 rows
+compliance queries: 9 rows
+cost queries: 3 rows
+governance queries: 10 rows
+inventory queries: 4 rows
+monitoring queries: 6 rows
+networking queries: 4 rows
+operations queries: 3 rows
+resilience queries: 7 rows

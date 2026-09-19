@@ -1,5 +1,6 @@
-import { capitalise, fill, plural, preciseDateTime, resourceName } from "../format";
+import { capitalise, fill, preciseDateTime, resourceName } from "../format";
 import { labels } from "../labels";
+import { describeStoredValue } from "./stored-values";
 
 const words = () => labels().desktop.data_view;
 
@@ -53,20 +54,6 @@ function isScalarArray(value: unknown): value is unknown[] {
   return Array.isArray(value) && value.every(isScalar);
 }
 
-export function hasStoredValue(value: unknown) {
-  if (value === undefined || value === null) return false;
-  if (Array.isArray(value)) return value.length > 0;
-  if (isRecord(value)) return Object.keys(value).length > 0;
-  return true;
-}
-
-export function describeStoredValue(value: unknown) {
-  const text = words();
-  if (!hasStoredValue(value)) return text.no_value;
-  if (Array.isArray(value)) return plural(text.items, value.length);
-  if (isRecord(value)) return plural(text.fields, Object.keys(value).length);
-  return text.stored_value;
-}
 
 function humanizeKey(key: string) {
   const words = key

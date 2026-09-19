@@ -1,0 +1,18 @@
+name = "firewall_policies"
+category = "networking"
+kind = "inventory"
+description = "Azure Firewall policies with tier, threat intelligence mode, DNS proxy and rule collection group counts"
+kql = '''
+resources
+| where type == "microsoft.network/firewallpolicies"
+| project id, name, location, resourceGroup, subscriptionId,
+          tier = tostring(properties.sku.tier),
+          threatIntelMode = tostring(properties.threatIntelMode),
+          dnsProxyEnabled = properties.dnsSettings.enableProxy,
+          intrusionDetectionMode = tostring(properties.intrusionDetection.mode),
+          ruleCollectionGroupCount = coalesce(array_length(properties.ruleCollectionGroups), 0),
+          basePolicyId = tostring(properties.basePolicy.id),
+          childPolicyCount = coalesce(array_length(properties.childPolicies), 0),
+          firewallCount = coalesce(array_length(properties.firewalls), 0)
+| order by id asc
+'''
