@@ -187,7 +187,7 @@ jobs:
       # signed provenance statement tying it to this workflow run, so a
       # downloaded archive can be checked with `gh attestation verify`.
       - name: "🧾 Generate SBOM"
-        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
         with:
           path: target/${{ matrix.target }}/release/package
           format: spdx-json
@@ -195,7 +195,7 @@ jobs:
           upload-artifact: false
           upload-release-assets: false
       - name: "🔏 Attest build provenance"
-        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: ${{ matrix.archive }}
       - name: "⬆️ Upload CLI archive"
@@ -229,7 +229,7 @@ jobs:
       - name: "⚡ Restore Rust cache"
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - name: "📦 Set up pnpm"
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           version: 10
           run_install: false
@@ -344,7 +344,7 @@ jobs:
           cp "${DMG}" "${DESKTOP_DMG}"
           shasum -a 256 "${DESKTOP_DMG}" > "${DESKTOP_DMG}.sha256"
       - name: "🔏 Attest build provenance"
-        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: ${{ env.DESKTOP_DMG }}
       - name: "⬆️ Upload macOS desktop package"
@@ -380,7 +380,7 @@ jobs:
       - name: "⚡ Restore Rust cache"
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - name: "📦 Set up pnpm"
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           version: 10
           run_install: false
@@ -416,14 +416,14 @@ jobs:
         run: pnpm tauri build --bundles nsis,msi --ci --config ../output/licenses/notices.json
       - name: "🔑 Sign in to Azure for Trusted Signing"
         if: env.TRUSTED_SIGNING_ENDPOINT != ''
-        uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
         with:
           client-id: ${{ secrets.AZURE_TRUSTED_SIGNING_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TRUSTED_SIGNING_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_TRUSTED_SIGNING_SUBSCRIPTION_ID }}
       - name: "🔏 Sign installers with Azure Trusted Signing"
         if: env.TRUSTED_SIGNING_ENDPOINT != ''
-        uses: azure/trusted-signing-action@1d365fec12862c4aa68fcac418143d73f0cea293 # v0
+        uses: azure/trusted-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
         with:
           endpoint: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
           trusted-signing-account-name: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
@@ -456,7 +456,7 @@ jobs:
             "$hash  $file" | Out-File -Encoding ascii "$file.sha256"
           }
       - name: "🔏 Attest build provenance"
-        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
             ${{ env.DESKTOP_SETUP }}
@@ -503,7 +503,7 @@ jobs:
       - name: "⚡ Restore Rust cache"
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - name: "📦 Set up pnpm"
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
           version: 10
           run_install: false
@@ -551,7 +551,7 @@ jobs:
           cp "${RPM}" "azdocs-desktop-linux-${{ matrix.arch }}.rpm"
           sha256sum "azdocs-desktop-linux-${{ matrix.arch }}.AppImage" "azdocs-desktop-linux-${{ matrix.arch }}.deb" "azdocs-desktop-linux-${{ matrix.arch }}.rpm" > "azdocs-desktop-linux-${{ matrix.arch }}.sha256"
       - name: "🔏 Attest build provenance"
-        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: |
             azdocs-desktop-linux-${{ matrix.arch }}.AppImage
@@ -594,7 +594,7 @@ jobs:
           set -euo pipefail
           find . -maxdepth 1 -name '*.sha256' ! -name 'azdocs-checksums.sha256' -print0 | sort -z | xargs -0 cat > azdocs-checksums.sha256
       - name: "🎉 Create GitHub release"
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           body_path: docs/releases/${{ needs.release-metadata.outputs.version }}.md
           fail_on_unmatched_files: true
