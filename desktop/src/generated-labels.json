@@ -247,7 +247,9 @@
       "status_selection": "{edges} relationships · {findings} findings",
       "status_stored_relationships": "{count} stored relationships",
       "status_export_ready": "{id} · ready for offline export",
-      "status_no_selection": "No resource selected"
+      "status_no_selection": "No resource selected",
+      "version": "v{version}",
+      "shortcuts": "Keyboard shortcuts"
     },
     "errors": {
       "generic": "Something went wrong."
@@ -553,7 +555,18 @@
       "audit_context": "Audit context",
       "query": "Query",
       "category": "Category",
-      "snapshot": "Snapshot"
+      "snapshot": "Snapshot",
+      "select_aria": "Select finding",
+      "select_all": "Select all shown",
+      "selected": {
+        "one": "{count} selected",
+        "other": "{count} selected"
+      },
+      "copy_ids": "Copy resource ids",
+      "export_csv": "Export CSV",
+      "copied": "Copied {count} resource ids.",
+      "csv_saved": "Saved {count} findings.",
+      "csv_name": "findings.csv"
     },
     "history": {
       "title": "Changes",
@@ -580,6 +593,19 @@
       "health": "Collection health",
       "health_summary": "{succeeded} of {total} queries succeeded",
       "run_detail": "{rows} rows · {ms} ms",
+      "fields": "Changed fields",
+      "field_count": {
+        "one": "{count} field",
+        "other": "{count} fields"
+      },
+      "new_findings": "New findings",
+      "resolved_findings": "Resolved findings",
+      "relationships_added": "Relationships added",
+      "relationships_removed": "Relationships removed",
+      "no_field_changes": "No field-level differences were recorded.",
+      "trend": "Snapshot trend",
+      "trend_note": "Usable snapshots up to the open one, oldest first.",
+      "compare_failed": "The comparison could not be loaded: {error}",
       "kinds": {
         "added": "added",
         "changed": "changed",
@@ -618,7 +644,8 @@
       },
       "visible_of": "{visible} of ",
       "matching": " matching “{search}”",
-      "collected_in": " · collected in {ms} ms"
+      "collected_in": " · collected in {ms} ms",
+      "rows_failed": "The stored rows could not be read: {error}. The previous table is still shown."
     },
     "settings": {
       "editor": {
@@ -775,6 +802,10 @@
       "none_configured_key": "[audit] required_tags",
       "active_snapshot": "Active snapshot",
       "active_snapshot_detail": "Everything on screen reads from this stored observation.",
+      "about": "About",
+      "about_detail": "azdocs desktop {version}. Everything on screen reads from the local SQLite snapshot; nothing here contacts Azure.",
+      "docs": "Open documentation",
+      "shortcuts": "Keyboard shortcuts",
       "theme_options": {
         "dark": "Dark",
         "light": "Light",
@@ -794,7 +825,8 @@
       "key_caption": "Share of the {tagged} tagged resources carrying each key. One measure, one hue.",
       "subscription_caption": "Any tag counts here; the required-tag sweep below is stricter.",
       "all_clear": "Every resource carries all required tags.",
-      "worst_caption": "Least compliant resource groups, from the {audit} audit rules."
+      "worst_caption": "Least compliant resource groups, from the {audit} audit rules.",
+      "open_group_findings": "Findings in {group}"
     },
     "estate": {
       "hierarchy_aria": "Estate hierarchy",
@@ -823,7 +855,11 @@
       "list_aria": "Resources",
       "empty_title": "No resources match this view",
       "empty_detail": "Clear a filter or search the whole snapshot.",
-      "quiet": "Quiet"
+      "quiet": "Quiet",
+      "tag_filter_aria": "Filter by tag key",
+      "all_tags": "Any tag",
+      "tag_value_aria": "Filter by tag value",
+      "any_value": "Any value"
     },
     "record": {
       "unknown_subscription": "Unknown",
@@ -853,7 +889,9 @@
       "outbound": "OUT",
       "inbound": "IN",
       "relationship_evidence": "Relationship evidence",
-      "no_relationship_rows": "No derived relationships touch this resource."
+      "no_relationship_rows": "No derived relationships touch this resource.",
+      "copy_id": "Copy ARM id",
+      "copied": "Copied"
     },
     "data_view": {
       "no_value": "No value stored",
@@ -925,6 +963,10 @@
       "incomplete": "Export did not complete.",
       "complete": "Export complete",
       "preview_note": "Preview only — the browser workspace does not write files.",
+      "cancel": "Stop export",
+      "cancelled": "Export stopped on request; the files written so far remain.",
+      "open_folder": "Open folder",
+      "reveal": "Reveal",
       "presets": {
         "data-workbook": {
           "label": "Data Workbook",
@@ -968,6 +1010,24 @@
         "destination_not_dir": "output destination is not a directory: {path}",
         "unsupported_kind": "unsupported export kind `{kind}`"
       }
+    },
+    "collection": {
+      "scope": "Subscriptions",
+      "scope_detail": "Leave every subscription unticked to collect all the credential can see; tick some to collect only those. The list comes from the open snapshot.",
+      "notes": "Notes",
+      "notes_placeholder": "Why this snapshot was taken (optional)"
+    },
+    "shortcuts": {
+      "title": "Keyboard shortcuts",
+      "close": "Close shortcuts",
+      "search": "Focus resource search",
+      "help": "Show this list",
+      "zoom_in": "Larger text",
+      "zoom_out": "Smaller text",
+      "zoom_reset": "Reset text size",
+      "escape": "Close a record, dialog or drawer",
+      "mod_mac": "⌘",
+      "mod_other": "Ctrl"
     }
   }
 }

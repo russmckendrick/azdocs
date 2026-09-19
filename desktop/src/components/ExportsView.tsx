@@ -7,9 +7,17 @@ import {
   FolderOpen,
   LoaderCircle,
   Network,
+  Square,
   Table2,
 } from "lucide-react";
-import { chooseExportDirectory, exportSnapshot, isTauri } from "../api";
+import {
+  cancelExport,
+  chooseExportDirectory,
+  exportSnapshot,
+  isTauri,
+  openExportFolder,
+  revealExportPath,
+} from "../api";
 import type {
   EstateSnapshot,
   ExportEvent,
@@ -48,6 +56,7 @@ export function ExportsView({ estate }: { estate: EstateSnapshot }) {
   const [destination, setDestination] = useState("");
   const words = useLabels().desktop.exports;
   const [running, setRunning] = useState(false);
+  const [stopping, setStopping] = useState(false);
   const [message, setMessage] = useState(words.choose_directory);
   const [result, setResult] = useState<ExportResult>();
   const [error, setError] = useState<string>();
@@ -94,6 +103,7 @@ export function ExportsView({ estate }: { estate: EstateSnapshot }) {
     setError(undefined);
     setMessage(words.preparing);
     try {
+      setStopping(false);
       const next = await exportSnapshot(
         {
           snapshotId: estate.id,
@@ -115,12 +125,23 @@ export function ExportsView({ estate }: { estate: EstateSnapshot }) {
         handleEvent,
       );
       setResult(next);
+      if (next.cancelled) setMessage(words.cancelled);
     } catch (caught) {
       const detail = errorMessage(caught, words.failed);
       setError(detail);
       setMessage(words.incomplete);
     } finally {
       setRunning(false);
+      setStopping(false);
+    }
+  }
+
+  async function stopExport() {
+    setStopping(true);
+    try {
+      await cancelExport();
+    } catch (caught) {
+      setError(errorMessage(caught, words.failed));
     }
   }
 
@@ -353,6 +374,16 @@ export function ExportsView({ estate }: { estate: EstateSnapshot }) {
                   preset: copy.action,
                 })}
           </button>
+          {running ? (
+            <button
+              className="quiet-button"
+              onClick={() => void stopExport()}
+              disabled={stopping}
+            >
+              <Square size={14} />
+              {words.cancel}
+            </button>
+          ) : null}
           <p
             className={error ? "export-run-status error" : "export-run-status"}
           >
@@ -364,10 +395,27 @@ export function ExportsView({ estate }: { estate: EstateSnapshot }) {
               <strong>
                 <Check size={14} /> {words.complete}
               </strong>
+              {isTauri ? (
+                <button
+                  className="quiet-button"
+                  onClick={() => void openExportFolder(result.destination)}
+                >
+                  <FolderOpen size={14} />
+                  {words.open_folder}
+                </button>
+              ) : null}
               <ul>
                 {result.outputs.map((output) => (
                   <li key={output}>
                     <code title={output}>{relativeOutput(result, output)}</code>
+                    {isTauri ? (
+                      <button
+                        className="text-link"
+                        onClick={() => void revealExportPath(output)}
+                      >
+                        {words.reveal}
+                      </button>
+                    ) : null}
                   </li>
                 ))}
               </ul>

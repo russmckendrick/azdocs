@@ -6,9 +6,11 @@ import {
   type ReactNode,
 } from "react";
 import {
+  BookOpen,
   Check,
   ChevronRight,
   FolderOpen,
+  Keyboard,
   LoaderCircle,
   Plus,
   Search,
@@ -38,6 +40,7 @@ import {
   migrateSettings,
   saveSettings,
   testSettings,
+  openDocs,
 } from "../api";
 import {
   effectiveTenant,
@@ -47,7 +50,7 @@ import {
   renameTenant,
   splitSettingList,
 } from "../settings-model";
-import { errorMessage } from "../format";
+import { errorMessage, fill } from "../format";
 import { useLabels } from "../labels";
 import { ViewHeading } from "./view-chrome";
 import { PermissionStatus } from "./PermissionStatus";
@@ -62,6 +65,7 @@ type Props = {
   onOpenDatabase: () => void;
   onConfigChange: (bootstrap: AppBootstrap) => Promise<void>;
   onDirtyChange: (dirty: boolean) => void;
+  onShowShortcuts: () => void;
   blocked: boolean;
 };
 const BRAND_FIELDS: Array<keyof BrandingConfig> = [
@@ -1265,6 +1269,20 @@ export function SettingsView(props: Props) {
                       ))}
                     </div>
                   </Field>
+                </section>
+                <section className="settings-section settings-about">
+                  <h2>{settings.about}</h2>
+                  <p>{fill(settings.about_detail, { version: props.bootstrap.appVersion })}</p>
+                  <div className="settings-toolbar">
+                    <button type="button" className="quiet-button" onClick={() => void openDocs()}>
+                      <BookOpen size={16} />
+                      {settings.docs}
+                    </button>
+                    <button type="button" className="quiet-button" onClick={props.onShowShortcuts}>
+                      <Keyboard size={16} />
+                      {settings.shortcuts}
+                    </button>
+                  </div>
                 </section>
                 <section className="settings-section">
                   <h2>{words.database}</h2>

@@ -1,6 +1,8 @@
 import { WebsiteContext, useWebsiteCapture } from "./website-capture";
 import { collectionFeedback } from "./collection-feedback";
 import { CollectionDialog } from "./components/CollectionDialog";
+import { ShortcutsDialog } from "./components/ShortcutsDialog";
+import { readPreference, writePreference } from "./preferences";
 import {
   lazy,
   Suspense,
@@ -12,7 +14,6 @@ import {
   useState,
 } from "react";
 import {
-  AlertTriangle,
   ChevronDown,
   FolderSearch2,
   LoaderCircle,
@@ -22,9 +23,11 @@ import {
   Search,
 } from "lucide-react";
 import {
+  cancelCollect,
   chooseDatabase,
   collectEstate,
   compareSnapshots,
+  type CollectOptions,
   getBootstrap,
   getSnapshot,
   isTauri,
@@ -59,6 +62,7 @@ import type {
 import { dayMonthTime, errorMessage, fill } from "./format";
 import { installLabels, useLabels, type Labels } from "./labels";
 import { matchesResourceSearch, useResourceTypeMap } from "./estate-lookups";
+import { ErrorStrip } from "./components/view-chrome";
 
 const TopologyView = lazy(() =>
   import("./components/TopologyView").then((module) => ({
@@ -78,15 +82,9 @@ const views: Array<{ id: Exclude<ViewId, "settings"> }> = [
   { id: "exports" },
 ];
 
-const THEME_STORAGE_KEY = "azdocs-theme";
-
 function readThemePreference(): ThemePreference {
-  try {
-    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
-    return stored === "light" || stored === "dark" ? stored : "system";
-  } catch {
-    return "system";
-  }
+  const stored = readPreference<string>("theme", "system");
+  return stored === "light" || stored === "dark" ? stored : "system";
 }
 
 function frameLabel(
@@ -122,23 +120,16 @@ function frameLabel(
 }
 
 export default function App() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    try {
-      return localStorage.getItem("azdocs-sidebar-collapsed") === "true";
-    } catch {
-      return false;
-    }
-  });
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
+    readPreference("sidebar-collapsed", false),
+  );
   function toggleSidebar() {
     setSidebarCollapsed((current) => {
-      try {
-        localStorage.setItem("azdocs-sidebar-collapsed", String(!current));
-      } catch {
-        /* The preference still applies for this session. */
-      }
+      writePreference("sidebar-collapsed", !current);
       return !current;
     });
   }
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [settingsDirty, setSettingsDirty] = useState(false);
   const snapshotRequest = useRef(0);
   const [bootstrap, setBootstrap] = useState<AppBootstrap>();
@@ -202,11 +193,7 @@ export default function App() {
     if (themePreference === "system")
       delete document.documentElement.dataset.theme;
     else document.documentElement.dataset.theme = themePreference;
-    try {
-      window.localStorage.setItem(THEME_STORAGE_KEY, themePreference);
-    } catch {
-      // Preference persistence is a convenience; the session still themes.
-    }
+    writePreference("theme", themePreference);
   }, [themePreference]);
 
   const loadSnapshot = useCallback(async (snapshotId?: string) => {
@@ -276,9 +263,13 @@ export default function App() {
 
   useEffect(() => {
     function handleShortcut(event: KeyboardEvent) {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+      if (!(event.metaKey || event.ctrlKey)) return;
+      if (event.key.toLowerCase() === "k") {
         event.preventDefault();
         searchRef.current?.focus();
+      } else if (event.key === "/") {
+        event.preventDefault();
+        setShortcutsOpen((current) => !current);
       }
     }
     window.addEventListener("keydown", handleShortcut);
@@ -385,7 +376,7 @@ export default function App() {
     }
   }
 
-  async function handleCollect() {
+  async function handleCollect(options: CollectOptions) {
     if (websites.blocked || settingsDirty) return;
     let active = true;
     setCollecting(true);
@@ -414,7 +405,7 @@ export default function App() {
         if (event.event === "cancelled")
           setCollectionMessage(shell.collection_cancelled);
         if (event.event === "failed") setCollectionMessage(event.data.message);
-      });
+      }, options);
       updateFeedback(
         result.status === "cancelled"
           ? { type: "cancel", at: Date.now() }
@@ -478,6 +469,22 @@ export default function App() {
   const openResource = useCallback((resourceId: string) => {
     dispatchNavigation({ type: "open-resource", resourceId });
   }, []);
+
+  /** Findings for one resource, through the same result chip the dashboard uses. */
+  const openResourceFindings = useCallback(
+    (resourceId: string, name: string) => {
+      setSearch("");
+      dispatchNavigation({
+        type: "open-results",
+        destination: {
+          view: "findings",
+          label: name,
+          filter: { resourceIds: [resourceId] },
+        },
+      });
+    },
+    [],
+  );
 
   const openRelationships = useCallback((resourceId: string) => {
     dispatchNavigation({ type: "open-relationships", resourceId });
@@ -751,13 +758,7 @@ export default function App() {
               </div>
             ) : null}
             {error ? (
-              <div className="error-strip" role="alert">
-                <AlertTriangle size={16} />
-                <span>{error}</span>
-                <button onClick={() => setError(undefined)}>
-                  {shell.dismiss}
-                </button>
-              </div>
+              <ErrorStrip message={error} onDismiss={() => setError(undefined)} />
             ) : null}
 
             {navigation.result &&
@@ -799,6 +800,7 @@ export default function App() {
                 onOpenDatabase={handleDatabase}
                 onConfigChange={applyConfiguration}
                 onDirtyChange={setSettingsDirty}
+                onShowShortcuts={() => setShortcutsOpen(true)}
                 blocked={websites.blocked}
               />
             ) : null}
@@ -871,7 +873,11 @@ export default function App() {
                   <GovernanceView
                     estate={estate}
                     requiredTags={bootstrap.requiredTags}
-                    onOpenFindings={() => openSection("findings")}
+                    onOpenFindings={(destination) =>
+                      destination
+                        ? openDashboardResults(destination)
+                        : openSection("findings")
+                    }
                   />
                 ) : null}
                 {view === "history" && bootstrap && !selectedResource ? (
@@ -911,7 +917,12 @@ export default function App() {
                       onOpenTopology={() =>
                         openRelationships(selectedResource.id)
                       }
-                      onOpenFindings={() => openSection("findings")}
+                      onOpenFindings={() =>
+                        openResourceFindings(
+                          selectedResource.id,
+                          selectedResource.name,
+                        )
+                      }
                     />
                   </div>
                 ) : null}
@@ -931,6 +942,14 @@ export default function App() {
           <span className="mono">
             {bootstrap?.databasePath ?? shell.status_resolving}
           </span>
+          {bootstrap ? (
+            <>
+              <span className="status-divider" />
+              <span className="mono">
+                {fill(shell.version, { version: bootstrap.appVersion })}
+              </span>
+            </>
+          ) : null}
           <span className="status-spacer" />
           <span>
             {(selectedResource ?? relationshipResource)
@@ -966,11 +985,17 @@ export default function App() {
                 })
               : undefined
           }
+          subscriptions={estate?.subscriptions ?? []}
           message={collectionMessage}
           error={collectionError}
           feedback={feedback}
           onClose={() => setCollectionOpen(false)}
-          onCollect={() => void handleCollect()}
+          onCollect={(options) => void handleCollect(options)}
+          onCancel={() => void cancelCollect()}
+        />
+        <ShortcutsDialog
+          open={shortcutsOpen}
+          onClose={() => setShortcutsOpen(false)}
         />
       </div>
     </WebsiteContext.Provider>

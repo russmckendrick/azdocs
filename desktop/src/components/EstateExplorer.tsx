@@ -8,6 +8,7 @@ import {
   Layers3,
   MapPin,
   SearchX,
+  Tag,
   X,
 } from "lucide-react";
 import { ALL_RESOURCES_ICON, RESOURCE_GROUP_ICON, SUBSCRIPTION_ICON, resourceIcon } from "../azure-icons";
@@ -18,10 +19,26 @@ import { EmptyState } from "./view-chrome";
 import { fill, fillNodes } from "../format";
 import { useLabels } from "../labels";
 import { matchesResourceSearch, useResourceTypeMap, useSubscriptionNames } from "../estate-lookups";
+import { readPreference, tenantKey, writePreference } from "../preferences";
 
 import { resourceMatchesDashboard } from "./dashboard-model";
 
 type SortKey = "name" | "type" | "location" | "findings";
+
+/** The local filters, remembered per tenant between sessions. */
+interface ExplorerFilters {
+  typeFilter: string;
+  locationFilter: string;
+  tagKey: string;
+  tagValue: string;
+  sortKey: SortKey;
+}
+
+const DEFAULT_FILTERS: ExplorerFilters = { typeFilter: "", locationFilter: "", tagKey: "", tagValue: "", sortKey: "name" };
+
+function tagText(value: unknown) {
+  return typeof value === "string" ? value : JSON.stringify(value ?? "");
+}
 
 interface EstateExplorerProps {
   dashboardFilter?: DashboardFilter;
@@ -40,9 +57,17 @@ export function EstateExplorer({
   onSelectResource,
   dashboardFilter,
 }: EstateExplorerProps) {
-  const [typeFilter, setTypeFilter] = useState("");
-  const [locationFilter, setLocationFilter] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey>("name");
+  const filtersKey = tenantKey(estate.tenantId, "explorer-filters");
+  const [filters, setFilters] = useState<ExplorerFilters>(() => ({
+    ...DEFAULT_FILTERS,
+    ...readPreference<Partial<ExplorerFilters>>(filtersKey, {}),
+  }));
+  const { typeFilter, locationFilter, tagKey, tagValue, sortKey } = filters;
+  const setFilter = (patch: Partial<ExplorerFilters>) => setFilters((current) => ({ ...current, ...patch }));
+  useEffect(() => {
+    writePreference(filtersKey, filters);
+  }, [filters, filtersKey]);
+  const [activeId, setActiveId] = useState<string>();
   const [expandedSubscriptions, setExpandedSubscriptions] = useState<Set<string>>(
     () => new Set(estate.subscriptions.length === 1 ? [estate.subscriptions[0].id] : []),
   );
@@ -59,7 +84,9 @@ export function EstateExplorer({
       const inGroup = !scope.resourceGroup || resource.resourceGroup === scope.resourceGroup;
       const hasType = !typeFilter || resource.azureType === typeFilter;
       const inLocation = !locationFilter || resource.location === locationFilter;
-      return resourceMatchesDashboard(resource, dashboardFilter) && inSubscription && inGroup && hasType && inLocation && matchesResourceSearch(resource, search, estate.azureMetadata);
+      const tags = resource.tags ?? {};
+      const hasTag = !tagKey || (tagKey in tags && (!tagValue || tagText(tags[tagKey]) === tagValue));
+      return resourceMatchesDashboard(resource, dashboardFilter) && inSubscription && inGroup && hasType && inLocation && hasTag && matchesResourceSearch(resource, search, estate.azureMetadata);
     });
     return matches.sort((a, b) => {
       if (sortKey === "findings") return b.findingCount - a.findingCount || a.name.localeCompare(b.name);
@@ -67,8 +94,16 @@ export function EstateExplorer({
       if (sortKey === "location") return (a.location ?? "").localeCompare(b.location ?? "") || a.name.localeCompare(b.name);
       return a.name.localeCompare(b.name);
     });
-  }, [dashboardFilter, estate.azureMetadata, estate.resources, locationFilter, scope, search, sortKey, typeFilter]);
-  const list = useProgressiveList(filtered, [locationFilter, scope.resourceGroup, scope.subscriptionId, search, sortKey, typeFilter]);
+  }, [dashboardFilter, estate.azureMetadata, estate.resources, locationFilter, scope, search, sortKey, tagKey, tagValue, typeFilter]);
+  const list = useProgressiveList(filtered, [locationFilter, scope.resourceGroup, scope.subscriptionId, search, sortKey, tagKey, tagValue, typeFilter]);
+  const tagKeys = useMemo(
+    () => [...new Set(estate.resources.flatMap((resource) => Object.keys(resource.tags ?? {})))].sort((a, b) => a.localeCompare(b)),
+    [estate.resources],
+  );
+  const tagValues = useMemo(
+    () => (tagKey ? [...new Set(estate.resources.flatMap((resource) => (resource.tags && tagKey in resource.tags ? [tagText(resource.tags[tagKey])] : [])))].sort((a, b) => a.localeCompare(b)) : []),
+    [estate.resources, tagKey],
+  );
   const visibleResources = list.visible;
 
   const activeScopeName = scope.resourceGroup
@@ -114,6 +149,7 @@ export function EstateExplorer({
   function focusResource(index: number) {
     const resource = visibleResources[index];
     if (!resource) return;
+    setActiveId(resource.id);
     onSelectResource(resource.id);
     const option = resourceListRef.current?.querySelector<HTMLButtonElement>(`[data-resource-index="${index}"]`);
     option?.focus();
@@ -260,7 +296,7 @@ export function EstateExplorer({
         <div className="resource-controls">
           <label>
             <Layers3 size={14} />
-            <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} aria-label={words.type_filter_aria}>
+            <select value={typeFilter} onChange={(event) => setFilter({ typeFilter: event.target.value })} aria-label={words.type_filter_aria}>
               <option value="">{words.all_types}</option>
               {estate.resourceTypes.map((type) => (
                 <option key={type.azureType} value={type.azureType}>{type.displayName} ({type.count})</option>
@@ -269,7 +305,7 @@ export function EstateExplorer({
           </label>
           <label>
             <MapPin size={14} />
-            <select value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)} aria-label={words.location_filter_aria}>
+            <select value={locationFilter} onChange={(event) => setFilter({ locationFilter: event.target.value })} aria-label={words.location_filter_aria}>
               <option value="">{words.all_locations}</option>
               {estate.locations.map((location) => (
                 <option key={location.name} value={location.name}>
@@ -278,17 +314,36 @@ export function EstateExplorer({
               ))}
             </select>
           </label>
+          {tagKeys.length > 0 ? (
+            <label className="tag-facet">
+              <Tag size={14} />
+              <select value={tagKey} onChange={(event) => setFilter({ tagKey: event.target.value, tagValue: "" })} aria-label={words.tag_filter_aria}>
+                <option value="">{words.all_tags}</option>
+                {tagKeys.map((key) => (
+                  <option key={key} value={key}>{key}</option>
+                ))}
+              </select>
+              {tagKey ? (
+                <select value={tagValue} onChange={(event) => setFilter({ tagValue: event.target.value })} aria-label={words.tag_value_aria}>
+                  <option value="">{words.any_value}</option>
+                  {tagValues.map((value) => (
+                    <option key={value} value={value}>{value}</option>
+                  ))}
+                </select>
+              ) : null}
+            </label>
+          ) : null}
           <label>
             <ArrowDownAZ size={14} />
-            <select value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)} aria-label={words.sort_aria}>
+            <select value={sortKey} onChange={(event) => setFilter({ sortKey: event.target.value as SortKey })} aria-label={words.sort_aria}>
               <option value="name">{words.sort_name}</option>
               <option value="type">{words.sort_type}</option>
               <option value="location">{words.sort_location}</option>
               <option value="findings">{words.sort_findings}</option>
             </select>
           </label>
-          {(typeFilter || locationFilter || search) ? (
-            <button className="clear-filters" onClick={() => { setTypeFilter(""); setLocationFilter(""); }}>
+          {(typeFilter || locationFilter || tagKey || search) ? (
+            <button className="clear-filters" onClick={() => setFilter({ typeFilter: "", locationFilter: "", tagKey: "", tagValue: "" })}>
               <X size={13} /> {words.clear_filters}
             </button>
           ) : null}
@@ -309,7 +364,11 @@ export function EstateExplorer({
               locationName={displayLocation(estate.azureMetadata, resource.location, words.location_global)}
               index={index}
               tabIndex={index === 0 ? 0 : -1}
-              onSelect={() => onSelectResource(resource.id)}
+              selected={activeId === resource.id}
+              onSelect={() => {
+                setActiveId(resource.id);
+                onSelectResource(resource.id);
+              }}
             />
           ))}
           {!filtered.length ? (
@@ -336,6 +395,7 @@ function ResourceRow({
   locationName,
   index,
   tabIndex,
+  selected,
   onSelect,
 }: {
   resource: Resource;
@@ -343,11 +403,12 @@ function ResourceRow({
   locationName: string;
   index: number;
   tabIndex: number;
+  selected: boolean;
   onSelect: () => void;
 }) {
   const { common, desktop: { estate: words } } = useLabels();
   return (
-    <button className="resource-row" data-resource-index={index} data-resource-id={resource.id} tabIndex={tabIndex} onClick={onSelect} role="option" aria-selected="false">
+    <button className={selected ? "resource-row selected" : "resource-row"} data-resource-index={index} data-resource-id={resource.id} tabIndex={tabIndex} onClick={onSelect} role="option" aria-selected={selected}>
       <span className="resource-identity">
         <img src={resourceIcon(type)} alt="" />
         <span>

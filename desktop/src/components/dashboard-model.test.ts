@@ -79,6 +79,15 @@ describe("dashboard evidence", () => {
       }),
     ).toBe(false);
   });
+  it("narrows resources and findings to one resource group", () => {
+    const resource = mockEstate.resources.find((item) => item.findingCount > 0 && item.resourceGroup)!;
+    const finding = mockEstate.findings.find((item) => item.resourceId === resource.id)!;
+    const filter = { subscriptionId: resource.subscriptionId, resourceGroup: resource.resourceGroup! };
+    expect(resourceMatchesDashboard(resource, filter)).toBe(true);
+    expect(resourceMatchesDashboard({ ...resource, resourceGroup: "elsewhere" }, filter)).toBe(false);
+    expect(findingMatchesDashboard(finding, mockEstate, filter)).toBe(true);
+    expect(findingMatchesDashboard({ ...finding, resourceId: null }, mockEstate, filter)).toBe(false);
+  });
   it("distinguishes a missing location from an unfiltered location", () => {
     const resource = { ...mockEstate.resources[0], location: null };
     expect(resourceMatchesDashboard(resource, { location: "" })).toBe(true);

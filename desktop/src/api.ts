@@ -170,8 +170,15 @@ export async function openDocs(): Promise<void> {
   window.open("https://github.com/russmckendrick/azdocs/tree/main/docs", "_blank");
 }
 
+export interface CollectOptions {
+  /** Empty means every subscription the credential can see. */
+  subscriptions: string[];
+  notes?: string;
+}
+
 export async function collectEstate(
   onUpdate: (event: CollectionEvent) => void,
+  options: CollectOptions = { subscriptions: [] },
 ): Promise<CollectResult> {
   if (PREVIEW && !isTauri) {
     const { mockEstate } = await import("./mock-data");
@@ -253,8 +260,8 @@ export async function collectEstate(
   channel.onmessage = onUpdate;
   return invoke<CollectResult>("collect_snapshot", {
     request: {
-      subscriptions: [],
-      notes: labels().desktop.dialogs.collect_notes,
+      subscriptions: options.subscriptions,
+      notes: options.notes?.trim() || labels().desktop.dialogs.collect_notes,
     },
     onEvent: channel,
   });
@@ -412,6 +419,7 @@ export async function migrateSettings(
   reference: string,
   name: string,
 ): Promise<AppBootstrap> {
+  if (PREVIEW && !isTauri) return (await import("./mock-data")).mockBootstrap;
   return invoke("settings_migrate", { reference, name });
 }
 export async function exportSettings(): Promise<boolean> {

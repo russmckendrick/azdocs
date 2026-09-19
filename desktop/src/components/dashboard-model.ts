@@ -16,6 +16,8 @@ export function resourceMatchesDashboard(
     !filter ||
     ((!filter.subscriptionId ||
       resource.subscriptionId === filter.subscriptionId) &&
+      (!filter.resourceGroup ||
+        resource.resourceGroup === filter.resourceGroup) &&
       (!filter.azureType || resource.azureType === filter.azureType) &&
       (filter.location === undefined ||
         (resource.location ?? "") === filter.location) &&
@@ -38,6 +40,14 @@ export function findingMatchesDashboard(
           (resource) =>
             resource.id === finding.resourceId &&
             resource.subscriptionId === filter.subscriptionId,
+        )) &&
+      (!filter.resourceGroup ||
+        estate.resources.some(
+          (resource) =>
+            resource.id === finding.resourceId &&
+            resource.resourceGroup === filter.resourceGroup &&
+            (!filter.subscriptionId ||
+              resource.subscriptionId === filter.subscriptionId),
         )) &&
       (!filter.resourceIds ||
         (!!finding.resourceId &&

@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { AlertTriangle } from "lucide-react";
+import { useLabels } from "../labels";
 
 /**
  * The heading every workspace opens with.
@@ -91,6 +93,22 @@ export function DatabaseStamp({
         <small>{label}</small>
         <strong>{value}</strong>
       </span>
+    </div>
+  );
+}
+
+/**
+ * A failure the reader can dismiss, shown above whatever the view was
+ * already showing. Views keep their last good result underneath it: a
+ * failed refresh must not blank a table the reader was in the middle of.
+ */
+export function ErrorStrip({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  const { shell } = useLabels().desktop;
+  return (
+    <div className="error-strip" role="alert">
+      <AlertTriangle size={16} />
+      <span>{message}</span>
+      <button onClick={onDismiss}>{shell.dismiss}</button>
     </div>
   );
 }

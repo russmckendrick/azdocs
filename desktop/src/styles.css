@@ -4884,3 +4884,241 @@ button.dashboard-modal-record:hover, .dashboard-modal-finding > button:first-chi
 .settings-test-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--muted); }
 .settings-test-summary button { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
 .settings-test-error { color: var(--amber); }
+
+/* Collection scope and notes (CollectionDialog) */
+
+.collection-scope {
+  margin: 0 0 14px;
+  padding: 0;
+  border: 0;
+}
+.collection-scope legend {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.collection-scope > p {
+  margin: 4px 0 8px;
+  font-size: 12px;
+}
+.collection-scope label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 12.5px;
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
+}
+.collection-scope label small {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--faint);
+}
+.collection-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 16px;
+  font-size: 12px;
+  color: var(--faint);
+}
+.collection-notes input {
+  font-size: 12.5px;
+  padding: 6px 9px;
+}
+
+/* Findings selection */
+
+.finding-select-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.finding-select-bar label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.finding-selected-count {
+  flex: 1;
+  color: var(--faint);
+}
+.finding-row {
+  padding: 0 0 0 12px;
+  gap: 8px;
+}
+.finding-row-open {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 13px 12px 13px 0;
+  color: inherit;
+  text-align: left;
+}
+
+/* History: field-level changes, findings and the trend */
+
+.change-list > div.with-fields {
+  align-items: flex-start;
+}
+.change-fields {
+  flex: 1;
+  min-width: 0;
+}
+.change-fields summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  list-style: none;
+}
+.change-fields summary::-webkit-details-marker {
+  display: none;
+}
+.change-fields summary > span {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.change-fields summary strong {
+  font-weight: 600;
+  color: var(--ink);
+}
+.change-fields summary small {
+  font-size: 11px;
+  color: var(--faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.change-fields summary em {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--faint);
+  white-space: nowrap;
+}
+.change-fields[open] summary em {
+  color: var(--ink);
+}
+.change-fields .data-grid {
+  margin: 8px 0 6px;
+  font-size: 11.5px;
+}
+.change-fields .data-grid td {
+  overflow-wrap: anywhere;
+}
+.change-findings {
+  margin-top: 18px;
+}
+.change-findings h3 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.change-findings > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 12.5px;
+}
+.change-findings > div > span:last-child {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.change-findings small {
+  font-size: 11px;
+  color: var(--faint);
+}
+.history-trend {
+  margin-top: 22px;
+}
+.history-trend h3 {
+  margin: 0 0 4px;
+  font: 600 16px var(--font-serif);
+  color: var(--ink);
+}
+.history-trend .data-grid {
+  font-size: 11.5px;
+}
+.history-trend tr.current td {
+  background: var(--evidence);
+}
+
+/* Keyboard shortcuts */
+
+.shortcuts-dialog {
+  width: 440px;
+}
+.shortcut-list {
+  margin: 18px 0 0;
+}
+.shortcut-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 12.5px;
+}
+.shortcut-list dt {
+  color: var(--ink);
+}
+.shortcut-list dd {
+  display: flex;
+  gap: 4px;
+  margin: 0;
+}
+.shortcut-list kbd {
+  min-width: 22px;
+  padding: 2px 6px;
+  font-size: 11px;
+  text-align: center;
+  color: var(--body);
+  background: var(--evidence);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+}
+
+/* Estate explorer tag facet and active row */
+
+.tag-facet select + select {
+  margin-left: 4px;
+}
+.resource-row.selected {
+  background: var(--evidence);
+}
+
+/* Export receipt actions */
+
+.export-receipt li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.export-receipt li code {
+  flex: 1;
+}
+.export-receipt li .text-link {
+  font-size: 11px;
+  white-space: nowrap;
+}
+.export-receipt > .quiet-button {
+  margin-top: 8px;
+}

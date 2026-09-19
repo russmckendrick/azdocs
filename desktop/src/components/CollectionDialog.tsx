@@ -1,8 +1,10 @@
-import { useEffect, useRef } from "react";
-import { RefreshCw, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { RefreshCw, Square, X } from "lucide-react";
 import { useLabels } from "../labels";
 import { useWebsites } from "../website-capture";
 import type { CollectionFeedback } from "../collection-feedback";
+import type { CollectOptions } from "../api";
+import type { Subscription } from "../types";
 import { PermissionStatus } from "./PermissionStatus";
 import { CollectionProgress } from "./CollectionProgress";
 import { WebsiteCaptureControls } from "./WebsiteScreenshots";
@@ -15,23 +17,33 @@ type Props = {
   canCollect: boolean;
   credentialsHint: string;
   snapshotLabel?: string;
+  /** Subscriptions the open snapshot knows, offered as the collection scope. */
+  subscriptions: Subscription[];
   message?: string;
   error?: string;
   onClose: () => void;
-  onCollect: () => void;
+  onCollect: (options: CollectOptions) => void;
+  onCancel: () => void;
 };
 
 export function CollectionDialog(props: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const [chosen, setChosen] = useState<string[]>([]);
+  const [notes, setNotes] = useState("");
   const {
     common: { websites: words },
-    desktop: { shell },
+    desktop: { shell, collection },
   } = useLabels();
   const websites = useWebsites();
   useEffect(() => {
     if (props.open && !dialog.current?.open) dialog.current?.showModal();
     if (!props.open && dialog.current?.open) dialog.current?.close();
   }, [props.open]);
+  function toggle(id: string) {
+    setChosen((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+    );
+  }
   return (
     <dialog
       ref={dialog}
@@ -73,22 +85,53 @@ export function CollectionDialog(props: Props) {
         ) : null}
         {props.error ? <p role="alert">{props.error}</p> : null}
         {!props.collecting ? (
-          <button
-            className="collect-button"
-            disabled={!props.canCollect || websites?.blocked}
-            onClick={props.onCollect}
-          >
-            <RefreshCw size={15} />
-            {props.feedback ? words.collect_again : shell.collect}
-          </button>
+          <>
+            {props.subscriptions.length > 0 ? (
+              <fieldset className="collection-scope">
+                <legend>{collection.scope}</legend>
+                <p>{collection.scope_detail}</p>
+                {props.subscriptions.map((subscription) => (
+                  <label key={subscription.id}>
+                    <input
+                      type="checkbox"
+                      checked={chosen.includes(subscription.id)}
+                      onChange={() => toggle(subscription.id)}
+                    />
+                    <span>{subscription.displayName}</span>
+                    <small className="mono">{subscription.id}</small>
+                  </label>
+                ))}
+              </fieldset>
+            ) : null}
+            <label className="collection-notes">
+              <span>{collection.notes}</span>
+              <input
+                value={notes}
+                placeholder={collection.notes_placeholder}
+                onChange={(event) => setNotes(event.target.value)}
+              />
+            </label>
+            <button
+              className="collect-button"
+              disabled={!props.canCollect || websites?.blocked}
+              onClick={() => props.onCollect({ subscriptions: chosen, notes })}
+            >
+              <RefreshCw size={15} />
+              {props.feedback ? words.collect_again : shell.collect}
+            </button>
+          </>
         ) : null}
       </section>
       {props.collecting ? (
-        props.autoCapturing ? (
-          <div className="collection-cancel">
+        <div className="collection-cancel">
+          {props.autoCapturing ? (
             <WebsiteCaptureControls autoCapturing />
-          </div>
-        ) : null
+          ) : (
+            <button className="quiet-button" onClick={props.onCancel}>
+              <Square size={14} /> {shell.cancel_collection}
+            </button>
+          )}
+        </div>
       ) : props.snapshotLabel ? (
         <section>
           <h3>{words.title}</h3>

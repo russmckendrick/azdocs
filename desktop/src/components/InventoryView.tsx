@@ -3,7 +3,7 @@ import { Table2 } from "lucide-react";
 import { getQueryPackMetadata, getQueryRows } from "../api";
 import type { DashboardFilter, EstateSnapshot, QueryDefMeta, QueryRows } from "../types";
 import { ShowMore, useProgressiveList } from "./progressive-list";
-import { DatabaseStamp, EmptyState, ViewHeading } from "./view-chrome";
+import { DatabaseStamp, EmptyState, ErrorStrip, ViewHeading } from "./view-chrome";
 import { capitalise, errorMessage, fill, plural, spaced } from "../format";
 import { useLabels } from "../labels";
 
@@ -59,6 +59,7 @@ export function InventoryView({ estate, search, dashboardFilter }: { estate: Est
   const [queryName, setQueryName] = useState<string | undefined>(dashboardFilter?.queryName);
   const [result, setResult] = useState<QueryRows>();
   const [rowsLoading, setRowsLoading] = useState(false);
+  const [rowsError, setRowsError] = useState<string>();
   const { common, desktop: { inventory: words } } = useLabels();
   const none = common.verdict.none;
 
@@ -117,13 +118,15 @@ export function InventoryView({ estate, search, dashboardFilter }: { estate: Est
     if (!activeQuery) return;
     let active = true;
     setRowsLoading(true);
+    setRowsError(undefined);
     getQueryRows(activeQuery, estate.id)
       .then((rows) => {
         if (!active) return;
         setResult(rows);
       })
-      .catch(() => {
-        if (active) setResult({ queryName: activeQuery, columns: [], rows: [] });
+      .catch((caught) => {
+        // The previous table stays up; a failed read is said, not blanked.
+        if (active) setRowsError(fill(words.rows_failed, { error: errorMessage(caught) }));
       })
       .finally(() => {
         if (active) setRowsLoading(false);
@@ -131,7 +134,7 @@ export function InventoryView({ estate, search, dashboardFilter }: { estate: Est
     return () => {
       active = false;
     };
-  }, [activeQuery, estate.id]);
+  }, [activeQuery, estate.id, words.rows_failed]);
 
   const columns = (result?.columns ?? []).filter((column) => column !== "id");
   const filteredRows = useMemo(() => {
@@ -166,6 +169,7 @@ export function InventoryView({ estate, search, dashboardFilter }: { estate: Est
           value={fill(words.collected_value, { inventory: inventory.length, total: estate.queryRuns.length })}
         />
       </ViewHeading>
+      {rowsError ? <ErrorStrip message={rowsError} onDismiss={() => setRowsError(undefined)} /> : null}
 
       {!!estate.evidenceSummaries?.length && (
         <details className="inventory-evidence">

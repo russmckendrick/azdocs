@@ -5,13 +5,14 @@ import {
   ArrowLeft,
   ChevronRight,
   CircleDot,
+  ClipboardCopy,
   GitBranch,
   ListTree,
 } from "lucide-react";
 import { resourceIcon } from "../azure-icons";
 import { displayKind, displayLocation } from "../azure-values";
 import type { EstateSnapshot, Resource, ResourceDetail, ResourceType } from "../types";
-import { getResourceDetail } from "../api";
+import { copyText, getResourceDetail } from "../api";
 import { AdaptiveDataView, describeStoredValue, hasStoredValue } from "./AdaptiveDataView";
 import { errorMessage, plural, resourceName, spaced } from "../format";
 import { useLabels } from "../labels";
@@ -48,6 +49,10 @@ export function ResourceDetailView({
   // them from SQLite when it opens, so a large snapshot loads without them.
   const [detail, setDetail] = useState<ResourceDetail | null>();
   const [detailError, setDetailError] = useState<string>();
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    setCopied(false);
+  }, [resource.id]);
   useEffect(() => {
     let active = true;
     setDetail(undefined);
@@ -136,6 +141,17 @@ export function ResourceDetailView({
             <div><dt>{common.columns.tags}</dt><dd>{tags.length}</dd></div>
           </dl>
           <div className="resource-record-actions">
+            <button
+              className="quiet-button"
+              onClick={() => {
+                copyText(resource.displayId)
+                  .then(() => setCopied(true))
+                  .catch(() => setCopied(false));
+              }}
+              title={resource.displayId}
+            >
+              <ClipboardCopy size={15} /> {copied ? words.copied : words.copy_id}
+            </button>
             {relatedFindings.length > 0 ? (
               <button className="quiet-button" onClick={onOpenFindings}>
                 <AlertTriangle size={15} /> {words.review_findings}
