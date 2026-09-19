@@ -97,12 +97,16 @@ pub struct GovernanceAnalysis {
     pub distinct_keys: usize,
     /// The most-used keys, busiest first.
     pub top_keys: Vec<TagKeyCoverage>,
+    /// How many keys `top_keys` was cut from, so a surface can say so.
+    pub top_keys_total: usize,
     /// Coverage per subscription that holds resources, by name.
     pub subscriptions: Vec<SubscriptionCoverage>,
     /// Resources missing at least one required tag.
     pub non_compliant: usize,
     /// The groups holding most of them, worst first.
     pub worst_groups: Vec<GroupCompliance>,
+    /// How many groups with misses `worst_groups` was cut from.
+    pub worst_groups_total: usize,
 }
 
 impl GovernanceAnalysis {
@@ -201,6 +205,7 @@ pub fn analyse(
         .collect();
     // Busiest first, then by key so ties are stable.
     top_keys.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.key.cmp(&b.key)));
+    let top_keys_total = top_keys.len();
     top_keys.truncate(TOP_TAG_KEYS);
 
     let mut subscription_coverage: Vec<SubscriptionCoverage> = per_subscription
@@ -281,14 +286,17 @@ pub fn analyse(
             .then_with(|| a.name.cmp(&b.name))
             .then_with(|| a.subscription_name.cmp(&b.subscription_name))
     });
+    let worst_groups_total = worst_groups.len();
     worst_groups.truncate(WORST_GROUPS);
 
     GovernanceAnalysis {
         distinct_keys: key_counts.len(),
         top_keys,
+        top_keys_total,
         subscriptions: subscription_coverage,
         non_compliant,
         worst_groups,
+        worst_groups_total,
     }
 }
 
@@ -505,6 +513,24 @@ mod tests {
         let analysis = analyse(&[], &[group("s1", "rg-App")], &resources, &findings);
 
         assert_eq!(analysis.worst_groups[0].name, "rg-App");
+    }
+
+    #[test]
+    fn unit_records_how_many_keys_the_summary_was_cut_from_when_analysing() {
+        let resources: Vec<Resource> = (0..10)
+            .map(|i| {
+                resource(
+                    "s",
+                    Some("rg"),
+                    &format!("r{i}"),
+                    serde_json::json!({ format!("key{i}"): "v" }),
+                )
+            })
+            .collect();
+        let analysis = analyse(&[], &[], &resources, &[]);
+        assert_eq!(analysis.top_keys.len(), TOP_TAG_KEYS);
+        assert_eq!(analysis.top_keys_total, 10);
+        assert_eq!(analysis.worst_groups_total, 0);
     }
 
     #[test]

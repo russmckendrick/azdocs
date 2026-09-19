@@ -184,12 +184,16 @@ pub struct GovernanceDto {
     pub distinct_keys: usize,
     /// The most-used keys, busiest first.
     pub top_keys: Vec<TagKeyCoverageDto>,
+    /// How many keys `top_keys` was cut from, so the view can say so.
+    pub top_keys_total: usize,
     /// Coverage per subscription that holds resources, by name.
     pub subscriptions: Vec<SubscriptionCoverageDto>,
     /// Resources missing at least one required tag.
     pub non_compliant: usize,
     /// The groups holding most of them, worst first.
     pub worst_groups: Vec<GroupComplianceDto>,
+    /// How many groups with misses `worst_groups` was cut from.
+    pub worst_groups_total: usize,
 }
 
 #[derive(Debug, Serialize, TS)]
@@ -251,7 +255,9 @@ impl From<&GovernanceAnalysis> for GovernanceDto {
                     healthy: sub.healthy,
                 })
                 .collect(),
+            top_keys_total: value.top_keys_total,
             non_compliant: value.non_compliant,
+            worst_groups_total: value.worst_groups_total,
             worst_groups: value
                 .worst_groups
                 .iter()

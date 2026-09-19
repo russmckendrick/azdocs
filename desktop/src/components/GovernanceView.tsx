@@ -77,6 +77,14 @@ export function GovernanceView({
           ))}
           {governance.topKeys.length === 0 ? <p className="muted-copy">{common.governance.no_tags}</p> : null}
           <div className="fig-caption">{fill(words.key_caption, { tagged: estate.tagCoverage.tagged })}</div>
+          {governance.topKeysTotal > governance.topKeys.length ? (
+            <div className="fig-caption">
+              {fill(common.governance.top_keys_note, {
+                shown: governance.topKeys.length,
+                total: governance.topKeysTotal,
+              })}
+            </div>
+          ) : null}
         </div>
         <div className="figure-block">
           <h2 className="figure-title">{common.governance.coverage_by_subscription}</h2>
@@ -138,6 +146,14 @@ export function GovernanceView({
           <div className="fig-caption spaced">
             {fillNodes(words.worst_caption, { audit: <span className="mono upright">missing_required_tags</span> })}
           </div>
+          {governance.worstGroupsTotal > governance.worstGroups.length ? (
+            <div className="fig-caption">
+              {fill(common.governance.worst_groups_note, {
+                shown: governance.worstGroups.length,
+                total: governance.worstGroupsTotal,
+              })}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

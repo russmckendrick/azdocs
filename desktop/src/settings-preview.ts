@@ -72,6 +72,11 @@ export const previewSettings: SettingsDocumentDto = {
       mono_family: "",
       font_dir: null,
     },
+    report: {
+      max_group_diagrams: 60,
+      max_figure_nodes: 6,
+      max_evidence_rows: 20,
+    },
   },
 };
 export const previewCheck: ConnectionCheck = {

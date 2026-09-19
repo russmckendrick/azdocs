@@ -56,7 +56,13 @@ pub(crate) fn environment(labels: &Labels) -> Environment<'static> {
     );
     env.add_filter("slug", slug);
     env.add_filter("fill", fill_filter);
+    env.add_filter("md_cell", md_cell);
     env
+}
+
+/// A diff value (JSON or null) as one escaped table cell.
+fn md_cell(value: ViaDeserialize<Value>) -> String {
+    md_escape(&cell_to_string(Some(&value)))
 }
 
 /// `{{ label | fill(name=value, ...) }}`: the template-side twin of
@@ -141,6 +147,7 @@ pub fn render_pages(
     });
     let posture_tables = report.posture.tables(labels);
     let provenance_records = super::provenance::records(&report.analysis.query_runs, labels);
+    let labels_ref = labels;
     let labels = minijinja::Value::from_serialize(labels);
     let tag_audit = super::governance::TAG_AUDIT;
     env.add_template(
@@ -173,6 +180,8 @@ pub fn render_pages(
             posture_tables,
             diagrams => overview_diagrams,
             has_provenance => !provenance_records.is_empty(),
+            field_changes => report.changes.as_ref().map_or(0, |c| c.field_changes()),
+            website_rows => report.websites.rows(labels_ref),
             ..minijinja::Value::from_serialize(report)
         })?,
     ));

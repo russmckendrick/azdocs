@@ -43,6 +43,7 @@ fn seeded() -> (ReportContext, Vec<DiagramAsset>) {
     let diagrams = azdocs::diagram::assets::build_assessment(
         &report.analysis,
         &azdocs::labels::Labels::default(),
+        report.limits.max_figure_nodes,
     );
     (report, diagrams)
 }

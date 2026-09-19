@@ -1,6 +1,8 @@
 //! File editing and resolution are independent of credential acquisition.
 use super::secrets::SecretStore;
-use super::{AuditConfig, AuthConfig, BrandingConfig, CollectConfig, Config, StorageConfig};
+use super::{
+    AuditConfig, AuthConfig, BrandingConfig, CollectConfig, Config, ReportConfig, StorageConfig,
+};
 use crate::error::ConfigError;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -148,6 +150,7 @@ pub struct SettingsValues {
     pub audit: AuditConfig,
     pub storage: StorageConfig,
     pub branding: BrandingConfig,
+    pub report: ReportConfig,
 }
 
 impl Default for SettingsValues {
@@ -162,6 +165,7 @@ impl Default for SettingsValues {
             audit: config.audit,
             storage: config.storage,
             branding: config.branding,
+            report: config.report,
         }
     }
 }
@@ -284,6 +288,7 @@ impl SettingsValues {
             audit: self.audit.clone(),
             storage: self.storage.clone(),
             branding: self.branding.clone(),
+            report: self.report.clone(),
         }
     }
 
@@ -360,6 +365,7 @@ fn validate_runtime(config: &Config) -> Result<(), ConfigError> {
         return invalid("collect.concurrency must be between 1 and 64");
     }
     config.collect.retry.validate()?;
+    config.report.validate()?;
     for color in [
         &config.branding.primary_color,
         &config.branding.accent_color,

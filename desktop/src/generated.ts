@@ -27,7 +27,7 @@ export type SettingsValues = { schema_version: number, default_tenant?: string |
 /**
  * Shared cloud default; `TenantProfile.cloud` overrides it.
  */
-cloud: Cloud, tenants: { [key in string]: TenantProfile }, collect: CollectConfig, audit: AuditConfig, storage: StorageConfig, branding: BrandingConfig, };
+cloud: Cloud, tenants: { [key in string]: TenantProfile }, collect: CollectConfig, audit: AuditConfig, storage: StorageConfig, branding: BrandingConfig, report: ReportConfig, };
 
 export type TenantProfile = { name: string, tenant_id: string, client_id: string,
 /**
@@ -82,6 +82,23 @@ tag_resource_groups: boolean,
 tag_subscriptions: boolean, };
 
 export type StorageConfig = { db_path: string, };
+
+export type ReportConfig = {
+/**
+ * Resource groups drawn individually in the technical reference; the
+ * remainder are described without a figure.
+ */
+max_group_diagrams: number,
+/**
+ * Boxes per assessment figure before a relationship family is split
+ * across pages. The shared A4 layout keeps labels readable up to here.
+ */
+max_figure_nodes: number,
+/**
+ * Rows a printed evidence, change or website table shows before
+ * pointing at the data exports.
+ */
+max_evidence_rows: number, };
 
 export type BrandingConfig = {
 /**
@@ -238,6 +255,10 @@ distinctKeys: number,
  */
 topKeys: Array<TagKeyCoverage>,
 /**
+ * How many keys `top_keys` was cut from, so the view can say so.
+ */
+topKeysTotal: number,
+/**
  * Coverage per subscription that holds resources, by name.
  */
 subscriptions: Array<SubscriptionCoverage>,
@@ -248,7 +269,11 @@ nonCompliant: number,
 /**
  * The groups holding most of them, worst first.
  */
-worstGroups: Array<GroupCompliance>, };
+worstGroups: Array<GroupCompliance>,
+/**
+ * How many groups with misses `worst_groups` was cut from.
+ */
+worstGroupsTotal: number, };
 
 export type TagKeyCoverage = { key: string, count: number,
 /**

@@ -102,6 +102,11 @@ labels = "en"
 # font_dir = "fonts/"
 # font_family = "Acme Grotesk"
 # mono_family = "Acme Mono"
+
+[report]
+max_group_diagrams = 60
+max_figure_nodes = 6
+max_evidence_rows = 20
 ```
 
 Profile references use letters, digits, underscores or hyphens. Directory and
@@ -152,6 +157,16 @@ sections override only the fields they name. Lists replace inherited lists;
 An omitted field inherits. Storage is always shared. In Settings, clear an
 **Overridden** checkbox to restore inheritance. Empty logo/font-directory
 overrides clear the inherited path.
+
+## Report limits
+
+`[report]` sets how much the printed formats show before pointing at the data
+exports. `max_evidence_rows` caps every evidence, change and website table in
+the PDF, DOCX, Markdown and HTML; `max_figure_nodes` is the number of boxes an
+assessment figure holds before a relationship family is split across pages;
+`max_group_diagrams` is how many resource groups the technical reference draws
+individually. Each value must be at least 1. Every cap is stated in the
+output where it applies, and the CSV and XLSX exports are never capped.
 
 ## Tenant selection
 

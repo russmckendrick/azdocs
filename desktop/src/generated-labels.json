@@ -169,7 +169,12 @@
       "count": "Count",
       "metric": "Metric",
       "setting": "Setting",
-      "value": "Value"
+      "value": "Value",
+      "field": "Field",
+      "before": "Before",
+      "after": "After",
+      "change": "Change",
+      "tagged": "Tagged"
     },
     "governance": {
       "coverage_by_key": "Coverage by tag key",
@@ -178,7 +183,9 @@
       "no_tags": "No tags are stored in this snapshot.",
       "subscription_note": "Any tag counts here; the required-tag sweep is stricter.",
       "key_share": "Share of the {tagged} tagged resources carrying each key.",
-      "non_compliant_sentence": "{count} resources are missing at least one required tag, recorded by the {audit} audit."
+      "non_compliant_sentence": "{count} resources are missing at least one required tag, recorded by the {audit} audit.",
+      "top_keys_note": "Showing the {shown} busiest of {total} tag keys; the data exports list them all.",
+      "worst_groups_note": "Showing the {shown} worst of {total} groups with recorded misses; the findings list every resource."
     }
   },
   "desktop": {

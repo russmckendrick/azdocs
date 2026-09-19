@@ -47,8 +47,9 @@ pub const MAX_GROUP_DIAGRAMS: usize = 60;
 pub fn build_assessment(
     analysis: &crate::report::analysis::ReportAnalysis,
     labels: &crate::labels::Labels,
+    max_figure_nodes: usize,
 ) -> Vec<DiagramAsset> {
-    super::graph::assessment::build(analysis, labels)
+    super::graph::assessment::build(analysis, labels, max_figure_nodes)
         .into_iter()
         .map(|named| DiagramAsset {
             svg: svg::render_for(&named.graph, DiagramDetail::Summary, &labels.diagram),

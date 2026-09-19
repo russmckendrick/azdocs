@@ -23,6 +23,7 @@ pub struct Config {
     pub audit: AuditConfig,
     pub storage: StorageConfig,
     pub branding: BrandingConfig,
+    pub report: ReportConfig,
 }
 
 #[derive(Default, Clone, Serialize, Deserialize)]
@@ -152,6 +153,50 @@ impl Default for StorageConfig {
         Self {
             db_path: default_db_path(),
         }
+    }
+}
+
+/// How much of the estate a report prints before it stops summarising. Every
+/// cap is honest: the emitter says how many rows or figures it left out, and
+/// the snapshot database and data exports keep the rest.
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
+#[serde(default, deny_unknown_fields)]
+pub struct ReportConfig {
+    /// Resource groups drawn individually in the technical reference; the
+    /// remainder are described without a figure.
+    pub max_group_diagrams: usize,
+    /// Boxes per assessment figure before a relationship family is split
+    /// across pages. The shared A4 layout keeps labels readable up to here.
+    pub max_figure_nodes: usize,
+    /// Rows a printed evidence, change or website table shows before
+    /// pointing at the data exports.
+    pub max_evidence_rows: usize,
+}
+
+impl Default for ReportConfig {
+    fn default() -> Self {
+        Self {
+            max_group_diagrams: crate::diagram::assets::MAX_GROUP_DIAGRAMS,
+            max_figure_nodes: 6,
+            max_evidence_rows: 20,
+        }
+    }
+}
+
+impl ReportConfig {
+    pub fn validate(&self) -> Result<(), ConfigError> {
+        for (name, value) in [
+            ("max_group_diagrams", self.max_group_diagrams),
+            ("max_figure_nodes", self.max_figure_nodes),
+            ("max_evidence_rows", self.max_evidence_rows),
+        ] {
+            if value == 0 {
+                return Err(ConfigError::Invalid(format!(
+                    "report.{name} must be at least 1"
+                )));
+            }
+        }
+        Ok(())
     }
 }
 
@@ -358,6 +403,14 @@ impl std::fmt::Debug for Credentials {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn unit_report_limits_reject_zero() {
+        let mut report = ReportConfig::default();
+        assert!(report.validate().is_ok());
+        report.max_evidence_rows = 0;
+        assert!(report.validate().is_err());
+    }
 
     #[test]
     fn from_file_parses_full_config() {

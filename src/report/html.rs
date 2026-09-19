@@ -61,6 +61,7 @@ pub fn render(
         posture_tables => report.posture.tables(&branding.labels),
         provenance_records => super::provenance::records(&report.analysis.query_runs, &branding.labels),
         website_evidence => report.websites.html(&branding.labels, None, None),
+        field_changes => report.changes.as_ref().map_or(0, |c| c.field_changes()),
         ..minijinja::Value::from_serialize(report)
     })?;
     Ok(html)

@@ -112,13 +112,25 @@ fn technical_references_embed_pngs_but_main_assessments_do_not() {
                 .ok()
                 == Some(1440)))
     );
+    // The main assessment carries the website register but never the
+    // screenshots themselves; those stay in the technical reference.
     let main = pdf::render(&report, &branding, &[]).unwrap();
     let main = lopdf::Document::load_mem(&main).unwrap();
     assert!(
-        !main
-            .extract_text(&main.get_pages().keys().copied().collect::<Vec<_>>())
+        main.extract_text(&main.get_pages().keys().copied().collect::<Vec<_>>())
             .unwrap()
             .contains("Website screenshots")
+    );
+    assert!(
+        !main
+            .objects
+            .values()
+            .any(|value| value.as_stream().is_ok_and(|stream| stream
+                .dict
+                .get(b"Width")
+                .and_then(lopdf::Object::as_i64)
+                .ok()
+                == Some(1440)))
     );
     let docx = docx::render_reference(&report, &branding, &[]).unwrap();
     let mut archive = zip::ZipArchive::new(Cursor::new(docx)).unwrap();
@@ -156,7 +168,19 @@ fn technical_references_embed_pngs_but_main_assessments_do_not() {
         .unwrap()
         .read_to_string(&mut xml)
         .unwrap();
-    assert!(!xml.contains("Website screenshots"));
+    assert!(xml.contains("Website screenshots"));
+    assert!(
+        !(0..archive.len()).any(|index| {
+            let mut file = archive.by_index(index).unwrap();
+            if !file.name().starts_with("word/media/") {
+                return false;
+            }
+            let mut bytes = Vec::new();
+            file.read_to_end(&mut bytes).unwrap();
+            bytes == png
+        }),
+        "the main assessment must not embed the screenshot"
+    );
 }
 
 #[test]

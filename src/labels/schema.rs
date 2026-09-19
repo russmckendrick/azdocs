@@ -153,6 +153,11 @@ pub struct ColumnLabels {
     pub metric: String,
     pub setting: String,
     pub value: String,
+    pub field: String,
+    pub before: String,
+    pub after: String,
+    pub change: String,
+    pub tagged: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -165,6 +170,8 @@ pub struct GovernanceLabels {
     pub subscription_note: String,
     pub key_share: String,
     pub non_compliant_sentence: String,
+    pub top_keys_note: String,
+    pub worst_groups_note: String,
 }
 
 // ------------------------------------------------------------------ report --
@@ -182,6 +189,7 @@ pub struct ReportLabels {
     pub evidence: EvidenceLabels,
     pub pdf: PdfLabels,
     pub markdown: MarkdownLabels,
+    pub changes: ChangesLabels,
     pub site: SiteLabels,
     pub html: HtmlLabels,
     pub xlsx: XlsxLabels,
@@ -251,6 +259,31 @@ pub struct MarkdownLabels {
     pub related: String,
     pub no_rows: String,
     pub no_resources: String,
+    pub settings_omitted: String,
+    pub website_image: String,
+}
+
+/// The "changes since the previous snapshot" chapter, shared by the print
+/// documents, Markdown, HTML and the workbook.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ChangesLabels {
+    pub chapter: String,
+    pub intro: String,
+    pub summary: String,
+    pub none: String,
+    pub added: String,
+    pub removed: String,
+    pub changed: String,
+    pub new_findings: String,
+    pub resolved_findings: String,
+    pub relationships: String,
+    pub scope: String,
+    pub added_marker: String,
+    pub removed_marker: String,
+    pub row_limit: String,
+    pub trend: String,
+    pub trend_intro: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -297,6 +330,13 @@ pub struct XlsxLabels {
     pub info_findings: String,
     pub tag_coverage_percent: String,
     pub share_of_tagged_percent: String,
+    pub sheet_locations: String,
+    pub sheet_websites: String,
+    pub sheet_changes: String,
+    pub sheet_trend: String,
+    pub kql_column: String,
+    pub change_column: String,
+    pub side_column: String,
     pub inventory_columns: XlsxInventoryColumns,
     pub findings_columns: FindingsColumns,
 }
@@ -496,6 +536,7 @@ pub struct CliReportLabels {
     pub html_written: String,
     pub site_written: String,
     pub csv_written: String,
+    pub csv_extra_written: String,
     pub xlsx_written: String,
     pub pdf_written: String,
     pub docx_written: String,

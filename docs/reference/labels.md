@@ -73,7 +73,7 @@ space.
 |---|---|
 | `[common]` | Every surface: severities, cover words, table column headers, governance headings, plural nouns, the `Subscription scope` stand-in group name |
 | `[meta]` | `lang`, the BCP 47 tag the HTML `lang` attribute and Typst hyphenation use |
-| `[report.*]` | The PDF/DOCX composer (`assessment`, `posture`, `summary.chapter`, `findings`, `governance`, `type_index`, `evidence.no_results`), the Typst page counter, and the markdown, site, html, xlsx and csv emitters |
+| `[report.*]` | The PDF/DOCX composer (`assessment`, `posture`, `summary.chapter`, `findings`, `governance`, `type_index`, `evidence.no_results`), the `changes` chapter shared by print, markdown, html and xlsx, the Typst page counter, and the markdown, site, html, xlsx and csv emitters |
 | `[diagram]` | Graph titles, `×N` tiles, container captions, the SVG legend and watermark, draw.io workbook sheet names |
 | `[cli.*]` | Progress lines and table headers of each command |
 | `[tui.*]` | Pane titles, keybars and field labels of `azdocs browse` |

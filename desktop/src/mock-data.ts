@@ -619,6 +619,7 @@ export const mockEstate: EstateSnapshot = {
       { key: "env", count: 13, percent: 100 },
       { key: "owner", count: 13, percent: 100 },
     ],
+    topKeysTotal: 2,
     subscriptions: [
       {
         subscriptionId: "sub-dev",
@@ -644,6 +645,7 @@ export const mockEstate: EstateSnapshot = {
         flagged: true,
       },
     ],
+    worstGroupsTotal: 1,
   },
   azureMetadata: {
     locations: { uksouth: "UK South", ukwest: "UK West" },

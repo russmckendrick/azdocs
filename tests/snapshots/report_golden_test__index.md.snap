@@ -1,5 +1,6 @@
 ---
 source: tests/report_golden_test.rs
+assertion_line: 47
 expression: content
 ---
 # Azure Estate Report
@@ -71,6 +72,14 @@ expression: content
 |---|---:|
 | UK South | 15 |
 | UK West | 3 |
+
+## Website screenshots
+
+Saved website views from this machine. Capture time is separate from the Azure audit time.
+
+| Resource | Website | Status | Captured |
+|---|---|---|---|
+| web-dev | https://web-dev.azurewebsites.net/ | Not captured |  |
 
 ## Sections
 

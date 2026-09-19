@@ -83,7 +83,13 @@ pub fn run_selected_with_progress(
             ReportFormat::Md | ReportFormat::Html | ReportFormat::Pdf | ReportFormat::Docx
         )
     });
-    let context = ReportContext::build_scoped(store, &snapshot_id, &report_scope, include_images)?;
+    let context = ReportContext::build_with(
+        store,
+        &snapshot_id,
+        &report_scope,
+        include_images,
+        config.report.clone(),
+    )?;
     let branding = resolve_branding(&config.branding, config_dir, args.theme.as_deref())?;
     let resources = scoped_resources(store, &snapshot_id, &report_scope)?;
     let findings: Vec<_> = context
@@ -115,17 +121,22 @@ pub fn run_selected_with_progress(
             &branding.labels.diagram,
         )?
     } else if print_selected && args.include_reference {
-        crate::diagram::assets::build_group_summaries(
+        crate::diagram::assets::build_group_summaries_capped(
             store,
             &snapshot_id,
             &scope,
             &branding.labels.diagram,
+            config.report.max_group_diagrams,
         )?
     } else {
         Vec::new()
     };
     let assessment_diagrams = if print_selected {
-        crate::diagram::assets::build_assessment(&context.analysis, &branding.labels)
+        crate::diagram::assets::build_assessment(
+            &context.analysis,
+            &branding.labels,
+            config.report.max_figure_nodes,
+        )
     } else {
         Vec::new()
     };
@@ -176,6 +187,14 @@ pub fn run_selected_with_progress(
                             ("inventory", &inventory.display()),
                             ("findings", &findings_path.display()),
                         ]
+                    )
+                );
+                let extra = report::csv::write_tables(&context, &branding.labels, &out_root)?;
+                println!(
+                    "{}",
+                    fill(
+                        &words.csv_extra_written,
+                        &[("count", &extra), ("path", &out_root.display())]
                     )
                 );
                 outputs.push(inventory);

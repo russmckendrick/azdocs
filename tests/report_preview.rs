@@ -39,7 +39,11 @@ fn writes_print_typography_previews() {
     missing.hostname = Some("orange-stone-089140003.7.azurestaticapps.net".into());
     context.websites.endpoints.push(missing);
     let branding = BrandingContext::default();
-    let diagrams = assets::build_assessment(&context.analysis, &branding.labels);
+    let diagrams = assets::build_assessment(
+        &context.analysis,
+        &branding.labels,
+        context.limits.max_figure_nodes,
+    );
     let out = PathBuf::from("output/pdf");
     std::fs::create_dir_all(&out).unwrap();
     report::pdf::write(&context, &branding, &diagrams, &out.join("report.pdf")).unwrap();
@@ -85,7 +89,11 @@ fn writes_every_theme_in_every_format() {
         )
         .unwrap();
 
-        let assessment = assets::build_assessment(&context.analysis, &branding.labels);
+        let assessment = assets::build_assessment(
+            &context.analysis,
+            &branding.labels,
+            context.limits.max_figure_nodes,
+        );
         report::pdf::write(&context, &branding, &assessment, &out.join("report.pdf")).unwrap();
         report::docx::write(&context, &branding, &assessment, &out.join("report.docx")).unwrap();
         std::fs::write(

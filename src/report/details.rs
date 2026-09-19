@@ -44,6 +44,9 @@ pub struct ResourceDetail {
     pub resource_group: Option<String>,
     pub location: Option<String>,
     pub settings: Vec<Setting>,
+    /// Scalar settings the page left out past its row cap, so the reader
+    /// knows the table is a selection rather than the whole bag.
+    pub settings_omitted: usize,
     pub findings: Vec<Callout>,
     /// Related resources with the relationship's stored kind; templates
     /// look the reader's word up in `desktop.topology.edge_kinds`, so the
@@ -76,6 +79,7 @@ pub fn resource_detail(
     findings: &[Finding],
     edges: &[Edge],
 ) -> ResourceDetail {
+    let (settings, settings_omitted) = settings_rows(resource);
     ResourceDetail {
         name: resource.name.clone(),
         display_type: azure_types::display_name(&resource.azure_type).to_owned(),
@@ -87,7 +91,8 @@ pub fn resource_detail(
             .location
             .as_deref()
             .map(|value| azure_values::display_location(value).into_owned()),
-        settings: settings_rows(resource),
+        settings,
+        settings_omitted,
         findings: findings
             .iter()
             .filter(|f| f.resource_id.as_deref() == Some(&resource.id))
@@ -101,10 +106,12 @@ pub fn resource_detail(
 }
 
 /// Basics plus every scalar (and scalar-array) top-level property, in stored
-/// order. Nested objects are skipped: the full bag stays available in the TUI.
-fn settings_rows(resource: &Resource) -> Vec<Setting> {
+/// order, and how many scalars the cap left out. Nested objects are skipped:
+/// the full bag stays available in the TUI.
+fn settings_rows(resource: &Resource) -> (Vec<Setting>, usize) {
     const MAX_ROWS: usize = 24;
     let mut rows = Vec::new();
+    let mut omitted = 0;
     fn push(rows: &mut Vec<Setting>, key: &str, value: String) {
         const MAX_VALUE: usize = 120;
         if !value.is_empty() {
@@ -160,27 +167,30 @@ fn settings_rows(resource: &Resource) -> Vec<Setting> {
         .into_iter()
         .flatten()
     {
+        let scalar = match value {
+            Value::String(s) => s.clone(),
+            Value::Bool(b) => b.to_string(),
+            Value::Number(n) => n.to_string(),
+            Value::Array(items) if items.iter().all(|i| !i.is_object() && !i.is_array()) => items
+                .iter()
+                .map(|i| match i {
+                    Value::String(s) => s.clone(),
+                    other => other.to_string(),
+                })
+                .collect::<Vec<_>>()
+                .join(", "),
+            _ => continue,
+        };
+        if scalar.is_empty() {
+            continue;
+        }
         if rows.len() >= MAX_ROWS {
-            break;
+            omitted += 1;
+            continue;
         }
-        match value {
-            Value::String(s) => push(&mut rows, key, s.clone()),
-            Value::Bool(b) => push(&mut rows, key, b.to_string()),
-            Value::Number(n) => push(&mut rows, key, n.to_string()),
-            Value::Array(items) if items.iter().all(|i| !i.is_object() && !i.is_array()) => {
-                let rendered: Vec<String> = items
-                    .iter()
-                    .map(|i| match i {
-                        Value::String(s) => s.clone(),
-                        other => other.to_string(),
-                    })
-                    .collect();
-                push(&mut rows, key, rendered.join(", "));
-            }
-            _ => {}
-        }
+        push(&mut rows, key, scalar);
     }
-    rows
+    (rows, omitted)
 }
 
 fn related_names(resource: &Resource, edges: &[Edge]) -> Vec<Related> {
@@ -249,7 +259,7 @@ mod tests {
 
     #[test]
     fn settings_rows_flatten_scalars_and_skip_nested_objects() {
-        let rows = settings_rows(&storage_account());
+        let (rows, _) = settings_rows(&storage_account());
 
         let keys: Vec<&str> = rows.iter().map(|s| s.key.as_str()).collect();
         assert!(
@@ -257,6 +267,18 @@ mod tests {
                 && !keys.iter().any(|k| k.contains("Acls")),
             "keys: {keys:?}"
         );
+    }
+
+    #[test]
+    fn unit_counts_scalar_settings_past_the_row_cap_when_flattening() {
+        let mut resource = storage_account();
+        let bag: serde_json::Map<String, Value> = (0..40)
+            .map(|i| (format!("setting{i}"), Value::from(i)))
+            .collect();
+        resource.properties = Some(Value::Object(bag));
+        let (rows, omitted) = settings_rows(&resource);
+        assert_eq!(rows.len(), 24);
+        assert_eq!(rows.len() + omitted, 44, "four basics plus every scalar");
     }
 
     #[test]

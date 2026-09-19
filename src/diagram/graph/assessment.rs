@@ -19,7 +19,13 @@ struct Tile {
     hosts: BTreeSet<String>,
 }
 
-pub(crate) fn build(analysis: &ReportAnalysis, labels: &Labels) -> Vec<NamedGraph> {
+/// `max_nodes` is `[report] max_figure_nodes`: boxes per figure before a
+/// relationship family is split across pages.
+pub(crate) fn build(
+    analysis: &ReportAnalysis,
+    labels: &Labels,
+    max_nodes: usize,
+) -> Vec<NamedGraph> {
     let mut assets = Vec::new();
     for (index, group) in analysis.studies().enumerate() {
         let (tiles, mut links) = group_graph(analysis, group, labels);
@@ -45,6 +51,7 @@ pub(crate) fn build(analysis: &ReportAnalysis, labels: &Labels) -> Vec<NamedGrap
             Some(&group.key),
             analysis,
             labels,
+            max_nodes,
         ));
     }
     let mut tiles = BTreeMap::new();
@@ -79,6 +86,7 @@ pub(crate) fn build(analysis: &ReportAnalysis, labels: &Labels) -> Vec<NamedGrap
         None,
         analysis,
         labels,
+        max_nodes,
     ));
     assets
 }
@@ -202,10 +210,10 @@ fn pages(
     group: Option<&String>,
     analysis: &ReportAnalysis,
     labels: &Labels,
+    max_nodes: usize,
 ) -> Vec<NamedGraph> {
     // One relationship family per figure gives each picture a clear question.
     // Each graph remains small enough for the shared A4 layout and density rung.
-    const MAX_NODES: usize = 6;
     let mut batches = Vec::new();
     let families: BTreeSet<_> = links
         .keys()
@@ -229,7 +237,7 @@ fn pages(
         {
             let additional =
                 usize::from(!nodes.contains(source)) + usize::from(!nodes.contains(target));
-            if nodes.len() + additional > MAX_NODES && !batch.is_empty() {
+            if nodes.len() + additional > max_nodes && !batch.is_empty() {
                 batches.push(std::mem::take(&mut batch));
                 nodes.clear();
             }
@@ -448,7 +456,15 @@ mod tests {
                 .values()
                 .any(|t| t.members.len() == 2 && t.hosts.len() == 1)
         );
-        let graphs = pages(&tiles, &links, "test", Some(&group.key), &analysis, &labels);
+        let graphs = pages(
+            &tiles,
+            &links,
+            "test",
+            Some(&group.key),
+            &analysis,
+            &labels,
+            6,
+        );
         assert!(graphs.len() > 1);
         assert_eq!(graphs.iter().map(|g| g.graph.edges.len()).sum::<usize>(), 9);
         for named in graphs {

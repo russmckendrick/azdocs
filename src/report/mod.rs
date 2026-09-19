@@ -140,6 +140,8 @@ pub struct ReportContext {
     /// The scope this context was built for, so emitters can say so.
     #[serde(skip)]
     pub scope: ReportScope,
+    /// How much each emitter prints before pointing at the data exports.
+    pub limits: crate::config::ReportConfig,
 }
 
 /// How many snapshots the trend table looks back over.
@@ -263,6 +265,23 @@ impl ReportContext {
         snapshot_id: &str,
         scope: &ReportScope,
         include_images: bool,
+    ) -> Result<Self, StoreError> {
+        Self::build_with(
+            store,
+            snapshot_id,
+            scope,
+            include_images,
+            crate::config::ReportConfig::default(),
+        )
+    }
+
+    /// Build with the `[report]` caps the emitters honour.
+    pub fn build_with(
+        store: &Store,
+        snapshot_id: &str,
+        scope: &ReportScope,
+        include_images: bool,
+        limits: crate::config::ReportConfig,
     ) -> Result<Self, StoreError> {
         let snapshot = store.get_snapshot(snapshot_id)?;
         let mut subscriptions = store.subscriptions(snapshot_id)?;
@@ -573,6 +592,7 @@ impl ReportContext {
             changes,
             trend,
             scope: scope.clone(),
+            limits,
             snapshot_id: snapshot.id.clone(),
             created_at: snapshot.created_at.to_rfc3339(),
             tenant_id: snapshot.tenant_id.clone(),
