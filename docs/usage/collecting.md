@@ -49,7 +49,13 @@ azdocs collect --queries all_resources         # only named queries
 azdocs collect --skip-queries orphaned_resources
 azdocs collect --concurrency 2                 # gentler on ARG quota
 azdocs collect --notes "pre-migration baseline"
+azdocs collect --dry-run                       # show the plan; contacts nothing
+azdocs collect --quiet --fail-on partial       # pipeline-friendly
 ```
+
+`--subscriptions` values must be subscription UUIDs and `--concurrency` must be
+between 1 and 64, the same rules the config file enforces. A credential that
+can see no subscriptions stops before a snapshot is created.
 
 Filters apply to the query pack; they do not automatically add dependency
 queries. For example, omitting `all_resources` leaves the typed resource inventory
@@ -63,10 +69,13 @@ For a full estate report, collect the complete pack.
 |---|---|
 | `complete` | Every query succeeded |
 | `partial` | Some queries failed; the rest of the data is usable |
-| `failed` | Everything failed |
+| `failed` | Everything failed, or the collect was abandoned and reconciled on a later open |
+| `cancelled` | Stopped on request before every query ran |
 
-Per-query results (row counts, durations, errors) are recorded — inspect with
-`azdocs snapshots show <id>`.
+Only `complete` and `partial` snapshots resolve as `latest`. Per-query results
+(row counts, rows ingest could not shape, durations, errors) are recorded —
+inspect with `azdocs snapshots show <id>`. `--fail-on` decides which outcome
+makes the command exit non-zero; see the [CLI reference](cli.md#exit-codes).
 
 ## Throttling
 

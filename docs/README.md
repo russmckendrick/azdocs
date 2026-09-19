@@ -27,6 +27,7 @@ websites. Scope and permissions limit what can be collected.
 | Page | Covers |
 |---|---|
 | [Installation](usage/installation.md) | Homebrew, direct downloads, source builds and shell completions |
+| [Command-line reference](usage/cli.md) | Global flags, environment variables, JSON output and exit codes |
 | [Configuration](usage/configuration.md) | Named tenants, shared defaults, native secrets, migration and environment references |
 | [Permission diagnostics](usage/permissions.md) | Connection tests, RBAC verdicts and coverage limits |
 | [Collecting](usage/collecting.md) | Running the query pack, scoping, throttling |

@@ -132,15 +132,18 @@ covers inheritance, selection, secret storage and migration.
 | Command | Purpose |
 |---|---|
 | `azdocs init` | Write the config file interactively |
-| `azdocs check` | Test authentication, subscriptions and advisory RBAC permissions |
+| `azdocs check [--format json]` | Test authentication, subscriptions and advisory RBAC permissions; fails when nothing is visible |
 | `azdocs config show / validate / migrate / set-secret` | Inspect, validate, migrate or update secure configuration |
-| `azdocs collect` | Run the query pack into a new snapshot |
-| `azdocs snapshots list/show/diff/prune` | Manage stored snapshots |
+| `azdocs collect [--dry-run] [--fail-on partial]` | Run the query pack into a new snapshot |
+| `azdocs snapshots list/show/diff/delete/prune/verify` | Manage stored snapshots |
 | `azdocs report --format md\|html\|csv\|xlsx\|pdf\|docx\|all` | Export reports |
 | `azdocs diagram --type hierarchy\|resources\|network\|vnets\|resource-groups\|workbook` | Export diagrams |
 | `azdocs query list/show/run` | Inspect and run individual KQL queries |
 | `azdocs browse` | Interactive TUI over a stored snapshot |
 | `azdocs completions <shell>` | Shell completions |
+
+Global flags, environment variables, JSON output and exit codes are in the
+[command-line reference](docs/usage/cli.md).
 
 ## Custom queries
 

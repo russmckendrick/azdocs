@@ -221,7 +221,7 @@ impl SettingsValues {
                 .collect
                 .subscriptions
                 .iter()
-                .any(|id| uuid::Uuid::parse_str(id).is_err())
+                .any(|id| parse_subscription_id(id).is_err())
             {
                 return invalid(&format!(
                     "tenants.{reference}.collect.subscriptions must contain subscription UUIDs"
@@ -307,8 +307,31 @@ fn invalid<T>(message: &str) -> Result<T, ConfigError> {
     Err(ConfigError::Invalid(message.into()))
 }
 
+/// The one rule for a subscription id, shared by the config validator and
+/// the command line so `--subscriptions` cannot smuggle in what the file
+/// would reject.
+pub fn parse_subscription_id(value: &str) -> Result<String, String> {
+    if uuid::Uuid::parse_str(value).is_ok() {
+        Ok(value.to_owned())
+    } else {
+        Err(format!("`{value}` is not a subscription UUID"))
+    }
+}
+
+/// The one rule for query concurrency, shared with the command line.
+pub fn parse_concurrency(value: &str) -> Result<usize, String> {
+    let parsed: usize = value
+        .parse()
+        .map_err(|_| format!("`{value}` is not a number"))?;
+    if (1..=64).contains(&parsed) {
+        Ok(parsed)
+    } else {
+        Err("concurrency must be between 1 and 64".into())
+    }
+}
+
 fn validate_runtime(config: &Config) -> Result<(), ConfigError> {
-    if config.collect.concurrency == 0 || config.collect.concurrency > 64 {
+    if parse_concurrency(&config.collect.concurrency.to_string()).is_err() {
         return invalid("collect.concurrency must be between 1 and 64");
     }
     for color in [
@@ -347,9 +370,19 @@ impl ConfigDocument {
             .map(Path::to_path_buf)
             .or_else(|| Config::default_paths().into_iter().find(|p| p.exists()));
         let raw = match &source {
-            Some(path) => std::fs::read_to_string(path).map_err(|source| ConfigError::Read {
-                path: path.clone(),
-                source,
+            Some(path) => std::fs::read_to_string(path).map_err(|source| {
+                // An explicit `--config` that does not exist is a typo, not
+                // an invitation to run with defaults; say where we looked.
+                if explicit.is_some() && source.kind() == std::io::ErrorKind::NotFound {
+                    ConfigError::NotFound {
+                        paths_tried: vec![path.clone()],
+                    }
+                } else {
+                    ConfigError::Read {
+                        path: path.clone(),
+                        source,
+                    }
+                }
             })?,
             None => String::new(),
         };

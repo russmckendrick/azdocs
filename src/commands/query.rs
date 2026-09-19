@@ -5,7 +5,7 @@ use anyhow::{Context, bail};
 use serde_json::Value;
 
 use crate::arg::ArgClient;
-use crate::cli::QueryOutputFormat;
+use crate::cli::{OutputFormat, QueryOutputFormat};
 use crate::config::Config;
 use crate::labels::{Labels, fill};
 use crate::model::AuthorizationScope;
@@ -83,10 +83,41 @@ fn resolve_query(query: &str) -> anyhow::Result<(String, Option<AuthorizationSco
     Ok((def.kql.clone(), def.authorization_scope))
 }
 
-pub fn list(category: Option<&str>, labels: &Labels) -> anyhow::Result<()> {
+/// One row of `query list`, the same in both output formats.
+#[derive(Debug, serde::Serialize)]
+pub struct QueryListing {
+    pub name: String,
+    pub category: String,
+    pub kind: String,
+    pub severity: Option<String>,
+    pub description: String,
+}
+
+pub fn listings(pack: &QueryPack, category: Option<&str>) -> Vec<QueryListing> {
+    pack.all()
+        .into_iter()
+        .filter(|def| category.is_none_or(|c| c == def.category))
+        .map(|def| QueryListing {
+            name: def.name.clone(),
+            category: def.category.clone(),
+            kind: format!("{:?}", def.kind).to_lowercase(),
+            severity: def.severity.map(|s| s.as_str().to_owned()),
+            description: def.description.clone(),
+        })
+        .collect()
+}
+
+pub fn list(category: Option<&str>, format: OutputFormat, labels: &Labels) -> anyhow::Result<()> {
     let words = &labels.cli.query;
     let columns = &words.columns;
     let pack = QueryPack::load()?;
+    if format == OutputFormat::Json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&listings(&pack, category))?
+        );
+        return Ok(());
+    }
     let mut table = comfy_table::Table::new();
     table.load_style(comfy_table::presets::UTF8_BORDERS_ONLY);
     table.set_header([
@@ -96,17 +127,13 @@ pub fn list(category: Option<&str>, labels: &Labels) -> anyhow::Result<()> {
         columns.severity.as_str(),
         columns.description.as_str(),
     ]);
-    for def in pack.all() {
-        if category.is_some_and(|c| c != def.category) {
-            continue;
-        }
+    for def in listings(&pack, category) {
         table.add_row([
-            def.name.clone(),
-            def.category.clone(),
-            format!("{:?}", def.kind).to_lowercase(),
-            def.severity
-                .map_or(String::new(), |s| s.as_str().to_owned()),
-            def.description.clone(),
+            def.name,
+            def.category,
+            def.kind,
+            def.severity.unwrap_or_default(),
+            def.description,
         ]);
     }
     println!("{table}");
@@ -172,6 +199,18 @@ fn print_csv(rows: &[Value]) -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn unit_query_list_json_lists_builtin_queries() {
+        let pack = QueryPack::builtin().unwrap();
+
+        let listed = listings(&pack, Some("security"));
+
+        assert!(!listed.is_empty());
+        assert!(listed.iter().all(|q| q.category == "security"));
+        let json = serde_json::to_string(&listed).unwrap();
+        assert!(json.contains("\"kind\":\"finding\""));
+    }
 
     #[test]
     fn unit_query_file_reads_a_toml_document_with_source_comments() {

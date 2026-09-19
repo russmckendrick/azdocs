@@ -435,6 +435,19 @@ pub struct CollectLabels {
     pub collecting: String,
     pub snapshot_written: String,
     pub partial_hint: String,
+    pub failed_hint: String,
+    pub no_subscriptions: String,
+    pub dry_run_header: String,
+    pub dry_run_columns: DryRunColumns,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DryRunColumns {
+    pub name: String,
+    pub category: String,
+    pub kind: String,
+    pub severity: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -456,7 +469,6 @@ pub struct InitLabels {
     pub client_prompt: String,
     pub secret_prompt: String,
     pub wrote: String,
-    pub plaintext_note: String,
     pub next_step: String,
 }
 
@@ -500,10 +512,16 @@ pub struct SnapshotsLabels {
     pub tenant: String,
     pub status: String,
     pub tool: String,
+    pub schema: String,
+    pub interrupted: String,
     pub notes: String,
     pub comparing: String,
     pub nothing_to_prune: String,
     pub deleted: String,
+    pub vacuumed: String,
+    pub verify_ok: String,
+    pub verify_problems: String,
+    pub reconciled: String,
     pub columns: SnapshotColumns,
     pub run_columns: RunColumns,
 }
@@ -513,6 +531,7 @@ pub struct SnapshotsLabels {
 pub struct SnapshotColumns {
     pub id: String,
     pub created: String,
+    pub tenant: String,
     pub status: String,
     pub subscriptions: String,
     pub resources: String,
@@ -525,6 +544,7 @@ pub struct RunColumns {
     pub query: String,
     pub category: String,
     pub rows: String,
+    pub dropped: String,
     pub ms: String,
     pub error: String,
 }

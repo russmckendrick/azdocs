@@ -23,6 +23,9 @@ flowchart LR
 
 Capture [website screenshots](website-screenshots.md) from the desktop and include them in offline exports.
 
+The [command-line reference](cli.md) lists global flags, environment variables,
+machine-readable output and exit codes.
+
 Stuck? See [troubleshooting](troubleshooting.md).
 
 See [permission diagnostics](permissions.md) for connection tests and the limits of read-only RBAC evidence.

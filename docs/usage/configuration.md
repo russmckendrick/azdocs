@@ -43,7 +43,7 @@ the config file, including database, logo and font directory paths.
 |---|---|---|
 | macOS | `~/Library/Application Support/azdocs/azdocs.toml` | `~/Library/Application Support/azdocs/azdocs.db` |
 | Linux | `~/.config/azdocs/azdocs.toml` | `~/.local/share/azdocs/azdocs.db` |
-| Windows | `%APPDATA%\azdocs\azdocs.toml` | `%APPDATA%\azdocs\azdocs.db` |
+| Windows | `%APPDATA%\azdocs\config\azdocs.toml` | `%APPDATA%\azdocs\data\azdocs.db` |
 
 ## Version 2 format
 
