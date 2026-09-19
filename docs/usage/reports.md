@@ -2,6 +2,7 @@
 
 ```text
 azdocs report --format md|html|csv|xlsx|pdf|docx|all [--include-reference] [--theme <name>] [--snapshot <id|latest>] [--out <dir>]
+              [--subscription <id>] [--resource-group <name>] [--severity high|medium|low|info]
 ```
 
 Reports are generated from the stored snapshot — no network access, no
@@ -20,6 +21,24 @@ Everything lands under `./output/` by default:
 Use `--tenant <reference-or-tenant-id>` to select the estate. Explicit snapshot
 IDs remain usable offline without credentials; a supplied tenant selection
 enforces ownership. See [tenant history](snapshots.md#tenant-isolation).
+
+## Scoping
+
+`--subscription`, `--resource-group` and `--severity` narrow every format to
+one part of the estate, the same way `azdocs diagram` does. The filter is
+applied once, right after the snapshot is read, so composition, figures,
+studies, findings, evidence tables and screenshots all describe the same
+subset. A scoped document describes its scope, not the estate: subscription
+comparisons and group studies are drawn from what is in scope.
+
+- `--subscription <id>` keeps one subscription. Findings that name no stored
+  resource are kept when their id lies under that subscription.
+- `--resource-group <name>` keeps one group (case-insensitive; combine with
+  `--subscription` when the name repeats). Estate-level findings are dropped.
+- `--severity <level>` keeps findings at that severity or higher; a
+  `--severity high` PDF is a findings-led brief. Resources are untouched.
+
+The desktop's Exports workspace offers the same three controls.
 
 ## The PDF and DOCX
 

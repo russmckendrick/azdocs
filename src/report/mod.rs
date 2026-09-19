@@ -34,6 +34,77 @@ pub use governance::{
     is_group_flagged,
 };
 
+/// What part of the estate a report describes. Applied once, right after the
+/// store loads, so every chapter, table and figure downstream sees the same
+/// subset and a scoped document is consistent with itself.
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct ReportScope {
+    pub subscription: Option<String>,
+    pub resource_group: Option<String>,
+    /// Keep findings at this severity or higher (`High` is the highest).
+    pub min_severity: Option<crate::model::Severity>,
+}
+
+impl ReportScope {
+    pub fn is_unscoped(&self) -> bool {
+        *self == Self::default()
+    }
+
+    fn keeps_subscription(&self, subscription_id: &str) -> bool {
+        self.subscription
+            .as_ref()
+            .is_none_or(|wanted| wanted.eq_ignore_ascii_case(subscription_id))
+    }
+
+    fn keeps_group(&self, group: Option<&str>) -> bool {
+        self.resource_group
+            .as_ref()
+            .is_none_or(|wanted| group.is_some_and(|g| wanted.eq_ignore_ascii_case(g)))
+    }
+
+    fn keeps_resource(&self, resource: &crate::model::Resource) -> bool {
+        self.keeps_subscription(&resource.subscription_id)
+            && self.keeps_group(resource.resource_group.as_deref())
+    }
+
+    /// A finding that names no stored resource is kept while the scope is no
+    /// narrower than a subscription its id (if any) belongs to. Narrowing to
+    /// a group drops it: a group study should not carry estate-level noise.
+    fn keeps_unresolved_finding(&self, resource_id: Option<&str>) -> bool {
+        if self.resource_group.is_some() {
+            return false;
+        }
+        match (&self.subscription, resource_id) {
+            (Some(wanted), Some(id)) => id
+                .to_ascii_lowercase()
+                .contains(&format!("/subscriptions/{}/", wanted.to_ascii_lowercase())),
+            _ => true,
+        }
+    }
+
+    fn keeps_severity(&self, severity: crate::model::Severity) -> bool {
+        self.min_severity.is_none_or(|min| severity <= min)
+    }
+
+    /// Rows of a recorded query stay only when their own subscription and
+    /// group columns, where present, fall inside the scope.
+    fn keeps_row(&self, row: &Value) -> bool {
+        let text = |key: &str| row.get(key).and_then(Value::as_str);
+        text("subscriptionId").is_none_or(|id| self.keeps_subscription(id))
+            && (self.resource_group.is_none()
+                || text("resourceGroup").is_none_or(|group| self.keeps_group(Some(group))))
+    }
+}
+
+impl From<&ReportScope> for crate::diagram::DiagramScope {
+    fn from(scope: &ReportScope) -> Self {
+        Self {
+            subscription: scope.subscription.clone(),
+            resource_group: scope.resource_group.clone(),
+        }
+    }
+}
+
 /// Everything the report emitters need, built once from the store and shaped
 /// for direct serialization into templates.
 #[derive(Debug, Serialize)]
@@ -65,6 +136,9 @@ pub struct ReportContext {
     pub changes: Option<crate::model::diff::SnapshotChanges>,
     /// The last usable snapshots of this tenant, oldest first, this one last.
     pub trend: Vec<crate::store::TrendPoint>,
+    /// The scope this context was built for, so emitters can say so.
+    #[serde(skip)]
+    pub scope: ReportScope,
 }
 
 /// How many snapshots the trend table looks back over.
@@ -177,25 +251,48 @@ pub struct ResourceTypeSection {
 
 impl ReportContext {
     pub fn build(store: &Store, snapshot_id: &str) -> Result<Self, StoreError> {
-        Self::build_with_website_images(store, snapshot_id, true)
+        Self::build_scoped(store, snapshot_id, &ReportScope::default(), true)
     }
 
     /// Desktop metadata never reads screenshot blobs; previews load on demand.
     pub fn build_for_desktop(store: &Store, snapshot_id: &str) -> Result<Self, StoreError> {
-        Self::build_with_website_images(store, snapshot_id, false)
+        Self::build_scoped(store, snapshot_id, &ReportScope::default(), false)
     }
 
-    fn build_with_website_images(
+    /// Build for one scope. `include_images` loads screenshot bytes, which
+    /// only the formats that draw them need.
+    pub fn build_scoped(
         store: &Store,
         snapshot_id: &str,
+        scope: &ReportScope,
         include_images: bool,
     ) -> Result<Self, StoreError> {
         let snapshot = store.get_snapshot(snapshot_id)?;
-        let subscriptions = store.subscriptions(snapshot_id)?;
-        let resource_groups = store.resource_groups(snapshot_id)?;
-        let resources = store.resources(snapshot_id)?;
-        let findings = store.findings(snapshot_id)?;
-        let edges = store.edges(snapshot_id)?;
+        let mut subscriptions = store.subscriptions(snapshot_id)?;
+        let mut resource_groups = store.resource_groups(snapshot_id)?;
+        let mut resources = store.resources(snapshot_id)?;
+        let mut findings = store.findings(snapshot_id)?;
+        let mut edges = store.edges(snapshot_id)?;
+        if !scope.is_unscoped() {
+            subscriptions.retain(|sub| scope.keeps_subscription(&sub.subscription_id));
+            resource_groups.retain(|group| {
+                scope.keeps_subscription(&group.subscription_id)
+                    && scope.keeps_group(Some(&group.name))
+            });
+            resources.retain(|resource| scope.keeps_resource(resource));
+            let kept: std::collections::HashSet<&str> =
+                resources.iter().map(|r| r.id.as_str()).collect();
+            findings.retain(|finding| {
+                scope.keeps_severity(finding.severity)
+                    && match finding.resource_id.as_deref() {
+                        Some(id) if kept.contains(id) => true,
+                        other => scope.keeps_unresolved_finding(other),
+                    }
+            });
+            edges.retain(|edge| {
+                kept.contains(edge.source_id.as_str()) || kept.contains(edge.target_id.as_str())
+            });
+        }
         let changes = store
             .previous_snapshot(snapshot_id)?
             .map(|previous| store.snapshot_changes(&previous.id, snapshot_id))
@@ -276,7 +373,10 @@ impl ReportContext {
             ) {
                 continue;
             }
-            let rows = store.query_results(snapshot_id, &name)?;
+            let mut rows = store.query_results(snapshot_id, &name)?;
+            if !scope.is_unscoped() {
+                rows.retain(|row| scope.keeps_row(row));
+            }
             if rows.is_empty() {
                 continue;
             }
@@ -454,9 +554,11 @@ impl ReportContext {
             query_runs,
         );
         for name in store.query_result_names(snapshot_id)? {
-            analysis
-                .recorded_queries
-                .insert(name.clone(), store.query_results(snapshot_id, &name)?);
+            let mut rows = store.query_results(snapshot_id, &name)?;
+            if !scope.is_unscoped() {
+                rows.retain(|row| scope.keeps_row(row));
+            }
+            analysis.recorded_queries.insert(name.clone(), rows);
         }
 
         let posture = posture::PostureReport::build(
@@ -465,12 +567,19 @@ impl ReportContext {
             snapshot.created_at,
             &resources,
         );
+        let mut websites = websites::WebsiteReport::build(store, snapshot_id, include_images)?;
+        if !scope.is_unscoped() {
+            let kept: std::collections::HashSet<&str> =
+                resources.iter().map(|r| r.id.as_str()).collect();
+            websites.retain_resources(&kept);
+        }
         Ok(Self {
             posture,
-            websites: websites::WebsiteReport::build(store, snapshot_id, include_images)?,
+            websites,
             analysis,
             changes,
             trend,
+            scope: scope.clone(),
             snapshot_id: snapshot.id.clone(),
             created_at: snapshot.created_at.to_rfc3339(),
             tenant_id: snapshot.tenant_id.clone(),
@@ -510,4 +619,109 @@ pub(crate) fn page_columns(columns: &[String]) -> Vec<&str> {
         .filter(|c| *c != "id")
         .take(6)
         .collect()
+}
+
+#[cfg(test)]
+mod scope_tests {
+    use super::*;
+    use crate::model::{Finding, Resource, Severity};
+
+    fn resource(sub: &str, group: &str, name: &str) -> Resource {
+        let id = format!(
+            "/subscriptions/{sub}/resourceGroups/{group}/providers/Microsoft.Test/things/{name}"
+        );
+        Resource {
+            id: id.to_lowercase(),
+            display_id: id,
+            name: name.into(),
+            azure_type: "microsoft.test/things".into(),
+            kind: None,
+            location: None,
+            resource_group: Some(group.to_lowercase()),
+            subscription_id: sub.into(),
+            tags: None,
+            sku: None,
+            identity: None,
+            properties: None,
+        }
+    }
+
+    fn finding(resource_id: Option<&str>, severity: Severity) -> Finding {
+        Finding {
+            query_name: "q".into(),
+            category: "c".into(),
+            severity,
+            resource_id: resource_id.map(str::to_owned),
+            title: "t".into(),
+            detail: None,
+        }
+    }
+
+    #[test]
+    fn unit_scope_drops_other_subscriptions_and_their_findings() {
+        let scope = ReportScope {
+            subscription: Some("SUB-A".into()),
+            ..ReportScope::default()
+        };
+        assert!(scope.keeps_resource(&resource("sub-a", "rg", "x")));
+        assert!(!scope.keeps_resource(&resource("sub-b", "rg", "x")));
+        assert!(scope.keeps_unresolved_finding(Some("/subscriptions/sub-a/resourcegroups/rg")));
+        assert!(!scope.keeps_unresolved_finding(Some("/subscriptions/sub-b/resourcegroups/rg")));
+    }
+
+    #[test]
+    fn unit_scope_keeps_estate_level_findings_without_group_filter() {
+        let subscription_only = ReportScope {
+            subscription: Some("sub-a".into()),
+            ..ReportScope::default()
+        };
+        let group = ReportScope {
+            resource_group: Some("rg".into()),
+            ..ReportScope::default()
+        };
+        assert!(subscription_only.keeps_unresolved_finding(None));
+        assert!(!group.keeps_unresolved_finding(None));
+        assert!(!group.keeps_resource(&resource("sub-a", "other", "x")));
+        assert!(group.keeps_resource(&resource("sub-a", "RG", "x")));
+    }
+
+    #[test]
+    fn unit_min_severity_filters_findings_only() {
+        let scope = ReportScope {
+            min_severity: Some(Severity::Medium),
+            ..ReportScope::default()
+        };
+        assert!(scope.keeps_severity(finding(None, Severity::High).severity));
+        assert!(scope.keeps_severity(Severity::Medium));
+        assert!(!scope.keeps_severity(Severity::Low));
+        assert!(
+            scope.keeps_resource(&resource("any", "rg", "x")),
+            "resources are untouched"
+        );
+    }
+
+    #[test]
+    fn unit_scope_filters_recorded_rows_by_their_own_columns() {
+        let scope = ReportScope {
+            subscription: Some("sub-a".into()),
+            resource_group: Some("RG".into()),
+            ..ReportScope::default()
+        };
+        assert!(
+            scope.keeps_row(&serde_json::json!({"subscriptionId": "sub-a", "resourceGroup": "rg"}))
+        );
+        assert!(
+            !scope
+                .keeps_row(&serde_json::json!({"subscriptionId": "sub-b", "resourceGroup": "rg"}))
+        );
+        assert!(
+            !scope.keeps_row(
+                &serde_json::json!({"subscriptionId": "sub-a", "resourceGroup": "other"})
+            )
+        );
+        assert!(
+            scope.keeps_row(&serde_json::json!({"type": "aggregate"})),
+            "rows without scope columns stay"
+        );
+    }
 }

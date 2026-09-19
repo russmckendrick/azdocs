@@ -606,12 +606,20 @@ fn export_reports(
             &[("count", &formats.len())],
         ),
     });
+    let severity = request
+        .min_severity
+        .as_deref()
+        .map(|value| parse_value::<azdocs::cli::SeverityArg>("severity", value))
+        .transpose()?;
     let args = ReportArgs {
         include_reference: request.include_reference.unwrap_or(false),
         snapshot: request.snapshot_id,
         format: formats[0],
         theme: None,
         out: Some(destination.to_path_buf()),
+        subscription: request.subscription_id.clone(),
+        resource_group: request.resource_group.clone(),
+        severity,
     };
     // One format per call so a cancel lands between documents rather than
     // after the whole set.

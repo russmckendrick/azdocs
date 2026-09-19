@@ -34,6 +34,20 @@ impl WebsiteReport {
         })
     }
 
+    /// Keep only the endpoints (and the captures they reference) of the given
+    /// resources, for a scoped report.
+    pub fn retain_resources(&mut self, resource_ids: &std::collections::HashSet<&str>) {
+        self.endpoints
+            .retain(|endpoint| resource_ids.contains(endpoint.resource_id.as_str()));
+        let referenced: BTreeSet<&str> = self
+            .endpoints
+            .iter()
+            .filter_map(|endpoint| endpoint.url.as_deref())
+            .collect();
+        self.captures
+            .retain(|url, _| referenced.contains(url.as_str()));
+    }
+
     pub fn image_slug(&self, url: &str) -> String {
         // BTreeMap order makes asset names stable for fixed stored evidence.
         format!(

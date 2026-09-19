@@ -270,12 +270,27 @@ impl EstateGraph {
     pub fn hierarchy(
         store: &Store,
         snapshot_id: &str,
+        scope: &DiagramScope,
         labels: &DiagramLabels,
     ) -> Result<Self, StoreError> {
         let snapshot = store.get_snapshot(snapshot_id)?;
-        let subscriptions = store.subscriptions(snapshot_id)?;
-        let groups = store.resource_groups(snapshot_id)?;
-        let resources = store.resources(snapshot_id)?;
+        let mut subscriptions = store.subscriptions(snapshot_id)?;
+        let mut groups = store.resource_groups(snapshot_id)?;
+        let resources = scoped_resources(store, snapshot_id, scope)?;
+        // The same scope every other graph honours; a `--subscription` on the
+        // hierarchy used to be silently ignored.
+        subscriptions.retain(|sub| {
+            scope
+                .subscription
+                .as_ref()
+                .is_none_or(|wanted| wanted == &sub.subscription_id)
+        });
+        groups.retain(|rg| {
+            scope
+                .resource_group
+                .as_ref()
+                .is_none_or(|wanted| wanted.eq_ignore_ascii_case(&rg.name))
+        });
 
         let mut graph = Self {
             title: fill(&labels.hierarchy_title, &[("tenant", &snapshot.tenant_id)]),

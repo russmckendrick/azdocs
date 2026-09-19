@@ -119,7 +119,9 @@ pnpm run tauri build
   resource-scoped result back to its resource properties.
 - **Snapshots** shows collection history, query health, and added, changed, or
   removed resource IDs compared with the preceding snapshot.
-- **Exports** generates four outcome-led artifacts from the active snapshot:
+- **Exports** generates four outcome-led artifacts from the active snapshot,
+  optionally scoped to one subscription, one resource group or findings at a
+  severity or above:
   the print-ready PDF Field Report, an editable Word Report, the Excel Data
   Workbook, or the Draw.io Diagram Workbook. The app deliberately omits format
   matrices and theme choice; HTML, CSV, Markdown, scoped diagrams, Mermaid,

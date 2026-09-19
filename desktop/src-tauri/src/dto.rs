@@ -1147,6 +1147,9 @@ pub struct ExportRequestDto {
     pub diagram_type: Option<String>,
     pub subscription_id: Option<String>,
     pub resource_group: Option<String>,
+    /// Reports only: keep findings at this severity or higher (a `Severity`
+    /// name; validated against the CLI enum on the Rust side).
+    pub min_severity: Option<String>,
 }
 
 #[derive(Debug, Serialize, TS)]

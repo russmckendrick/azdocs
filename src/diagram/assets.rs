@@ -95,7 +95,7 @@ pub fn build_overviews(
         }
     };
 
-    let hierarchy = EstateGraph::hierarchy(store, snapshot_id, labels)?;
+    let hierarchy = EstateGraph::hierarchy(store, snapshot_id, scope, labels)?;
     push("hierarchy", DiagramAssetKind::Hierarchy, &hierarchy);
     let network = EstateGraph::network(store, snapshot_id, scope, labels)?;
     push("network", DiagramAssetKind::Network, &network);

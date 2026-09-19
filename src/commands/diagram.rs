@@ -34,7 +34,7 @@ pub fn run_with_outputs(
     match args.diagram_type {
         DiagramType::Hierarchy => single(
             args,
-            &EstateGraph::hierarchy(store, &snapshot_id, words)?,
+            &EstateGraph::hierarchy(store, &snapshot_id, &scope, words)?,
             "hierarchy",
             labels,
         ),

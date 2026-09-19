@@ -61,7 +61,7 @@ fn mermaid_outputs_match_golden_files() {
     for (name, graph) in [
         (
             "hierarchy",
-            EstateGraph::hierarchy(&store, &id, &labels()).unwrap(),
+            EstateGraph::hierarchy(&store, &id, &DiagramScope::default(), &labels()).unwrap(),
         ),
         (
             "resources",
@@ -84,7 +84,7 @@ fn drawio_outputs_match_golden_files() {
     for (name, graph) in [
         (
             "hierarchy",
-            EstateGraph::hierarchy(&store, &id, &labels()).unwrap(),
+            EstateGraph::hierarchy(&store, &id, &DiagramScope::default(), &labels()).unwrap(),
         ),
         (
             "network",
@@ -160,7 +160,7 @@ fn svg_outputs_match_golden_files() {
         for (name, graph) in [
             (
                 "hierarchy",
-                EstateGraph::hierarchy(&store, &id, &labels()).unwrap(),
+                EstateGraph::hierarchy(&store, &id, &DiagramScope::default(), &labels()).unwrap(),
             ),
             (
                 "resources",
@@ -263,7 +263,7 @@ fn png_renders_every_graph_at_twice_the_svg_size() {
     let scope = DiagramScope::default();
 
     let mut graphs = vec![
-        EstateGraph::hierarchy(&store, &id, &labels()).unwrap(),
+        EstateGraph::hierarchy(&store, &id, &DiagramScope::default(), &labels()).unwrap(),
         EstateGraph::resources(&store, &id, &scope, &labels()).unwrap(),
         EstateGraph::network(&store, &id, &scope, &labels()).unwrap(),
         EstateGraph::peerings(&store, &id, &scope, &labels()).unwrap(),

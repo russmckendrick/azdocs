@@ -12,7 +12,7 @@ use clap_complete::Shell;
 ///
 /// Collects resource data with read-only credentials into a local SQLite
 /// database, then exports reports (Markdown, HTML, CSV, XLSX, PDF, DOCX) and
-/// diagrams (draw.io, Mermaid) without further network access.
+/// diagrams (draw.io, Mermaid, SVG, PNG) without further network access.
 #[derive(Debug, Parser)]
 #[command(name = "azdocs", version, propagate_version = true)]
 pub struct Cli {
@@ -243,6 +243,49 @@ pub struct ReportArgs {
     /// Output directory (default: ./output)
     #[arg(long, value_name = "DIR")]
     pub out: Option<PathBuf>,
+
+    /// Restrict the report to one subscription id
+    #[arg(long, value_name = "ID")]
+    pub subscription: Option<String>,
+
+    /// Restrict the report to one resource group name (needs --subscription
+    /// when the name repeats across subscriptions)
+    #[arg(long, value_name = "NAME")]
+    pub resource_group: Option<String>,
+
+    /// Only include findings at this severity or higher
+    #[arg(long, value_enum, value_name = "LEVEL")]
+    pub severity: Option<SeverityArg>,
+}
+
+impl ReportArgs {
+    pub fn scope(&self) -> crate::report::ReportScope {
+        crate::report::ReportScope {
+            subscription: self.subscription.clone(),
+            resource_group: self.resource_group.clone(),
+            min_severity: self.severity.map(Into::into),
+        }
+    }
+}
+
+/// `--severity` on the command line; mirrors `model::Severity`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum SeverityArg {
+    High,
+    Medium,
+    Low,
+    Info,
+}
+
+impl From<SeverityArg> for crate::model::Severity {
+    fn from(value: SeverityArg) -> Self {
+        match value {
+            SeverityArg::High => Self::High,
+            SeverityArg::Medium => Self::Medium,
+            SeverityArg::Low => Self::Low,
+            SeverityArg::Info => Self::Info,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -452,6 +495,27 @@ mod tests {
     fn diagram_requires_type() {
         let result = Cli::try_parse_from(["azdocs", "diagram"]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn report_parses_scope_flags() {
+        let cli = Cli::parse_from([
+            "azdocs",
+            "report",
+            "--subscription",
+            "sub-1",
+            "--resource-group",
+            "RG-App",
+            "--severity",
+            "medium",
+        ]);
+        let Command::Report(args) = cli.command else {
+            panic!("expected report subcommand");
+        };
+        let scope = args.scope();
+        assert_eq!(scope.subscription.as_deref(), Some("sub-1"));
+        assert_eq!(scope.resource_group.as_deref(), Some("RG-App"));
+        assert_eq!(scope.min_severity, Some(crate::model::Severity::Medium));
     }
 
     #[test]

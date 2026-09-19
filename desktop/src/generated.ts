@@ -419,7 +419,12 @@ export type WebsiteProgress = { completed: number, total: number, url?: string |
 
 export type WebsiteBatchResult = { captured: number, failed: number, skipped: number, cancelled: boolean, error?: string | null, };
 
-export type ExportRequest = { includeReference?: boolean | null, snapshotId: string, destination: string, exportKind: ExportKind, formats: Array<string>, diagramType?: string | null, subscriptionId?: string | null, resourceGroup?: string | null, };
+export type ExportRequest = { includeReference?: boolean | null, snapshotId: string, destination: string, exportKind: ExportKind, formats: Array<string>, diagramType?: string | null, subscriptionId?: string | null, resourceGroup?: string | null,
+/**
+ * Reports only: keep findings at this severity or higher (a `Severity`
+ * name; validated against the CLI enum on the Rust side).
+ */
+minSeverity?: string | null, };
 
 export type ExportResult = { destination: string, outputs: Array<string>,
 /**

@@ -202,6 +202,7 @@ mod tests {
     /// fails here rather than printing itself.
     const KNOWN_PLACEHOLDERS: &[&str] = &[
         "fields",
+        "severity",
         "new_findings",
         "resolved",
         "state",
