@@ -21,11 +21,21 @@ import type {
   Labels,
 } from "./labels";
 
-export type SettingsValues = { schema_version: number, default_tenant?: string | null, tenants: { [key in string]: TenantProfile }, collect: CollectConfig, audit: AuditConfig, storage: StorageConfig, branding: BrandingConfig, };
+export type Cloud = "public" | "usgov" | "china";
 
-export type TenantProfile = { name: string, tenant_id: string, client_id: string, secret_ref?: string | null, secret_env?: string | null, collect: CollectOverrides, audit: AuditOverrides, branding: BrandingOverrides, };
+export type SettingsValues = { schema_version: number, default_tenant?: string | null,
+/**
+ * Shared cloud default; `TenantProfile.cloud` overrides it.
+ */
+cloud: Cloud, tenants: { [key in string]: TenantProfile }, collect: CollectConfig, audit: AuditConfig, storage: StorageConfig, branding: BrandingConfig, };
 
-export type CollectOverrides = { subscriptions?: Array<string> | null, concurrency?: number | null, };
+export type TenantProfile = { name: string, tenant_id: string, client_id: string,
+/**
+ * Overrides the shared `cloud` for this tenant.
+ */
+cloud?: Cloud | null, secret_ref?: string | null, secret_env?: string | null, collect: CollectOverrides, audit: AuditOverrides, branding: BrandingOverrides, };
+
+export type CollectOverrides = { subscriptions?: Array<string> | null, concurrency?: number | null, retry?: RetryConfig | null, };
 
 export type AuditOverrides = { required_tags?: Array<string> | null, };
 
@@ -35,7 +45,29 @@ export type CollectConfig = {
 /**
  * Subscription ids to collect; empty means all visible to the credential.
  */
-subscriptions: Array<string>, concurrency: number, };
+subscriptions: Array<string>, concurrency: number, retry: RetryConfig, };
+
+export type RetryConfig = {
+/**
+ * Attempts per request, 1–10.
+ */
+max_attempts: number,
+/**
+ * First backoff wait in milliseconds; doubles per attempt.
+ */
+base_delay_ms: number,
+/**
+ * Longest single wait in seconds, including a server's Retry-After.
+ */
+max_delay_secs: number,
+/**
+ * Whole-request timeout in seconds.
+ */
+timeout_secs: number,
+/**
+ * TCP/TLS connect timeout in seconds.
+ */
+connect_timeout_secs: number, };
 
 export type AuditConfig = { required_tags: Array<string>, };
 

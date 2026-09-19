@@ -979,6 +979,8 @@ pub struct DesktopSettingsLabels {
     pub active_snapshot_detail: String,
     /// Keyed by theme preference (`system`, `light`, `dark`).
     pub theme_options: std::collections::BTreeMap<String, String>,
+    /// Keyed by `Cloud::as_str` (`public`, `usgov`, `china`).
+    pub cloud_options: std::collections::BTreeMap<String, String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

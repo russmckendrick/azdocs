@@ -468,9 +468,10 @@ pub async fn settings_test(
             .map_err(|e| AppError::State(e.to_string()))?;
         runtime
             .block_on(azdocs::auth::diagnostics::inspect(
-                azdocs::commands::http_client(),
+                azdocs::commands::http_client(&config),
                 &provider,
                 &config.collect.subscriptions,
+                config.cloud,
             ))
             .map_err(|e| AppError::Collection(e.to_string()))
     })

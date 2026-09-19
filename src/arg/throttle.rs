@@ -2,41 +2,7 @@ use std::time::Duration;
 
 use reqwest::header::HeaderMap;
 
-/// Backoff behaviour for throttled (429) and transient (5xx) responses.
-#[derive(Debug, Clone)]
-pub struct RetryPolicy {
-    pub max_attempts: u32,
-    /// Base delay for exponential backoff on 5xx (doubles per attempt).
-    pub base_delay: Duration,
-    /// Fallback wait when a 429 carries no usable Retry-After header.
-    pub default_retry_after: Duration,
-}
-
-impl Default for RetryPolicy {
-    fn default() -> Self {
-        Self {
-            max_attempts: 5,
-            base_delay: Duration::from_millis(500),
-            default_retry_after: Duration::from_secs(5),
-        }
-    }
-}
-
-impl RetryPolicy {
-    pub fn backoff_delay(&self, attempt: u32) -> Duration {
-        self.base_delay * 2u32.saturating_pow(attempt)
-    }
-
-    pub fn retry_after(&self, headers: &HeaderMap) -> Duration {
-        parse_retry_after(headers).unwrap_or(self.default_retry_after)
-    }
-}
-
-fn parse_retry_after(headers: &HeaderMap) -> Option<Duration> {
-    let value = headers.get(reqwest::header::RETRY_AFTER)?.to_str().ok()?;
-    let seconds: u64 = value.trim().parse().ok()?;
-    Some(Duration::from_secs(seconds))
-}
+pub use crate::net::RetryPolicy;
 
 /// Proactive pacing from ARG quota headers: when the remaining-quota header
 /// hits zero, wait out the advertised reset window instead of provoking a 429.
@@ -111,7 +77,10 @@ mod tests {
 
     #[test]
     fn retry_after_prefers_header_over_default() {
-        let policy = RetryPolicy::default();
+        let policy = RetryPolicy {
+            jitter: 0.0,
+            ..RetryPolicy::default()
+        };
         let headers = headers(&[("retry-after", "12")]);
 
         assert_eq!(policy.retry_after(&headers), Duration::from_secs(12));

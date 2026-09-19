@@ -3,7 +3,6 @@ use std::sync::Arc;
 use anyhow::bail;
 use comfy_table::{Table, presets};
 
-use crate::arg::ArgClient;
 use crate::cli::{CollectArgs, FailOn};
 use crate::config::Config;
 use crate::labels::{Labels, fill};
@@ -132,8 +131,13 @@ pub async fn run(
     } = plan(config, args)?;
 
     let provider = super::token_provider(config)?;
-    let check =
-        crate::auth::diagnostics::inspect(super::http_client(), &provider, &subscriptions).await?;
+    let check = crate::auth::diagnostics::inspect(
+        super::http_client(config),
+        &provider,
+        &subscriptions,
+        config.cloud,
+    )
+    .await?;
     if !args.quiet {
         super::check::print_permissions(&check, labels);
     }
@@ -142,7 +146,7 @@ pub async fn run(
     if check.has_no_subscriptions() {
         bail!("{}", words.no_subscriptions);
     }
-    let client = Arc::new(ArgClient::new(super::http_client(), provider));
+    let client = Arc::new(super::arg_client(config, provider));
 
     if !args.quiet {
         println!(

@@ -126,8 +126,9 @@ pub async fn inspect<P: TokenProvider>(
     http: reqwest::Client,
     provider: &P,
     configured: &[String],
+    cloud: crate::cloud::Cloud,
 ) -> Result<ConnectionCheck, DiagnosticError> {
-    inspect_at(http, provider, configured, "https://management.azure.com").await
+    inspect_at(http, provider, configured, cloud.endpoints().arm).await
 }
 
 pub async fn inspect_at<P: TokenProvider>(

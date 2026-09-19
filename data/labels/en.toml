@@ -692,6 +692,11 @@ system = "System"
 light = "Light"
 dark = "Dark"
 
+[desktop.settings.cloud_options]
+public = "Azure (public)"
+usgov = "Azure Government"
+china = "Azure China (21Vianet)"
+
 [desktop.governance]
 title = "Governance & tags"
 required_tags_from = "Required tags from azdocs.toml: {tags}"
@@ -1888,6 +1893,8 @@ diagnostics_filter = "JSON diagnostics"
 appearance = "Appearance"
 database = "Shared database"
 field_subscriptions = "Subscription IDs"
+field_cloud = "Azure cloud"
+cloud_detail = "Sets the sign-in authority and management endpoints. Sovereign clouds need a service principal created in that cloud."
 field_concurrency = "Concurrent queries"
 field_required_tags = "Required tags"
 list_hint = "Separate values with commas or new lines. An empty subscription list means all visible subscriptions."

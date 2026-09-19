@@ -17,6 +17,7 @@ import {
 import type {
   AppBootstrap,
   BrandingConfig,
+  Cloud,
   ConnectionCheck,
   EstateSnapshot,
   SettingsDocumentDto,
@@ -24,6 +25,9 @@ import type {
   TenantProfile,
   ThemePreference,
 } from "../types";
+
+/** Mirrors `Cloud::ALL` in src/cloud.rs; the select renders in this order. */
+const CLOUDS: Cloud[] = ["public", "usgov", "china"];
 import {
   chooseBrandingPath,
   discardSettingsSecrets,
@@ -565,6 +569,45 @@ export function SettingsView(props: Props) {
         <section className="settings-section">
           <h2>{words.collection}</h2>
           <Field
+            label={<label htmlFor="setting-cloud">{words.field_cloud}</label>}
+            detail={
+              tenant
+                ? inheritance("cloud", profile?.cloud != null, (enabled) =>
+                    editProfile((p) => {
+                      if (enabled) p.cloud = values.cloud;
+                      else delete p.cloud;
+                    }),
+                  )
+                : words.cloud_detail
+            }
+          >
+            <select
+              id="setting-cloud"
+              value={
+                (tenant ? (profile?.cloud ?? values.cloud) : values.cloud) ??
+                "public"
+              }
+              disabled={tenant && profile?.cloud == null}
+              onChange={(e) => {
+                const cloud = e.target.value as Cloud;
+                if (tenant)
+                  editProfile((p) => {
+                    p.cloud = cloud;
+                  });
+                else
+                  edit((draft) => {
+                    draft.cloud = cloud;
+                  });
+              }}
+            >
+              {CLOUDS.map((option) => (
+                <option key={option} value={option}>
+                  {settings.cloud_options[option]}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field
             label={
               <label htmlFor="setting-subscriptions">
                 {words.field_subscriptions}
@@ -698,7 +741,10 @@ export function SettingsView(props: Props) {
         tenantName={profile?.name ?? ""}
         check={check}
         error={testError}
-        onClose={() => { setTestOpen(false); testButton.current?.focus(); }}
+        onClose={() => {
+          setTestOpen(false);
+          testButton.current?.focus();
+        }}
       />
       <ViewHeading title={settings.title} description={settings.description} />
       <nav className="settings-tabs" aria-label={settings.title}>

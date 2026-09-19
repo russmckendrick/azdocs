@@ -102,6 +102,8 @@ pub enum ArgError {
     Api { status: u16, detail: String },
     #[error("still throttled after {attempts} attempts")]
     ThrottledOut { attempts: u32 },
+    #[error("gave up after {attempts} attempts; last failure: {last}")]
+    RetriesExhausted { attempts: u32, last: Box<ArgError> },
     #[error("invalid resource graph response: {0}")]
     InvalidResponse(String),
     #[error("resource graph returned incomplete results without a continuation token")]

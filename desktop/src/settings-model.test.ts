@@ -12,8 +12,19 @@ function values(): SettingsValues {
   return {
     schema_version: 2,
     default_tenant: "acme",
+    cloud: "public",
     tenants: { acme: newTenant("Acme") },
-    collect: { subscriptions: ["sub"], concurrency: 4 },
+    collect: {
+      subscriptions: ["sub"],
+      concurrency: 4,
+      retry: {
+        max_attempts: 5,
+        base_delay_ms: 500,
+        max_delay_secs: 60,
+        timeout_secs: 120,
+        connect_timeout_secs: 15,
+      },
+    },
     audit: { required_tags: ["owner"] },
     storage: { db_path: "estate.db" },
     branding: {

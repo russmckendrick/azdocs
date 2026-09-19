@@ -7,16 +7,16 @@ use crate::labels::{Labels, fill};
 
 pub async fn run(config: &Config, format: OutputFormat, labels: &Labels) -> anyhow::Result<()> {
     let words = &labels.cli.check;
-    let credentials = config.credentials()?;
-    let tenant = credentials.tenant_id.clone();
+    let tenant = config.credentials()?.tenant_id;
     if format == OutputFormat::Table {
         println!("{}", fill(&words.config_ok, &[("tenant", &tenant)]));
     }
-    let provider = crate::auth::ClientCredentialsProvider::new(super::http_client(), credentials);
+    let provider = super::token_provider(config)?;
     let result = diagnostics::inspect(
-        super::http_client(),
+        super::http_client(config),
         &provider,
         &config.collect.subscriptions,
+        config.cloud,
     )
     .await?;
     match format {

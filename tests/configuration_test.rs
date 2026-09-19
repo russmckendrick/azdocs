@@ -203,6 +203,7 @@ fn unit_redacts_parse_debug_and_auth_debug() {
         tenant_id: TENANT.into(),
         client_id: CLIENT.into(),
         client_secret: secret.into(),
+        cloud: azdocs::cloud::Cloud::Public,
     };
     assert!(!format!("{credentials:?}").contains(secret));
 }

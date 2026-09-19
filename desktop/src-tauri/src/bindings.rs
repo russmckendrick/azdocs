@@ -59,13 +59,15 @@ pub fn generated_typescript() -> String {
     use crate::settings::*;
     use azdocs::auth::diagnostics::*;
     use azdocs::config::document::*;
-    use azdocs::config::{AuditConfig, BrandingConfig, CollectConfig, StorageConfig};
+    use azdocs::config::{AuditConfig, BrandingConfig, CollectConfig, RetryConfig, StorageConfig};
+    decl::<azdocs::cloud::Cloud>(&mut out, &cfg);
     decl::<SettingsValues>(&mut out, &cfg);
     decl::<TenantProfile>(&mut out, &cfg);
     decl::<CollectOverrides>(&mut out, &cfg);
     decl::<AuditOverrides>(&mut out, &cfg);
     decl::<BrandingOverrides>(&mut out, &cfg);
     decl::<CollectConfig>(&mut out, &cfg);
+    decl::<RetryConfig>(&mut out, &cfg);
     decl::<AuditConfig>(&mut out, &cfg);
     decl::<StorageConfig>(&mut out, &cfg);
     decl::<BrandingConfig>(&mut out, &cfg);

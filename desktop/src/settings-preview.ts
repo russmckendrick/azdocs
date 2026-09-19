@@ -17,6 +17,7 @@ export const previewSettings: SettingsDocumentDto = {
   check: null,
   values: {
     schema_version: 2,
+    cloud: "public",
     default_tenant: "contoso",
     tenants: {
       contoso: {
@@ -38,7 +39,17 @@ export const previewSettings: SettingsDocumentDto = {
         branding: {},
       },
     },
-    collect: { subscriptions: [], concurrency: 4 },
+    collect: {
+      subscriptions: [],
+      concurrency: 4,
+      retry: {
+        max_attempts: 5,
+        base_delay_ms: 500,
+        max_delay_secs: 60,
+        timeout_secs: 120,
+        connect_timeout_secs: 15,
+      },
+    },
     audit: { required_tags: ["environment", "owner"] },
     storage: { db_path: mockBootstrap.databasePath },
     branding: {

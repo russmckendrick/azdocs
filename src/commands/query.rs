@@ -4,7 +4,6 @@ use std::path::Path;
 use anyhow::{Context, bail};
 use serde_json::Value;
 
-use crate::arg::ArgClient;
 use crate::cli::{OutputFormat, QueryOutputFormat};
 use crate::config::Config;
 use crate::labels::{Labels, fill};
@@ -27,9 +26,15 @@ pub async fn run(
     } else {
         subscriptions
     };
-    let check = crate::auth::diagnostics::inspect(super::http_client(), &provider, scope).await?;
+    let check = crate::auth::diagnostics::inspect(
+        super::http_client(config),
+        &provider,
+        scope,
+        config.cloud,
+    )
+    .await?;
     super::check::print_permissions(&check, labels);
-    let client = ArgClient::new(super::http_client(), provider);
+    let client = super::arg_client(config, provider);
     let outcome = client
         .query_all_with_scope(&kql, scope, authorization_scope)
         .await

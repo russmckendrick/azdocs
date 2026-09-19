@@ -15,6 +15,9 @@ pub const ENV_CLIENT_SECRET: &str = "AZDOCS_CLIENT_SECRET";
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Config {
+    /// Which Azure cloud the tenant lives in. Shared default; a tenant
+    /// profile may override it.
+    pub cloud: crate::cloud::Cloud,
     pub auth: AuthConfig,
     pub collect: CollectConfig,
     pub audit: AuditConfig,
@@ -38,6 +41,7 @@ pub struct CollectConfig {
     /// Subscription ids to collect; empty means all visible to the credential.
     pub subscriptions: Vec<String>,
     pub concurrency: usize,
+    pub retry: RetryConfig,
 }
 
 impl Default for CollectConfig {
@@ -45,7 +49,73 @@ impl Default for CollectConfig {
         Self {
             subscriptions: Vec::new(),
             concurrency: 4,
+            retry: RetryConfig::default(),
         }
+    }
+}
+
+/// `[collect.retry]`: how hard to try before a query is recorded as failed.
+/// The defaults reproduce the previous fixed behaviour.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ts_rs::TS)]
+#[serde(default, deny_unknown_fields)]
+pub struct RetryConfig {
+    /// Attempts per request, 1–10.
+    pub max_attempts: u32,
+    /// First backoff wait in milliseconds; doubles per attempt.
+    pub base_delay_ms: u64,
+    /// Longest single wait in seconds, including a server's Retry-After.
+    pub max_delay_secs: u64,
+    /// Whole-request timeout in seconds.
+    pub timeout_secs: u64,
+    /// TCP/TLS connect timeout in seconds.
+    pub connect_timeout_secs: u64,
+}
+
+impl Default for RetryConfig {
+    fn default() -> Self {
+        let http = crate::net::HttpSettings::default();
+        Self {
+            max_attempts: http.retry.max_attempts,
+            base_delay_ms: http.retry.base_delay.as_millis() as u64,
+            max_delay_secs: http.retry.max_delay.as_secs(),
+            timeout_secs: http.timeout.as_secs(),
+            connect_timeout_secs: http.connect_timeout.as_secs(),
+        }
+    }
+}
+
+impl RetryConfig {
+    pub fn http_settings(&self) -> crate::net::HttpSettings {
+        let defaults = crate::net::RetryPolicy::default();
+        crate::net::HttpSettings {
+            timeout: std::time::Duration::from_secs(self.timeout_secs),
+            connect_timeout: std::time::Duration::from_secs(self.connect_timeout_secs),
+            retry: crate::net::RetryPolicy {
+                max_attempts: self.max_attempts,
+                base_delay: std::time::Duration::from_millis(self.base_delay_ms),
+                max_delay: std::time::Duration::from_secs(self.max_delay_secs),
+                ..defaults
+            },
+        }
+    }
+
+    pub fn validate(&self) -> Result<(), ConfigError> {
+        if !(1..=10).contains(&self.max_attempts) {
+            return Err(ConfigError::Invalid(
+                "collect.retry.max_attempts must be between 1 and 10".into(),
+            ));
+        }
+        if self.max_delay_secs == 0 || self.timeout_secs == 0 || self.connect_timeout_secs == 0 {
+            return Err(ConfigError::Invalid(
+                "collect.retry delays and timeouts must be at least 1 second".into(),
+            ));
+        }
+        if self.base_delay_ms > self.max_delay_secs * 1000 {
+            return Err(ConfigError::Invalid(
+                "collect.retry.base_delay_ms must not exceed max_delay_secs".into(),
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -156,6 +226,7 @@ pub struct Credentials {
     pub tenant_id: String,
     pub client_id: String,
     pub client_secret: String,
+    pub cloud: crate::cloud::Cloud,
 }
 
 impl Config {
@@ -241,6 +312,7 @@ impl Config {
             tenant_id,
             client_id,
             client_secret,
+            cloud: self.cloud,
         })
     }
 }
@@ -262,6 +334,7 @@ impl std::fmt::Debug for Credentials {
             .field("tenant_id", &self.tenant_id)
             .field("client_id", &self.client_id)
             .field("client_secret", &"[redacted]")
+            .field("cloud", &self.cloud)
             .finish()
     }
 }
@@ -353,6 +426,48 @@ db_path = "estate.db"
         assert_eq!(config.branding.primary_color, "#112233");
         // Untouched fields keep their defaults.
         assert_eq!(config.branding.title, "Azure Estate Report");
+    }
+
+    #[test]
+    fn from_file_parses_retry_limits_and_cloud() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("azdocs.toml");
+        std::fs::write(
+            &path,
+            "cloud = \"usgov\"\n[collect.retry]\nmax_attempts = 3\ntimeout_secs = 30\n",
+        )
+        .unwrap();
+
+        let config = Config::from_file(&path).unwrap();
+
+        assert_eq!(config.cloud, crate::cloud::Cloud::UsGov);
+        assert_eq!(config.collect.retry.max_attempts, 3);
+        assert_eq!(config.collect.retry.http_settings().timeout.as_secs(), 30);
+        assert_eq!(config.collect.retry.base_delay_ms, 500, "untouched default");
+    }
+
+    #[test]
+    fn unit_config_rejects_retry_attempts_above_ten() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("azdocs.toml");
+        std::fs::write(&path, "[collect.retry]\nmax_attempts = 11\n").unwrap();
+
+        assert!(matches!(
+            Config::from_file(&path),
+            Err(ConfigError::Invalid(_))
+        ));
+    }
+
+    #[test]
+    fn unit_config_rejects_unknown_cloud() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("azdocs.toml");
+        std::fs::write(&path, "cloud = \"mars\"\n").unwrap();
+
+        assert!(matches!(
+            Config::from_file(&path),
+            Err(ConfigError::Parse { .. })
+        ));
     }
 
     #[test]

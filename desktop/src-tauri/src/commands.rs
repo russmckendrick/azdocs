@@ -1,7 +1,6 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use azdocs::arg::ArgClient;
 use azdocs::cli::ArgValue;
 use azdocs::cli::{DiagramArgs, DiagramFormat, DiagramType, ReportArgs, ReportFormat};
 use azdocs::collect::CollectRequest;
@@ -350,9 +349,10 @@ pub async fn collect_snapshot(
                     request.subscriptions
                 };
                 let check = azdocs::auth::diagnostics::inspect(
-                    azdocs::commands::http_client(),
+                    azdocs::commands::http_client(&config),
                     &provider,
                     &subscriptions,
+                    config.cloud,
                 )
                 .await
                 .map_err(|e| AppError::Collection(e.to_string()))?;
@@ -366,7 +366,7 @@ pub async fn collect_snapshot(
                     );
                 }
                 let _ = on_event.send(CollectionEvent::Permissions { check });
-                let client = Arc::new(ArgClient::new(azdocs::commands::http_client(), provider));
+                let client = Arc::new(azdocs::commands::arg_client(&config, provider));
                 let store = Store::open(&path)?;
                 let summary = azdocs::collect::run_with_progress(
                     &store,
@@ -406,10 +406,13 @@ pub async fn collect_snapshot(
                         });
                         let provider = azdocs::commands::token_provider(&config)
                             .map_err(|e| AppError::Config(e.to_string()))?;
-                        let evidence = azdocs::collect::websites::WebsiteManagement::new(provider)
-                            .map_err(|e| AppError::Collection(e.to_string()))?
-                            .enrich(&resources)
-                            .await;
+                        let evidence = azdocs::collect::websites::WebsiteManagement::new(
+                            provider,
+                            config.cloud,
+                        )
+                        .map_err(|e| AppError::Collection(e.to_string()))?
+                        .enrich(&resources)
+                        .await;
                         let endpoints = azdocs::collect::websites::discover(&resources, &evidence);
                         store.save_website_inventory(
                             &summary.snapshot_id,

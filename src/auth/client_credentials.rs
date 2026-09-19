@@ -7,9 +7,8 @@ use tokio::time::Instant;
 use super::TokenProvider;
 use crate::config::Credentials;
 use crate::error::AuthError;
+use crate::net::RetryPolicy;
 
-pub const DEFAULT_AUTHORITY: &str = "https://login.microsoftonline.com";
-const MANAGEMENT_SCOPE: &str = "https://management.azure.com/.default";
 /// Refresh when a cached token has less than this long to live.
 const REFRESH_MARGIN: Duration = Duration::from_secs(300);
 
@@ -19,7 +18,9 @@ const REFRESH_MARGIN: Duration = Duration::from_secs(300);
 pub struct ClientCredentialsProvider {
     http: reqwest::Client,
     token_url: String,
+    scope: &'static str,
     credentials: Credentials,
+    retry: RetryPolicy,
     cached: Mutex<Option<CachedToken>>,
 }
 
@@ -35,11 +36,14 @@ struct TokenResponse {
 }
 
 impl ClientCredentialsProvider {
+    /// Authority and scope come from the credentials' cloud.
     pub fn new(http: reqwest::Client, credentials: Credentials) -> Self {
-        Self::with_authority(http, credentials, DEFAULT_AUTHORITY)
+        let endpoints = credentials.cloud.endpoints();
+        Self::with_authority(http, credentials, endpoints.authority)
     }
 
-    /// `authority` override exists for tests (wiremock).
+    /// `authority` override exists for tests (wiremock); the scope still
+    /// follows the credentials' cloud.
     pub fn with_authority(
         http: reqwest::Client,
         credentials: Credentials,
@@ -52,36 +56,67 @@ impl ClientCredentialsProvider {
         Self {
             http,
             token_url,
+            scope: credentials.cloud.endpoints().scope,
             credentials,
+            retry: RetryPolicy::default(),
             cached: Mutex::new(None),
         }
     }
 
+    pub fn with_retry_policy(mut self, retry: RetryPolicy) -> Self {
+        self.retry = retry;
+        self
+    }
+
+    /// Bounded retry on transport failures and 5xx. A 4xx is a real answer
+    /// (bad secret, unknown tenant) and is returned at once.
     async fn fetch_token(&self) -> Result<CachedToken, AuthError> {
         let params = [
             ("grant_type", "client_credentials"),
             ("client_id", self.credentials.client_id.as_str()),
             ("client_secret", self.credentials.client_secret.as_str()),
-            ("scope", MANAGEMENT_SCOPE),
+            ("scope", self.scope),
         ];
-        let response = self.http.post(&self.token_url).form(&params).send().await?;
-        let status = response.status();
-        if !status.is_success() {
+        let mut last: Option<AuthError> = None;
+        for attempt in 0..self.retry.max_attempts.max(1) {
+            let response = match self.http.post(&self.token_url).form(&params).send().await {
+                Ok(response) => response,
+                Err(err) => {
+                    let wait = self.retry.backoff_delay(attempt);
+                    tracing::warn!(%err, ?wait, attempt, "token request failed; retrying");
+                    last = Some(AuthError::Http(err));
+                    tokio::time::sleep(wait).await;
+                    continue;
+                }
+            };
+            let status = response.status();
+            if status.is_success() {
+                let token: TokenResponse = response
+                    .json()
+                    .await
+                    .map_err(|err| AuthError::InvalidResponse(err.to_string()))?;
+                return Ok(CachedToken {
+                    access_token: token.access_token,
+                    expires_at: Instant::now() + Duration::from_secs(token.expires_in),
+                });
+            }
             let detail = summarize_token_error(&response.text().await.unwrap_or_default())
                 .replace(&self.credentials.client_secret, "[redacted]");
-            return Err(AuthError::Rejected {
+            let rejected = AuthError::Rejected {
                 status: status.as_u16(),
                 detail,
-            });
+            };
+            if !(status.is_server_error() || status.as_u16() == 429) {
+                return Err(rejected);
+            }
+            let wait = self.retry.backoff_delay(attempt);
+            tracing::warn!(%status, ?wait, attempt, "token endpoint unavailable; retrying");
+            last = Some(rejected);
+            tokio::time::sleep(wait).await;
         }
-        let token: TokenResponse = response
-            .json()
-            .await
-            .map_err(|err| AuthError::InvalidResponse(err.to_string()))?;
-        Ok(CachedToken {
-            access_token: token.access_token,
-            expires_at: Instant::now() + Duration::from_secs(token.expires_in),
-        })
+        // Statically infallible: the loop runs at least once and every
+        // continue sets `last`.
+        Err(last.expect("at least one attempt was made"))
     }
 }
 

@@ -627,6 +627,7 @@
         "choose_file": "Choose configuration",
         "client_id": "Application (client) ID",
         "close_test": "Close connection test",
+        "cloud_detail": "Sets the sign-in authority and management endpoints. Sovereign clouds need a service principal created in that cloud.",
         "collection": "Collection",
         "collection_audit": "Collection & audit",
         "config_detail": "The CLI and desktop share this file. Relative paths are resolved beside it.",
@@ -650,6 +651,7 @@
         "export": "Export redacted diagnostics",
         "exported": "Redacted diagnostics exported",
         "field_accent_color": "Accent colour",
+        "field_cloud": "Azure cloud",
         "field_company": "Company",
         "field_concurrency": "Concurrent queries",
         "field_db_path": "Database path",
@@ -769,6 +771,11 @@
         "dark": "Dark",
         "light": "Light",
         "system": "System"
+      },
+      "cloud_options": {
+        "china": "Azure China (21Vianet)",
+        "public": "Azure (public)",
+        "usgov": "Azure Government"
       }
     },
     "governance": {
