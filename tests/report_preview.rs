@@ -98,8 +98,9 @@ fn writes_every_theme_in_every_format() {
             report::docx::render_reference(&context, &branding, &diagrams).unwrap(),
         )
         .unwrap();
-        report::html::write(&context, &branding, &out.join("report.html")).unwrap();
+        report::html::write(&context, &branding, &diagrams, &out.join("report.html")).unwrap();
         report::site::write(&context, &branding, &diagrams, &out.join("docs-html")).unwrap();
+        report::markdown::write(&context, &branding.labels, &diagrams, &out.join("docs")).unwrap();
         report::xlsx::write(&context, &branding, &resources, &out.join("azdocs.xlsx")).unwrap();
         report::csv::write_inventory(&resources, &branding.labels, &out.join("inventory.csv"))
             .unwrap();

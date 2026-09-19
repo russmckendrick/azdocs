@@ -27,7 +27,7 @@ static TYPST_TEMPLATES: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/templat
 
 /// The vendored report typeface. `typst-assets` ships no proportional sans, so
 /// the document face has to come from the repo.
-static VENDORED_FONTS: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/data/fonts");
+use super::fonts::VENDORED_FONTS;
 static PLEX_SERIF_REGULAR: &[u8] =
     include_bytes!("../../desktop/src/assets/fonts/IBMPlexSerif-Regular.ttf");
 static PLEX_SERIF_SEMIBOLD: &[u8] =

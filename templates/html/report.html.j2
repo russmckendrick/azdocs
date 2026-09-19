@@ -59,6 +59,8 @@ code { font-family: "{{ branding.tokens.typography.mono }}", ui-monospace, SFMon
 input.filter { width: 100%; max-width: 24rem; padding: .4rem .6rem; margin: .3rem 0;
        border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); }
 details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
+figure.diagram { margin: 1.5rem 0; } figure.diagram svg { max-width: 100%; height: auto; }
+figure.diagram figcaption { color: var(--muted); font-size: 13px; margin-top: .3rem; }
 </style>
 </head>
 <body>
@@ -78,6 +80,13 @@ details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
   <div class="stat"><b>{{ totals.findings }}</b><span>{{ html.findings }}</span></div>
   <div class="stat"><b>{{ tag_coverage.percent }}%</b><span>{{ html.tag_coverage }}</span></div>
 </div>
+{%- if diagrams %}
+
+<h2>{{ html.diagrams }}</h2>
+{% for d in diagrams %}
+<figure class="diagram">{{ d.svg | safe }}<figcaption>{{ d.title }}</figcaption></figure>
+{% endfor %}
+{%- endif %}
 
 
 <h2>{{ labels.report.posture.chapter }}</h2>

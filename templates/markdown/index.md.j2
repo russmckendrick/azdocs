@@ -72,6 +72,21 @@
 {%- for lc in location_counts %}
 | {{ lc.display | md_escape }} | {{ lc.count }} |
 {%- endfor %}
+{%- if diagrams %}
+
+## {{ md.diagrams }}
+
+{{ md.diagram_note }}
+{% for d in diagrams %}
+### {{ d.title | md_escape }}
+
+![{{ d.title | md_escape }}](diagrams/{{ d.slug }}.svg)
+{% if d.mermaid %}
+```mermaid
+{{ d.mermaid }}```
+{% endif %}
+{%- endfor %}
+{%- endif %}
 
 ## {{ md.sections }}
 

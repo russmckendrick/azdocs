@@ -31,7 +31,7 @@ fn markdown_pages_match_golden_files() {
     let report = ReportContext::build(&store, &id).unwrap();
     let dir = tempfile::tempdir().unwrap();
 
-    markdown::write(&report, &Labels::default(), dir.path()).unwrap();
+    markdown::write(&report, &Labels::default(), &[], dir.path()).unwrap();
 
     insta_settings().bind(|| {
         for page in [
@@ -56,7 +56,7 @@ fn html_report_matches_golden_file() {
     let dir = tempfile::tempdir().unwrap();
     let out = dir.path().join("report.html");
 
-    html::write(&report, &BrandingContext::default(), &out).unwrap();
+    html::write(&report, &BrandingContext::default(), &[], &out).unwrap();
 
     insta_settings().bind(|| {
         insta::assert_snapshot!("report_html", std::fs::read_to_string(&out).unwrap());
@@ -77,7 +77,7 @@ fn html_report_applies_custom_branding() {
     };
     let branding = BrandingContext::resolve(&config, None).unwrap();
 
-    let rendered = html::render(&report, &branding).unwrap();
+    let rendered = html::render(&report, &branding, &[]).unwrap();
 
     assert!(rendered.contains("--accent:#112233"), "custom accent color");
     assert!(
@@ -201,11 +201,17 @@ fn unit_microsoft_summary_escapes_service_text_in_markdown_and_html() {
         "2026-09-13T12:00:00Z".parse().unwrap(),
         &[],
     );
-    let pages = markdown::render_pages(&report, &Labels::default()).unwrap();
+    let pages = markdown::render_pages(
+        &report,
+        &Labels::default(),
+        &[],
+        markdown::DiagramEmbedding { mermaid: true },
+    )
+    .unwrap();
     let index = &pages.iter().find(|(path, _)| path == "index.md").unwrap().1;
     assert!(index.contains("&lt;script&gt;"));
     assert!(index.contains("\\[click\\]"));
-    let html = html::render(&report, &BrandingContext::default()).unwrap();
+    let html = html::render(&report, &BrandingContext::default(), &[]).unwrap();
     assert!(!html.contains("<script>alert(1)</script>"));
     assert!(html.contains("&lt;script&gt;"));
 }

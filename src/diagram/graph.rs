@@ -133,6 +133,24 @@ pub struct NamedGraph {
 
 /// Filesystem-safe slug: ascii-lowercased alphanumerics, everything else
 /// collapsed to single dashes.
+/// The container kinds a graph actually draws, in legend order. Every
+/// emitter keys its legend off this so SVG, Mermaid and draw.io explain the
+/// same boundaries and a simple diagram is not captioned with ones it lacks.
+pub fn legend_kinds(graph: &EstateGraph) -> Vec<NodeKind> {
+    [NodeKind::Vnet, NodeKind::Subnet, NodeKind::Zone]
+        .into_iter()
+        .filter(|kind| graph.nodes.iter().any(|node| &node.kind == kind))
+        .collect()
+}
+
+/// Whether any tile carries a `×N` count, so the legend explains it.
+pub fn has_aggregates(graph: &EstateGraph) -> bool {
+    graph
+        .nodes
+        .iter()
+        .any(|node| node.sublabel.as_deref().is_some_and(|s| s.starts_with('×')))
+}
+
 pub fn slugify(input: &str) -> String {
     crate::model::slugify(input)
 }
@@ -1174,5 +1192,111 @@ mod fold_tests {
         let edges = vec![attached("/nic", "/lb")];
 
         assert!(!is_represented_by_host(&nic, &edges, &by_id));
+    }
+}
+
+#[cfg(test)]
+mod neighbourhood_tests {
+    use super::*;
+
+    use crate::labels::DiagramLabels;
+    use crate::model::{Edge, EdgeKind, Resource, normalize_arm_id};
+    use std::collections::HashMap;
+
+    fn labels() -> DiagramLabels {
+        crate::labels::Labels::default().diagram
+    }
+
+    fn resource(name: &str, azure_type: &str) -> Resource {
+        let id = format!("/subscriptions/s1/resourceGroups/rg/providers/{azure_type}/{name}");
+        Resource {
+            id: normalize_arm_id(&id),
+            display_id: id,
+            name: name.to_owned(),
+            azure_type: azure_type.to_owned(),
+            kind: None,
+            location: Some("uksouth".to_owned()),
+            resource_group: Some("rg".to_owned()),
+            subscription_id: "s1".to_owned(),
+            tags: None,
+            sku: None,
+            identity: None,
+            properties: None,
+        }
+    }
+
+    fn attached(source: &Resource, target: &Resource) -> Edge {
+        Edge {
+            source_id: source.id.clone(),
+            target_id: target.id.clone(),
+            kind: EdgeKind::AttachedTo,
+            properties: None,
+        }
+    }
+
+    #[test]
+    fn unit_neighbourhood_includes_only_directly_connected_resources() {
+        let vm = resource("vm-01", "microsoft.compute/virtualmachines");
+        let nic = resource("vm-01-nic", "microsoft.network/networkinterfaces");
+        let pip = resource("vm-01-pip", "microsoft.network/publicipaddresses");
+        let unrelated = resource("st1", "microsoft.storage/storageaccounts");
+        let all = [&vm, &nic, &pip, &unrelated];
+        let by_id: HashMap<&str, &Resource> = all.iter().map(|r| (r.id.as_str(), *r)).collect();
+        // pip hangs off the nic, so it is two hops from the VM.
+        let edges = vec![attached(&nic, &vm), attached(&pip, &nic)];
+
+        let graph = EstateGraph::neighbourhood(&vm, &by_id, &edges, &labels());
+
+        let labels: Vec<&str> = graph
+            .nodes
+            .iter()
+            .filter(|node| !node.kind.is_container())
+            .map(|node| node.label.as_str())
+            .collect();
+        assert_eq!(labels, vec!["vm-01", "vm-01-nic"]);
+        assert_eq!(graph.edges.len(), 1);
+    }
+
+    #[test]
+    fn unit_neighbourhood_has_no_title_because_the_report_supplies_one() {
+        let vm = resource("vm-01", "microsoft.compute/virtualmachines");
+        let by_id: HashMap<&str, &Resource> = HashMap::from([(vm.id.as_str(), &vm)]);
+
+        let graph = EstateGraph::neighbourhood(&vm, &by_id, &[], &labels());
+
+        assert!(graph.title.is_empty());
+    }
+
+    /// A lone node is what a consumer would filter out; the graph itself
+    /// still draws it.
+    #[test]
+    fn unit_neighbourhood_of_an_unconnected_resource_is_a_lone_node() {
+        let lonely = resource("st1", "microsoft.storage/storageaccounts");
+        let by_id: HashMap<&str, &Resource> = HashMap::from([(lonely.id.as_str(), &lonely)]);
+
+        let graph = EstateGraph::neighbourhood(&lonely, &by_id, &[], &labels());
+
+        assert_eq!(
+            graph
+                .nodes
+                .iter()
+                .filter(|node| !node.kind.is_container())
+                .count(),
+            1
+        );
+    }
+
+    /// The frame is what makes a relationships diagram look like the rest of
+    /// the document rather than icons dropped on the page.
+    #[test]
+    fn unit_neighbourhood_is_drawn_inside_its_resource_group_frame() {
+        let vm = resource("vm-01", "microsoft.compute/virtualmachines");
+        let by_id: HashMap<&str, &Resource> = HashMap::from([(vm.id.as_str(), &vm)]);
+
+        let graph = EstateGraph::neighbourhood(&vm, &by_id, &[], &labels());
+
+        assert_eq!(graph.nodes[0].kind, NodeKind::ResourceGroup);
+        assert_eq!(graph.nodes[0].label, "rg");
+        assert!(graph.nodes[1..].iter().all(|node| node.parent == Some(0)));
     }
 }

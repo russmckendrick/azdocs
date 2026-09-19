@@ -385,7 +385,7 @@ pub fn render(mut docx: Docx, ctx: &Ctx, blocks: &[Block<'_>], assets: &[Diagram
                     svg: svg.clone(),
                     title: String::new(),
                     kind: crate::diagram::assets::DiagramAssetKind::Network,
-                    resource_id: None,
+                    mermaid: String::new(),
                     group_key: None,
                 };
                 if let Some(run) = diagram_run(ctx, &asset) {

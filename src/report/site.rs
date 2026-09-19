@@ -8,9 +8,9 @@ use pulldown_cmark::{Options, Parser, html};
 
 use super::ReportContext;
 use super::branding::BrandingContext;
-use super::markdown::render_pages;
+use super::markdown::{DiagramEmbedding, render_pages, write_diagram_files};
 use super::theme::TableStyle;
-use crate::diagram::assets::{DiagramAsset, DiagramAssetKind};
+use crate::diagram::assets::DiagramAsset;
 
 /// Placeholders are filled from the resolved theme in [`style`], so the docs
 /// site is the same design system as the PDF and DOCX rather than a look-alike.
@@ -117,17 +117,15 @@ pub fn write(
         "<footer class=\"brand\">{}</footer>",
         html_escape(&branding.footer)
     );
-    if !diagrams.is_empty() {
-        let diagrams_dir = out_dir.join("diagrams");
-        std::fs::create_dir_all(&diagrams_dir)
-            .with_context(|| format!("creating {}", diagrams_dir.display()))?;
-        for asset in diagrams {
-            let path = diagrams_dir.join(format!("{}.svg", asset.slug));
-            std::fs::write(&path, &asset.svg)
-                .with_context(|| format!("writing {}", path.display()))?;
-        }
-    }
-    let pages = render_pages(report, &branding.labels)?;
+    // Every page's image links point at `diagrams/<slug>.svg`; the Mermaid
+    // source is left out of the site because a browser would show it as code.
+    write_diagram_files(diagrams, out_dir)?;
+    let pages = render_pages(
+        report,
+        &branding.labels,
+        diagrams,
+        DiagramEmbedding { mermaid: false },
+    )?;
     report.websites.write_assets(out_dir)?;
     let nav = navigation(&pages);
     for (relative, markdown) in &pages {
@@ -136,10 +134,6 @@ pub fn write(
         let prefix = "../".repeat(depth);
         let mut body = markdown_to_html(&rewrite_links(markdown));
         if relative == "index.md" {
-            body.push_str(&diagram_section(
-                diagrams,
-                &branding.labels.report.html.diagrams,
-            ));
             body.push_str(&report.websites.html(&branding.labels, None, Some(&prefix)));
         }
         if let Some(group) = report
@@ -179,35 +173,6 @@ pub fn write(
         std::fs::write(&path, page).with_context(|| format!("writing {}", path.display()))?;
     }
     Ok(())
-}
-
-/// Overview diagrams (estate hierarchy + network topology) embedded on the
-/// index page; the full set lives in `diagrams/` for linking.
-fn diagram_section(diagrams: &[DiagramAsset], heading: &str) -> String {
-    let embedded: Vec<&DiagramAsset> = diagrams
-        .iter()
-        .filter(|asset| {
-            matches!(
-                asset.kind,
-                DiagramAssetKind::Hierarchy
-                    | DiagramAssetKind::Network
-                    | DiagramAssetKind::ResourceGroup
-            )
-        })
-        .collect();
-    if embedded.is_empty() {
-        return String::new();
-    }
-    let mut out = format!("<h2>{}</h2>\n", html_escape(heading));
-    for asset in embedded {
-        let title = html_escape(&asset.title);
-        out.push_str(&format!(
-            "<figure><img src=\"diagrams/{slug}.svg\" alt=\"{title}\" style=\"max-width:100%\">\
-             <figcaption>{title}</figcaption></figure>\n",
-            slug = asset.slug,
-        ));
-    }
-    out
 }
 
 pub(crate) fn html_escape(value: &str) -> String {

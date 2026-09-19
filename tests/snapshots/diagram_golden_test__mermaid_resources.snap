@@ -1,6 +1,6 @@
 ---
 source: tests/diagram_golden_test.rs
-expression: "mermaid::render(&graph)"
+expression: "mermaid::render(&graph, &labels())"
 ---
 ---
 title: Azure resources
@@ -63,9 +63,11 @@ flowchart LR
     n12-.-|private link|n16
     n13---n11
     n17---n16
+    linkStyle 3 stroke-dasharray:1 3
     classDef subscription fill:#e8f1fa,stroke:#0078d4
     classDef rg fill:#f3f2f1,stroke:#8a8886
     classDef vnet fill:#e6f5e6,stroke:#107c10
     classDef subnet fill:#fff,stroke:#8a8886
-    classDef unnetworked fill:#fdf6ec,stroke:#d97706
+    classDef zone fill:#fdf6ec,stroke:#d97706
     classDef resource fill:#fff,stroke:#605e5c
+    classDef legend fill:#fff,stroke:#8a8886,stroke-dasharray:4 3

@@ -138,7 +138,7 @@ pub fn run_selected_with_progress(
                 let out_dir = out_root.join("docs");
                 let out = out_dir.join("index.md");
                 on_artifact(&out);
-                report::markdown::write(&context, &branding.labels, &out_dir)?;
+                report::markdown::write(&context, &branding.labels, &diagrams, &out_dir)?;
                 println!(
                     "{}",
                     fill(&words.markdown_written, &[("path", &out.display())])
@@ -148,7 +148,7 @@ pub fn run_selected_with_progress(
             ReportFormat::Html => {
                 let out = out_root.join("report.html");
                 on_artifact(&out);
-                report::html::write(&context, &branding, &out)?;
+                report::html::write(&context, &branding, &diagrams, &out)?;
                 println!("{}", fill(&words.html_written, &[("path", &out.display())]));
                 outputs.push(out);
                 let site_dir = out_root.join("docs-html");

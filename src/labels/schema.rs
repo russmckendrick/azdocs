@@ -257,6 +257,8 @@ pub struct MarkdownLabels {
     pub resources_by_type: String,
     pub resources_by_location: String,
     pub sections: String,
+    pub diagrams: String,
+    pub diagram_note: String,
     pub subscription_link: String,
     pub subscription_title: String,
     pub id: String,
@@ -391,6 +393,7 @@ pub struct DiagramLabels {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct LegendLabels {
+    pub title: String,
     pub vnet: String,
     pub subnet: String,
     pub zone: String,

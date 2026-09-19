@@ -3,6 +3,7 @@ pub mod branding;
 pub mod csv;
 pub mod details;
 pub mod docx;
+pub mod fonts;
 pub mod governance;
 pub mod html;
 pub mod markdown;

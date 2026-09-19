@@ -11,8 +11,8 @@ Everything lands under `./output/` by default:
 
 | Format | Output | Contents |
 |---|---|---|
-| `md` | `output/docs/` | Markdown docs tree (works in any Git host or wiki) |
-| `html` | `output/report.html` + `output/docs-html/` | Single self-contained report **and** a multi-page HTML site |
+| `md` | `output/docs/` | Markdown docs tree (works in any Git host or wiki) with overview and per-group diagrams as SVG plus Mermaid source under `docs/diagrams/` |
+| `html` | `output/report.html` + `output/docs-html/` | Single self-contained report (overview diagrams inlined as SVG) **and** a multi-page HTML site |
 | `csv` | `output/inventory.csv`, `output/findings.csv` | Flat exports |
 | `xlsx` | `output/azdocs.xlsx` | Summary, Inventory (autofilter), Findings (severity colours), Governance (tag coverage and the least compliant groups), one sheet per category |
 | `pdf` | `output/report.pdf` | Print-ready document — see below |
@@ -161,6 +161,12 @@ output/docs/
 └── resources/<sub>/<rg>.md      # per-resource detail pages
 ```
 
+`index.md` embeds the estate hierarchy and network overview; each resource-group
+page opens with its summarised diagram. Every figure is written twice under
+`docs/diagrams/`: `<slug>.svg` for the image link and `<slug>.mmd` for the
+Mermaid source, which the page also inlines in a fenced block so GitHub and
+most wikis render it natively.
+
 The **detail pages** are the deep end: one section per resource with settings
 flattened from its properties, warning callouts for findings on that resource,
 and related-resource links derived from the relationship edges. The Markdown
@@ -170,8 +176,8 @@ reference uses selected, labelled operational settings in bordered tables.
 ## The HTML report
 
 `output/report.html` is one self-contained file (inline CSS/JS, dark-mode
-aware) with severity badges and client-side table filtering — suitable for
-email or SharePoint. `output/docs-html/` is the docs tree as static HTML with
+aware) with the overview diagrams inlined as SVG, severity badges and
+client-side table filtering — suitable for email or SharePoint. `output/docs-html/` is the docs tree as static HTML with
 navigation.
 
 

@@ -9,15 +9,24 @@ use crate::error::DiagramError;
 pub const DEFAULT_SCALE: f32 = 2.0;
 
 /// System font enumeration is slow; do it once per process.
+///
+/// The vendored IBM Plex faces are loaded first so the SVG's declared family
+/// resolves the same on every machine and on a font-less container; system
+/// fonts follow as glyph fallbacks.
 fn fontdb() -> Arc<usvg::fontdb::Database> {
     static FONTDB: OnceLock<Arc<usvg::fontdb::Database>> = OnceLock::new();
-    FONTDB
-        .get_or_init(|| {
-            let mut db = usvg::fontdb::Database::new();
-            db.load_system_fonts();
-            Arc::new(db)
-        })
-        .clone()
+    FONTDB.get_or_init(|| Arc::new(build_fontdb(true))).clone()
+}
+
+fn build_fontdb(system_fonts: bool) -> usvg::fontdb::Database {
+    let mut db = usvg::fontdb::Database::new();
+    for file in crate::report::fonts::VENDORED_FONTS.files() {
+        db.load_font_data(file.contents().to_vec());
+    }
+    if system_fonts {
+        db.load_system_fonts();
+    }
+    db
 }
 
 /// Rasterise an SVG document to PNG bytes on a white background.
@@ -32,8 +41,17 @@ pub fn from_svg_transparent(svg: &str, scale: f32) -> Result<Vec<u8>, DiagramErr
 }
 
 fn render(svg: &str, scale: f32, paper_background: bool) -> Result<Vec<u8>, DiagramError> {
+    render_with(svg, scale, paper_background, fontdb())
+}
+
+fn render_with(
+    svg: &str,
+    scale: f32,
+    paper_background: bool,
+    fontdb: Arc<usvg::fontdb::Database>,
+) -> Result<Vec<u8>, DiagramError> {
     let options = usvg::Options {
-        fontdb: fontdb(),
+        fontdb,
         ..usvg::Options::default()
     };
     let tree = usvg::Tree::from_str(svg, &options)?;
@@ -87,5 +105,19 @@ mod tests {
 
         assert_eq!(image.get_pixel(0, 0).0[3], 0);
         assert_eq!(image.get_pixel(10, 10).0[3], 255);
+    }
+
+    #[test]
+    fn unit_from_svg_renders_ibm_plex_without_system_fonts() {
+        let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="120" height="40" viewBox="0 0 120 40"><text x="4" y="28" font-family="IBM Plex Sans" font-size="24" fill="#000">Plex</text></svg>"##;
+
+        let png = render_with(svg, 1.0, true, Arc::new(build_fontdb(false))).unwrap();
+
+        let decoded = image::load_from_memory(&png).unwrap().to_luma8();
+        let dark = decoded.pixels().filter(|p| p.0[0] < 128).count();
+        assert!(
+            dark > 20,
+            "text must render from the vendored face: {dark} dark pixels"
+        );
     }
 }

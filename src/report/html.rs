@@ -7,27 +7,54 @@ use serde_json::Value;
 
 use super::branding::BrandingContext;
 use super::{ReportContext, cell_to_string};
+use crate::diagram::assets::{DiagramAsset, DiagramAssetKind};
 
-/// Render the single self-contained HTML report.
+/// Render the single self-contained HTML report. Overview diagrams are
+/// inlined as SVG so the file stays one file.
 pub fn write(
     report: &ReportContext,
     branding: &BrandingContext,
+    diagrams: &[DiagramAsset],
     out_path: &Path,
 ) -> anyhow::Result<()> {
-    let html = render(report, branding)?;
+    let html = render(report, branding, diagrams)?;
     std::fs::write(out_path, html).with_context(|| format!("writing {}", out_path.display()))?;
     Ok(())
 }
 
+#[derive(serde::Serialize)]
+struct InlineDiagram<'a> {
+    title: &'a str,
+    svg: &'a str,
+}
+
 /// Render the report HTML to a string (write's testable core).
-pub fn render(report: &ReportContext, branding: &BrandingContext) -> anyhow::Result<String> {
+pub fn render(
+    report: &ReportContext,
+    branding: &BrandingContext,
+    diagrams: &[DiagramAsset],
+) -> anyhow::Result<String> {
     let mut env = super::markdown::environment(&branding.labels);
     env.add_filter("html_cell", html_cell);
     env.add_template(
         "report",
         include_str!("../../templates/html/report.html.j2"),
     )?;
+    let inline: Vec<InlineDiagram<'_>> = diagrams
+        .iter()
+        .filter(|asset| {
+            matches!(
+                asset.kind,
+                DiagramAssetKind::Hierarchy | DiagramAssetKind::Network
+            )
+        })
+        .map(|asset| InlineDiagram {
+            title: &asset.title,
+            svg: &asset.svg,
+        })
+        .collect();
     let html = env.get_template("report")?.render(context! {
+        diagrams => inline,
         branding => minijinja::Value::from_serialize(branding),
         labels => minijinja::Value::from_serialize(&branding.labels),
         tag_audit => super::governance::TAG_AUDIT,

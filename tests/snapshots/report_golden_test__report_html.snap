@@ -1,5 +1,6 @@
 ---
 source: tests/report_golden_test.rs
+assertion_line: 62
 expression: "std::fs::read_to_string(&out).unwrap()"
 ---
 <!doctype html>
@@ -53,6 +54,8 @@ code { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monosp
 input.filter { width: 100%; max-width: 24rem; padding: .4rem .6rem; margin: .3rem 0;
        border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); }
 details { margin: 1rem 0; } summary { cursor: pointer; font-weight: 600; }
+figure.diagram { margin: 1.5rem 0; } figure.diagram svg { max-width: 100%; height: auto; }
+figure.diagram figcaption { color: var(--muted); font-size: 13px; margin-top: .3rem; }
 </style>
 </head>
 <body>

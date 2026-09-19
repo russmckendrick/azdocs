@@ -50,7 +50,7 @@ fn workbook_xml(store: &Store, id: &str) -> String {
     for named in &groups {
         sheets.push((named.sheet_name.as_str(), &named.graph));
     }
-    drawio::render_workbook_for(&sheets, DiagramDetail::Full)
+    drawio::render_workbook_for(&sheets, DiagramDetail::Full, &labels())
 }
 
 #[test]
@@ -72,7 +72,10 @@ fn mermaid_outputs_match_golden_files() {
             EstateGraph::network(&store, &id, &scope, &labels()).unwrap(),
         ),
     ] {
-        insta::assert_snapshot!(format!("mermaid_{name}"), mermaid::render(&graph));
+        insta::assert_snapshot!(
+            format!("mermaid_{name}"),
+            mermaid::render(&graph, &labels())
+        );
     }
 }
 
@@ -93,7 +96,7 @@ fn drawio_outputs_match_golden_files() {
     ] {
         insta::assert_snapshot!(
             format!("drawio_{name}"),
-            drawio::render_for(&graph, DiagramDetail::Full)
+            drawio::render_for(&graph, DiagramDetail::Full, &labels())
         );
     }
 }
@@ -132,6 +135,7 @@ fn drawio_xml_is_well_formed_with_unique_resolving_ids() {
     let xml = drawio::render_for(
         &EstateGraph::network(&store, &id, &scope, &labels()).unwrap(),
         DiagramDetail::Full,
+        &labels(),
     );
 
     assert_unique_resolving_ids(&xml);

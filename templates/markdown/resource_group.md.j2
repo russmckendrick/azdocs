@@ -9,6 +9,14 @@
 - **{{ col.location }}**: {{ page.location }}
 {%- endif %}
 - **{{ col.resources }}**: {{ page.resources | length }}
+{%- for d in diagrams %}
+
+![{{ d.title | md_escape }}](../../diagrams/{{ d.slug }}.svg)
+{% if d.mermaid %}
+```mermaid
+{{ d.mermaid }}```
+{% endif %}
+{%- endfor %}
 
 {% for r in page.resources %}
 ## {{ r.name }}

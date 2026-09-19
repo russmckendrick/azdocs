@@ -1,6 +1,6 @@
 ---
 source: tests/diagram_golden_test.rs
-expression: "drawio::render_for(&graph, DiagramDetail::Full)"
+expression: "drawio::render_for(&graph, DiagramDetail::Full, &labels())"
 ---
 <?xml version="1.0" encoding="UTF-8"?>
 <mxfile host="azdocs" type="device">
@@ -68,6 +68,12 @@ expression: "drawio::render_for(&graph, DiagramDetail::Full)"
         </mxCell>
         <mxCell id="mark" value="azdocs" style="image;aspect=fixed;html=1;points=[];movable=0;resizable=0;deletable=0;connectable=0;editable=0;labelPosition=right;align=left;verticalLabelPosition=middle;verticalAlign=middle;spacingLeft=6;fontSize=12;fontStyle=1;fontColor=#0754BD;image=data:image/svg+xml,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHJvbGU9ImltZyIgdmlld0JveD0iMCAwIDUxMiA1MTIiIHdpZHRoPSIyMDQ4IiBoZWlnaHQ9IjIwNDgiPgogIDx0aXRsZT5hemRvY3MgbWFyayBwcmltYXJ5PC90aXRsZT4KICA8ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9Im1hcmstYmx1ZSIgeDE9IjAuMTgiIHkxPSIwIiB4Mj0iMC43MiIgeTI9IjEiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiMxNjhmZTUiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIwLjUyIiBzdG9wLWNvbG9yPSIjMGI4NGRjIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzAwNzhkNCIvPgogICAgPC9saW5lYXJHcmFkaWVudD48L2RlZnM+CjxnPgogICAgPHBhdGggZD0iTTIzMiA1OCBDMjQyIDM4IDI3MCAzOCAyODAgNTggTDQ4MCA0MTQKICAgICAgQzQ5NSA0NDEgNDc2IDQ3MiA0NDQgNDcyIEg2OCBDMzYgNDcyIDE3IDQ0MSAzMiA0MTQgWiIKICAgICAgZmlsbD0idXJsKCNtYXJrLWJsdWUpIi8+CiAgICA8ZyBmaWxsPSIjZmZmZmZmIiBzdHJva2U9IiNmZmZmZmYiPgogICAgICA8cGF0aCBkPSJNMjU2IDE5OCBWMzMwIEwxNTYgMzgyIE0yNTYgMzMwIEwzNTYgMzgyIgogICAgICAgIGZpbGw9Im5vbmUiIHN0cm9rZS13aWR0aD0iMjYiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgogICAgICA8Y2lyY2xlIGN4PSIyNTYiIGN5PSIxOTgiIHI9IjQwIiBzdHJva2U9Im5vbmUiLz4KICAgICAgPGNpcmNsZSBjeD0iMTU2IiBjeT0iMzgyIiByPSI0MCIgc3Ryb2tlPSJub25lIi8+CiAgICAgIDxjaXJjbGUgY3g9IjM1NiIgY3k9IjM4MiIgcj0iNDAiIHN0cm9rZT0ibm9uZSIvPgogICAgPC9nPgogIDwvZz4KPC9zdmc+Cg==" parent="1" vertex="1">
           <mxGeometry x="0" y="258" width="28" height="28" as="geometry"/>
+        </mxCell>
+        <mxCell id="l0" value="Virtual network" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#EFF6FC;strokeColor=#0078D4;dashed=1;dashPattern=7 4;labelPosition=right;align=left;verticalLabelPosition=middle;verticalAlign=middle;spacingLeft=4;fontSize=10;fontColor=#605E5C;movable=0;resizable=0;connectable=0;" parent="1" vertex="1">
+          <mxGeometry x="60" y="262" width="28" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="l1" value="Subnet" style="rounded=1;html=1;whiteSpace=wrap;fillColor=#FFFFFF;strokeColor=#8A8886;dashed=1;dashPattern=4 3;labelPosition=right;align=left;verticalLabelPosition=middle;verticalAlign=middle;spacingLeft=4;fontSize=10;fontColor=#605E5C;movable=0;resizable=0;connectable=0;" parent="1" vertex="1">
+          <mxGeometry x="202" y="262" width="28" height="20" as="geometry"/>
         </mxCell>
       </root>
     </mxGraphModel>

@@ -149,9 +149,10 @@ CIDR right-aligned in the same band. The kind reads as a quiet grey prefix so
 the name is what the eye lands on. A centred header competes with the content
 beneath it.
 
-A per-resource **neighbourhood** diagram is drawn inside its resource group's
-frame too, with the subject in the *middle* of the row: nearly every edge ends
-on it, and from one end a connector has to cross the tiles in between.
+A **neighbourhood** graph (one resource and its direct relationships, as the
+desktop's map draws) is built inside its resource group's frame too, with the
+subject in the *middle* of the row: nearly every edge ends on it, and from one
+end a connector has to cross the tiles in between.
 
 Empty subnets collapse to a **strip** carrying just name and CIDR. The address
 space being allocated is worth stating; a full-height empty box reads as a
@@ -182,8 +183,11 @@ Each container kind has its own dash rhythm — subnet `4,3`, VNet and
 unnetworked `7,4`, resource group `6,5` — so the legend can name them and a
 reader tells them apart by border alone.
 
-Every diagram carries a legend keyed to the kinds actually present, so a simple
-diagram is not captioned with boundaries it does not use.
+Every diagram carries a legend keyed to the kinds actually present
+(`graph::legend_kinds`), so a simple diagram is not captioned with boundaries
+it does not use. The SVG draws it as a band below the content, Mermaid as a
+`legend` subgraph, and draw.io as swatch cells beside the provenance stamp; the
+`×N` convention is explained only when a tile carries a count.
 
 ## Icons
 
@@ -209,7 +213,6 @@ Golden tests and `$skipToken` pagination both depend on it:
 | Cap | Value | Behaviour |
 |---|---|---|
 | `MAX_TILES` | 11 | Remainder collapses to one tile |
-| `MAX_GROUP_DIAGRAMS` | 60 | Remainder reported without a diagram, logged |
-| `MAX_RESOURCE_DIAGRAMS` | 250 | Remainder reported without a diagram, logged |
+| `MAX_GROUP_DIAGRAMS` | 60 (`[report] max_group_diagrams`) | Remainder reported without a diagram, logged |
 
 No cap is silent — each logs a warning naming the total and the cap.

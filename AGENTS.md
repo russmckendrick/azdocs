@@ -54,9 +54,11 @@ cli → commands → collect / report / diagram / tui → store / model ← arg 
   workbook), and svg emitters; png rasterises the svg. Layout math in
   `diagram/layout.rs` (measure then justify), page geometry in `diagram/page.rs`,
   orthogonal connector routing in `diagram/route.rs`. `diagram/assets.rs` feeds
-  diagrams to the reports — overviews, one summarised graph per resource group
-  (capped at `MAX_GROUP_DIAGRAMS`) and one `neighbourhood` graph per connected
-  resource (capped at `MAX_RESOURCE_DIAGRAMS`); truncation always logged.
+  diagrams to the reports — overviews and one summarised graph per resource
+  group (capped by `[report] max_group_diagrams`, default `MAX_GROUP_DIAGRAMS`),
+  each rendered once as SVG and once as Mermaid; truncation always logged.
+  Every emitter keys its legend off `graph::legend_kinds`. drawio legend cells
+  use their own `l{i}` id family, so the frozen `n{i}`/`e{i}` scheme is untouched.
   Full standards: [docs/reference/diagrams.md](docs/reference/diagrams.md).
 - Report emitters: md/csv plus the themed set — html/site/xlsx, pdf (embedded
   Typst, `templates/typst/`) and docx (`report/docx/`). The themed ones take

@@ -1,6 +1,6 @@
 ---
 source: tests/diagram_golden_test.rs
-expression: "mermaid::render(&graph)"
+expression: "mermaid::render(&graph, &labels())"
 ---
 ---
 title: Azure network topology
@@ -33,9 +33,19 @@ flowchart LR
     n5-.-|private link|n7
     n0-.-|Connected|n2
     n8-.-n4
+    linkStyle 0 stroke-dasharray:1 3
+    linkStyle 2 stroke-dasharray:1 3
+    subgraph legend["Legend"]
+        lg_vnet["Virtual network"]
+        class lg_vnet vnet
+        lg_subnet["Subnet"]
+        class lg_subnet subnet
+    end
+    class legend legend
     classDef subscription fill:#e8f1fa,stroke:#0078d4
     classDef rg fill:#f3f2f1,stroke:#8a8886
     classDef vnet fill:#e6f5e6,stroke:#107c10
     classDef subnet fill:#fff,stroke:#8a8886
-    classDef unnetworked fill:#fdf6ec,stroke:#d97706
+    classDef zone fill:#fdf6ec,stroke:#d97706
     classDef resource fill:#fff,stroke:#605e5c
+    classDef legend fill:#fff,stroke:#8a8886,stroke-dasharray:4 3

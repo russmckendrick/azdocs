@@ -28,12 +28,12 @@ fn html_and_site_embed_saved_evidence_and_retain_failed_refreshes_offline() {
         .unwrap();
     let report = ReportContext::build(&store, &id).unwrap();
     let branding = BrandingContext::default();
-    let html = html::render(&report, &branding).unwrap();
+    let html = html::render(&report, &branding, &[]).unwrap();
     assert!(html.contains("data:image/png;base64,"));
     assert!(html.contains("2026-09-12T10:00:00Z"));
     assert!(html.contains("DNS failure &lt;script&gt;"));
     assert!(!html.contains("DNS failure <script>"));
-    assert_eq!(html, html::render(&report, &branding).unwrap());
+    assert_eq!(html, html::render(&report, &branding, &[]).unwrap());
     let dir = tempfile::tempdir().unwrap();
     site::write(&report, &branding, &[], dir.path()).unwrap();
     assert_eq!(

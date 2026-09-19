@@ -2,7 +2,7 @@
 source: tests/diagram_golden_test.rs
 expression: "svg::render(&vnets[0].graph, &labels())"
 ---
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 395" width="680" height="395" font-family="Arial, Helvetica, sans-serif" data-page-fraction="half page">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 395" width="680" height="395" font-family="IBM Plex Sans, Arial, Helvetica, sans-serif" data-page-fraction="half page">
   <rect width="680" height="395" fill="white"/>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">

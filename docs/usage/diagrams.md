@@ -34,29 +34,49 @@ The desktop's Draw.io Diagram Workbook uses the same workbook output name under
 the directory you choose. Other diagram types and image formats are available
 through the CLI.
 
-A `network` diagram is shaped like this (this is actual azdocs Mermaid output
-style — GitHub renders it natively):
+A `network` diagram is shaped like this (actual azdocs Mermaid output — GitHub
+renders it natively; node ids are positional, containers nest as subgraphs, and
+a legend subgraph names the boundaries the picture uses):
 
 ```mermaid
+---
+title: Network topology
+---
 flowchart LR
-    subgraph vnet_hub["vnet-hub<br/><i>10.0.0.0/16</i>"]
-        subgraph snet_shared["shared<br/><i>10.0.1.0/24</i>"]
-            vm1["vm-app-01<br/><i>Virtual Machine</i>"]
+    subgraph n0["vnet-hub<br/><i>10.0.0.0/16</i>"]
+        subgraph n1["shared<br/><i>10.0.1.0/24</i>"]
+            n2["vm-app-01<br/><i>Virtual Machine</i>"]
+            class n2 resource
         end
+        class n1 subnet
     end
-    subgraph vnet_app["vnet-app<br/><i>10.1.0.0/16</i>"]
-        subgraph snet_app["app<br/><i>10.1.0.0/24</i>"]
-            pe["pe-sql<br/><i>Private Endpoint</i>"]
+    class n0 vnet
+    subgraph n3["vnet-app<br/><i>10.1.0.0/16</i>"]
+        subgraph n4["app<br/><i>10.1.0.0/24</i>"]
+            n5["pe-sql<br/><i>Private Endpoint</i>"]
+            class n5 resource
         end
+        class n4 subnet
     end
-    subgraph connected["Connected services"]
-        sql["sql-prod<br/><i>SQL Server</i>"]
-        nsg["nsg-app<br/><i>NSG</i>"]
+    class n3 vnet
+    n0-.-|Connected|n3
+    n5-.-n1
+    linkStyle 1 stroke-dasharray:1 3
+    subgraph legend["Legend"]
+        lg_vnet["Virtual network"]
+        class lg_vnet vnet
+        lg_subnet["Subnet"]
+        class lg_subnet subnet
     end
-    vnet_hub -.-|Connected| vnet_app
-    pe -.-|private link| sql
-    nsg -.- snet_shared
+    class legend legend
+    classDef vnet fill:#e6f5e6,stroke:#107c10
+    classDef subnet fill:#fff,stroke:#8a8886
+    classDef resource fill:#fff,stroke:#605e5c
+    classDef legend fill:#fff,stroke:#8a8886,stroke-dasharray:4 3
 ```
+
+Peering edges keep their state as the edge label; association edges (private
+links, NSG placement) use a finer dot than dashed peerings.
 
 Use `--tenant <reference-or-tenant-id>` to select the estate. Explicit snapshot
 IDs remain usable offline without credentials; a supplied tenant selection
