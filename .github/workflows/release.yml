@@ -250,6 +250,16 @@ jobs:
       - name: "⚖️ Check the frontend licence report is current"
         working-directory: desktop
         run: node scripts/frontend-licenses.mjs --check
+      # The bundle carries the generated Rust dependency report next to the
+      # checked-in frontend one. tauri.conf.json cannot name the generated
+      # file because a local build has no cargo-about, so it is merged in
+      # from a file: an inline JSON argument loses its quotes in PowerShell.
+      - name: "📎 Write the notices bundle config"
+        shell: bash
+        run: |
+          cat > output/licenses/notices.json <<'JSON'
+          {"bundle":{"resources":{"../../output/licenses/dependency-licenses.html":"notices/dependency-licenses.html"}}}
+          JSON
       - name: "🔏 Import Apple Developer certificate"
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -304,7 +314,7 @@ jobs:
           echo "APPLE_API_KEY_PATH=${API_KEY_PATH}" >> "${GITHUB_ENV}"
       - name: "🏗️ Build signed and notarized DMG"
         working-directory: desktop
-        run: pnpm tauri build --target aarch64-apple-darwin --bundles dmg --ci --config '{"bundle":{"resources":{"../../output/licenses/dependency-licenses.html":"notices/dependency-licenses.html"}}}'
+        run: pnpm tauri build --target aarch64-apple-darwin --bundles dmg --ci --config ../output/licenses/notices.json
       - name: "✅ Verify signed and notarized app"
         shell: bash
         run: |
@@ -383,9 +393,27 @@ jobs:
       - name: "📦 Install desktop dependencies"
         working-directory: desktop
         run: pnpm install --frozen-lockfile
+      - name: "⬇️ Download dependency notices"
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: dependency-notices
+          path: output/licenses
+      - name: "⚖️ Check the frontend licence report is current"
+        working-directory: desktop
+        run: node scripts/frontend-licenses.mjs --check
+      # The bundle carries the generated Rust dependency report next to the
+      # checked-in frontend one. tauri.conf.json cannot name the generated
+      # file because a local build has no cargo-about, so it is merged in
+      # from a file: an inline JSON argument loses its quotes in PowerShell.
+      - name: "📎 Write the notices bundle config"
+        shell: bash
+        run: |
+          cat > output/licenses/notices.json <<'JSON'
+          {"bundle":{"resources":{"../../output/licenses/dependency-licenses.html":"notices/dependency-licenses.html"}}}
+          JSON
       - name: "🏗️ Build desktop installers"
         working-directory: desktop
-        run: pnpm tauri build --bundles nsis,msi --ci --config '{"bundle":{"resources":{"../../output/licenses/dependency-licenses.html":"notices/dependency-licenses.html"}}}'
+        run: pnpm tauri build --bundles nsis,msi --ci --config ../output/licenses/notices.json
       - name: "🔑 Sign in to Azure for Trusted Signing"
         if: env.TRUSTED_SIGNING_ENDPOINT != ''
         uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6 # v2
@@ -494,9 +522,19 @@ jobs:
       - name: "⚖️ Check the frontend licence report is current"
         working-directory: desktop
         run: node scripts/frontend-licenses.mjs --check
+      # The bundle carries the generated Rust dependency report next to the
+      # checked-in frontend one. tauri.conf.json cannot name the generated
+      # file because a local build has no cargo-about, so it is merged in
+      # from a file: an inline JSON argument loses its quotes in PowerShell.
+      - name: "📎 Write the notices bundle config"
+        shell: bash
+        run: |
+          cat > output/licenses/notices.json <<'JSON'
+          {"bundle":{"resources":{"../../output/licenses/dependency-licenses.html":"notices/dependency-licenses.html"}}}
+          JSON
       - name: "🏗️ Build desktop packages"
         working-directory: desktop
-        run: pnpm tauri build --bundles appimage,deb,rpm --ci --config '{"bundle":{"resources":{"../../output/licenses/dependency-licenses.html":"notices/dependency-licenses.html"}}}'
+        run: pnpm tauri build --bundles appimage,deb,rpm --ci --config ../output/licenses/notices.json
       - name: "🧹 Normalize desktop artifacts"
         shell: bash
         run: |
