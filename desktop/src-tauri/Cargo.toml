@@ -58,4 +58,4 @@ windows = { version = "0.61", features = ["Win32_System_Com", "Win32_UI_Shell"] 
 
 [target.'cfg(target_os = "linux")'.dependencies]
 webkit2gtk = { version = "2.0", features = ["v2_40"] }
-cairo-rs = { version = "0.18", features = ["png"] }
+cairo-rs = { version = "0.21", features = ["png"] }
