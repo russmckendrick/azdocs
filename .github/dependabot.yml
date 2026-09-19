@@ -1,14 +1,20 @@
 version: 2
+# Quiet by design: at most two pull requests per ecosystem, one for the
+# minor and patch bumps and one for the majors, once a week. Security
+# updates are not subject to the limits and still arrive as they are found.
 updates:
   - package-ecosystem: cargo
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 2
     groups:
       cargo-minor:
         update-types: [minor, patch]
-    # resvg and usvg are lockstep-released; a grouped update keeps them together.
-    # typst crates are pinned to one minor and bumped by hand.
+      cargo-major:
+        update-types: [major]
+    # typst crates are pinned to one minor and bumped by hand; resvg and
+    # usvg are lockstep-released and the grouped PR keeps them together.
     ignore:
       - dependency-name: "typst*"
         update-types: ["version-update:semver-minor"]
@@ -16,13 +22,17 @@ updates:
     directory: /desktop
     schedule:
       interval: weekly
+    open-pull-requests-limit: 2
     groups:
       npm-minor:
         update-types: [minor, patch]
+      npm-major:
+        update-types: [major]
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 1
     groups:
       actions:
         patterns: ["*"]
