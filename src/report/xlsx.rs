@@ -9,6 +9,26 @@ use super::{ReportContext, cell_to_string};
 use crate::labels::{Labels, fill};
 use crate::model::Resource;
 
+/// Excel refuses any cell text past this many characters, and
+/// `rust_xlsxwriter` fails the whole save rather than the one cell. Query
+/// rows carry JSON bags and policy definitions that can run far past it, so
+/// every data-driven string goes through [`cell_text`] before it is written.
+const EXCEL_CELL_LIMIT: usize = 32_767;
+
+/// A value bounded to what Excel will store; the snapshot keeps the rest.
+fn cell_text(value: &str) -> std::borrow::Cow<'_, str> {
+    if value.chars().count() <= EXCEL_CELL_LIMIT {
+        std::borrow::Cow::Borrowed(value)
+    } else {
+        tracing::warn!(
+            chars = value.chars().count(),
+            limit = EXCEL_CELL_LIMIT,
+            "cell text exceeds Excel's limit; truncated in the workbook"
+        );
+        std::borrow::Cow::Owned(crate::model::truncate(value, EXCEL_CELL_LIMIT))
+    }
+}
+
 /// `#rrggbb` from the theme as the packed integer `rust_xlsxwriter` wants.
 /// The palette is validated on the way in, so a malformed value here would be
 /// a bug rather than user input; fall back to black instead of panicking.
@@ -98,7 +118,7 @@ pub fn write(
         row += 1;
         for values in evidence.rows {
             for (column, value) in values.iter().enumerate() {
-                sheet.write(row, column as u16, value)?;
+                sheet.write(row, column as u16, cell_text(value).as_ref())?;
             }
             row += 1;
         }
@@ -119,7 +139,7 @@ pub fn write(
             for field in record.fields {
                 sheet.write(row, 0, &record.name)?;
                 sheet.write(row, 1, &field[0])?;
-                sheet.write(row, 2, &field[1])?;
+                sheet.write(row, 2, cell_text(&field[1]).as_ref())?;
                 row += 1;
             }
         }
@@ -260,7 +280,7 @@ fn inventory_sheet(
         sheet.write(
             row,
             6,
-            r.tags.as_ref().map(ToString::to_string).unwrap_or_default(),
+            cell_text(&r.tags.as_ref().map(ToString::to_string).unwrap_or_default()).as_ref(),
         )?;
         sheet.write(row, 7, &r.display_id)?;
     }
@@ -488,7 +508,7 @@ fn category_sheet(
             for (col, name) in query.columns.iter().enumerate() {
                 let value = cell_to_string(data_row.get(name));
                 widths[col] = widths[col].max(display_width(&value));
-                sheet.write(row, col as u16, value)?;
+                sheet.write(row, col as u16, cell_text(&value).as_ref())?;
             }
             row += 1;
         }
@@ -509,4 +529,18 @@ fn display_width(value: &str) -> usize {
         .map(|line| line.chars().count())
         .max()
         .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unit_cell_text_keeps_short_values_and_bounds_long_ones() {
+        assert_eq!(cell_text("short"), "short");
+        let long = "x".repeat(EXCEL_CELL_LIMIT + 5);
+        let bounded = cell_text(&long);
+        assert_eq!(bounded.chars().count(), EXCEL_CELL_LIMIT);
+        assert!(bounded.ends_with('…'));
+    }
 }
