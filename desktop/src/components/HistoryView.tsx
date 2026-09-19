@@ -4,7 +4,8 @@ import { compareSnapshots } from "../api";
 import type { AppBootstrap, DashboardFilter, EstateSnapshot, FieldChange, SnapshotComparison } from "../types";
 import { dateTime, dayMonth, errorMessage, fill, plural, resourceName } from "../format";
 import { useLabels } from "../labels";
-import { ShowMore, useProgressiveList } from "./progressive-list";
+import { ShowMore } from "./progressive-list";
+import { useProgressiveList } from "./use-progressive-list";
 import { DatabaseStamp, ErrorStrip, ViewHeading } from "./view-chrome";
 
 type ChangeKind = "added" | "changed" | "removed";

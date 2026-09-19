@@ -21,7 +21,8 @@ import {
   findingMatchesDashboard,
   resourceMatchesDashboard,
 } from "./dashboard-model";
-import { ShowMore, useProgressiveList } from "./progressive-list";
+import { ShowMore } from "./progressive-list";
+import { useProgressiveList } from "./use-progressive-list";
 
 export interface DashboardSelection {
   kind:

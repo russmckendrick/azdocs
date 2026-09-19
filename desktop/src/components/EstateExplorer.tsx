@@ -14,7 +14,8 @@ import {
 import { ALL_RESOURCES_ICON, RESOURCE_GROUP_ICON, SUBSCRIPTION_ICON, resourceIcon } from "../azure-icons";
 import { displayLocation } from "../azure-values";
 import type { DashboardFilter, EstateSnapshot, Resource, ResourceType, ScopeSelection } from "../types";
-import { ShowMore, useProgressiveList } from "./progressive-list";
+import { ShowMore } from "./progressive-list";
+import { useProgressiveList } from "./use-progressive-list";
 import { EmptyState } from "./view-chrome";
 import { fill, fillNodes } from "../format";
 import { useLabels } from "../labels";

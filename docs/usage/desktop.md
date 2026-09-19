@@ -139,7 +139,8 @@ pnpm run tauri build
 
 The global search shortcut is `Cmd+K` on macOS or `Ctrl+K` on Windows and
 Linux; `Cmd+/` (`Ctrl+/`) lists every shortcut, as does **Settings ›
-About**. Every resource pane and navigation action is keyboard reachable. The
+About**; `Cmd` (`Ctrl`) with `+`, `-` and `0` scales the text between 100%
+and 150%, remembered between sessions. Every resource pane and navigation action is keyboard reachable. The
 estate explorer's type, location, tag and sort filters are remembered per
 tenant between sessions, and a resource record's ARM id copies to the
 clipboard with one click.

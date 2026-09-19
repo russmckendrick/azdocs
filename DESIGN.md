@@ -34,7 +34,8 @@ undo. Everything else is in [`docs/reference/design.md`](docs/reference/design.m
   severity sets, focus and primary actions.
 - **Selection is a quiet `--evidence` fill.** Never a coloured bar.
 - **No numbering chrome.** Figures get a caption, not a number.
-- **Nothing below 11px.**
+- **Nothing below 11px** at the default text scale; type and spacing are
+  `rem` off a 13px base so the reader can scale them, hairlines stay `px`.
 - **Overview has four KPI cards and responsive chart panels.** This approved
   exception to the stat-strip pattern opens details in focused dialogs, with
   links to matching results. The authoritative sheet records its scope and

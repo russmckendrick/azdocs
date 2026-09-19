@@ -71,6 +71,14 @@ const TopologyView = lazy(() =>
 );
 
 /** The side-nav entries; labels come from `desktop.nav` under the same ids. */
+/** Text-size steps for mod +/-/0; the CSS scales rem-based type and spacing. */
+const UI_SCALES = [1, 1.1, 1.2, 1.3, 1.5] as const;
+
+function readUiScale(): number {
+  const stored = readPreference<number>("ui-scale", 1);
+  return UI_SCALES.includes(stored as (typeof UI_SCALES)[number]) ? stored : 1;
+}
+
 const views: Array<{ id: Exclude<ViewId, "settings"> }> = [
   { id: "overview" },
   { id: "estate" },
@@ -130,6 +138,19 @@ export default function App() {
     });
   }
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [uiScale, setUiScale] = useState(readUiScale);
+  useEffect(() => {
+    document.documentElement.style.setProperty("--ui-scale", String(uiScale));
+    writePreference("ui-scale", uiScale);
+  }, [uiScale]);
+  function stepUiScale(direction: 1 | -1 | 0) {
+    setUiScale((current) => {
+      if (direction === 0) return 1;
+      const index = UI_SCALES.indexOf(current as (typeof UI_SCALES)[number]);
+      const next = UI_SCALES[Math.min(UI_SCALES.length - 1, Math.max(0, index + direction))];
+      return next ?? 1;
+    });
+  }
   const [settingsDirty, setSettingsDirty] = useState(false);
   const snapshotRequest = useRef(0);
   const [bootstrap, setBootstrap] = useState<AppBootstrap>();
@@ -270,6 +291,15 @@ export default function App() {
       } else if (event.key === "/") {
         event.preventDefault();
         setShortcutsOpen((current) => !current);
+      } else if (event.key === "=" || event.key === "+") {
+        event.preventDefault();
+        stepUiScale(1);
+      } else if (event.key === "-") {
+        event.preventDefault();
+        stepUiScale(-1);
+      } else if (event.key === "0") {
+        event.preventDefault();
+        stepUiScale(0);
       }
     }
     window.addEventListener("keydown", handleShortcut);

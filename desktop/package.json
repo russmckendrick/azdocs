@@ -6,8 +6,9 @@
   "repository": "https://github.com/russmckendrick/azdocs",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 127.0.0.1 --port 1420",
-    "build": "tsc && vite build",
+    "assets": "node scripts/sync-assets.mjs",
+    "dev": "pnpm run assets && vite --host 127.0.0.1 --port 1420",
+    "build": "pnpm run assets && tsc && vite build",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\"",
