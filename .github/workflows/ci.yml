@@ -336,8 +336,21 @@ jobs:
           prefix-key: v1-rust-coverage
       - name: "📊 Measure line coverage"
         run: cargo llvm-cov --workspace --locked --lcov --output-path lcov.info
+      # Only the totals go in the run summary; the per-file table is a
+      # screenful and lives in the artifact for anyone who wants it.
       - name: "📈 Summarise"
-        run: cargo llvm-cov report --summary-only | tee -a "$GITHUB_STEP_SUMMARY"
+        shell: bash
+        run: |
+          total=$(cargo llvm-cov report --summary-only | awk '/^TOTAL/')
+          {
+            echo "### Coverage"
+            echo
+            echo "| Regions | Functions | Lines |"
+            echo "|---|---|---|"
+            awk '{printf "| %s | %s | %s |\n", $4, $7, $10}' <<<"$total"
+            echo
+            echo "Per-file detail is in the \`coverage-lcov\` artifact."
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: "⬆️ Upload lcov report"
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
