@@ -8,6 +8,10 @@ are cut from the Unreleased section at tag time; see
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.2.0] - 2026-09-19
+
 ### Added
 
 - Snapshot lifecycle: heartbeat and reconciliation of abandoned collects,
@@ -67,6 +71,7 @@ Softer Azure desktop theme and clearer Settings surfaces. See
 First public release: CLI, TUI and desktop explorer. See
 [docs/releases/0.1.0.md](docs/releases/0.1.0.md).
 
-[Unreleased]: https://github.com/russmckendrick/azdocs/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/russmckendrick/azdocs/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/russmckendrick/azdocs/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/russmckendrick/azdocs/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/russmckendrick/azdocs/releases/tag/v0.1.0
