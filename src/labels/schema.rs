@@ -638,6 +638,7 @@ pub struct TuiPanes {
     pub resources: String,
     pub detail: String,
     pub findings: String,
+    pub help: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -645,6 +646,7 @@ pub struct TuiPanes {
 pub struct TuiKeys {
     pub snapshots: String,
     pub estate: String,
+    pub detail: String,
     pub filtering: String,
     pub filtered: String,
     pub findings: String,
@@ -676,6 +678,10 @@ pub struct TuiUnits {
 #[serde(deny_unknown_fields)]
 pub struct TuiMessages {
     pub no_selection: String,
+    pub load_failed: String,
+    pub severity_filter: String,
+    pub all_severities: String,
+    pub following: String,
 }
 
 // ----------------------------------------------------------------- desktop --

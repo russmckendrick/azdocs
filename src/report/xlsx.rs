@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use anyhow::Context;
-use rust_xlsxwriter::{Color, Format, FormatBorder, Workbook, Worksheet};
+use rust_xlsxwriter::{Color, DocProperties, Format, FormatBorder, Workbook, Worksheet};
 
 use super::branding::BrandingContext;
 use super::theme::{TableStyle, ThemeTokens};
@@ -27,6 +27,25 @@ fn cell_text(value: &str) -> std::borrow::Cow<'_, str> {
         );
         std::borrow::Cow::Owned(crate::model::truncate(value, EXCEL_CELL_LIMIT))
     }
+}
+
+/// Document properties from the snapshot, never from the clock. The
+/// creation stamp is the snapshot's collection time, so writing the same
+/// snapshot twice gives the same bytes; a workbook that changed its own
+/// timestamp on every export defeated any checksum a reader kept.
+fn document_properties(report: &ReportContext, branding: &BrandingContext) -> DocProperties {
+    let created = chrono::DateTime::parse_from_rfc3339(&report.created_at)
+        .map(|stamp| stamp.with_timezone(&chrono::Utc))
+        .unwrap_or_default();
+    let mut properties = DocProperties::new()
+        .set_title(&branding.title)
+        .set_subject(&report.snapshot_id)
+        .set_author("azdocs")
+        .set_creation_datetime(&created);
+    if !branding.company.is_empty() {
+        properties = properties.set_company(&branding.company);
+    }
+    properties
 }
 
 /// `#rrggbb` from the theme as the packed integer `rust_xlsxwriter` wants.
@@ -64,6 +83,7 @@ pub fn write(
     out_path: &Path,
 ) -> anyhow::Result<()> {
     let mut workbook = Workbook::new();
+    workbook.set_properties(&document_properties(report, branding));
     let tokens = &branding.tokens;
     let labels = &branding.labels;
     let words = &labels.report.xlsx;

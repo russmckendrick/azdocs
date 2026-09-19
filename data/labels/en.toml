@@ -399,13 +399,15 @@ estate = "Estate"
 resources = "Resources ({count})"
 detail = "Detail"
 findings = "Findings ({count})"
+help = "Keys (? or Esc closes)"
 
 [tui.keys]
-snapshots = "↑↓ select · Enter open · q quit"
-estate = "Tab pane · ↑↓ move · Enter drill in · / filter · f findings · s snapshots · q quit"
+snapshots = "↑↓ select · Enter open · ? help · q quit"
+estate = "Tab pane · ↑↓ move · Enter drill in · / filter · f findings · s snapshots · ? help · q quit"
+detail = "n/p next related · Enter follow · ↑↓ scroll · Esc back · ? help · q quit"
 filtering = "filter: {filter}▌ (Enter keep · Esc clear)"
 filtered = "filter: {filter} · / re-filter · Tab pane · f findings · q quit"
-findings = "↑↓ select · Enter jump to resource · Esc back · q quit"
+findings = "↑↓ select · Tab severity · Enter jump to resource · Esc back · ? help · q quit"
 
 [tui.fields]
 name = "name"
@@ -425,6 +427,10 @@ findings = "findings"
 
 [tui.messages]
 no_selection = "No resource selected."
+load_failed = "Could not open snapshot {id}: {error}"
+severity_filter = "severity ≥ {severity}"
+all_severities = "all severities"
+following = "▶ {name}"
 
 # ------------------------------------------------------------------- desktop --
 # The Tauri explorer. `desktop.topology.nodes` and `desktop.backend` are read

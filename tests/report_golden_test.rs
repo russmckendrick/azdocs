@@ -99,6 +99,32 @@ fn csv_exports_match_golden_files() {
     });
 }
 
+/// Two writes of one snapshot are the same bytes: the document properties
+/// come from the snapshot, not the clock.
+#[test]
+fn xlsx_bytes_are_identical_across_writes() {
+    let (store, id) = seeded_context();
+    let report = ReportContext::build(&store, &id).unwrap();
+    let resources = store.resources(&id).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let first = dir.path().join("first.xlsx");
+    let second = dir.path().join("second.xlsx");
+
+    xlsx::write(&report, &BrandingContext::default(), &resources, &first).unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    xlsx::write(&report, &BrandingContext::default(), &resources, &second).unwrap();
+
+    assert_eq!(
+        std::fs::read(&first).unwrap(),
+        std::fs::read(&second).unwrap()
+    );
+    let core = xlsx_part(&std::fs::read(&first).unwrap(), "docProps/core.xml");
+    assert!(
+        core.contains(&report.snapshot_id),
+        "subject names the snapshot"
+    );
+}
+
 /// The workbook's shape: every sheet in order with its row count. Cell
 /// bytes are covered by the determinism test; the shape is what a reviewer
 /// wants to see change.

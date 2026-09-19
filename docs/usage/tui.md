@@ -16,11 +16,16 @@ stateDiagram-v2
     Findings --> Estate: Enter — jump to resource
 ```
 
-- **Snapshots** — pick which snapshot to explore
+- **Snapshots** — pick which snapshot to explore; the list names each
+  snapshot's tenant, and a snapshot that will not open says why in the footer
+  instead of opening empty
 - **Estate** — three panes: subscription/resource-group tree, filterable
   resource list, and a detail pane with tags, related edges, and the full
-  pretty-printed properties JSON
-- **Findings** — severity-ordered; `Enter` jumps to the affected resource
+  pretty-printed properties JSON. In the detail pane `n`/`p` move through the
+  related resources and `Enter` follows the highlighted one.
+- **Findings** — severity-ordered; `Tab` cycles the severity floor (all →
+  high → medium → low), `Enter` jumps to the affected resource
+- `?` shows every key on any screen
 
 Use `--tenant <reference-or-tenant-id>` to select the estate. Explicit snapshot
 IDs remain usable offline without credentials; a supplied tenant selection
@@ -31,12 +36,14 @@ enforces ownership. See [tenant history](snapshots.md#tenant-isolation).
 | Key | Action |
 |---|---|
 | `↑↓` / `jk` | Move |
-| `Tab` | Cycle panes |
-| `Enter` | Drill in / open |
+| `Tab` | Cycle panes (Estate) / severity floor (Findings) |
+| `Enter` | Drill in / open / follow the highlighted relationship |
+| `n` / `p` | Next / previous related resource (detail pane) |
 | `/` | Incremental filter (name, type, tags) |
 | `f` | Findings screen |
 | `s` | Snapshot picker |
-| `Esc` | Back / clear |
+| `?` | Keys overlay |
+| `Esc` | Back / clear / close the overlay |
 | `q` | Quit |
 
 Next: [Snapshots](snapshots.md)

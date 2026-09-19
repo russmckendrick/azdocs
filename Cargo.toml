@@ -49,7 +49,7 @@ ratatui = "0.30.2"
 reqwest = { version = "0.13.4", default-features = false, features = ["json", "rustls", "gzip", "http2", "charset", "form"] }
 resvg = { version = "0.47", default-features = false, features = ["text", "system-fonts", "memmap-fonts"] }
 rusqlite = { version = "0.40.2", features = ["bundled", "serde_json"] }
-rust_xlsxwriter = "0.98.1"
+rust_xlsxwriter = { version = "0.98.1", features = ["chrono"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = "0.10.9"
