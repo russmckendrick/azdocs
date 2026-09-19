@@ -128,7 +128,7 @@ Every push runs, besides fmt, clippy and the test matrix:
 
 | Gate | What it holds |
 |---|---|
-| `cargo deny check` (`deny.toml`) | RustSec advisories, the licence allowlist shared with `about.toml`, no wildcard versions, crates.io only, and named bans (`azure_identity`, `openssl-sys`) |
+| `cargo deny check` (`deny.toml`) | RustSec vulnerabilities anywhere in the graph and unmaintained crates the workspace depends on directly (deeper ones are warnings), the licence allowlist shared with `about.toml`, no wildcard versions, crates.io only, and named bans (`azure_identity`, `openssl-sys`) |
 | `pnpm audit --audit-level=high` | Frontend advisories |
 | Licence notices | `cargo about generate --fail` and `node scripts/frontend-licenses.mjs --check` |
 | Minimum supported Rust | `cargo check --workspace` on the `rust-version` floor (1.89) |

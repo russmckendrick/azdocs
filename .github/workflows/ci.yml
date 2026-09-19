@@ -188,7 +188,9 @@ jobs:
         uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2
         with:
           command: check
-          arguments: --all-features --workspace
+          # The default graph, as `cargo deny check` runs locally; features
+          # no build enables are not shipped and not policed.
+          arguments: --workspace
 
   audit-frontend:
     name: "🔍 Frontend audit"
@@ -261,6 +263,12 @@ jobs:
         uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           toolchain: "1.89"
+      # The workspace includes the Tauri backend, whose Linux build links
+      # WebKitGTK; the check is meaningless without those libraries.
+      - name: "🐧 Install Tauri system dependencies"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
       - name: "⚡ Restore Rust cache"
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
@@ -316,6 +324,12 @@ jobs:
         uses: taiki-e/install-action@9114bf4d891761788c546334fd37538eae1bf8b3 # v2
         with:
           tool: cargo-llvm-cov
+      # The workspace includes the Tauri backend, whose Linux build links
+      # WebKitGTK; the check is meaningless without those libraries.
+      - name: "🐧 Install Tauri system dependencies"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
       - name: "⚡ Restore Rust cache"
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
