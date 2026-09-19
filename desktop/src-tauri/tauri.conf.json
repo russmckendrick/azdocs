@@ -42,7 +42,8 @@
       "../../THIRD_PARTY_NOTICES.md": "notices/THIRD_PARTY_NOTICES.md",
       "../../data/fonts/OFL.txt": "notices/fonts/OFL.txt",
       "../../docs/licenses/Microsoft-MIT.txt": "notices/Microsoft-MIT.txt",
-      "../../docs/licenses/typst-assets-NOTICE.txt": "notices/typst-assets-NOTICE.txt"
+      "../../docs/licenses/typst-assets-NOTICE.txt": "notices/typst-assets-NOTICE.txt",
+      "../THIRD_PARTY_LICENSES.md": "notices/frontend-licenses.md"
     },
     "icon": [
       "icons/32x32.png",

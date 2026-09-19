@@ -20,6 +20,25 @@ all come from the selected local snapshot.
 
 Website endpoints also have [saved screenshots](website-screenshots.md), captured automatically after desktop collection or on request. Browsing saved images stays offline.
 
+## Screens
+
+The browser preview's illustrative estate, captured at 1440×900 in both
+themes by `pnpm run screenshots` (see [browser preview](#browser-preview)).
+
+![Overview in the light theme](assets/desktop-overview-light.png)
+
+![Map in the dark theme](assets/desktop-map-dark.png)
+
+| View | Light | Dark |
+|---|---|---|
+| Overview | [light](assets/desktop-overview-light.png) | [dark](assets/desktop-overview-dark.png) |
+| Estate | [light](assets/desktop-estate-light.png) | [dark](assets/desktop-estate-dark.png) |
+| Map | [light](assets/desktop-map-light.png) | [dark](assets/desktop-map-dark.png) |
+| Inventory | [light](assets/desktop-inventory-light.png) | [dark](assets/desktop-inventory-dark.png) |
+| Findings | [light](assets/desktop-findings-light.png) | [dark](assets/desktop-findings-dark.png) |
+| Governance | [light](assets/desktop-governance-light.png) | [dark](assets/desktop-governance-dark.png) |
+| Changes | [light](assets/desktop-changes-light.png) | [dark](assets/desktop-changes-dark.png) |
+
 ## Install a release
 
 On Apple Silicon macOS:
@@ -264,7 +283,9 @@ copied into its bundle.
 
 ## Browser preview
 
-`pnpm run dev` starts the web development server without Tauri. Open the local
+`pnpm run dev` starts the web development server without Tauri. With it
+running, `pnpm run screenshots` drives a local Chrome through every view in
+both themes and rewrites the pictures under `docs/usage/assets/`. Open the local
 URL printed by Vite (normally `http://127.0.0.1:1420`) in a browser. In that mode the app uses
 the canonical fixture-shaped illustrative estate and labels the toolbar
 **Illustrative workspace**. This is for responsive and visual development;

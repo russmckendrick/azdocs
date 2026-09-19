@@ -18,6 +18,8 @@ tokio = { version = "1.53.1", features = ["rt-multi-thread", "macros", "time", "
 name = "azdocs"
 version = "0.1.1"
 edition = "2024"
+# Edition 2024, let chains and File::try_lock; CI's msrv job checks this floor still builds.
+rust-version = "1.89"
 description = "Audit, explore and document Azure estates from local SQLite snapshots"
 license = "MIT"
 repository = "https://github.com/russmckendrick/azdocs"
@@ -78,6 +80,13 @@ zip = "4"
 
 # Debug-mode rasterisation is unusably slow without optimising the pixel
 # pipeline; these only affect dev builds of the named dependencies.
+# Release binaries: whole-program optimisation and symbols stripped. `panic`
+# stays `unwind` so the collector's task boundaries keep their error paths.
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+
 [profile.dev.package.tiny-skia]
 opt-level = 2
 [profile.dev.package.resvg]

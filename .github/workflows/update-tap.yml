@@ -20,6 +20,7 @@ jobs:
   update-tap:
     name: "🍻 Update formula and cask"
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: "🏷️ Resolve release tag"
         id: version
@@ -53,7 +54,7 @@ jobs:
           done
 
       - name: "📥 Check out Homebrew tap"
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: ${{ github.repository_owner }}/homebrew-tap
           ssh-key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}

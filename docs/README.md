@@ -39,6 +39,8 @@ websites. Scope and permissions limit what can be collected.
 | [Snapshots](usage/snapshots.md) | Listing, diffing, pruning |
 | [Queries](usage/queries.md) | Ad-hoc KQL and custom query packs |
 | [CI](usage/ci.md) | Running azdocs in pipelines |
+| [Data on disk and uninstalling](usage/data-and-uninstall.md) | Every file azdocs writes, what is sensitive, how to remove it all |
+| [FAQ](usage/faq.md) | Short answers to the questions that come up first |
 | [Troubleshooting](usage/troubleshooting.md) | Common errors and limitations |
 
 ### [Development](development/README.md)
@@ -82,6 +84,7 @@ Releases and Homebrew.
 ## Project policies
 
 - [Contributing](../CONTRIBUTING.md)
+- [Changelog](../CHANGELOG.md)
 - [Security and private vulnerability reporting](../SECURITY.md)
 - [MIT licence](../LICENSE)
 - [Third-party notices](../THIRD_PARTY_NOTICES.md) and [licence material](licenses/README.md)

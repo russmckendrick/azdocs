@@ -109,6 +109,16 @@ shasum -a 256 -c azdocs-desktop-macos-arm64.dmg.sha256
 open azdocs-desktop-macos-arm64.dmg
 ```
 
+#### Windows SmartScreen
+
+Windows installers are signed with Azure Trusted Signing only when the
+release was built with signing credentials; a release note says which. An
+unsigned installer makes Windows SmartScreen show **Windows protected your
+PC** on first run. Verify the download's checksum (or its attestation with
+`gh attestation verify`), then choose **More info › Run anyway**. The
+installed app itself never contacts anything but Azure and the websites you
+ask it to capture.
+
 On Windows, download either the setup executable or MSI together with its
 matching `.sha256` file, verify it with `Get-FileHash` as in the CLI example,
 then run the installer.

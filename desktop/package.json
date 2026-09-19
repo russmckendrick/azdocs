@@ -7,6 +7,9 @@
   "type": "module",
   "scripts": {
     "assets": "node scripts/sync-assets.mjs",
+    "licenses": "node scripts/frontend-licenses.mjs",
+    "licenses:check": "node scripts/frontend-licenses.mjs --check",
+    "screenshots": "node scripts/screenshots.mjs",
     "dev": "pnpm run assets && vite --host 127.0.0.1 --port 1420",
     "build": "pnpm run assets && tsc && vite build",
     "lint": "eslint .",
@@ -44,6 +47,7 @@
     "globals": "^15.15.0",
     "jsdom": "^30.1.0",
     "prettier": "^3.9.6",
+    "puppeteer-core": "^25.11.0",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.68.0",
     "vite": "^7.1.3",

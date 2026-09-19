@@ -28,14 +28,14 @@ fn two_snapshots() -> (Store, String) {
         .insert_findings(
             &newer,
             &[Finding {
-                query_name: "storage_shared_key_access".into(),
+                query_name: "custom_review_note".into(),
                 category: "security".into(),
                 severity: Severity::High,
                 resource_id: Some(
                     "/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01"
                         .into(),
                 ),
-                title: "stprodapp01 allows shared key access".into(),
+                title: "stprodapp01 needs a review note".into(),
                 detail: None,
             }],
         )
@@ -84,7 +84,7 @@ fn unit_every_format_renders_the_changes_chapter() {
 
     let page = html::render(&report, &branding, &[]).unwrap();
     assert!(page.contains(&format!("<h2>{}</h2>", words.chapter)));
-    assert!(page.contains("stprodapp01 allows shared key access"));
+    assert!(page.contains("stprodapp01 needs a review note"));
 
     let out = dir.path().join("azdocs.xlsx");
     let resources = store.resources(&newer).unwrap();

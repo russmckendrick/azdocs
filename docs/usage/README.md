@@ -26,6 +26,8 @@ Capture [website screenshots](website-screenshots.md) from the desktop and inclu
 The [command-line reference](cli.md) lists global flags, environment variables,
 machine-readable output and exit codes.
 
-Stuck? See [troubleshooting](troubleshooting.md).
+Stuck? See the [FAQ](faq.md) and [troubleshooting](troubleshooting.md).
+[Data on disk and uninstalling](data-and-uninstall.md) lists every file
+azdocs writes and how to remove it.
 
 See [permission diagnostics](permissions.md) for connection tests and the limits of read-only RBAC evidence.

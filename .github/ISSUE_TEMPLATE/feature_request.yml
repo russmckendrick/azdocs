@@ -1,0 +1,21 @@
+name: Feature request
+description: A query, check, report section or desktop capability azdocs should have
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do
+      description: The audit or documentation task, not the implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would help
+      description: A new query pack entry, an extractor edge, a report chapter, a desktop view, a CLI flag.
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Azure evidence involved
+      description: Which Resource Graph tables or ARM properties carry the answer, if you know.
