@@ -7,7 +7,7 @@ cargo test -p azdocs-desktop        # desktop topology, DTO and command helpers
 cargo test --test collect_test      # one integration suite
 cargo insta review                  # accept intended golden changes
 INSTA_UPDATE=always cargo test      # regenerate all goldens (eyeball the diff!)
-cd desktop && pnpm test             # relationship UI helpers and Rust↔TS mirrors
+cd desktop && pnpm test             # unit project (node) + component project (jsdom)
 ```
 
 ## Layers
@@ -42,6 +42,7 @@ flowchart TD
 | Desktop relationship UI | Vitest at 1440/1060/800px: deterministic zones, rail alignment, directional neighbourhoods, camera targets, spatial navigation, per-edge boundary ports, taxi channels, label placement, trace priority, and retained-error state | `desktop/src/components/topology-layout.test.ts`, `desktop/src/components/topology-presentation.test.ts`, `desktop/src/components/topology-view-state.test.ts` |
 | Rust↔TypeScript mirrors | Reads `src/model/mod.rs` and `topology.rs` and asserts the browser preview classifies every `EdgeKind` into the same family the Rust `match` does | `desktop/src/components/topology-fallback.test.ts` |
 | Desktop navigation | History-aware drill-down and the relationship workspace reducer | `desktop/src/navigation-state.test.ts` |
+| Desktop components | React Testing Library in jsdom: the shell's empty and opened states, search and shortcut keys, the stored theme; explorer facets and remembered filters; findings filters, drawer and multi-select copy/CSV; history counts, field rows and a failed comparison keeping the last good one; governance notes and group links; Settings › About and the dirty guard. `api` is mocked from `desktop/src/api-mock.ts`, which answers from the illustrative estate | `desktop/src/**/*.test.tsx`, `desktop/src/test-setup.ts` |
 | Wire contract | Regenerates `desktop/src/generated.ts` from the DTOs; CI then fails on `git diff` if it is stale. Also pins the serialised bytes of the event enums | `desktop/src-tauri/src/bindings.rs`, `dto.rs` |
 | Display metadata | Asserts the Rust and TypeScript `humanize_identifier` agree on a shared case list — both are live, one renders the reports and one the desktop | `desktop/src/azure-values.test.ts`, `src/model/azure_values.rs` |
 
