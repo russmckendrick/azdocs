@@ -216,6 +216,7 @@ fn unit_partial_report_distinguishes_failed_empty_and_unrecorded_audits() {
                     row_count: count,
                     duration_ms: None,
                     error: error.map(str::to_owned),
+                    rows_dropped: None,
                 },
             )
             .unwrap();

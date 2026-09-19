@@ -1,6 +1,6 @@
 use rusqlite::params;
 
-use super::{Store, json_text, parse_json};
+use super::{Store, decode_error, json_text, parse_json};
 use crate::error::StoreError;
 use crate::model::{Finding, Severity};
 
@@ -47,12 +47,36 @@ impl Store {
             Ok(Finding {
                 query_name: row.get(0)?,
                 category: row.get(1)?,
-                severity: Severity::parse(&severity).unwrap_or(Severity::Info),
+                severity: Severity::parse(&severity)
+                    .ok_or_else(|| decode_error("findings.severity", severity))?,
                 resource_id: row.get(3)?,
                 title: row.get(4)?,
-                detail: parse_json(row.get(5)?),
+                detail: parse_json("findings.detail", row.get(5)?)?,
             })
         })?;
         Ok(rows.collect::<Result<_, _>>()?)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unit_unknown_severity_is_an_error() {
+        let store = Store::open_in_memory().unwrap();
+        let id = store.create_snapshot("tenant", None).unwrap().id;
+        store
+            .conn()
+            .execute(
+                "INSERT INTO findings (snapshot_id, query_name, category, severity, title)
+                 VALUES (?1, 'q', 'c', 'catastrophic', 't')",
+                [&id],
+            )
+            .unwrap();
+
+        let error = store.findings(&id).unwrap_err().to_string();
+
+        assert!(error.contains("findings.severity"), "{error}");
     }
 }

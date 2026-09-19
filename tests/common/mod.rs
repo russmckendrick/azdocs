@@ -363,6 +363,7 @@ pub fn seed_microsoft_evidence(store: &Store, snapshot_id: &str) {
                     row_count: Some(rows.len() as u64),
                     duration_ms: Some(10),
                     error: None,
+                    rows_dropped: None,
                 },
             )
             .unwrap();
@@ -411,6 +412,7 @@ fn seed_operational_evidence(store: &Store, snapshot_id: &str) {
                     duration_ms: Some(10),
                     error: None,
                     provenance: Some(def.provenance(&["sub-prod".into()])),
+                    rows_dropped: None,
                 },
             )
             .unwrap();
@@ -425,6 +427,7 @@ fn seed_operational_evidence(store: &Store, snapshot_id: &str) {
                 duration_ms: Some(10),
                 error: None,
                 provenance: None,
+                rows_dropped: None,
             },
         )
         .unwrap();

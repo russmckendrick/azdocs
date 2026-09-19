@@ -248,5 +248,5 @@ fn offline_store(
     } else {
         None
     };
-    Ok(azdocs::store::Store::open(db.unwrap_or(&path))?.with_tenant(scope.as_deref()))
+    Ok(azdocs::store::Store::open_read_only(db.unwrap_or(&path))?.with_tenant(scope.as_deref()))
 }

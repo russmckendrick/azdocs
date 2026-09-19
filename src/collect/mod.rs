@@ -4,7 +4,7 @@ pub mod ingest;
 pub mod websites;
 
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use indicatif::{ProgressBar, ProgressStyle};
 use tokio::sync::{Semaphore, mpsc};
@@ -56,6 +56,11 @@ pub struct CollectProgress {
     pub failed: usize,
     pub latest_query: Option<String>,
 }
+
+/// How often a live collect proves it is alive. Must stay well inside
+/// [`crate::store::STALE_RUNNING_AFTER`] or a slow-but-healthy run would be
+/// reconciled as abandoned by a concurrent open.
+const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(30);
 
 /// Emits progress only after a query's evidence and outcome have been stored.
 pub async fn run_with_progress<P: TokenProvider + 'static>(
@@ -122,13 +127,26 @@ pub async fn run_with_progress<P: TokenProvider + 'static>(
     let mut completed = 0;
     let mut queries_failed = 0;
     let mut rows_ingested: u64 = 0;
-    while let Some((def, result, duration_ms)) = receiver.recv().await {
+    let mut heartbeat = tokio::time::interval(HEARTBEAT_INTERVAL);
+    heartbeat.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    heartbeat.tick().await; // the first tick fires immediately; the row was just created
+    loop {
+        let (def, result, duration_ms) = tokio::select! {
+            received = receiver.recv() => match received {
+                Some(item) => item,
+                None => break,
+            },
+            _ = heartbeat.tick() => {
+                store.touch_snapshot(&snapshot.id, chrono::Utc::now())?;
+                continue;
+            }
+        };
         let mut run_record = match result {
             Ok(data) => {
                 let count = data.rows.len() as u64;
                 match ingest::ingest(store, &snapshot.id, &def, &data.rows) {
-                    Ok(()) => {
-                        rows_ingested += count;
+                    Ok(outcome) => {
+                        rows_ingested += count - outcome.rows_dropped;
                         progress.set_message(format!("{} ({count} rows)", def.name));
                         QueryRun {
                             provenance: None,
@@ -137,6 +155,7 @@ pub async fn run_with_progress<P: TokenProvider + 'static>(
                             row_count: Some(count),
                             duration_ms: Some(duration_ms),
                             error: None,
+                            rows_dropped: Some(outcome.rows_dropped),
                         }
                     }
                     Err(err) => {
@@ -211,5 +230,6 @@ fn query_failure(def: &QueryDef, duration_ms: u64, error: String) -> QueryRun {
         row_count: None,
         duration_ms: Some(duration_ms),
         error: Some(error),
+        rows_dropped: None,
     }
 }

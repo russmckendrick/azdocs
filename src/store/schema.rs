@@ -146,11 +146,40 @@ const MIGRATIONS: &[&str] = &[
     // 4: Keep historical query definitions and request scope with their outcomes.
     // NULL deliberately distinguishes older snapshots from newly recorded metadata.
     "ALTER TABLE query_runs ADD COLUMN provenance TEXT;",
+    // 5: Liveness and honesty. `heartbeat_at` lets a later open tell an
+    // abandoned collect from one still running; `interrupted_at` records that
+    // reconciliation; `rows_dropped` counts rows ingest could not shape so a
+    // stored row count never silently overstates what was kept. NULL again
+    // means "recorded before this existed".
+    "
+    ALTER TABLE snapshots ADD COLUMN heartbeat_at TEXT;
+    ALTER TABLE snapshots ADD COLUMN interrupted_at TEXT;
+    ALTER TABLE query_runs ADD COLUMN rows_dropped INTEGER;
+    ",
 ];
 
+/// How many migrations this build knows; the schema version it writes.
+pub(crate) const SUPPORTED_VERSION: usize = MIGRATIONS.len();
+
+/// Per-connection settings every open needs, writable or not. Foreign keys
+/// are off by default in SQLite and cascade deletes depend on them; the busy
+/// timeout lets a desktop read wait out a CLI collect's write transaction
+/// instead of failing with SQLITE_BUSY.
+pub(crate) fn configure(conn: &Connection) -> Result<(), StoreError> {
+    conn.execute_batch("PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;")?;
+    Ok(())
+}
+
 pub fn migrate(conn: &Connection) -> Result<(), StoreError> {
-    conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")?;
+    conn.execute_batch("PRAGMA journal_mode=WAL;")?;
+    configure(conn)?;
     let current = current_version(conn)?;
+    if current > SUPPORTED_VERSION {
+        return Err(StoreError::SchemaTooNew {
+            found: current,
+            supported: SUPPORTED_VERSION,
+        });
+    }
     for (index, migration) in MIGRATIONS.iter().enumerate().skip(current) {
         let version = index + 1;
         conn.execute_batch(&format!(
@@ -161,7 +190,7 @@ pub fn migrate(conn: &Connection) -> Result<(), StoreError> {
     Ok(())
 }
 
-fn current_version(conn: &Connection) -> Result<usize, StoreError> {
+pub(crate) fn current_version(conn: &Connection) -> Result<usize, StoreError> {
     let meta_exists: bool = conn.query_row(
         "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='meta')",
         [],
@@ -240,6 +269,52 @@ mod tests {
         conn.execute("INSERT INTO website_endpoints VALUES ('older',0,'{}')", [])
             .unwrap();
         assert_eq!(current_version(&conn).unwrap(), MIGRATIONS.len());
+    }
+
+    #[test]
+    fn unit_migration_five_keeps_older_rows_unknown() {
+        let conn = Connection::open_in_memory().unwrap();
+        for migration in &MIGRATIONS[..4] {
+            conn.execute_batch(migration).unwrap();
+        }
+        conn.execute("INSERT INTO meta VALUES ('schema_version','4')", [])
+            .unwrap();
+        conn.execute(
+            "INSERT INTO snapshots VALUES ('older','2026-01-01','tenant','test','complete',NULL)",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO query_runs VALUES ('older','old_query','inventory',0,1,NULL,NULL)",
+            [],
+        )
+        .unwrap();
+        migrate(&conn).unwrap();
+        let result: (Option<String>, Option<String>, Option<i64>) = conn
+            .query_row(
+                "SELECT s.heartbeat_at, s.interrupted_at, q.rows_dropped
+                 FROM snapshots s JOIN query_runs q ON q.snapshot_id = s.id WHERE s.id='older'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(result, (None, None, None));
+    }
+
+    #[test]
+    fn unit_migrate_rejects_schema_newer_than_supported() {
+        let conn = Connection::open_in_memory().unwrap();
+        migrate(&conn).unwrap();
+        conn.execute(
+            "UPDATE meta SET value = ?1 WHERE key = 'schema_version'",
+            [(SUPPORTED_VERSION + 1).to_string()],
+        )
+        .unwrap();
+        assert!(matches!(
+            migrate(&conn),
+            Err(StoreError::SchemaTooNew { found, supported })
+                if found == SUPPORTED_VERSION + 1 && supported == SUPPORTED_VERSION
+        ));
     }
 
     #[test]

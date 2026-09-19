@@ -9,7 +9,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Snapshot {
     pub id: String,
     pub created_at: DateTime<Utc>,
@@ -17,14 +17,23 @@ pub struct Snapshot {
     pub tool_version: String,
     pub status: SnapshotStatus,
     pub notes: Option<String>,
+    /// Last time a running collector proved it was alive; None before the
+    /// column existed or once the run finished.
+    pub heartbeat_at: Option<DateTime<Utc>>,
+    /// Set when a stale `running` row was reconciled to `failed` at open.
+    pub interrupted_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum SnapshotStatus {
     Running,
     Complete,
     Partial,
     Failed,
+    /// Stopped on request before every query ran. Real but incomplete
+    /// evidence: selectable by id, never as the implicit `latest`.
+    Cancelled,
 }
 
 impl SnapshotStatus {
@@ -34,6 +43,7 @@ impl SnapshotStatus {
             Self::Complete => "complete",
             Self::Partial => "partial",
             Self::Failed => "failed",
+            Self::Cancelled => "cancelled",
         }
     }
 
@@ -43,8 +53,15 @@ impl SnapshotStatus {
             "complete" => Some(Self::Complete),
             "partial" => Some(Self::Partial),
             "failed" => Some(Self::Failed),
+            "cancelled" => Some(Self::Cancelled),
             _ => None,
         }
+    }
+
+    /// Whether a snapshot in this state is a usable, finished collection.
+    /// Only these resolve as the implicit `latest` or as a diff baseline.
+    pub fn is_usable(self) -> bool {
+        matches!(self, Self::Complete | Self::Partial)
     }
 }
 
@@ -211,7 +228,7 @@ pub struct Finding {
     pub detail: Option<Value>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct QueryRun {
     /// None on snapshots collected before provenance was recorded.
     pub provenance: Option<QueryProvenance>,
@@ -220,6 +237,9 @@ pub struct QueryRun {
     pub row_count: Option<u64>,
     pub duration_ms: Option<u64>,
     pub error: Option<String>,
+    /// Rows ARG returned that ingest could not shape (missing id, name, type
+    /// or subscription). None on snapshots recorded before this was counted.
+    pub rows_dropped: Option<u64>,
 }
 
 /// Normalize an ARM id for joining: ARM ids are case-insensitive and ARG

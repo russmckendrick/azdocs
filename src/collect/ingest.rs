@@ -5,34 +5,69 @@ use crate::model::{Finding, Resource, ResourceGroup, Severity, Subscription, nor
 use crate::querypack::{QueryDef, QueryKind};
 use crate::store::Store;
 
+/// What ingest kept and what it could not.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct IngestOutcome {
+    /// Rows a typed table could not shape (no id, name, type or subscription).
+    /// Raw-row and finding ingestion never drop, so this is 0 for them.
+    pub rows_dropped: u64,
+}
+
 /// Route one query's rows to the right table(s). The three core inventory
 /// queries load typed tables; other inventory queries keep their raw rows for
 /// report use; finding queries become findings.
+///
+/// A row a typed table cannot shape is counted and logged rather than
+/// silently skipped: the stored row count must never overstate what was kept.
 pub fn ingest(
     store: &Store,
     snapshot_id: &str,
     def: &QueryDef,
     rows: &[Value],
-) -> Result<(), StoreError> {
+) -> Result<IngestOutcome, StoreError> {
+    let mut outcome = IngestOutcome::default();
     match (def.kind, def.name.as_str()) {
         (QueryKind::Inventory, "all_resources") => {
-            let resources: Vec<_> = rows.iter().filter_map(resource_from_row).collect();
-            store.insert_resources(snapshot_id, &resources)
+            let resources = shape(rows, resource_from_row, &mut outcome);
+            store.insert_resources(snapshot_id, &resources)?;
         }
         (QueryKind::Inventory, "subscriptions") => {
-            let subscriptions: Vec<_> = rows.iter().filter_map(subscription_from_row).collect();
-            store.insert_subscriptions(snapshot_id, &subscriptions)
+            let subscriptions = shape(rows, subscription_from_row, &mut outcome);
+            store.insert_subscriptions(snapshot_id, &subscriptions)?;
         }
         (QueryKind::Inventory, "resource_groups") => {
-            let groups: Vec<_> = rows.iter().filter_map(resource_group_from_row).collect();
-            store.insert_resource_groups(snapshot_id, &groups)
+            let groups = shape(rows, resource_group_from_row, &mut outcome);
+            store.insert_resource_groups(snapshot_id, &groups)?;
         }
-        (QueryKind::Inventory, _) => store.insert_query_results(snapshot_id, &def.name, rows),
+        (QueryKind::Inventory, _) => store.insert_query_results(snapshot_id, &def.name, rows)?,
         (QueryKind::Finding, _) => {
             let findings: Vec<_> = rows.iter().map(|row| finding_from_row(def, row)).collect();
-            store.insert_findings(snapshot_id, &findings)
+            store.insert_findings(snapshot_id, &findings)?;
         }
     }
+    if outcome.rows_dropped > 0 {
+        tracing::warn!(
+            query = %def.name,
+            dropped = outcome.rows_dropped,
+            "rows missing id, name, type or subscription were not stored"
+        );
+    }
+    Ok(outcome)
+}
+
+fn shape<T>(
+    rows: &[Value],
+    from_row: fn(&Value) -> Option<T>,
+    outcome: &mut IngestOutcome,
+) -> Vec<T> {
+    let mut shaped = Vec::with_capacity(rows.len());
+    for row in rows {
+        match from_row(row) {
+            Some(item) => shaped.push(item),
+            None => outcome.rows_dropped += 1,
+        }
+    }
+    shaped
 }
 
 fn str_field(row: &Value, field: &str) -> Option<String> {
@@ -150,6 +185,27 @@ mod tests {
         let row = json!({"name": "orphan", "type": "x", "subscriptionId": "s"});
 
         assert_eq!(resource_from_row(&row), None);
+    }
+
+    #[test]
+    fn unit_ingest_counts_rows_missing_id_as_dropped() {
+        let store = Store::open_in_memory().unwrap();
+        let snapshot = store.create_snapshot("tenant", None).unwrap();
+        let def = crate::querypack::QueryPack::builtin()
+            .unwrap()
+            .get("all_resources")
+            .unwrap()
+            .clone();
+        let rows = vec![
+            json!({"id": "/subscriptions/s/resourceGroups/g/providers/p/t/a", "name": "a", "type": "p/t", "subscriptionId": "s"}),
+            json!({"name": "no-id", "type": "p/t", "subscriptionId": "s"}),
+            json!({"id": "/x", "type": "p/t", "subscriptionId": "s"}),
+        ];
+
+        let outcome = ingest(&store, &snapshot.id, &def, &rows).unwrap();
+
+        assert_eq!(outcome.rows_dropped, 2);
+        assert_eq!(store.resources(&snapshot.id).unwrap().len(), 1);
     }
 
     #[test]

@@ -150,6 +150,7 @@ fn reference_omits_large_evidence_catalogues_and_preserves_collection_uncertaint
         row_count: count,
         duration_ms: None,
         error,
+        rows_dropped: None,
     })
     .collect();
     let unknown = report.analysis.recorded_queries.len() + 1;

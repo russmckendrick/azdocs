@@ -122,6 +122,27 @@ pub enum StoreError {
     SnapshotNotFound(String),
     #[error("no snapshots stored yet — run `azdocs collect` first")]
     NoSnapshots,
+    #[error("database {0} does not exist — run `azdocs collect` first")]
+    DatabaseMissing(PathBuf),
+    #[error(
+        "database schema version {found} is newer than this azdocs supports ({supported}); upgrade azdocs"
+    )]
+    SchemaTooNew { found: usize, supported: usize },
+    #[error(
+        "database schema version {found} needs migrating to {required}; run `azdocs snapshots verify` or any collect"
+    )]
+    MigrationRequired { found: usize, required: usize },
+    #[error("stored snapshot `{snapshot}` is still being written")]
+    SnapshotRunning { snapshot: String },
+}
+
+/// A stored value this build cannot decode. Surfaced through
+/// `rusqlite::Error::FromSqlConversionFailure` so callers see the column.
+#[derive(Debug, thiserror::Error)]
+#[error("cannot decode stored {column}: `{value}`")]
+pub struct StoreDecodeError {
+    pub column: &'static str,
+    pub value: String,
 }
 
 #[derive(Debug, thiserror::Error)]

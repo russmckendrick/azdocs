@@ -20,8 +20,10 @@ erDiagram
         text id PK "uuid"
         text created_at "RFC3339"
         text tenant_id
-        text status "running|complete|partial|failed"
+        text status "running|complete|partial|failed|cancelled"
         text notes
+        text heartbeat_at "RFC3339, refreshed while collecting"
+        text interrupted_at "RFC3339, set when reconciled"
     }
     resources {
         text snapshot_id PK,FK
@@ -55,6 +57,7 @@ erDiagram
         int duration_ms
         text provenance "nullable JSON definition and request scope"
         text error
+        int rows_dropped "nullable, rows ingest could not shape"
     }
     query_results {
         text query_name
@@ -76,7 +79,18 @@ erDiagram
   the executed KQL and its SHA-256, captured query metadata, source details,
   freshness rule and requested subscriptions/authorization scope. Failed runs
   retain provenance too. Older rows remain NULL, never backfilled from the
-  current pack. Invalid stored metadata is reported as an error.
+  current pack. Invalid stored metadata is reported as an error. Migration 5
+  adds nullable `rows_dropped`: rows ARG returned that ingest could not shape
+  into a typed table (no id, name, type or subscription). It is counted and
+  logged, never silently skipped, so `row_count` never overstates what the
+  store holds.
+- **Snapshot liveness.** Migration 5 also adds `snapshots.heartbeat_at`,
+  refreshed every 30 s by a running collect, and `interrupted_at`. Every
+  writable open reconciles `running` rows whose heartbeat is older than ten
+  minutes to `failed` and stamps `interrupted_at`, so a crash or Ctrl-C never
+  leaves a permanent `running` row. A `cancelled` status records a collect
+  stopped on request. Only `complete` and `partial` snapshots resolve as the
+  implicit `latest` or as a diff baseline (`Store::previous_snapshot`).
 - **Snapshot diff** is one `FULL OUTER JOIN` over `resources` between two
   snapshot ids (`store/snapshots.rs`): added / removed / changed (properties
   text differs).
@@ -99,6 +113,31 @@ outside that JSON as changed.
 Ordered SQL strings in `store/schema.rs`; `meta.schema_version` records how
 many have run. **Append new migrations, never edit existing ones.** New tables
 must cascade-delete from `snapshots`.
+
+## Open modes
+
+`Store::open` is the writable path: it creates the file, runs pending
+migrations, switches the journal to WAL and reconciles abandoned collects. Only
+collect, prune, delete, verify, the desktop's start-up open and "Open
+database" use it. Everything that merely reads (report, diagram, browse,
+`snapshots list|show|diff`, every desktop explorer command) uses
+`Store::open_read_only`, which never migrates, never creates a file and refuses
+writes at the SQLite level. An archived baseline therefore stays byte-for-byte
+the artefact that was archived, and a stray write in an offline path fails
+instead of mutating history.
+
+Both opens check the schema version. A database written by a newer azdocs is
+refused with `SchemaTooNew` rather than opened with unknown tables; a read-only
+open of an older database reports `MigrationRequired` and names the writable
+commands that will migrate it. Every connection sets `foreign_keys=ON` and a
+5 s `busy_timeout` so a desktop read waits out a CLI collect's write
+transaction instead of failing.
+
+Stored values this build cannot decode (a timestamp, status or severity it does
+not know, malformed JSON) are errors naming the column, never a silent
+fallback. The one exception is `edges.edge_type`: an unknown kind is skipped
+with a warning because a newer azdocs may legitimately have stored one and the
+schema version does not guard that vocabulary.
 
 ## The desktop wire contract
 

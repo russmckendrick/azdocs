@@ -27,9 +27,12 @@ pub(crate) fn database_path(state: &State<'_, AppState>) -> Result<PathBuf, AppE
     Ok(crate::settings::session(state)?.database_path)
 }
 
+/// Read-only: every explorer, topology, comparison and export path reads
+/// stored evidence and must never migrate or rewrite the database. Only the
+/// start-up open, `open_database` and collection open it for writing.
 pub(crate) fn open_store(state: &State<'_, AppState>) -> Result<Store, AppError> {
     let session = crate::settings::session(state)?;
-    Ok(Store::open(&session.database_path)?.with_tenant(session.tenant_id.as_deref()))
+    Ok(Store::open_read_only(&session.database_path)?.with_tenant(session.tenant_id.as_deref()))
 }
 
 pub(crate) fn bootstrap_for(session: &crate::settings::Session) -> Result<AppBootstrap, AppError> {
@@ -44,7 +47,13 @@ pub(crate) fn bootstrap_for(session: &crate::settings::Session) -> Result<AppBoo
         .ok()
         .and_then(|d| d.source.clone())
         .or(session.config_path.clone());
-    let store = Store::open(&session.database_path)?;
+    // A database that does not exist yet is an empty estate, not an error:
+    // the first collect creates it.
+    let store = match Store::open_read_only(&session.database_path) {
+        Ok(store) => Some(store),
+        Err(azdocs::error::StoreError::DatabaseMissing(_)) => None,
+        Err(error) => return Err(error.into()),
+    };
     let mut tenants: Vec<crate::settings::TenantSummary> = document
         .as_ref()
         .ok()
@@ -71,7 +80,11 @@ pub(crate) fn bootstrap_for(session: &crate::settings::Session) -> Result<AppBoo
             configured: true,
         });
     }
-    for id in store.tenant_ids()? {
+    let stored_tenants = match &store {
+        Some(store) => store.tenant_ids()?,
+        None => Vec::new(),
+    };
+    for id in stored_tenants {
         if !tenants.iter().any(|p| p.tenant_id == id) {
             tenants.push(crate::settings::TenantSummary {
                 reference: id.clone(),
@@ -82,20 +95,18 @@ pub(crate) fn bootstrap_for(session: &crate::settings::Session) -> Result<AppBoo
         }
     }
     tenants.sort_by(|a, b| (&a.name, &a.tenant_id).cmp(&(&b.name, &b.tenant_id)));
-    let store = store.with_tenant(session.tenant_id.as_deref());
-    let snapshots: Vec<SnapshotSummary> = if session.tenant_id.is_some() {
-        store
+    let store = store.map(|store| store.with_tenant(session.tenant_id.as_deref()));
+    let snapshots: Vec<SnapshotSummary> = match (&store, session.tenant_id.is_some()) {
+        (Some(store), true) => store
             .list_snapshots()?
             .into_iter()
             .map(Into::into)
-            .collect()
-    } else {
-        Vec::new()
+            .collect(),
+        _ => Vec::new(),
     };
-    let latest_snapshot_id = if session.tenant_id.is_some() {
-        store.resolve_snapshot("latest").ok()
-    } else {
-        None
+    let latest_snapshot_id = match (&store, session.tenant_id.is_some()) {
+        (Some(store), true) => store.resolve_snapshot("latest").ok(),
+        _ => None,
     };
     let has_credentials = config.as_ref().is_some_and(|c| {
         c.auth.tenant_id.is_some()
@@ -672,7 +683,7 @@ pub async fn export_snapshot(
                 &[("path", &destination.display())],
             )));
         }
-        let store = Store::open(&database)?.with_tenant(session.tenant_id.as_deref());
+        let store = Store::open_read_only(&database)?.with_tenant(session.tenant_id.as_deref());
         let id = store.resolve_snapshot(&request.snapshot_id)?;
         let config = document
             .for_snapshot(&store.get_snapshot(&id)?.tenant_id)
