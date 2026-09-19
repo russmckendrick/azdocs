@@ -1,0 +1,18 @@
+---
+source: tests/report_golden_test.rs
+assertion_line: 46
+expression: content
+---
+# Inventory
+
+[← index](index.md)
+
+
+## resource_type_counts
+
+Resource counts by type across the estate
+
+| type | resourceCount |
+|---|---|
+| microsoft.network/virtualnetworks | 2 |
+| microsoft.compute/virtualmachines | 1 |

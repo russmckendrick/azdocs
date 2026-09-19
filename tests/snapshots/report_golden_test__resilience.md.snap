@@ -1,0 +1,27 @@
+---
+source: tests/report_golden_test.rs
+assertion_line: 46
+expression: content
+---
+# Resilience
+
+[← index](index.md)
+
+
+## backup_jobs
+
+Backup and restore job history with original status and provider details
+
+| id | operation | status |
+|---|---|---|
+| /backup/job-1 | Backup | CompletedWithWarnings |
+| /backup/job-2 | Restore | Failed |
+
+
+## backup_protected_items
+
+Protected items and backup instances with recovery-point and protection metadata
+
+| id | name | subscriptionId | resourceGroup | vaultName | friendlyName | protectionState | lastBackupStatus | lastBackupTime | policyName | resourceId |
+|---|---|---|---|---|---|---|---|---|---|---|
+| /subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.RecoveryServices/vaults/rsv-prod/backupFabrics/Azure/protectionContainers/iaasvmcontainer;iaasvmcontainerv2;rg-app;vm-app-01/protectedItems/vm;iaasvmcontainerv2;rg-app;vm-app-01 | vm;iaasvmcontainerv2;rg-app;vm-app-01 | sub-prod | rg-app | rsv-prod | vm-app-01 | Protected | Completed | 2026-09-12T02:00:00Z | DailyPolicy | /subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/virtualMachines/vm-app-01 |

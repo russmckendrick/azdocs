@@ -1,0 +1,35 @@
+---
+source: tests/report_golden_test.rs
+assertion_line: 46
+expression: content
+---
+# Compliance
+
+[← index](index.md)
+
+
+## defender_compliance_assessments
+
+Defender regulatory assessments with passed, failed, and skipped resource counts
+
+| id | subscriptionId | complianceStandard | complianceControl | state | passedResources | failedResources | skippedResources |
+|---|---|---|---|---|---|---|---|
+| /defender/assessment-1 | sub-prod | Azure-Security-Benchmark | NS-1 | Failed | 12 | 2 |  |
+
+
+## defender_compliance_controls
+
+Defender regulatory controls with standard, state, and description
+
+| id | subscriptionId | complianceStandard | complianceControl | state |
+|---|---|---|---|---|
+| /defender/control-1 | sub-prod | Azure-Security-Benchmark | NS-1 | Unsupported |
+
+
+## defender_compliance_standards
+
+Defender regulatory standards with observed state and control counts
+
+| id | subscriptionId | complianceStandard | state | passedControls | failedControls | skippedControls | unsupportedControls |
+|---|---|---|---|---|---|---|---|
+| /defender/standard-1 | sub-prod | Azure-Security-Benchmark | Failed | 12 | 2 | 1 | 3 |

@@ -19,9 +19,11 @@ fn insta_settings() -> insta::Settings {
     settings
 }
 
+/// The current fixture with its older sibling, so every golden shows the
+/// "changes since the previous snapshot" section as well as the estate.
 fn seeded_context() -> (Store, String) {
     let store = Store::open_in_memory().unwrap();
-    let id = common::seed_estate(&store);
+    let id = common::seed_history(&store);
     (store, id)
 }
 
@@ -29,24 +31,105 @@ fn seeded_context() -> (Store, String) {
 fn markdown_pages_match_golden_files() {
     let (store, id) = seeded_context();
     let report = ReportContext::build(&store, &id).unwrap();
-    let dir = tempfile::tempdir().unwrap();
 
-    markdown::write(&report, &Labels::default(), &[], dir.path()).unwrap();
+    let pages = markdown::render_pages(
+        &report,
+        &Labels::default(),
+        &[],
+        markdown::DiagramEmbedding { mermaid: true },
+    )
+    .unwrap();
 
     insta_settings().bind(|| {
-        for page in [
-            "index.md",
-            "findings.md",
-            "networking.md",
-            "subscriptions/production.md",
-            "subscriptions/development.md",
-            "resources/production/rg-app.md",
-        ] {
-            let content = std::fs::read_to_string(dir.path().join(page))
-                .unwrap_or_else(|_| panic!("missing page {page}"));
-            insta::assert_snapshot!(page.replace('/', "_"), content);
+        // Every page, so a new category or group cannot ship unreviewed.
+        for (path, content) in &pages {
+            insta::assert_snapshot!(path.replace('/', "_"), content);
         }
     });
+}
+
+#[test]
+fn site_pages_match_golden_files() {
+    let (store, id) = seeded_context();
+    let report = ReportContext::build(&store, &id).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+
+    azdocs::report::site::write(&report, &BrandingContext::default(), &[], dir.path()).unwrap();
+
+    let mut settings = insta_settings();
+    settings.add_filter(r"data:[a-z]+/[a-z+]+;base64,[A-Za-z0-9+/=]+", "data:[uri]");
+    settings.bind(|| {
+        for page in ["index.html", "resources/production/rg-app.html"] {
+            let content = std::fs::read_to_string(dir.path().join(page))
+                .unwrap_or_else(|_| panic!("missing page {page}"));
+            insta::assert_snapshot!(format!("site_{}", page.replace('/', "_")), content);
+        }
+    });
+}
+
+#[test]
+fn csv_exports_match_golden_files() {
+    let (store, id) = seeded_context();
+    let report = ReportContext::build(&store, &id).unwrap();
+    let resources = store.resources(&id).unwrap();
+    let findings = store.findings(&id).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+
+    csv::write_inventory(
+        &resources,
+        &Labels::default(),
+        &dir.path().join("inventory.csv"),
+    )
+    .unwrap();
+    csv::write_findings(
+        &findings,
+        &Labels::default(),
+        &dir.path().join("findings.csv"),
+    )
+    .unwrap();
+    csv::write_tables(&report, &Labels::default(), dir.path()).unwrap();
+
+    insta_settings().bind(|| {
+        for file in ["inventory.csv", "findings.csv", "governance-groups.csv"] {
+            insta::assert_snapshot!(
+                format!("csv_{}", file.replace('.', "_")),
+                std::fs::read_to_string(dir.path().join(file)).unwrap()
+            );
+        }
+    });
+}
+
+/// The workbook's shape: every sheet in order with its row count. Cell
+/// bytes are covered by the determinism test; the shape is what a reviewer
+/// wants to see change.
+#[test]
+fn xlsx_structure_matches_golden_file() {
+    let (store, id) = seeded_context();
+    let report = ReportContext::build(&store, &id).unwrap();
+    let resources = store.resources(&id).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("azdocs.xlsx");
+
+    xlsx::write(&report, &BrandingContext::default(), &resources, &out).unwrap();
+
+    let bytes = std::fs::read(&out).unwrap();
+    let workbook = xlsx_part(&bytes, "xl/workbook.xml");
+    let names: Vec<String> = workbook
+        .split("<sheet ")
+        .skip(1)
+        .filter_map(|sheet| sheet.split("name=\"").nth(1))
+        .filter_map(|rest| rest.split('"').next())
+        .map(str::to_owned)
+        .collect();
+    let mut structure = String::new();
+    for (index, name) in names.iter().enumerate() {
+        let sheet = xlsx_part(&bytes, &format!("xl/worksheets/sheet{}.xml", index + 1));
+        structure.push_str(&format!(
+            "{name}: {} rows\n",
+            sheet.matches("<row ").count()
+        ));
+    }
+    insta::assert_snapshot!("xlsx_structure", structure);
 }
 
 #[test]

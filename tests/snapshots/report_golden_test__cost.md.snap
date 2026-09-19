@@ -1,0 +1,17 @@
+---
+source: tests/report_golden_test.rs
+assertion_line: 46
+expression: content
+---
+# Cost
+
+[← index](index.md)
+
+
+## advisor_cost_recommendations
+
+Azure Advisor cost recommendations with reported savings, currency, period, and affected resource
+
+| id | subscriptionId | resourceId | solution | currency | savingsPeriod | savingsAmount | annualSavingsAmount |
+|---|---|---|---|---|---|---|---|
+| /advisor/cost-1 | sub-prod | /subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-web | Review VM sizing | GBP | Month | 125.5 |  |

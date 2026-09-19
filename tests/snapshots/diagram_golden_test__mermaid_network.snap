@@ -1,5 +1,6 @@
 ---
 source: tests/diagram_golden_test.rs
+assertion_line: 75
 expression: "mermaid::render(&graph, &labels())"
 ---
 ---
@@ -8,31 +9,61 @@ title: Azure network topology
 flowchart LR
     subgraph n0["vnet-app<br/><i>10.1.0.0/16</i>"]
         subgraph n1["app<br/><i>10.1.0.0/24</i>"]
-            n5["pe-sql<br/><i>Private Endpoint</i>"]
-            class n5 resource
-            n6["vm-app-01<br/><i>Virtual Machine</i>"]
-            class n6 resource
+            n15["pe-sql<br/><i>Private Endpoint</i>"]
+            class n15 resource
+            n16["vm-app-01<br/><i>Virtual Machine</i>"]
+            class n16 resource
         end
         class n1 subnet
+        subgraph n2["agw<br/><i>10.1.1.0/24</i>"]
+            n14["agw-prod<br/><i>Application Gateway</i>"]
+            class n14 resource
+        end
+        class n2 subnet
+        subgraph n3["aks<br/><i>10.1.2.0/23</i>"]
+            n10["aks-nodepool1-12345678-vmss<br/><i>VM Scale Set</i>"]
+            class n10 resource
+            n12["aks-prod<br/><i>AKS Cluster</i>"]
+            class n12 resource
+        end
+        class n3 subnet
+        subgraph n4["db<br/><i>10.1.4.0/24</i>"]
+            n13["psql-prod<br/><i>PostgreSQL Flexible Server</i>"]
+            class n13 resource
+        end
+        class n4 subnet
+        subgraph n5["cae<br/><i>10.1.8.0/21</i>"]
+            n11["cae-prod<br/><i>Container Apps Environment</i>"]
+            class n11 resource
+        end
+        class n5 subnet
     end
     class n0 vnet
-    subgraph n2["vnet-hub<br/><i>10.0.0.0/16</i>"]
-        n3["gateway<br/><i>10.0.0.0/24</i>"]
-        class n3 subnet
-        n4["shared<br/><i>10.0.1.0/24</i>"]
-        class n4 subnet
+    subgraph n6["vnet-hub<br/><i>10.0.0.0/16</i>"]
+        subgraph n7["gateway<br/><i>10.0.0.0/24</i>"]
+            n18["vgw-hub<br/><i>Virtual Network Gateway</i>"]
+            class n18 resource
+        end
+        class n7 subnet
+        n8["shared<br/><i>10.0.1.0/24</i>"]
+        class n8 subnet
+        subgraph n9["AzureFirewallSubnet<br/><i>10.0.2.0/24</i>"]
+            n17["fw-hub<br/><i>Azure Firewall</i>"]
+            class n17 resource
+        end
+        class n9 subnet
     end
-    class n2 vnet
-    subgraph n9["Connected services<br/><i>NSGs & private-link targets</i>"]
-        n7["sql-prod<br/><i>SQL Server</i>"]
-        class n7 resource
-        n8["nsg-app<br/><i>NSG</i>"]
-        class n8 resource
+    class n6 vnet
+    subgraph n21["Connected services<br/><i>NSGs & private-link targets</i>"]
+        n19["sql-prod<br/><i>SQL Server</i>"]
+        class n19 resource
+        n20["nsg-app<br/><i>NSG</i>"]
+        class n20 resource
     end
-    class n9 rg
-    n5-.-|private link|n7
-    n0-.-|Connected|n2
-    n8-.-n4
+    class n21 rg
+    n15-.-|private link|n19
+    n0-.-|Connected|n6
+    n20-.-n8
     linkStyle 0 stroke-dasharray:1 3
     linkStyle 2 stroke-dasharray:1 3
     subgraph legend["Legend"]

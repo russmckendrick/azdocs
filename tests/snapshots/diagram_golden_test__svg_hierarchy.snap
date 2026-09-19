@@ -1,33 +1,38 @@
 ---
 source: tests/diagram_golden_test.rs
+assertion_line: 182
 expression: "svg::render(&graph, &labels())"
 ---
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 350" width="680" height="350" font-family="IBM Plex Sans, Arial, Helvetica, sans-serif" data-page-fraction="half page">
-  <rect width="680" height="350" fill="white"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 408" width="680" height="408" font-family="IBM Plex Sans, Arial, Helvetica, sans-serif" data-page-fraction="half page">
+  <rect width="680" height="408" fill="white"/>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="#605E5C"/>
     </marker>
   </defs>
   <g transform="translate(16,16) scale(0.9529)">
-    <rect x="0" y="0" width="680" height="334" rx="6" fill="#FFFFFF" stroke="#605E5C" stroke-width="1.5"/>
+    <rect x="0" y="0" width="680" height="395" rx="6" fill="#FFFFFF" stroke="#605E5C" stroke-width="1.5"/>
     <text x="12" y="21" font-size="13" fill="#323130">Tenant fixture-tenant</text>
-    <rect x="18" y="45" width="311" height="155" rx="6" fill="#E8F1FA" stroke="#0078D4" stroke-width="1.5"/>
+    <rect x="18" y="45" width="644" height="155" rx="6" fill="#E8F1FA" stroke="#0078D4" stroke-width="1.5"/>
     <image x="30" y="52" width="16" height="16" href="data:image/svg+xml;base64,[icon]"/>
     <text x="53" y="66" font-size="13" fill="#323130">Development</text>
-    <text x="317" y="66" font-size="12" text-anchor="end" fill="#605E5C">3 resources</text>
-    <rect x="34" y="88" width="279" height="96" rx="6" fill="#F3F2F1" stroke="#8A8886" stroke-width="1.5" stroke-dasharray="6,5"/>
-    <text x="173.5" y="135" font-size="13" text-anchor="middle" fill="#323130">rg-dev</text>
-    <text x="173.5" y="148" font-size="11" text-anchor="middle" fill="#605E5C">3 resources</text>
-    <rect x="351" y="45" width="311" height="271" rx="6" fill="#E8F1FA" stroke="#0078D4" stroke-width="1.5"/>
-    <image x="363" y="52" width="16" height="16" href="data:image/svg+xml;base64,[icon]"/>
-    <text x="386" y="66" font-size="13" fill="#323130">Production</text>
-    <text x="650" y="66" font-size="12" text-anchor="end" fill="#605E5C">15 resources</text>
-    <rect x="367" y="88" width="279" height="96" rx="6" fill="#F3F2F1" stroke="#8A8886" stroke-width="1.5" stroke-dasharray="6,5"/>
-    <text x="506.5" y="135" font-size="13" text-anchor="middle" fill="#323130">rg-app</text>
-    <text x="506.5" y="148" font-size="11" text-anchor="middle" fill="#605E5C">12 resources</text>
-    <rect x="367" y="204" width="279" height="96" rx="6" fill="#F3F2F1" stroke="#8A8886" stroke-width="1.5" stroke-dasharray="6,5"/>
-    <text x="506.5" y="251" font-size="13" text-anchor="middle" fill="#323130">rg-network</text>
-    <text x="506.5" y="264" font-size="11" text-anchor="middle" fill="#605E5C">3 resources</text>
+    <text x="650" y="66" font-size="12" text-anchor="end" fill="#605E5C">7 resources</text>
+    <rect x="34" y="88" width="612" height="96" rx="6" fill="#F3F2F1" stroke="#8A8886" stroke-width="1.5" stroke-dasharray="6,5"/>
+    <text x="340" y="135" font-size="13" text-anchor="middle" fill="#323130">rg-dev</text>
+    <text x="340" y="148" font-size="11" text-anchor="middle" fill="#605E5C">7 resources</text>
+    <rect x="18" y="222" width="644" height="155" rx="6" fill="#E8F1FA" stroke="#0078D4" stroke-width="1.5"/>
+    <image x="30" y="229" width="16" height="16" href="data:image/svg+xml;base64,[icon]"/>
+    <text x="53" y="243" font-size="13" fill="#323130">Production</text>
+    <text x="650" y="243" font-size="12" text-anchor="end" fill="#605E5C">45 resources</text>
+    <rect x="34" y="265" width="190.7" height="96" rx="6" fill="#F3F2F1" stroke="#8A8886" stroke-width="1.5" stroke-dasharray="6,5"/>
+    <text x="129.3" y="304.5" font-size="13" text-anchor="middle" fill="#323130">MC_rg-app_aks-prod_</text>
+    <text x="129.3" y="319.5" font-size="13" text-anchor="middle" fill="#323130">uksouth</text>
+    <text x="129.3" y="332.5" font-size="11" text-anchor="middle" fill="#605E5C">1 resources</text>
+    <rect x="244.7" y="265" width="190.7" height="96" rx="6" fill="#F3F2F1" stroke="#8A8886" stroke-width="1.5" stroke-dasharray="6,5"/>
+    <text x="340" y="312" font-size="13" text-anchor="middle" fill="#323130">rg-app</text>
+    <text x="340" y="325" font-size="11" text-anchor="middle" fill="#605E5C">26 resources</text>
+    <rect x="455.3" y="265" width="190.7" height="96" rx="6" fill="#F3F2F1" stroke="#8A8886" stroke-width="1.5" stroke-dasharray="6,5"/>
+    <text x="550.7" y="312" font-size="13" text-anchor="middle" fill="#323130">rg-network</text>
+    <text x="550.7" y="325" font-size="11" text-anchor="middle" fill="#605E5C">18 resources</text>
   </g>
 </svg>

@@ -9,7 +9,31 @@ use azdocs::querypack::QueryPack;
 use azdocs::store::Store;
 use serde_json::{Value, json};
 
+/// Which collection the fixture describes. `Older` is the same estate one
+/// collect earlier: no private endpoint or SQL server yet, a smaller VM, a
+/// storage account that still blocked public blobs, and a test disk that
+/// has since been deleted. Seeding it before `Current` gives the goldens a
+/// real "changes since the previous snapshot".
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Vintage {
+    Older,
+    Current,
+}
+
+#[allow(dead_code)]
 pub fn seed_estate(store: &Store) -> String {
+    seed_estate_at(store, Vintage::Current)
+}
+
+/// The older collection, then the current one; returns the current id.
+#[allow(dead_code)]
+pub fn seed_history(store: &Store) -> String {
+    seed_estate_at(store, Vintage::Older);
+    seed_estate_at(store, Vintage::Current)
+}
+
+#[allow(dead_code)]
+pub fn seed_estate_at(store: &Store, vintage: Vintage) -> String {
     let snapshot = store
         .create_snapshot("fixture-tenant", Some("golden fixture"))
         .unwrap();
@@ -30,10 +54,11 @@ pub fn seed_estate(store: &Store) -> String {
         &[
             json!({"id": "/subscriptions/sub-prod/resourceGroups/rg-network", "name": "rg-network", "subscriptionId": "sub-prod", "location": "uksouth"}),
             json!({"id": "/subscriptions/sub-prod/resourceGroups/rg-app", "name": "rg-app", "subscriptionId": "sub-prod", "location": "uksouth", "tags": {"env": "prod"}}),
+            json!({"id": "/subscriptions/sub-prod/resourceGroups/MC_rg-app_aks-prod_uksouth", "name": "MC_rg-app_aks-prod_uksouth", "subscriptionId": "sub-prod", "location": "uksouth"}),
             json!({"id": "/subscriptions/sub-dev/resourceGroups/rg-dev", "name": "rg-dev", "subscriptionId": "sub-dev", "location": "ukwest"}),
         ],
     );
-    ingest_rows("all_resources", &estate_resources());
+    ingest_rows("all_resources", &estate_resources(vintage));
     seed_microsoft_evidence(store, &snapshot.id);
     seed_operational_evidence(store, &snapshot.id);
     ingest_rows(
@@ -72,12 +97,36 @@ pub fn seed_estate(store: &Store) -> String {
                    "preferredAppGroupType": "Desktop"}),
         ],
     );
+    if vintage == Vintage::Current {
+        ingest_rows(
+            "storage_public_blob_access",
+            &[
+                json!({"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Storage/storageAccounts/stprodapp01",
+                     "name": "stprodapp01", "resourceGroup": "rg-app", "subscriptionId": "sub-prod",
+                     "summary": "stprodapp01 allows public blob access"}),
+            ],
+        );
+    } else {
+        ingest_rows(
+            "orphaned_resources",
+            &[
+                json!({"id": "/subscriptions/sub-dev/resourceGroups/rg-dev/providers/Microsoft.Compute/disks/disk-old-test",
+                     "name": "disk-old-test", "resourceGroup": "rg-dev", "subscriptionId": "sub-dev",
+                     "summary": "disk-old-test is an unattached managed disk"}),
+            ],
+        );
+    }
+    for (query, row) in finding_rows() {
+        ingest_rows(query, &[row]);
+    }
     ingest_rows(
-        "storage_public_blob_access",
+        "backup_protected_items",
         &[
-            json!({"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Storage/storageAccounts/stprodapp01",
-                 "name": "stprodapp01", "resourceGroup": "rg-app", "subscriptionId": "sub-prod",
-                 "summary": "stprodapp01 allows public blob access"}),
+            json!({"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.RecoveryServices/vaults/rsv-prod/backupFabrics/Azure/protectionContainers/iaasvmcontainer;iaasvmcontainerv2;rg-app;vm-app-01/protectedItems/vm;iaasvmcontainerv2;rg-app;vm-app-01",
+                   "name": "vm;iaasvmcontainerv2;rg-app;vm-app-01", "subscriptionId": "sub-prod", "resourceGroup": "rg-app",
+                   "vaultName": "rsv-prod", "friendlyName": "vm-app-01", "protectionState": "Protected",
+                   "lastBackupStatus": "Completed", "lastBackupTime": "2026-09-12T02:00:00Z", "policyName": "DailyPolicy",
+                   "resourceId": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/virtualMachines/vm-app-01"}),
         ],
     );
     ingest_rows(
@@ -106,9 +155,10 @@ pub fn seed_estate(store: &Store) -> String {
         ],
     );
 
-    // Same post-pass the collect runner performs.
+    // Same post-passes the collect runner performs.
     let resources = store.resources(&snapshot.id).unwrap();
-    let edges = extractors::extract_all(&resources);
+    let mut edges = extractors::extract_all(&resources);
+    edges.extend(extractors::evidence_edges(store, &snapshot.id).unwrap());
     store.insert_edges(&snapshot.id, &edges).unwrap();
     let tag_findings = audit::missing_required_tags(&resources, &["env".to_owned()]);
     store.insert_findings(&snapshot.id, &tag_findings).unwrap();
@@ -118,8 +168,86 @@ pub fn seed_estate(store: &Store) -> String {
     snapshot.id
 }
 
-fn estate_resources() -> Vec<Value> {
+/// One row per finding query the pack gained in the query-pack expansion,
+/// so every check the assessment explains has an occurrence to show.
+fn finding_rows() -> Vec<(&'static str, Value)> {
+    let prod = |group: &str, provider: &str, name: &str| {
+        format!("/subscriptions/sub-prod/resourceGroups/{group}/providers/{provider}/{name}")
+    };
+    let dev = |provider: &str, name: &str| {
+        format!("/subscriptions/sub-dev/resourceGroups/rg-dev/providers/{provider}/{name}")
+    };
     vec![
+        (
+            "nsg_management_ports_open",
+            json!({"id": prod("rg-network", "Microsoft.Network/networkSecurityGroups", "nsg-app"), "name": "nsg-app", "resourceGroup": "rg-network", "subscriptionId": "sub-prod", "ruleName": "allow-ssh", "protocol": "Tcp", "summary": "nsg-app: rule allow-ssh opens management port 22 to the Internet"}),
+        ),
+        (
+            "storage_public_network_access",
+            json!({"id": prod("rg-app", "Microsoft.Storage/storageAccounts", "stprodapp01"), "name": "stprodapp01", "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "summary": "stprodapp01 allows public network access"}),
+        ),
+        (
+            "storage_shared_key_access",
+            json!({"id": prod("rg-app", "Microsoft.Storage/storageAccounts", "stprodapp01"), "name": "stprodapp01", "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "summary": "stprodapp01 allows shared key access"}),
+        ),
+        (
+            "sql_weak_tls",
+            json!({"id": prod("rg-app", "Microsoft.Sql/servers", "sql-prod"), "name": "sql-prod", "type": "microsoft.sql/servers", "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "minimalTlsVersion": "1.0", "summary": "sql-prod accepts TLS 1.0"}),
+        ),
+        (
+            "sql_entra_only_auth_off",
+            json!({"id": prod("rg-app", "Microsoft.Sql/servers", "sql-prod"), "name": "sql-prod", "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "summary": "sql-prod does not require Entra-only authentication"}),
+        ),
+        (
+            "redis_insecure_transport",
+            json!({"id": dev("Microsoft.Cache/Redis", "redis-dev"), "name": "redis-dev", "resourceGroup": "rg-dev", "subscriptionId": "sub-dev", "nonSslPort": true, "minTlsVersion": "1.0", "summary": "redis-dev accepts non-SSL connections"}),
+        ),
+        (
+            "local_auth_enabled",
+            json!({"id": prod("rg-app", "Microsoft.CognitiveServices/accounts", "oai-prod"), "name": "oai-prod", "type": "microsoft.cognitiveservices/accounts", "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "summary": "oai-prod accepts local (key) authentication"}),
+        ),
+        (
+            "aks_local_accounts_enabled",
+            json!({"id": prod("rg-app", "Microsoft.ContainerService/managedClusters", "aks-prod"), "name": "aks-prod", "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "summary": "aks-prod allows local Kubernetes accounts"}),
+        ),
+        (
+            "certificates_expiring",
+            json!({"id": dev("Microsoft.Web/certificates", "web-dev-cert"), "name": "web-dev-cert", "resourceGroup": "rg-dev", "subscriptionId": "sub-dev", "expirationDate": "2026-10-01T00:00:00Z", "summary": "web-dev-cert expires within 30 days"}),
+        ),
+        (
+            "defender_unhealthy_high",
+            json!({"id": format!("{}/providers/Microsoft.Security/assessments/4fb67663-9ab9-475d-b026-8c544cced439", prod("rg-app", "Microsoft.Compute/virtualMachines", "vm-app-01")), "name": "Machines should have vulnerability findings resolved", "subscriptionId": "sub-prod", "resourceGroup": "rg-app", "resourceId": prod("rg-app", "Microsoft.Compute/virtualMachines", "vm-app-01"), "summary": "vm-app-01: high severity Defender assessment is unhealthy"}),
+        ),
+        (
+            "defender_plan_off",
+            json!({"id": "/subscriptions/sub-prod/providers/Microsoft.Security/pricings/VirtualMachines", "name": "VirtualMachines", "subscriptionId": "sub-prod", "resourceGroup": "", "resourceId": "/subscriptions/sub-prod", "summary": "Defender for Servers is off in sub-prod"}),
+        ),
+        (
+            "basic_sku_public_ips_and_lbs",
+            json!({"id": prod("rg-app", "Microsoft.Network/publicIPAddresses", "vm-app-01-pip"), "name": "vm-app-01-pip", "type": "microsoft.network/publicipaddresses", "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "summary": "vm-app-01-pip uses the retiring Basic SKU"}),
+        ),
+        (
+            "private_dns_zones_unlinked",
+            json!({"id": prod("rg-network", "Microsoft.Network/privateDnsZones", "privatelink.blob.core.windows.net"), "name": "privatelink.blob.core.windows.net", "resourceGroup": "rg-network", "subscriptionId": "sub-prod", "summary": "privatelink.blob.core.windows.net is linked to no virtual network"}),
+        ),
+        (
+            "orphaned_snapshots",
+            json!({"id": dev("Microsoft.Compute/snapshots", "web-dev-snap"), "name": "web-dev-snap", "resourceGroup": "rg-dev", "subscriptionId": "sub-dev", "sourceId": dev("Microsoft.Compute/disks", "disk-old-test"), "summary": "web-dev-snap's source disk no longer exists"}),
+        ),
+        (
+            "route_tables_without_subnets",
+            json!({"id": prod("rg-network", "Microsoft.Network/routeTables", "rt-unused"), "name": "rt-unused", "resourceGroup": "rg-network", "subscriptionId": "sub-prod", "summary": "rt-unused is associated with no subnet"}),
+        ),
+        (
+            "unused_user_assigned_identities",
+            json!({"id": dev("Microsoft.ManagedIdentity/userAssignedIdentities", "id-unused"), "name": "id-unused", "resourceGroup": "rg-dev", "subscriptionId": "sub-dev", "summary": "id-unused is assigned to no resource"}),
+        ),
+    ]
+}
+
+fn estate_resources(vintage: Vintage) -> Vec<Value> {
+    let older = vintage == Vintage::Older;
+    let mut resources = vec![
         json!({
             "id": "/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/virtualNetworks/vnet-hub",
             "name": "vnet-hub", "type": "microsoft.network/virtualnetworks", "location": "uksouth",
@@ -132,7 +260,11 @@ fn estate_resources() -> Vec<Value> {
                     {"id": "/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/shared",
                      "name": "shared",
                      "properties": {"addressPrefix": "10.0.1.0/24",
-                                    "networkSecurityGroup": {"id": "/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/networkSecurityGroups/nsg-app"}}}
+                                    "networkSecurityGroup": {"id": "/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/networkSecurityGroups/nsg-app"},
+                                    "routeTable": {"id": "/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/routeTables/rt-shared"},
+                                    "natGateway": {"id": "/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/natGateways/natgw-hub"}}},
+                    {"id": "/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/virtualNetworks/vnet-hub/subnets/AzureFirewallSubnet",
+                     "name": "AzureFirewallSubnet", "properties": {"addressPrefix": "10.0.2.0/24"}}
                 ],
                 "virtualNetworkPeerings": [
                     {"properties": {"remoteVirtualNetwork": {"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/virtualNetworks/vnet-app"},
@@ -148,7 +280,15 @@ fn estate_resources() -> Vec<Value> {
                 "addressSpace": {"addressPrefixes": ["10.1.0.0/16"]},
                 "subnets": [
                     {"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/virtualNetworks/vnet-app/subnets/app",
-                     "name": "app", "properties": {"addressPrefix": "10.1.0.0/24"}}
+                     "name": "app", "properties": {"addressPrefix": "10.1.0.0/24"}},
+                    {"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/virtualNetworks/vnet-app/subnets/agw",
+                     "name": "agw", "properties": {"addressPrefix": "10.1.1.0/24"}},
+                    {"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/virtualNetworks/vnet-app/subnets/aks",
+                     "name": "aks", "properties": {"addressPrefix": "10.1.2.0/23"}},
+                    {"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/virtualNetworks/vnet-app/subnets/db",
+                     "name": "db", "properties": {"addressPrefix": "10.1.4.0/24", "delegations": [{"name": "postgres", "properties": {"serviceName": "Microsoft.DBforPostgreSQL/flexibleServers"}}]}},
+                    {"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/virtualNetworks/vnet-app/subnets/cae",
+                     "name": "cae", "properties": {"addressPrefix": "10.1.8.0/21"}}
                 ],
                 "virtualNetworkPeerings": [
                     {"properties": {"remoteVirtualNetwork": {"id": "/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/virtualNetworks/vnet-hub"},
@@ -185,7 +325,8 @@ fn estate_resources() -> Vec<Value> {
             "name": "vm-app-01", "type": "microsoft.compute/virtualmachines", "location": "uksouth",
             "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "tags": {"env": "prod"},
             "properties": {
-                "hardwareProfile": {"vmSize": "Standard_B2s"},
+                "hardwareProfile": {"vmSize": if older { "Standard_B1s" } else { "Standard_B2s" }},
+                "availabilitySet": {"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/availabilitySets/avset-app"},
                 "storageProfile": {"osDisk": {"managedDisk": {"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/disks/vm-app-01-os"}}},
                 "networkProfile": {"networkInterfaces": [{"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/networkInterfaces/vm-app-01-nic"}]}
             }
@@ -194,7 +335,9 @@ fn estate_resources() -> Vec<Value> {
             "id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/disks/vm-app-01-os",
             "name": "vm-app-01-os", "type": "microsoft.compute/disks", "location": "uksouth",
             "resourceGroup": "rg-app", "subscriptionId": "sub-prod",
-            "properties": {"diskSizeGB": 64, "diskState": "Attached", "encryption": {"type": "EncryptionAtRestWithPlatformKey"}}
+            "properties": {"diskSizeGB": 64, "diskState": "Attached",
+                           "encryption": {"type": "EncryptionAtRestWithCustomerKey",
+                                          "diskEncryptionSetId": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/diskEncryptionSets/des-prod"}}
         }),
         json!({
             "id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/networkInterfaces/vm-app-01-nic",
@@ -202,16 +345,18 @@ fn estate_resources() -> Vec<Value> {
             "resourceGroup": "rg-app", "subscriptionId": "sub-prod",
             "properties": {
                 "virtualMachine": {"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/virtualMachines/vm-app-01"},
-                "ipConfigurations": [{"properties": {
+                "ipConfigurations": [{"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/networkInterfaces/vm-app-01-nic/ipConfigurations/ipconfig1",
+                  "properties": {
                     "subnet": {"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/virtualNetworks/vnet-app/subnets/app"},
-                    "publicIPAddress": {"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/publicIPAddresses/vm-app-01-pip"}
+                    "publicIPAddress": {"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/publicIPAddresses/vm-app-01-pip"},
+                    "applicationSecurityGroups": [{"id": "/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/applicationSecurityGroups/asg-web"}]
                 }}]
             }
         }),
         json!({
             "id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/publicIPAddresses/vm-app-01-pip",
             "name": "vm-app-01-pip", "type": "microsoft.network/publicipaddresses", "location": "uksouth",
-            "resourceGroup": "rg-app", "subscriptionId": "sub-prod",
+            "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "sku": {"name": "Basic"},
             "properties": {"ipAddress": "20.0.0.10",
                            "ipConfiguration": {"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/networkInterfaces/vm-app-01-nic/ipConfigurations/ipconfig1"}}
         }),
@@ -219,7 +364,10 @@ fn estate_resources() -> Vec<Value> {
             "id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Storage/storageAccounts/stprodapp01",
             "name": "stprodapp01", "type": "microsoft.storage/storageaccounts", "location": "uksouth",
             "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "kind": "StorageV2",
-            "properties": {"allowBlobPublicAccess": true, "supportsHttpsTrafficOnly": true}
+            "properties": {"allowBlobPublicAccess": !older, "supportsHttpsTrafficOnly": true,
+                           "minimumTlsVersion": "TLS1_2", "allowSharedKeyAccess": true,
+                           "networkAcls": {"defaultAction": "Deny",
+                                           "virtualNetworkRules": [{"id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/virtualNetworks/vnet-app/subnets/app", "action": "Allow"}]}}
         }),
         json!({
             "id": "/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/privateEndpoints/pe-sql",
@@ -277,7 +425,293 @@ fn estate_resources() -> Vec<Value> {
             "resourceGroup": "rg-dev", "subscriptionId": "sub-dev",
             "properties": {"clientId": "00000000-0000-0000-0000-000000000000"}
         }),
-    ]
+    ];
+    resources.extend(edge_services());
+    // The private-link pair and the SQL server arrived after the older
+    // collection; the old test disk left before the current one.
+    if older {
+        resources.retain(|r| {
+            !["pe-sql", "pe-sql.nic.4f2a", "sql-prod", "app-db"]
+                .contains(&r["name"].as_str().unwrap_or_default())
+        });
+        resources.push(json!({
+            "id": "/subscriptions/sub-dev/resourceGroups/rg-dev/providers/Microsoft.Compute/disks/disk-old-test",
+            "name": "disk-old-test", "type": "microsoft.compute/disks", "location": "ukwest",
+            "resourceGroup": "rg-dev", "subscriptionId": "sub-dev",
+            "properties": {"diskSizeGB": 32, "diskState": "Unattached"}
+        }));
+    }
+    resources
+}
+
+/// The edge services and platform plumbing the query-pack expansion covers,
+/// shaped so every `EdgeKind` the extractors know has at least one producer
+/// (`fixture_exercises_every_edge_kind` holds the fixture to that).
+fn edge_services() -> Vec<Value> {
+    let net = |provider: &str, name: &str| {
+        format!("/subscriptions/sub-prod/resourceGroups/rg-network/providers/{provider}/{name}")
+    };
+    let app = |provider: &str, name: &str| {
+        format!("/subscriptions/sub-prod/resourceGroups/rg-app/providers/{provider}/{name}")
+    };
+    let dev = |provider: &str, name: &str| {
+        format!("/subscriptions/sub-dev/resourceGroups/rg-dev/providers/{provider}/{name}")
+    };
+    let hub_subnet = |name: &str| {
+        net(
+            "Microsoft.Network/virtualNetworks",
+            &format!("vnet-hub/subnets/{name}"),
+        )
+    };
+    let app_subnet = |name: &str| {
+        app(
+            "Microsoft.Network/virtualNetworks",
+            &format!("vnet-app/subnets/{name}"),
+        )
+    };
+    let law = app("Microsoft.OperationalInsights/workspaces", "law-prod");
+    let vm = app("Microsoft.Compute/virtualMachines", "vm-app-01");
+    let prod_tags = json!({"env": "prod"});
+    let network = |name: &str, azure_type: &str, properties: Value| {
+        json!({
+            "id": net(azure_type, name), "name": name,
+            "type": format!("microsoft.network/{}", azure_type.rsplit('/').next().unwrap_or_default().to_lowercase()),
+            "location": "uksouth", "resourceGroup": "rg-network", "subscriptionId": "sub-prod", "tags": prod_tags,
+            "properties": properties
+        })
+    };
+    let mut resources = vec![
+        network(
+            "natgw-hub",
+            "Microsoft.Network/natGateways",
+            json!({
+                "subnets": [{"id": hub_subnet("shared")}],
+                "publicIpAddresses": [{"id": net("Microsoft.Network/publicIPAddresses", "pip-natgw")}],
+                "idleTimeoutInMinutes": 4
+            }),
+        ),
+        network(
+            "pip-natgw",
+            "Microsoft.Network/publicIPAddresses",
+            json!({"ipAddress": "20.0.0.11", "publicIPAllocationMethod": "Static"}),
+        ),
+        network(
+            "fw-hub",
+            "Microsoft.Network/azureFirewalls",
+            json!({
+                "ipConfigurations": [{"name": "fw-ip", "properties": {
+                    "subnet": {"id": hub_subnet("AzureFirewallSubnet")},
+                    "publicIPAddress": {"id": net("Microsoft.Network/publicIPAddresses", "pip-fw")}}}],
+                "firewallPolicy": {"id": net("Microsoft.Network/firewallPolicies", "fwpol-hub")},
+                "threatIntelMode": "Alert"
+            }),
+        ),
+        network(
+            "pip-fw",
+            "Microsoft.Network/publicIPAddresses",
+            json!({"ipAddress": "20.0.0.12", "publicIPAllocationMethod": "Static"}),
+        ),
+        network(
+            "fwpol-hub",
+            "Microsoft.Network/firewallPolicies",
+            json!({"threatIntelMode": "Alert", "sku": {"tier": "Standard"}}),
+        ),
+        network(
+            "vgw-hub",
+            "Microsoft.Network/virtualNetworkGateways",
+            json!({
+                "gatewayType": "Vpn", "vpnType": "RouteBased",
+                "ipConfigurations": [{"name": "default", "properties": {
+                    "subnet": {"id": hub_subnet("gateway")},
+                    "publicIPAddress": {"id": net("Microsoft.Network/publicIPAddresses", "pip-vgw")}}}]
+            }),
+        ),
+        network(
+            "pip-vgw",
+            "Microsoft.Network/publicIPAddresses",
+            json!({"ipAddress": "20.0.0.13", "publicIPAllocationMethod": "Static"}),
+        ),
+        network(
+            "lng-onprem",
+            "Microsoft.Network/localNetworkGateways",
+            json!({
+                "gatewayIpAddress": "203.0.113.10",
+                "localNetworkAddressSpace": {"addressPrefixes": ["192.168.0.0/16"]}
+            }),
+        ),
+        network(
+            "cn-onprem",
+            "Microsoft.Network/connections",
+            json!({
+                "connectionType": "IPsec", "connectionStatus": "Connected",
+                "virtualNetworkGateway1": {"id": net("Microsoft.Network/virtualNetworkGateways", "vgw-hub")},
+                "localNetworkGateway2": {"id": net("Microsoft.Network/localNetworkGateways", "lng-onprem")}
+            }),
+        ),
+        network(
+            "privatelink.database.windows.net",
+            "Microsoft.Network/privateDnsZones",
+            json!({"numberOfVirtualNetworkLinks": 1, "numberOfRecordSets": 2}),
+        ),
+        json!({
+            "id": net("Microsoft.Network/privateDnsZones", "privatelink.database.windows.net/virtualNetworkLinks/link-hub"),
+            "name": "link-hub", "type": "microsoft.network/privatednszones/virtualnetworklinks", "location": "global",
+            "resourceGroup": "rg-network", "subscriptionId": "sub-prod", "tags": prod_tags,
+            "properties": {"virtualNetwork": {"id": net("Microsoft.Network/virtualNetworks", "vnet-hub")}, "registrationEnabled": false, "virtualNetworkLinkState": "Completed"}
+        }),
+        network(
+            "privatelink.blob.core.windows.net",
+            "Microsoft.Network/privateDnsZones",
+            json!({"numberOfVirtualNetworkLinks": 0, "numberOfRecordSets": 1}),
+        ),
+        network(
+            "asg-web",
+            "Microsoft.Network/applicationSecurityGroups",
+            json!({}),
+        ),
+        network(
+            "rt-shared",
+            "Microsoft.Network/routeTables",
+            json!({
+                "disableBgpRoutePropagation": true,
+                "routes": [{"name": "default", "properties": {"addressPrefix": "0.0.0.0/0", "nextHopType": "VirtualAppliance", "nextHopIpAddress": "10.0.2.4"}}]
+            }),
+        ),
+        network(
+            "rt-unused",
+            "Microsoft.Network/routeTables",
+            json!({"routes": []}),
+        ),
+        json!({
+            "id": app("Microsoft.KeyVault/vaults", "kv-prod"), "name": "kv-prod", "type": "microsoft.keyvault/vaults",
+            "location": "uksouth", "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "tags": prod_tags,
+            "properties": {"enableSoftDelete": true, "enablePurgeProtection": true, "publicNetworkAccess": "Disabled",
+                           "networkAcls": {"defaultAction": "Deny", "bypass": "AzureServices",
+                                           "virtualNetworkRules": [{"id": app_subnet("app")}]}}
+        }),
+        json!({
+            "id": app("Microsoft.Compute/diskEncryptionSets", "des-prod"), "name": "des-prod", "type": "microsoft.compute/diskencryptionsets",
+            "location": "uksouth", "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "tags": prod_tags,
+            "identity": {"type": "SystemAssigned"},
+            "properties": {"encryptionType": "EncryptionAtRestWithCustomerKey",
+                           "activeKey": {"sourceVault": {"id": app("Microsoft.KeyVault/vaults", "kv-prod")}, "keyUrl": "https://kv-prod.vault.azure.net/keys/disk/1"}}
+        }),
+        json!({
+            "id": app("Microsoft.Insights/dataCollectionRules", "dcr-prod"), "name": "dcr-prod", "type": "microsoft.insights/datacollectionrules",
+            "location": "uksouth", "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "tags": prod_tags,
+            "properties": {"destinations": {"logAnalytics": [{"name": "law", "workspaceResourceId": law}]},
+                           "dataFlows": [{"streams": ["Microsoft-Syslog"], "destinations": ["law"]}]}
+        }),
+        json!({
+            "id": app("Microsoft.Insights/components", "appi-prod"), "name": "appi-prod", "type": "microsoft.insights/components",
+            "location": "uksouth", "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "kind": "web", "tags": prod_tags,
+            "properties": {"Application_Type": "web", "WorkspaceResourceId": law, "RetentionInDays": 90}
+        }),
+        json!({
+            "id": app("Microsoft.Insights/metricAlerts", "alert-cpu"), "name": "alert-cpu", "type": "microsoft.insights/metricalerts",
+            "location": "global", "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "tags": prod_tags,
+            "properties": {"scopes": [vm], "severity": 2, "enabled": true, "evaluationFrequency": "PT5M"}
+        }),
+        json!({
+            "id": app("Microsoft.Network/applicationGateways", "agw-prod"), "name": "agw-prod", "type": "microsoft.network/applicationgateways",
+            "location": "uksouth", "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "tags": prod_tags,
+            "sku": {"name": "WAF_v2", "tier": "WAF_v2"},
+            "properties": {
+                "operationalState": "Running",
+                "gatewayIPConfigurations": [{"name": "gw", "properties": {"subnet": {"id": app_subnet("agw")}}}],
+                "frontendIPConfigurations": [{"name": "public", "properties": {"publicIPAddress": {"id": app("Microsoft.Network/publicIPAddresses", "pip-agw")}}}],
+                "backendAddressPools": [{"name": "web", "properties": {"backendIPConfigurations": [{"id": app("Microsoft.Network/networkInterfaces", "vm-app-01-nic/ipConfigurations/ipconfig1")}]}}],
+                "firewallPolicy": {"id": app("Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies", "wafpol-prod")}
+            }
+        }),
+        json!({
+            "id": app("Microsoft.Network/publicIPAddresses", "pip-agw"), "name": "pip-agw", "type": "microsoft.network/publicipaddresses",
+            "location": "uksouth", "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "sku": {"name": "Standard"},
+            "properties": {"ipAddress": "20.0.0.20", "publicIPAllocationMethod": "Static"}
+        }),
+        json!({
+            "id": app("Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies", "wafpol-prod"), "name": "wafpol-prod",
+            "type": "microsoft.network/applicationgatewaywebapplicationfirewallpolicies",
+            "location": "uksouth", "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "tags": prod_tags,
+            "properties": {"policySettings": {"mode": "Prevention", "state": "Enabled"}}
+        }),
+        json!({
+            "id": app("Microsoft.Compute/availabilitySets", "avset-app"), "name": "avset-app", "type": "microsoft.compute/availabilitysets",
+            "location": "uksouth", "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "tags": prod_tags,
+            "sku": {"name": "Aligned"}, "properties": {"platformFaultDomainCount": 2, "platformUpdateDomainCount": 5}
+        }),
+        json!({
+            "id": app("Microsoft.ContainerService/managedClusters", "aks-prod"), "name": "aks-prod", "type": "microsoft.containerservice/managedclusters",
+            "location": "uksouth", "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "tags": prod_tags,
+            "identity": {"type": "SystemAssigned"},
+            "properties": {
+                "kubernetesVersion": "1.30.4", "nodeResourceGroup": "MC_rg-app_aks-prod_uksouth",
+                "enableRBAC": true, "disableLocalAccounts": false,
+                "agentPoolProfiles": [{"name": "nodepool1", "count": 2, "vmSize": "Standard_D2s_v5", "mode": "System", "vnetSubnetID": app_subnet("aks")}],
+                "addonProfiles": {"omsagent": {"enabled": true, "config": {"logAnalyticsWorkspaceResourceID": law}}},
+                "apiServerAccessProfile": {"enablePrivateCluster": false}
+            }
+        }),
+        json!({
+            "id": app("Microsoft.DBforPostgreSQL/flexibleServers", "psql-prod"), "name": "psql-prod", "type": "microsoft.dbforpostgresql/flexibleservers",
+            "location": "uksouth", "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "tags": prod_tags,
+            "sku": {"name": "Standard_B1ms", "tier": "Burstable"},
+            "properties": {"version": "16", "state": "Ready",
+                           "network": {"delegatedSubnetResourceId": app_subnet("db"), "publicNetworkAccess": "Disabled"},
+                           "highAvailability": {"mode": "Disabled"}, "backup": {"backupRetentionDays": 7, "geoRedundantBackup": "Disabled"}}
+        }),
+        json!({
+            "id": app("Microsoft.App/managedEnvironments", "cae-prod"), "name": "cae-prod", "type": "microsoft.app/managedenvironments",
+            "location": "uksouth", "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "tags": prod_tags,
+            "properties": {"vnetConfiguration": {"infrastructureSubnetId": app_subnet("cae"), "internal": true},
+                           "appLogsConfiguration": {"destination": "log-analytics"}}
+        }),
+        json!({
+            "id": app("Microsoft.App/containerApps", "ca-api"), "name": "ca-api", "type": "microsoft.app/containerapps",
+            "location": "uksouth", "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "tags": prod_tags,
+            "properties": {"managedEnvironmentId": app("Microsoft.App/managedEnvironments", "cae-prod"),
+                           "configuration": {"ingress": {"external": false, "targetPort": 8080}}, "runningStatus": "Running"}
+        }),
+        json!({
+            "id": app("Microsoft.RecoveryServices/vaults", "rsv-prod"), "name": "rsv-prod", "type": "microsoft.recoveryservices/vaults",
+            "location": "uksouth", "resourceGroup": "rg-app", "subscriptionId": "sub-prod", "tags": prod_tags,
+            "sku": {"name": "RS0", "tier": "Standard"}, "properties": {"provisioningState": "Succeeded"}
+        }),
+        json!({
+            "id": "/subscriptions/sub-prod/resourceGroups/MC_rg-app_aks-prod_uksouth/providers/Microsoft.Compute/virtualMachineScaleSets/aks-nodepool1-12345678-vmss",
+            "name": "aks-nodepool1-12345678-vmss", "type": "microsoft.compute/virtualmachinescalesets",
+            "location": "uksouth", "resourceGroup": "MC_rg-app_aks-prod_uksouth", "subscriptionId": "sub-prod",
+            "tags": {"aks-managed-clusterName": "aks-prod", "aks-managed-poolName": "nodepool1"},
+            "sku": {"name": "Standard_D2s_v5", "capacity": 2},
+            "properties": {"orchestrationMode": "Uniform",
+                           "virtualMachineProfile": {"networkProfile": {"networkInterfaceConfigurations": [{"name": "aks-nodepool1", "properties": {
+                               "primary": true,
+                               "ipConfigurations": [{"name": "ipconfig1", "properties": {"subnet": {"id": app_subnet("aks")}}}]}}]}}}
+        }),
+        json!({
+            "id": dev("Microsoft.Cache/Redis", "redis-dev"), "name": "redis-dev", "type": "microsoft.cache/redis",
+            "location": "ukwest", "resourceGroup": "rg-dev", "subscriptionId": "sub-dev",
+            "sku": {"name": "Basic", "family": "C", "capacity": 0},
+            "properties": {"enableNonSslPort": true, "minimumTlsVersion": "1.0", "redisVersion": "6.0"}
+        }),
+        json!({
+            "id": dev("Microsoft.Web/certificates", "web-dev-cert"), "name": "web-dev-cert", "type": "microsoft.web/certificates",
+            "location": "ukwest", "resourceGroup": "rg-dev", "subscriptionId": "sub-dev",
+            "properties": {"subjectName": "web-dev.example.test", "expirationDate": "2026-10-01T00:00:00Z", "issuer": "Example CA"}
+        }),
+        json!({
+            "id": dev("Microsoft.Compute/snapshots", "web-dev-snap"), "name": "web-dev-snap", "type": "microsoft.compute/snapshots",
+            "location": "ukwest", "resourceGroup": "rg-dev", "subscriptionId": "sub-dev",
+            "properties": {"diskSizeGB": 32, "creationData": {"createOption": "Copy", "sourceResourceId": dev("Microsoft.Compute/disks", "disk-old-test")}}
+        }),
+        json!({
+            "id": dev("Microsoft.ManagedIdentity/userAssignedIdentities", "id-unused"), "name": "id-unused", "type": "microsoft.managedidentity/userassignedidentities",
+            "location": "ukwest", "resourceGroup": "rg-dev", "subscriptionId": "sub-dev",
+            "properties": {"clientId": "11111111-1111-1111-1111-111111111111"}
+        }),
+    ];
+    resources.sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
+    resources
 }
 
 /// Optional saved evidence for screenshot export tests. The source is entirely

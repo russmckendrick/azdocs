@@ -1,0 +1,30 @@
+---
+source: tests/report_golden_test.rs
+assertion_line: 46
+expression: content
+---
+# MC_rg-app_aks-prod_uksouth
+
+[← index](../../index.md) · [subscription: Production](../../subscriptions/production.md)
+
+- **Subscription**: Production
+- **Location**: UK South
+- **Resources**: 1
+
+
+## aks-nodepool1-12345678-vmss
+
+**VM Scale Set** (`microsoft.compute/virtualmachinescalesets`)
+
+> ⚠️ **LOW** — aks-nodepool1-12345678-vmss is missing tags: env
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Sku | Standard_D2s_v5 |
+| Tags | aks-managed-clusterName=aks-prod, aks-managed-poolName=nodepool1 |
+| Orchestration Mode | Uniform |
+
+**Related**: aks (nic in subnet) · aks-prod (attached to)
+
+`/subscriptions/sub-prod/resourceGroups/MC_rg-app_aks-prod_uksouth/providers/Microsoft.Compute/virtualMachineScaleSets/aks-nodepool1-12345678-vmss`

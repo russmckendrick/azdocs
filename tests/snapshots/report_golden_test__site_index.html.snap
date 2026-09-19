@@ -1,0 +1,282 @@
+---
+source: tests/report_golden_test.rs
+assertion_line: 65
+expression: content
+---
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Azure Estate Report</title><style>
+:root { --bg:#faf8f4; --fg:#1c2430; --muted:#5a6470; --border:#d8d2c6;
+        --primary:#1c2430; --accent:#0078d4; --tint:#f3efe7; --zebra:transparent; --on-accent:#faf8f4;
+        --high:#a83a22; --high-fill:#f5e4df; --radius:3px; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#141414; --fg:#fefefe; --muted:#959595; --border:#474747;
+          --tint:#202020; --zebra:#1d1d1d; --accent:#8bc3f0; }
+}
+body { font: 15px/1.45 "IBM Plex Sans", -apple-system, "Segoe UI", Roboto, sans-serif;
+       background: var(--bg); color: var(--fg); max-width: 1050px; margin: 0 auto; padding: 2rem 1rem; }
+h1,h2,h3 { font-family: "IBM Plex Serif", Georgia, serif; line-height: 1.2; }
+h2 { border-bottom: 1px solid var(--border); padding-bottom: .3rem; margin-top: 2.2rem; }
+a { color: var(--accent); }
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 14px; display: block; overflow-x: auto; }
+th, td { text-align: left; padding: .35rem .6rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { background: var(--th-bg); color: var(--th-fg); }
+tbody tr:nth-child(even) { background: var(--zebra); }
+code { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+       background: rgba(127,127,127,.12); padding: .1em .3em; border-radius: 3px; font-size: 90%; }
+nav { font-size: 13px; color: var(--muted); margin-bottom: 1.5rem; }
+nav a { margin-right: .8rem; }
+blockquote { margin: .6rem 0; padding: .5rem .9rem; border-left: 4px solid var(--high);
+             background: var(--high-fill); border-radius: 0 var(--radius) var(--radius) 0; }
+blockquote p { margin: 0; }
+header.brand { display: flex; align-items: center; gap: .7rem; margin-bottom: .8rem;
+               color: var(--muted); font-size: 14px; }
+header.brand img { max-height: 40px; }
+footer.brand { margin-top: 2.5rem; border-top: 1px solid var(--border); padding-top: .7rem;
+               color: var(--muted); font-size: 13px; }
+:root { --th-bg:transparent; --th-fg:#1c2430; }
+</style></head>
+<body><nav><a href="index.html">Overview</a><a href="findings.html">Findings</a><a href="query-provenance.html">Query provenance</a><a href="avd.html">avd</a><a href="compliance.html">compliance</a><a href="cost.html">cost</a><a href="governance.html">governance</a><a href="inventory.html">inventory</a><a href="monitoring.html">monitoring</a><a href="networking.html">networking</a><a href="operations.html">operations</a><a href="resilience.html">resilience</a></nav>
+<h1>Azure Estate Report</h1>
+<ul>
+<li><strong>Snapshot</strong>: <code>[snapshot-id]</code></li>
+<li><strong>Collected</strong>: [timestamp]</li>
+<li><strong>Tenant</strong>: <code>fixture-tenant</code></li>
+<li><strong>Status</strong>: complete</li>
+<li><strong>Notes</strong>: golden fixture</li>
+</ul>
+<h2>Summary</h2>
+<table><thead><tr><th>Metric</th><th style="text-align: right">Count</th></tr></thead><tbody>
+<tr><td>Subscriptions</td><td style="text-align: right">2</td></tr>
+<tr><td>Resource groups</td><td style="text-align: right">4</td></tr>
+<tr><td>Resources</td><td style="text-align: right">52</td></tr>
+<tr><td>Findings</td><td style="text-align: right">35</td></tr>
+</tbody></table>
+<p><strong>Findings by severity</strong>: 5 high · 8 medium · 17 low · 5 info — see <a href="findings.html">findings.md</a></p>
+<p><strong>Tag coverage</strong>: 73% (38 tagged, 14 untagged)</p>
+<h2>Governance</h2>
+<p><strong>Coverage by tag key</strong> — share of the 38 tagged resources carrying each key.</p>
+<table><thead><tr><th>Tag key</th><th style="text-align: right">Resources</th><th style="text-align: right">Share</th></tr></thead><tbody>
+<tr><td><code>env</code></td><td style="text-align: right">37</td><td style="text-align: right">97%</td></tr>
+<tr><td><code>aks-managed-clusterName</code></td><td style="text-align: right">1</td><td style="text-align: right">2%</td></tr>
+<tr><td><code>aks-managed-poolName</code></td><td style="text-align: right">1</td><td style="text-align: right">2%</td></tr>
+</tbody></table>
+<p><strong>Coverage by subscription</strong> — any tag counts here; the required-tag sweep is stricter.</p>
+<table><thead><tr><th>Subscription</th><th style="text-align: right">Coverage</th><th>Status</th></tr></thead><tbody>
+<tr><td>Development</td><td style="text-align: right">0%</td><td>below threshold</td></tr>
+<tr><td>Production</td><td style="text-align: right">84%</td><td>healthy</td></tr>
+</tbody></table>
+<p><strong>Least compliant resource groups</strong> — 15 resources are missing at least one required tag, recorded by the <code>missing_required_tags</code> audit.</p>
+<table><thead><tr><th>Resource group</th><th>Subscription</th><th style="text-align: right">Resources</th><th style="text-align: right">Non-compliant</th><th>Missed tags</th><th>Status</th></tr></thead><tbody>
+<tr><td>rg-app</td><td>Production</td><td style="text-align: right">26</td><td style="text-align: right">7</td><td>env</td><td>—</td></tr>
+<tr><td>rg-dev</td><td>Development</td><td style="text-align: right">7</td><td style="text-align: right">7</td><td>env</td><td>called out</td></tr>
+<tr><td>MC_rg-app_aks-prod_uksouth</td><td>Production</td><td style="text-align: right">1</td><td style="text-align: right">1</td><td>env</td><td>called out</td></tr>
+</tbody></table>
+<h2>Resources by type</h2>
+<table><thead><tr><th>Type</th><th>Azure type</th><th style="text-align: right">Count</th></tr></thead><tbody>
+<tr><td>Public IP Address</td><td><code>microsoft.network/publicipaddresses</code></td><td style="text-align: right">5</td></tr>
+<tr><td>Managed Identity</td><td><code>microsoft.managedidentity/userassignedidentities</code></td><td style="text-align: right">2</td></tr>
+<tr><td>Network Interface</td><td><code>microsoft.network/networkinterfaces</code></td><td style="text-align: right">2</td></tr>
+<tr><td>Network Security Group</td><td><code>microsoft.network/networksecuritygroups</code></td><td style="text-align: right">2</td></tr>
+<tr><td>Private DNS Zone</td><td><code>microsoft.network/privatednszones</code></td><td style="text-align: right">2</td></tr>
+<tr><td>Route Table</td><td><code>microsoft.network/routetables</code></td><td style="text-align: right">2</td></tr>
+<tr><td>Virtual Network</td><td><code>microsoft.network/virtualnetworks</code></td><td style="text-align: right">2</td></tr>
+<tr><td>Container App</td><td><code>microsoft.app/containerapps</code></td><td style="text-align: right">1</td></tr>
+<tr><td>Container Apps Environment</td><td><code>microsoft.app/managedenvironments</code></td><td style="text-align: right">1</td></tr>
+<tr><td>Redis Cache</td><td><code>microsoft.cache/redis</code></td><td style="text-align: right">1</td></tr>
+<tr><td>Availability Set</td><td><code>microsoft.compute/availabilitysets</code></td><td style="text-align: right">1</td></tr>
+<tr><td>Disk Encryption Set</td><td><code>microsoft.compute/diskencryptionsets</code></td><td style="text-align: right">1</td></tr>
+<tr><td>Managed Disk</td><td><code>microsoft.compute/disks</code></td><td style="text-align: right">1</td></tr>
+<tr><td>Disk Snapshot</td><td><code>microsoft.compute/snapshots</code></td><td style="text-align: right">1</td></tr>
+<tr><td>Virtual Machine</td><td><code>microsoft.compute/virtualmachines</code></td><td style="text-align: right">1</td></tr>
+<tr><td>VM Scale Set</td><td><code>microsoft.compute/virtualmachinescalesets</code></td><td style="text-align: right">1</td></tr>
+<tr><td>AKS Cluster</td><td><code>microsoft.containerservice/managedclusters</code></td><td style="text-align: right">1</td></tr>
+<tr><td>PostgreSQL Flexible Server</td><td><code>microsoft.dbforpostgresql/flexibleservers</code></td><td style="text-align: right">1</td></tr>
+<tr><td>AVD Host Pool</td><td><code>microsoft.desktopvirtualization/hostpools</code></td><td style="text-align: right">1</td></tr>
+<tr><td>Application Insights</td><td><code>microsoft.insights/components</code></td><td style="text-align: right">1</td></tr>
+<tr><td>Data Collection Rule</td><td><code>microsoft.insights/datacollectionrules</code></td><td style="text-align: right">1</td></tr>
+<tr><td>Metric Alert</td><td><code>microsoft.insights/metricalerts</code></td><td style="text-align: right">1</td></tr>
+<tr><td>Key Vault</td><td><code>microsoft.keyvault/vaults</code></td><td style="text-align: right">1</td></tr>
+<tr><td>Application Gateway</td><td><code>microsoft.network/applicationgateways</code></td><td style="text-align: right">1</td></tr>
+<tr><td>Application Gateway WAF Policy</td><td><code>microsoft.network/applicationgatewaywebapplicationfirewallpolicies</code></td><td style="text-align: right">1</td></tr>
+<tr><td>Application Security Group</td><td><code>microsoft.network/applicationsecuritygroups</code></td><td style="text-align: right">1</td></tr>
+<tr><td>Azure Firewall</td><td><code>microsoft.network/azurefirewalls</code></td><td style="text-align: right">1</td></tr>
+<tr><td>Gateway Connection</td><td><code>microsoft.network/connections</code></td><td style="text-align: right">1</td></tr>
+<tr><td>Firewall Policy</td><td><code>microsoft.network/firewallpolicies</code></td><td style="text-align: right">1</td></tr>
+<tr><td>Local Network Gateway</td><td><code>microsoft.network/localnetworkgateways</code></td><td style="text-align: right">1</td></tr>
+<tr><td>NAT Gateway</td><td><code>microsoft.network/natgateways</code></td><td style="text-align: right">1</td></tr>
+<tr><td>Private DNS VNet Link</td><td><code>microsoft.network/privatednszones/virtualnetworklinks</code></td><td style="text-align: right">1</td></tr>
+<tr><td>Private Endpoint</td><td><code>microsoft.network/privateendpoints</code></td><td style="text-align: right">1</td></tr>
+<tr><td>Virtual Network Gateway</td><td><code>microsoft.network/virtualnetworkgateways</code></td><td style="text-align: right">1</td></tr>
+<tr><td>Log Analytics Workspace</td><td><code>microsoft.operationalinsights/workspaces</code></td><td style="text-align: right">1</td></tr>
+<tr><td>Recovery Services Vault</td><td><code>microsoft.recoveryservices/vaults</code></td><td style="text-align: right">1</td></tr>
+<tr><td>SQL Server</td><td><code>microsoft.sql/servers</code></td><td style="text-align: right">1</td></tr>
+<tr><td>SQL Database</td><td><code>microsoft.sql/servers/databases</code></td><td style="text-align: right">1</td></tr>
+<tr><td>Storage Account</td><td><code>microsoft.storage/storageaccounts</code></td><td style="text-align: right">1</td></tr>
+<tr><td>App Service Certificate</td><td><code>microsoft.web/certificates</code></td><td style="text-align: right">1</td></tr>
+<tr><td>App Service Plan</td><td><code>microsoft.web/serverfarms</code></td><td style="text-align: right">1</td></tr>
+<tr><td>App Service / Function App</td><td><code>microsoft.web/sites</code></td><td style="text-align: right">1</td></tr>
+</tbody></table>
+<h2>Resources by location</h2>
+<table><thead><tr><th>Location</th><th style="text-align: right">Count</th></tr></thead><tbody>
+<tr><td>UK South</td><td style="text-align: right">43</td></tr>
+<tr><td>UK West</td><td style="text-align: right">7</td></tr>
+<tr><td>Global</td><td style="text-align: right">2</td></tr>
+</tbody></table>
+<h2>Changes since the previous snapshot</h2>
+<p>Compared with snapshot [snapshot-id], collected [timestamp]. Azure rewrites some properties on every read; those paths are ignored, so every difference below is a recorded configuration change, not collection noise.</p>
+<p>4 resources added, 1 removed and 2 changed (2 field changes). 3 new findings and 2 resolved. 5 relationships added and 0 removed.</p>
+<h3>Resources added</h3>
+<table><thead><tr><th>Name</th><th>Type</th><th>Resource group</th><th>Subscription</th></tr></thead><tbody>
+<tr><td>pe-sql.nic.4f2a</td><td><code>microsoft.network/networkinterfaces</code></td><td>rg-app</td><td>sub-prod</td></tr>
+<tr><td>pe-sql</td><td><code>microsoft.network/privateendpoints</code></td><td>rg-app</td><td>sub-prod</td></tr>
+<tr><td>sql-prod</td><td><code>microsoft.sql/servers</code></td><td>rg-app</td><td>sub-prod</td></tr>
+<tr><td>app-db</td><td><code>microsoft.sql/servers/databases</code></td><td>rg-app</td><td>sub-prod</td></tr>
+</tbody></table>
+<h3>Resources removed</h3>
+<table><thead><tr><th>Name</th><th>Type</th><th>Resource group</th><th>Subscription</th></tr></thead><tbody>
+<tr><td>disk-old-test</td><td><code>microsoft.compute/disks</code></td><td>rg-dev</td><td>sub-dev</td></tr>
+</tbody></table>
+<h3>Resources changed</h3>
+<p><strong>vm-app-01</strong> (<code>microsoft.compute/virtualmachines</code>)</p>
+<table><thead><tr><th>Field</th><th>Before</th><th>After</th></tr></thead><tbody>
+<tr><td><code>properties.hardwareProfile.vmSize</code></td><td>Standard_B1s</td><td>Standard_B2s</td></tr>
+</tbody></table>
+<p><strong>stprodapp01</strong> (<code>microsoft.storage/storageaccounts</code>)</p>
+<table><thead><tr><th>Field</th><th>Before</th><th>After</th></tr></thead><tbody>
+<tr><td><code>properties.allowBlobPublicAccess</code></td><td>false</td><td>true</td></tr>
+</tbody></table>
+<h3>New findings</h3>
+<table><thead><tr><th>Severity</th><th>Check</th><th>Title</th><th>Resource</th></tr></thead><tbody>
+<tr><td>low</td><td><code>missing_required_tags</code></td><td>pe-sql.nic.4f2a is missing tags: env</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/networkinterfaces/pe-sql.nic.4f2a</code></td></tr>
+<tr><td>low</td><td><code>missing_required_tags</code></td><td>pe-sql is missing tags: env</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/privateendpoints/pe-sql</code></td></tr>
+<tr><td>high</td><td><code>storage_public_blob_access</code></td><td>stprodapp01 allows public blob access</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01</code></td></tr>
+</tbody></table>
+<h3>Resolved findings</h3>
+<table><thead><tr><th>Severity</th><th>Check</th><th>Title</th><th>Resource</th></tr></thead><tbody>
+<tr><td>low</td><td><code>missing_required_tags</code></td><td>disk-old-test is missing tags: env</td><td><code>/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.compute/disks/disk-old-test</code></td></tr>
+<tr><td>info</td><td><code>orphaned_resources</code></td><td>disk-old-test is an unattached managed disk</td><td><code>/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.compute/disks/disk-old-test</code></td></tr>
+</tbody></table>
+<h3>Relationships added and removed</h3>
+<table><thead><tr><th>Change</th><th>Source</th><th>Relationship</th><th>Target</th></tr></thead><tbody>
+<tr><td>Added</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/networkinterfaces/pe-sql.nic.4f2a</code></td><td>attached to</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/privateendpoints/pe-sql</code></td></tr>
+<tr><td>Added</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/networkinterfaces/pe-sql.nic.4f2a</code></td><td>nic in subnet</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/virtualnetworks/vnet-app/subnets/app</code></td></tr>
+<tr><td>Added</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/privateendpoints/pe-sql</code></td><td>nic in subnet</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/virtualnetworks/vnet-app/subnets/app</code></td></tr>
+<tr><td>Added</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/privateendpoints/pe-sql</code></td><td>private endpoint for</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.sql/servers/sql-prod</code></td></tr>
+<tr><td>Added</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.sql/servers/sql-prod/databases/app-db</code></td><td>attached to</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.sql/servers/sql-prod</code></td></tr>
+</tbody></table>
+<h3>Snapshot trend</h3>
+<p>The most recent 2 usable snapshots of this tenant, oldest first. Counts describe what each collection stored; they are not a measure of change in Azure between collections.</p>
+<table><thead><tr><th>Collected</th><th>Status</th><th style="text-align: right">Resources</th><th style="text-align: right">Tagged</th><th style="text-align: right">Findings</th><th style="text-align: right">high</th><th style="text-align: right">medium</th><th style="text-align: right">low</th><th style="text-align: right">info</th></tr></thead><tbody>
+<tr><td>[timestamp]</td><td>complete</td><td style="text-align: right">49</td><td style="text-align: right">36</td><td style="text-align: right">34</td><td style="text-align: right">4</td><td style="text-align: right">8</td><td style="text-align: right">16</td><td style="text-align: right">6</td></tr>
+<tr><td>[timestamp]</td><td>complete</td><td style="text-align: right">52</td><td style="text-align: right">38</td><td style="text-align: right">35</td><td style="text-align: right">5</td><td style="text-align: right">8</td><td style="text-align: right">17</td><td style="text-align: right">5</td></tr>
+</tbody></table>
+<h2>Website screenshots</h2>
+<p>Saved website views from this machine. Capture time is separate from the Azure audit time.</p>
+<table><thead><tr><th>Resource</th><th>Website</th><th>Status</th><th>Captured</th></tr></thead><tbody>
+<tr><td>web-dev</td><td>https://web-dev.azurewebsites.net/</td><td>Not captured</td><td></td></tr>
+<tr><td>agw-prod</td><td>listener</td><td>No hostname configured</td><td></td></tr>
+</tbody></table>
+<h2>Sections</h2>
+<ul>
+<li><a href="avd.html">avd</a></li>
+<li><a href="compliance.html">compliance</a></li>
+<li><a href="cost.html">cost</a></li>
+<li><a href="governance.html">governance</a></li>
+<li><a href="inventory.html">inventory</a></li>
+<li><a href="monitoring.html">monitoring</a></li>
+<li><a href="networking.html">networking</a></li>
+<li><a href="operations.html">operations</a></li>
+<li><a href="resilience.html">resilience</a></li>
+<li><a href="findings.html">findings</a></li>
+<li><a href="subscriptions/development.html">subscription: Development</a></li>
+<li><a href="subscriptions/production.html">subscription: Production</a></li>
+</ul>
+<h2>Operational and compliance evidence</h2>
+<p>Microsoft service evidence recorded during collection. Results cover only the accessible scope; an empty dataset is not proof of zero cost, compliance, protection or service enablement. Detailed records remain in the snapshot database and data exports.</p>
+<p><a href="query-provenance.html">Query provenance</a></p>
+<h3>Azure Advisor cost opportunities</h3>
+<p>Collection: Recorded evidence</p>
+<p>Estimates from Azure Advisor, grouped by currency and reported period. Annual estimates are separate. Missing amounts or periods remain unknown. Recommendations can overlap; totals are not guaranteed savings or billed costs.</p>
+<table><thead><tr><th>Currency</th><th>Period</th><th>Items</th><th>Savings</th><th>Annual savings</th></tr></thead><tbody>
+<tr><td>GBP</td><td>Month</td><td>1</td><td>125.50</td><td>Unknown</td></tr>
+</tbody></table>
+<h3>Azure Policy evaluation states</h3>
+<p>Collection: Recorded evidence</p>
+<p>Counts are policy evaluations, not distinct resources. Recorded states stay separate; missing evaluations never imply compliance. Full assignment and initiative IDs identify each group. A missing initiative may indicate a standalone policy or missing evidence.</p>
+<table><thead><tr><th>Sub. ID</th><th>Assignment</th><th>Initiative ID</th><th>State</th><th>Results</th></tr></thead><tbody>
+<tr><td>sub-prod</td><td>/subscriptions/sub-prod/providers/microsoft.authorization/policyassignments/baseline</td><td>/providers/microsoft.authorization/policysetdefinitions/security-baseline</td><td>Exempt</td><td>1</td></tr>
+</tbody></table>
+<h3>Azure Policy exemptions</h3>
+<p>Collection: Recorded evidence</p>
+<p>Expiry is assessed at collection time. Review expired exemptions and those due within 90 days with their owners. No expiry specified does not mean permanent approval; assignment scope and justification remain in the stored evidence.</p>
+<table><thead><tr><th>Category</th><th>Expiry at collection</th><th>Exemptions</th></tr></thead><tbody>
+<tr><td>Waiver</td><td>Due after 90 days</td><td>1</td></tr>
+</tbody></table>
+<h3>Defender regulatory standards</h3>
+<p>Collection: Recorded evidence</p>
+<p>Standard states across accessible subscriptions. Detailed control counts remain in the stored evidence. Missing or unsupported coverage does not establish compliance or certification.</p>
+<table><thead><tr><th>Standard</th><th>State</th><th>Standard records</th></tr></thead><tbody>
+<tr><td>Azure-Security-Benchmark</td><td>Failed</td><td>1</td></tr>
+</tbody></table>
+<h3>Defender regulatory controls</h3>
+<p>Collection: Recorded evidence</p>
+<p>Control states across accessible subscriptions, grouped by standard. Skipped, unsupported and unknown states remain distinct from passes. Full control IDs remain in the stored evidence.</p>
+<table><thead><tr><th>Standard</th><th>State</th><th>Control records</th></tr></thead><tbody>
+<tr><td>Azure-Security-Benchmark</td><td>Unsupported</td><td>1</td></tr>
+</tbody></table>
+<h3>Defender regulatory assessments</h3>
+<p>Collection: Recorded evidence</p>
+<p>Passed, failed and skipped counts are resource occurrences across assessments; resources can be counted more than once. Missing counts remain unknown. These assessments do not establish certification or compliance of unassessed resources.</p>
+<table><thead><tr><th>Standard</th><th>State</th><th>Checks</th><th>Passed</th><th>Failed</th><th>Skipped</th></tr></thead><tbody>
+<tr><td>Azure-Security-Benchmark</td><td>Failed</td><td>1</td><td>12</td><td>2</td><td>Unknown</td></tr>
+</tbody></table>
+<h3>Policy assignment inventory</h3>
+<p>Collection: Recorded evidence</p>
+<p>Assignment inventory includes the requested inherited scope. Enforcement mode and excluded scopes affect interpretation; an assignment does not establish a passing evaluation.</p>
+<table><thead><tr><th>Enforcement</th><th>Assignments</th></tr></thead><tbody>
+<tr><td>Default</td><td>1</td></tr>
+<tr><td>DoNotEnforce</td><td>1</td></tr>
+</tbody></table>
+<h3>Patch assessments</h3>
+<p>Collection: Recorded evidence</p>
+<p>Counts describe pending updates at the recorded assessment time and may overlap across classifications. Missing counts remain unknown. ARG assessment history is limited to seven days.</p>
+<table><thead><tr><th>OS</th><th>State</th><th>Checks</th><th>Security updates</th><th>Critical updates</th></tr></thead><tbody>
+<tr><td>Linux</td><td>Succeeded</td><td>1</td><td>2</td><td>Unknown</td></tr>
+</tbody></table>
+<h3>Backup protection evidence</h3>
+<p>Collection: Evidence incomplete or collection status unverified</p>
+<p>Protection state, backup status and recovery-point time are separate evidence. Missing fields remain unknown; the age threshold is a configurable review aid, not a workload RPO.</p>
+<h3>Backup and restore outcomes</h3>
+<p>Collection: Recorded evidence</p>
+<p>Backup and restore jobs retain the provider status, including warnings. ARG exposes up to 14 days of jobs; an empty result does not prove successful backups.</p>
+<table><thead><tr><th>Operation</th><th>State</th><th>Jobs</th></tr></thead><tbody>
+<tr><td>Backup</td><td>CompletedWithWarnings</td><td>1</td></tr>
+<tr><td>Restore</td><td>Failed</td><td>1</td></tr>
+</tbody></table>
+<h3>Recent ARM changes</h3>
+<p>Collection: Recorded evidence</p>
+<p>Recorded ARM changes can include actor, client and changed properties. ARG retains 14 days; this is not a complete activity or data-plane audit log.</p>
+<table><thead><tr><th>Type</th><th>Actor type</th><th>Events</th></tr></thead><tbody>
+<tr><td>Update</td><td>Application</td><td>1</td></tr>
+</tbody></table>
+<h3>Policy evaluation coverage</h3>
+<p>Collection: Recorded evidence</p>
+<p>Assignments are matched to stored policy states using full normalised ARM IDs. No observed evaluation is kept separate from compliance and from unavailable state collection.</p>
+<table><thead><tr><th>Assignment</th><th>Name</th><th>State</th><th>Results</th></tr></thead><tbody>
+<tr><td>/subscriptions/sub-prod/providers/microsoft.authorization/policyassignments/baseline</td><td>Production baseline</td><td>Evaluation observed</td><td>1</td></tr>
+<tr><td>/subscriptions/sub-prod/providers/microsoft.authorization/policyassignments/not-evaluated</td><td>Pending initiative</td><td>No evaluation observed</td><td>0</td></tr>
+</tbody></table>
+<h3>Machine assessment coverage</h3>
+<p>Collection: Recorded evidence</p>
+<p>Counts use the collected VM and Arc inventory, deduplicated by full ARM ID. No observed assessment may indicate missing service configuration, access or expired evidence; it is not a passed patch check.</p>
+<table><thead><tr><th>Type</th><th>State</th><th>Resources</th></tr></thead><tbody>
+<tr><td>microsoft.compute/virtualmachines</td><td>Evaluation observed</td><td>1</td></tr>
+</tbody></table>
+<h3>Evidence age at collection</h3>
+<p>Collection: Recorded evidence</p>
+<p>Ages are evaluated at the snapshot timestamp using the threshold recorded with each query. Future, invalid and missing dates stay separate. Review thresholds are configurable and are not Microsoft retention guarantees.</p>
+<table><thead><tr><th>Query</th><th>Review age (hours)</th><th>State</th><th>Items</th></tr></thead><tbody>
+<tr><td>patch_assessments</td><td>72</td><td>Missing or invalid timestamp</td><td>1</td></tr>
+</tbody></table>
+<section class="website-evidence"><h2>Website screenshots</h2><p>Saved website views from this machine. Capture time is separate from the Azure audit time.</p><article><h3>web-dev</h3><p><code>https://web-dev.azurewebsites.net/</code> · Not captured</p><p>No screenshot saved</p></article><article><h3>agw-prod</h3><p><code>listener</code> · No hostname configured</p><p>No screenshot saved</p></article></section>
+<footer class="brand">Generated by azdocs.</footer></body></html>

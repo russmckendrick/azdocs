@@ -1,0 +1,41 @@
+---
+source: tests/report_golden_test.rs
+assertion_line: 84
+expression: "std::fs::read_to_string(dir.path().join(file)).unwrap()"
+---
+severity,category,check,title,resource_id
+high,security,nsg_open_to_internet,nsg-app: rule allow-ssh allows Internet -> port 22,/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/networksecuritygroups/nsg-app
+high,security,nsg_management_ports_open,nsg-app: rule allow-ssh opens management port 22 to the Internet,/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/networksecuritygroups/nsg-app
+high,security,storage_public_blob_access,stprodapp01 allows public blob access,/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01
+high,security,storage_public_network_access,stprodapp01 allows public network access,/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01
+high,security,defender_unhealthy_high,vm-app-01: high severity Defender assessment is unhealthy,/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-app-01
+medium,cost,basic_sku_public_ips_and_lbs,vm-app-01-pip uses the retiring Basic SKU,/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/publicipaddresses/vm-app-01-pip
+medium,security,defender_plan_off,Defender for Servers is off in sub-prod,/subscriptions/sub-prod
+medium,security,aks_local_accounts_enabled,aks-prod allows local Kubernetes accounts,/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.containerservice/managedclusters/aks-prod
+medium,security,local_auth_enabled,oai-prod accepts local (key) authentication,/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.cognitiveservices/accounts/oai-prod
+medium,security,redis_insecure_transport,redis-dev accepts non-SSL connections,/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.cache/redis/redis-dev
+medium,security,sql_weak_tls,sql-prod accepts TLS 1.0,/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.sql/servers/sql-prod
+medium,security,web_app_https_only_disabled,web-dev does not enforce HTTPS-only traffic,/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.web/sites/web-dev
+medium,security,certificates_expiring,web-dev-cert expires within 30 days,/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.web/certificates/web-dev-cert
+low,governance,missing_required_tags,aks-nodepool1-12345678-vmss is missing tags: env,/subscriptions/sub-prod/resourcegroups/mc_rg-app_aks-prod_uksouth/providers/microsoft.compute/virtualmachinescalesets/aks-nodepool1-12345678-vmss
+low,governance,missing_required_tags,asp-dev is missing tags: env,/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.web/serverfarms/asp-dev
+low,governance,missing_required_tags,id-unused is missing tags: env,/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.managedidentity/userassignedidentities/id-unused
+low,governance,missing_required_tags,id-web-dev is missing tags: env,/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.managedidentity/userassignedidentities/id-web-dev
+low,governance,missing_required_tags,pe-sql is missing tags: env,/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/privateendpoints/pe-sql
+low,governance,missing_required_tags,pe-sql.nic.4f2a is missing tags: env,/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/networkinterfaces/pe-sql.nic.4f2a
+low,governance,missing_required_tags,pip-agw is missing tags: env,/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/publicipaddresses/pip-agw
+low,governance,missing_required_tags,redis-dev is missing tags: env,/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.cache/redis/redis-dev
+low,governance,missing_required_tags,stprodapp01 is missing tags: env,/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01
+low,governance,missing_required_tags,vm-app-01-nic is missing tags: env,/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/networkinterfaces/vm-app-01-nic
+low,governance,missing_required_tags,vm-app-01-os is missing tags: env,/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.compute/disks/vm-app-01-os
+low,governance,missing_required_tags,vm-app-01-pip is missing tags: env,/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/publicipaddresses/vm-app-01-pip
+low,governance,missing_required_tags,web-dev is missing tags: env,/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.web/sites/web-dev
+low,governance,missing_required_tags,web-dev-cert is missing tags: env,/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.web/certificates/web-dev-cert
+low,governance,missing_required_tags,web-dev-snap is missing tags: env,/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.compute/snapshots/web-dev-snap
+low,security,sql_entra_only_auth_off,sql-prod does not require Entra-only authentication,/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.sql/servers/sql-prod
+low,security,storage_shared_key_access,stprodapp01 allows shared key access,/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01
+info,cost,unused_user_assigned_identities,id-unused is assigned to no resource,/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.managedidentity/userassignedidentities/id-unused
+info,cost,private_dns_zones_unlinked,privatelink.blob.core.windows.net is linked to no virtual network,/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/privatednszones/privatelink.blob.core.windows.net
+info,cost,route_tables_without_subnets,rt-unused is associated with no subnet,/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/routetables/rt-unused
+info,cost,orphaned_snapshots,web-dev-snap's source disk no longer exists,/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.compute/snapshots/web-dev-snap
+info,security,unassociated_nsgs,nsg-unused is not associated with any subnet or NIC,/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/networksecuritygroups/nsg-unused

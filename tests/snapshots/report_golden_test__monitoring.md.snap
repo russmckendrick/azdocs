@@ -1,0 +1,26 @@
+---
+source: tests/report_golden_test.rs
+assertion_line: 46
+expression: content
+---
+# Monitoring
+
+[← index](index.md)
+
+
+## log_analytics_workspaces
+
+Log Analytics workspaces with SKU, retention, quota, and network access
+
+| id | name | location | resourceGroup | subscriptionId | skuName | retentionInDays | publicNetworkAccessForIngestion | publicNetworkAccessForQuery |
+|---|---|---|---|---|---|---|---|---|
+| /subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.operationalinsights/workspaces/law-prod | law-prod | uksouth | rg-app | sub-prod | PerGB2018 | 30 | Enabled | Enabled |
+
+
+## resource_changes
+
+Recent ARM control-plane changes with recorded actor, time and changed properties
+
+| id | changeType | changedByType | changedBy | clientType |
+|---|---|---|---|---|
+| /changes/change-1 | Update | Application | fixture-deployment | Azure Resource Manager |

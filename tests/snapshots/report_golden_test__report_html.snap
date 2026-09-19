@@ -1,6 +1,6 @@
 ---
 source: tests/report_golden_test.rs
-assertion_line: 62
+assertion_line: 132
 expression: "std::fs::read_to_string(&out).unwrap()"
 ---
 <!doctype html>
@@ -66,10 +66,10 @@ figure.diagram figcaption { color: var(--muted); font-size: 13px; margin-top: .3
 
 <div class="stats">
   <div class="stat"><b>2</b><span>subscriptions</span></div>
-  <div class="stat"><b>3</b><span>resource groups</span></div>
-  <div class="stat"><b>18</b><span>resources</span></div>
-  <div class="stat"><b>13</b><span>findings</span></div>
-  <div class="stat"><b>50%</b><span>tag coverage</span></div>
+  <div class="stat"><b>4</b><span>resource groups</span></div>
+  <div class="stat"><b>52</b><span>resources</span></div>
+  <div class="stat"><b>35</b><span>findings</span></div>
+  <div class="stat"><b>73%</b><span>tag coverage</span></div>
 </div>
 
 
@@ -116,6 +116,10 @@ figure.diagram figcaption { color: var(--muted); font-size: 13px; margin-top: .3
 <table><thead><tr><th>OS</th><th>State</th><th>Checks</th><th>Security updates</th><th>Critical updates</th></tr></thead>
 <tbody><tr><td>Linux</td><td>Succeeded</td><td>1</td><td>2</td><td>Unknown</td></tr></tbody></table>
 
+<h3>Backup protection evidence</h3>
+<p>Collection: Evidence incomplete or collection status unverified</p><p>Protection state, backup status and recovery-point time are separate evidence. Missing fields remain unknown; the age threshold is a configurable review aid, not a workload RPO.</p>
+
+
 <h3>Backup and restore outcomes</h3>
 <p>Collection: Recorded evidence</p><p>Backup and restore jobs retain the provider status, including warnings. ARG exposes up to 14 days of jobs; an empty result does not prove successful backups.</p>
 <table><thead><tr><th>Operation</th><th>State</th><th>Jobs</th></tr></thead>
@@ -144,10 +148,10 @@ figure.diagram figcaption { color: var(--muted); font-size: 13px; margin-top: .3
 
 <h2>Findings</h2>
 <p>
-<span class="badge high">2 high</span>
-<span class="badge medium">1 medium</span>
-<span class="badge low">9 low</span>
-<span class="badge info">1 info</span>
+<span class="badge high">5 high</span>
+<span class="badge medium">8 medium</span>
+<span class="badge low">17 low</span>
+<span class="badge info">5 info</span>
 </p>
 
 <input class="filter" type="search" placeholder="Filter findings..." oninput="filterTable(this, 'findings-table')">
@@ -158,14 +162,50 @@ figure.diagram figcaption { color: var(--muted); font-size: 13px; margin-top: .3
 <td>nsg-app: rule allow-ssh allows Internet -> port 22</td><td>security</td><td><code>nsg_open_to_internet</code></td>
 <td><code>/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/networksecuritygroups/nsg-app</code></td></tr>
 <tr><td><span class="badge high">high</span></td>
+<td>nsg-app: rule allow-ssh opens management port 22 to the Internet</td><td>security</td><td><code>nsg_management_ports_open</code></td>
+<td><code>/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/networksecuritygroups/nsg-app</code></td></tr>
+<tr><td><span class="badge high">high</span></td>
 <td>stprodapp01 allows public blob access</td><td>security</td><td><code>storage_public_blob_access</code></td>
 <td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01</code></td></tr>
+<tr><td><span class="badge high">high</span></td>
+<td>stprodapp01 allows public network access</td><td>security</td><td><code>storage_public_network_access</code></td>
+<td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01</code></td></tr>
+<tr><td><span class="badge high">high</span></td>
+<td>vm-app-01: high severity Defender assessment is unhealthy</td><td>security</td><td><code>defender_unhealthy_high</code></td>
+<td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-app-01</code></td></tr>
+<tr><td><span class="badge medium">medium</span></td>
+<td>vm-app-01-pip uses the retiring Basic SKU</td><td>cost</td><td><code>basic_sku_public_ips_and_lbs</code></td>
+<td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/publicipaddresses/vm-app-01-pip</code></td></tr>
+<tr><td><span class="badge medium">medium</span></td>
+<td>Defender for Servers is off in sub-prod</td><td>security</td><td><code>defender_plan_off</code></td>
+<td><code>/subscriptions/sub-prod</code></td></tr>
+<tr><td><span class="badge medium">medium</span></td>
+<td>aks-prod allows local Kubernetes accounts</td><td>security</td><td><code>aks_local_accounts_enabled</code></td>
+<td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.containerservice/managedclusters/aks-prod</code></td></tr>
+<tr><td><span class="badge medium">medium</span></td>
+<td>oai-prod accepts local (key) authentication</td><td>security</td><td><code>local_auth_enabled</code></td>
+<td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.cognitiveservices/accounts/oai-prod</code></td></tr>
+<tr><td><span class="badge medium">medium</span></td>
+<td>redis-dev accepts non-SSL connections</td><td>security</td><td><code>redis_insecure_transport</code></td>
+<td><code>/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.cache/redis/redis-dev</code></td></tr>
+<tr><td><span class="badge medium">medium</span></td>
+<td>sql-prod accepts TLS 1.0</td><td>security</td><td><code>sql_weak_tls</code></td>
+<td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.sql/servers/sql-prod</code></td></tr>
 <tr><td><span class="badge medium">medium</span></td>
 <td>web-dev does not enforce HTTPS-only traffic</td><td>security</td><td><code>web_app_https_only_disabled</code></td>
 <td><code>/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.web/sites/web-dev</code></td></tr>
+<tr><td><span class="badge medium">medium</span></td>
+<td>web-dev-cert expires within 30 days</td><td>security</td><td><code>certificates_expiring</code></td>
+<td><code>/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.web/certificates/web-dev-cert</code></td></tr>
+<tr><td><span class="badge low">low</span></td>
+<td>aks-nodepool1-12345678-vmss is missing tags: env</td><td>governance</td><td><code>missing_required_tags</code></td>
+<td><code>/subscriptions/sub-prod/resourcegroups/mc_rg-app_aks-prod_uksouth/providers/microsoft.compute/virtualmachinescalesets/aks-nodepool1-12345678-vmss</code></td></tr>
 <tr><td><span class="badge low">low</span></td>
 <td>asp-dev is missing tags: env</td><td>governance</td><td><code>missing_required_tags</code></td>
 <td><code>/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.web/serverfarms/asp-dev</code></td></tr>
+<tr><td><span class="badge low">low</span></td>
+<td>id-unused is missing tags: env</td><td>governance</td><td><code>missing_required_tags</code></td>
+<td><code>/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.managedidentity/userassignedidentities/id-unused</code></td></tr>
 <tr><td><span class="badge low">low</span></td>
 <td>id-web-dev is missing tags: env</td><td>governance</td><td><code>missing_required_tags</code></td>
 <td><code>/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.managedidentity/userassignedidentities/id-web-dev</code></td></tr>
@@ -175,6 +215,12 @@ figure.diagram figcaption { color: var(--muted); font-size: 13px; margin-top: .3
 <tr><td><span class="badge low">low</span></td>
 <td>pe-sql.nic.4f2a is missing tags: env</td><td>governance</td><td><code>missing_required_tags</code></td>
 <td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/networkinterfaces/pe-sql.nic.4f2a</code></td></tr>
+<tr><td><span class="badge low">low</span></td>
+<td>pip-agw is missing tags: env</td><td>governance</td><td><code>missing_required_tags</code></td>
+<td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/publicipaddresses/pip-agw</code></td></tr>
+<tr><td><span class="badge low">low</span></td>
+<td>redis-dev is missing tags: env</td><td>governance</td><td><code>missing_required_tags</code></td>
+<td><code>/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.cache/redis/redis-dev</code></td></tr>
 <tr><td><span class="badge low">low</span></td>
 <td>stprodapp01 is missing tags: env</td><td>governance</td><td><code>missing_required_tags</code></td>
 <td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01</code></td></tr>
@@ -190,6 +236,30 @@ figure.diagram figcaption { color: var(--muted); font-size: 13px; margin-top: .3
 <tr><td><span class="badge low">low</span></td>
 <td>web-dev is missing tags: env</td><td>governance</td><td><code>missing_required_tags</code></td>
 <td><code>/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.web/sites/web-dev</code></td></tr>
+<tr><td><span class="badge low">low</span></td>
+<td>web-dev-cert is missing tags: env</td><td>governance</td><td><code>missing_required_tags</code></td>
+<td><code>/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.web/certificates/web-dev-cert</code></td></tr>
+<tr><td><span class="badge low">low</span></td>
+<td>web-dev-snap is missing tags: env</td><td>governance</td><td><code>missing_required_tags</code></td>
+<td><code>/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.compute/snapshots/web-dev-snap</code></td></tr>
+<tr><td><span class="badge low">low</span></td>
+<td>sql-prod does not require Entra-only authentication</td><td>security</td><td><code>sql_entra_only_auth_off</code></td>
+<td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.sql/servers/sql-prod</code></td></tr>
+<tr><td><span class="badge low">low</span></td>
+<td>stprodapp01 allows shared key access</td><td>security</td><td><code>storage_shared_key_access</code></td>
+<td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01</code></td></tr>
+<tr><td><span class="badge info">info</span></td>
+<td>id-unused is assigned to no resource</td><td>cost</td><td><code>unused_user_assigned_identities</code></td>
+<td><code>/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.managedidentity/userassignedidentities/id-unused</code></td></tr>
+<tr><td><span class="badge info">info</span></td>
+<td>privatelink.blob.core.windows.net is linked to no virtual network</td><td>cost</td><td><code>private_dns_zones_unlinked</code></td>
+<td><code>/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/privatednszones/privatelink.blob.core.windows.net</code></td></tr>
+<tr><td><span class="badge info">info</span></td>
+<td>rt-unused is associated with no subnet</td><td>cost</td><td><code>route_tables_without_subnets</code></td>
+<td><code>/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/routetables/rt-unused</code></td></tr>
+<tr><td><span class="badge info">info</span></td>
+<td>web-dev-snap's source disk no longer exists</td><td>cost</td><td><code>orphaned_snapshots</code></td>
+<td><code>/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.compute/snapshots/web-dev-snap</code></td></tr>
 <tr><td><span class="badge info">info</span></td>
 <td>nsg-unused is not associated with any subnet or NIC</td><td>security</td><td><code>unassociated_nsgs</code></td>
 <td><code>/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/networksecuritygroups/nsg-unused</code></td></tr>
@@ -199,15 +269,17 @@ figure.diagram figcaption { color: var(--muted); font-size: 13px; margin-top: .3
 
 <h2>Governance</h2>
 <div class="stats">
-  <div class="stat"><b>50%</b><span>tag coverage</span></div>
-  <div class="stat"><b>1</b><span>distinct keys</span></div>
-  <div class="stat"><b>9</b><span>non-compliant</span></div>
+  <div class="stat"><b>73%</b><span>tag coverage</span></div>
+  <div class="stat"><b>3</b><span>distinct keys</span></div>
+  <div class="stat"><b>15</b><span>non-compliant</span></div>
 </div>
 
 <table>
-<thead><tr><th>Tag key</th><th>Resources</th><th>Share of 9 tagged</th></tr></thead>
+<thead><tr><th>Tag key</th><th>Resources</th><th>Share of 38 tagged</th></tr></thead>
 <tbody>
-<tr><td><code>env</code></td><td>9</td><td>100%</td></tr>
+<tr><td><code>env</code></td><td>37</td><td>97%</td></tr>
+<tr><td><code>aks-managed-clusterName</code></td><td>1</td><td>2%</td></tr>
+<tr><td><code>aks-managed-poolName</code></td><td>1</td><td>2%</td></tr>
 </tbody>
 </table>
 
@@ -216,21 +288,103 @@ figure.diagram figcaption { color: var(--muted); font-size: 13px; margin-top: .3
 <tbody>
 <tr><td>Development</td><td>0%</td>
 <td><span class="badge medium">below threshold</span></td></tr>
-<tr><td>Production</td><td>60%</td>
+<tr><td>Production</td><td>84%</td>
 <td><span class="badge info">healthy</span></td></tr>
 </tbody>
 </table>
 
-<p>9 resources are missing at least one required tag, recorded by the <code>missing_required_tags</code> audit.</p>
+<p>15 resources are missing at least one required tag, recorded by the <code>missing_required_tags</code> audit.</p>
 <table>
 <thead><tr><th>Resource group</th><th>Subscription</th><th>Resources</th><th>Non-compliant</th><th>Missed tags</th></tr></thead>
 <tbody>
-<tr><td>rg-app</td><td>Production</td><td>12</td>
-<td>6</td>
+<tr><td>rg-app</td><td>Production</td><td>26</td>
+<td>7</td>
 <td><code>env</code></td></tr>
-<tr><td>rg-dev</td><td>Development</td><td>3</td>
-<td><span class="badge high">3</span></td>
+<tr><td>rg-dev</td><td>Development</td><td>7</td>
+<td><span class="badge high">7</span></td>
 <td><code>env</code></td></tr>
+<tr><td>MC_rg-app_aks-prod_uksouth</td><td>Production</td><td>1</td>
+<td><span class="badge high">1</span></td>
+<td><code>env</code></td></tr>
+</tbody>
+</table>
+
+<h2>Changes since the previous snapshot</h2>
+<p>Compared with snapshot [snapshot-id], collected [timestamp]. Azure rewrites some properties on every read; those paths are ignored, so every difference below is a recorded configuration change, not collection noise.</p>
+
+<p>4 resources added, 1 removed and 2 changed (2 field changes). 3 new findings and 2 resolved. 5 relationships added and 0 removed.</p>
+
+<h3>Resources added</h3>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Resource group</th><th>Subscription</th></tr></thead>
+<tbody>
+<tr><td>pe-sql.nic.4f2a</td><td><code>microsoft.network/networkinterfaces</code></td><td>rg-app</td><td>sub-prod</td></tr>
+<tr><td>pe-sql</td><td><code>microsoft.network/privateendpoints</code></td><td>rg-app</td><td>sub-prod</td></tr>
+<tr><td>sql-prod</td><td><code>microsoft.sql/servers</code></td><td>rg-app</td><td>sub-prod</td></tr>
+<tr><td>app-db</td><td><code>microsoft.sql/servers/databases</code></td><td>rg-app</td><td>sub-prod</td></tr>
+</tbody>
+</table>
+<h3>Resources removed</h3>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Resource group</th><th>Subscription</th></tr></thead>
+<tbody>
+<tr><td>disk-old-test</td><td><code>microsoft.compute/disks</code></td><td>rg-dev</td><td>sub-dev</td></tr>
+</tbody>
+</table>
+<h3>Resources changed</h3>
+<details>
+<summary>vm-app-01 <span class="meta">(microsoft.compute/virtualmachines · 1)</span></summary>
+<table>
+<thead><tr><th>Field</th><th>Before</th><th>After</th></tr></thead>
+<tbody>
+<tr><td><code>properties.hardwareProfile.vmSize</code></td><td>Standard_B1s</td><td>Standard_B2s</td></tr>
+</tbody>
+</table>
+</details>
+<details>
+<summary>stprodapp01 <span class="meta">(microsoft.storage/storageaccounts · 1)</span></summary>
+<table>
+<thead><tr><th>Field</th><th>Before</th><th>After</th></tr></thead>
+<tbody>
+<tr><td><code>properties.allowBlobPublicAccess</code></td><td>false</td><td>true</td></tr>
+</tbody>
+</table>
+</details>
+<h3>New findings</h3>
+<table>
+<thead><tr><th>Severity</th><th>Check</th><th>Title</th><th>Resource</th></tr></thead>
+<tbody>
+<tr><td><span class="badge low">low</span></td><td><code>missing_required_tags</code></td><td>pe-sql.nic.4f2a is missing tags: env</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/networkinterfaces/pe-sql.nic.4f2a</code></td></tr>
+<tr><td><span class="badge low">low</span></td><td><code>missing_required_tags</code></td><td>pe-sql is missing tags: env</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/privateendpoints/pe-sql</code></td></tr>
+<tr><td><span class="badge high">high</span></td><td><code>storage_public_blob_access</code></td><td>stprodapp01 allows public blob access</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01</code></td></tr>
+</tbody>
+</table>
+<h3>Resolved findings</h3>
+<table>
+<thead><tr><th>Severity</th><th>Check</th><th>Title</th><th>Resource</th></tr></thead>
+<tbody>
+<tr><td><span class="badge low">low</span></td><td><code>missing_required_tags</code></td><td>disk-old-test is missing tags: env</td><td><code>/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.compute/disks/disk-old-test</code></td></tr>
+<tr><td><span class="badge info">info</span></td><td><code>orphaned_resources</code></td><td>disk-old-test is an unattached managed disk</td><td><code>/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.compute/disks/disk-old-test</code></td></tr>
+</tbody>
+</table>
+<h3>Relationships added and removed</h3>
+<table>
+<thead><tr><th>Change</th><th>Source</th><th>Relationship</th><th>Target</th></tr></thead>
+<tbody>
+<tr><td>Added</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/networkinterfaces/pe-sql.nic.4f2a</code></td><td>attached to</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/privateendpoints/pe-sql</code></td></tr>
+<tr><td>Added</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/networkinterfaces/pe-sql.nic.4f2a</code></td><td>nic in subnet</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/virtualnetworks/vnet-app/subnets/app</code></td></tr>
+<tr><td>Added</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/privateendpoints/pe-sql</code></td><td>nic in subnet</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/virtualnetworks/vnet-app/subnets/app</code></td></tr>
+<tr><td>Added</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/privateendpoints/pe-sql</code></td><td>private endpoint for</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.sql/servers/sql-prod</code></td></tr>
+<tr><td>Added</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.sql/servers/sql-prod/databases/app-db</code></td><td>attached to</td><td><code>/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.sql/servers/sql-prod</code></td></tr>
+</tbody>
+</table>
+<h3>Snapshot trend</h3>
+<p>The most recent 2 usable snapshots of this tenant, oldest first. Counts describe what each collection stored; they are not a measure of change in Azure between collections.</p>
+<table>
+<thead><tr><th>Collected</th><th>Status</th><th>Resources</th><th>Tagged</th><th>Findings</th><th>high</th><th>medium</th><th>low</th><th>info</th></tr></thead>
+<tbody>
+<tr><td>[timestamp]</td><td>complete</td><td>49</td><td>36</td><td>34</td><td>4</td><td>8</td><td>16</td><td>6</td></tr>
+<tr><td>[timestamp]</td><td>complete</td><td>52</td><td>38</td><td>35</td><td>5</td><td>8</td><td>17</td><td>5</td></tr>
 </tbody>
 </table>
 
@@ -238,19 +392,46 @@ figure.diagram figcaption { color: var(--muted); font-size: 13px; margin-top: .3
 <table>
 <thead><tr><th>Type</th><th>Azure type</th><th>Count</th></tr></thead>
 <tbody>
+<tr><td>Public IP Address</td><td><code>microsoft.network/publicipaddresses</code></td><td>5</td></tr>
+<tr><td>Managed Identity</td><td><code>microsoft.managedidentity/userassignedidentities</code></td><td>2</td></tr>
 <tr><td>Network Interface</td><td><code>microsoft.network/networkinterfaces</code></td><td>2</td></tr>
 <tr><td>Network Security Group</td><td><code>microsoft.network/networksecuritygroups</code></td><td>2</td></tr>
+<tr><td>Private DNS Zone</td><td><code>microsoft.network/privatednszones</code></td><td>2</td></tr>
+<tr><td>Route Table</td><td><code>microsoft.network/routetables</code></td><td>2</td></tr>
 <tr><td>Virtual Network</td><td><code>microsoft.network/virtualnetworks</code></td><td>2</td></tr>
+<tr><td>Container App</td><td><code>microsoft.app/containerapps</code></td><td>1</td></tr>
+<tr><td>Container Apps Environment</td><td><code>microsoft.app/managedenvironments</code></td><td>1</td></tr>
+<tr><td>Redis Cache</td><td><code>microsoft.cache/redis</code></td><td>1</td></tr>
+<tr><td>Availability Set</td><td><code>microsoft.compute/availabilitysets</code></td><td>1</td></tr>
+<tr><td>Disk Encryption Set</td><td><code>microsoft.compute/diskencryptionsets</code></td><td>1</td></tr>
 <tr><td>Managed Disk</td><td><code>microsoft.compute/disks</code></td><td>1</td></tr>
+<tr><td>Disk Snapshot</td><td><code>microsoft.compute/snapshots</code></td><td>1</td></tr>
 <tr><td>Virtual Machine</td><td><code>microsoft.compute/virtualmachines</code></td><td>1</td></tr>
+<tr><td>VM Scale Set</td><td><code>microsoft.compute/virtualmachinescalesets</code></td><td>1</td></tr>
+<tr><td>AKS Cluster</td><td><code>microsoft.containerservice/managedclusters</code></td><td>1</td></tr>
+<tr><td>PostgreSQL Flexible Server</td><td><code>microsoft.dbforpostgresql/flexibleservers</code></td><td>1</td></tr>
 <tr><td>AVD Host Pool</td><td><code>microsoft.desktopvirtualization/hostpools</code></td><td>1</td></tr>
-<tr><td>Managed Identity</td><td><code>microsoft.managedidentity/userassignedidentities</code></td><td>1</td></tr>
+<tr><td>Application Insights</td><td><code>microsoft.insights/components</code></td><td>1</td></tr>
+<tr><td>Data Collection Rule</td><td><code>microsoft.insights/datacollectionrules</code></td><td>1</td></tr>
+<tr><td>Metric Alert</td><td><code>microsoft.insights/metricalerts</code></td><td>1</td></tr>
+<tr><td>Key Vault</td><td><code>microsoft.keyvault/vaults</code></td><td>1</td></tr>
+<tr><td>Application Gateway</td><td><code>microsoft.network/applicationgateways</code></td><td>1</td></tr>
+<tr><td>Application Gateway WAF Policy</td><td><code>microsoft.network/applicationgatewaywebapplicationfirewallpolicies</code></td><td>1</td></tr>
+<tr><td>Application Security Group</td><td><code>microsoft.network/applicationsecuritygroups</code></td><td>1</td></tr>
+<tr><td>Azure Firewall</td><td><code>microsoft.network/azurefirewalls</code></td><td>1</td></tr>
+<tr><td>Gateway Connection</td><td><code>microsoft.network/connections</code></td><td>1</td></tr>
+<tr><td>Firewall Policy</td><td><code>microsoft.network/firewallpolicies</code></td><td>1</td></tr>
+<tr><td>Local Network Gateway</td><td><code>microsoft.network/localnetworkgateways</code></td><td>1</td></tr>
+<tr><td>NAT Gateway</td><td><code>microsoft.network/natgateways</code></td><td>1</td></tr>
+<tr><td>Private DNS VNet Link</td><td><code>microsoft.network/privatednszones/virtualnetworklinks</code></td><td>1</td></tr>
 <tr><td>Private Endpoint</td><td><code>microsoft.network/privateendpoints</code></td><td>1</td></tr>
-<tr><td>Public IP Address</td><td><code>microsoft.network/publicipaddresses</code></td><td>1</td></tr>
+<tr><td>Virtual Network Gateway</td><td><code>microsoft.network/virtualnetworkgateways</code></td><td>1</td></tr>
 <tr><td>Log Analytics Workspace</td><td><code>microsoft.operationalinsights/workspaces</code></td><td>1</td></tr>
+<tr><td>Recovery Services Vault</td><td><code>microsoft.recoveryservices/vaults</code></td><td>1</td></tr>
 <tr><td>SQL Server</td><td><code>microsoft.sql/servers</code></td><td>1</td></tr>
 <tr><td>SQL Database</td><td><code>microsoft.sql/servers/databases</code></td><td>1</td></tr>
 <tr><td>Storage Account</td><td><code>microsoft.storage/storageaccounts</code></td><td>1</td></tr>
+<tr><td>App Service Certificate</td><td><code>microsoft.web/certificates</code></td><td>1</td></tr>
 <tr><td>App Service Plan</td><td><code>microsoft.web/serverfarms</code></td><td>1</td></tr>
 <tr><td>App Service / Function App</td><td><code>microsoft.web/sites</code></td><td>1</td></tr>
 </tbody>
@@ -504,18 +685,33 @@ resourcechanges
 </table>
 </details>
 
+<details >
+<summary>backup_protected_items (1)</summary>
+<p class="meta">Protected items and backup instances with recovery-point and protection metadata</p>
+<table>
+<thead><tr><th>id</th><th>name</th><th>subscriptionId</th><th>resourceGroup</th><th>vaultName</th><th>friendlyName</th><th>protectionState</th><th>lastBackupStatus</th><th>lastBackupTime</th><th>policyName</th><th>resourceId</th></tr></thead>
+<tbody>
+<tr><td>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.RecoveryServices/vaults/rsv-prod/backupFabrics/Azure/protectionContainers/iaasvmcontainer;iaasvmcontainerv2;rg-app;vm-app-01/protectedItems/vm;iaasvmcontainerv2;rg-app;vm-app-01</td><td>vm;iaasvmcontainerv2;rg-app;vm-app-01</td><td>sub-prod</td><td>rg-app</td><td>rsv-prod</td><td>vm-app-01</td><td>Protected</td><td>Completed</td><td>2026-09-12T02:00:00Z</td><td>DailyPolicy</td><td>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/virtualMachines/vm-app-01</td></tr>
+</tbody>
+</table>
+</details>
+
 
 
 <h2>Subscriptions</h2>
 
-<h3>Development <span class="meta">(sub-dev · 3 resources)</span></h3>
+<h3>Development <span class="meta">(sub-dev · 7 resources)</span></h3>
 
 <details>
-<summary>rg-dev — UK West (3)</summary>
+<summary>rg-dev — UK West (7)</summary>
 <table>
 <thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Tags</th></tr></thead>
 <tbody>
+<tr><td>redis-dev</td><td>Redis Cache</td><td>UK West</td><td></td></tr>
+<tr><td>web-dev-snap</td><td>Disk Snapshot</td><td>UK West</td><td></td></tr>
+<tr><td>id-unused</td><td>Managed Identity</td><td>UK West</td><td></td></tr>
 <tr><td>id-web-dev</td><td>Managed Identity</td><td>UK West</td><td></td></tr>
+<tr><td>web-dev-cert</td><td>App Service Certificate</td><td>UK West</td><td></td></tr>
 <tr><td>asp-dev</td><td>App Service Plan</td><td>UK West</td><td></td></tr>
 <tr><td>web-dev</td><td>App Service / Function App</td><td>UK West</td><td></td></tr>
 </tbody>
@@ -523,22 +719,46 @@ resourcechanges
 </details>
 
 
-<h3>Production <span class="meta">(sub-prod · 15 resources)</span></h3>
+<h3>Production <span class="meta">(sub-prod · 45 resources)</span></h3>
 
 <details>
-<summary>rg-app — UK South (12)</summary>
+<summary>MC_rg-app_aks-prod_uksouth — UK South (1)</summary>
 <table>
 <thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Tags</th></tr></thead>
 <tbody>
+<tr><td>aks-nodepool1-12345678-vmss</td><td>VM Scale Set</td><td>UK South</td><td><code>{"aks-managed-clusterName":"aks-prod","aks-managed-poolName":"nodepool1"}</code></td></tr>
+</tbody>
+</table>
+</details>
+
+<details>
+<summary>rg-app — UK South (26)</summary>
+<table>
+<thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Tags</th></tr></thead>
+<tbody>
+<tr><td>ca-api</td><td>Container App</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>cae-prod</td><td>Container Apps Environment</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>avset-app</td><td>Availability Set</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>des-prod</td><td>Disk Encryption Set</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
 <tr><td>vm-app-01-os</td><td>Managed Disk</td><td>UK South</td><td></td></tr>
 <tr><td>vm-app-01</td><td>Virtual Machine</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>aks-prod</td><td>AKS Cluster</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>psql-prod</td><td>PostgreSQL Flexible Server</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
 <tr><td>hp-prod</td><td>AVD Host Pool</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>appi-prod</td><td>Application Insights</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>dcr-prod</td><td>Data Collection Rule</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>alert-cpu</td><td>Metric Alert</td><td>Global</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>kv-prod</td><td>Key Vault</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>agw-prod</td><td>Application Gateway</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>wafpol-prod</td><td>Application Gateway WAF Policy</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
 <tr><td>pe-sql.nic.4f2a</td><td>Network Interface</td><td>UK South</td><td></td></tr>
 <tr><td>vm-app-01-nic</td><td>Network Interface</td><td>UK South</td><td></td></tr>
 <tr><td>pe-sql</td><td>Private Endpoint</td><td>UK South</td><td></td></tr>
+<tr><td>pip-agw</td><td>Public IP Address</td><td>UK South</td><td></td></tr>
 <tr><td>vm-app-01-pip</td><td>Public IP Address</td><td>UK South</td><td></td></tr>
 <tr><td>vnet-app</td><td>Virtual Network</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
 <tr><td>law-prod</td><td>Log Analytics Workspace</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>rsv-prod</td><td>Recovery Services Vault</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
 <tr><td>sql-prod</td><td>SQL Server</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
 <tr><td>app-db</td><td>SQL Database</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
 <tr><td>stprodapp01</td><td>Storage Account</td><td>UK South</td><td></td></tr>
@@ -547,12 +767,27 @@ resourcechanges
 </details>
 
 <details>
-<summary>rg-network — UK South (3)</summary>
+<summary>rg-network — UK South (18)</summary>
 <table>
 <thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Tags</th></tr></thead>
 <tbody>
+<tr><td>asg-web</td><td>Application Security Group</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>fw-hub</td><td>Azure Firewall</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>cn-onprem</td><td>Gateway Connection</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>fwpol-hub</td><td>Firewall Policy</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>lng-onprem</td><td>Local Network Gateway</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>natgw-hub</td><td>NAT Gateway</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
 <tr><td>nsg-app</td><td>Network Security Group</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
 <tr><td>nsg-unused</td><td>Network Security Group</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>privatelink.blob.core.windows.net</td><td>Private DNS Zone</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>privatelink.database.windows.net</td><td>Private DNS Zone</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>link-hub</td><td>Private DNS VNet Link</td><td>Global</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>pip-fw</td><td>Public IP Address</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>pip-natgw</td><td>Public IP Address</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>pip-vgw</td><td>Public IP Address</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>rt-shared</td><td>Route Table</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>rt-unused</td><td>Route Table</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
+<tr><td>vgw-hub</td><td>Virtual Network Gateway</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
 <tr><td>vnet-hub</td><td>Virtual Network</td><td>UK South</td><td><code>{"env":"prod"}</code></td></tr>
 </tbody>
 </table>
@@ -560,7 +795,7 @@ resourcechanges
 
 
 
-<section class="website-evidence"><h2>Website screenshots</h2><p>Saved website views from this machine. Capture time is separate from the Azure audit time.</p><article><h3>web-dev</h3><p><code>https://web-dev.azurewebsites.net/</code> · Not captured</p><p>No screenshot saved</p></article></section>
+<section class="website-evidence"><h2>Website screenshots</h2><p>Saved website views from this machine. Capture time is separate from the Azure audit time.</p><article><h3>web-dev</h3><p><code>https://web-dev.azurewebsites.net/</code> · Not captured</p><p>No screenshot saved</p></article><article><h3>agw-prod</h3><p><code>listener</code> · No hostname configured</p><p>No screenshot saved</p></article></section>
 <p class="meta">Generated by azdocs.</p>
 <script>
 function filterTable(input, id) {

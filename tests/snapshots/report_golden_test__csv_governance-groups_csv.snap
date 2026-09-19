@@ -1,0 +1,9 @@
+---
+source: tests/report_golden_test.rs
+assertion_line: 84
+expression: "std::fs::read_to_string(dir.path().join(file)).unwrap()"
+---
+Resource group,Subscription,Resources,Non-compliant,Missed tags,Status
+rg-app,Production,26,7,env,—
+rg-dev,Development,7,7,env,called out
+MC_rg-app_aks-prod_uksouth,Production,1,1,env,called out

@@ -1,5 +1,6 @@
 ---
 source: tests/report_golden_test.rs
+assertion_line: 46
 expression: content
 ---
 # Subscription: Development
@@ -8,7 +9,7 @@ expression: content
 
 - **Id**: `sub-dev`
 - **State**: Enabled
-- **Resources**: 3
+- **Resources**: 7
 
 
 ## rg-dev (UK West)
@@ -17,6 +18,10 @@ expression: content
 
 | Name | Type | Location |
 |---|---|---|
+| redis-dev | Redis Cache | UK West |
+| web-dev-snap | Disk Snapshot | UK West |
+| id-unused | Managed Identity | UK West |
 | id-web-dev | Managed Identity | UK West |
+| web-dev-cert | App Service Certificate | UK West |
 | asp-dev | App Service Plan | UK West |
 | web-dev | App Service / Function App | UK West |

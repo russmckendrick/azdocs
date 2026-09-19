@@ -90,6 +90,10 @@ fn drawio_outputs_match_golden_files() {
             EstateGraph::hierarchy(&store, &id, &DiagramScope::default(), &labels()).unwrap(),
         ),
         (
+            "resources",
+            EstateGraph::resources(&store, &id, &scope, &labels()).unwrap(),
+        ),
+        (
             "network",
             EstateGraph::network(&store, &id, &scope, &labels()).unwrap(),
         ),
@@ -189,14 +193,18 @@ fn svg_fan_out_graphs_match_golden_files() {
         EstateGraph::per_resource_group(&store, &id, &scope, DiagramDetail::Full, &labels())
             .unwrap();
 
+    // Named groups rather than the first by slug: the AKS node group sorts
+    // ahead of rg-app, and rg-app is the picture worth reviewing.
+    let vnet = vnets.iter().find(|v| v.slug == "vnet-app").unwrap();
+    let group = groups.iter().find(|g| g.slug == "rg-app").unwrap();
     svg_insta_settings().bind(|| {
         insta::assert_snapshot!(
-            format!("svg_vnet_{}", vnets[0].slug),
-            svg::render(&vnets[0].graph, &labels())
+            format!("svg_vnet_{}", vnet.slug),
+            svg::render(&vnet.graph, &labels())
         );
         insta::assert_snapshot!(
-            format!("svg_rg_{}", groups[0].slug),
-            svg::render(&groups[0].graph, &labels())
+            format!("svg_rg_{}", group.slug),
+            svg::render(&group.graph, &labels())
         );
     });
 }

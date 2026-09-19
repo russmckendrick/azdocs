@@ -1,0 +1,332 @@
+---
+source: tests/report_golden_test.rs
+assertion_line: 65
+expression: content
+---
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>rg-app</title><style>
+:root { --bg:#faf8f4; --fg:#1c2430; --muted:#5a6470; --border:#d8d2c6;
+        --primary:#1c2430; --accent:#0078d4; --tint:#f3efe7; --zebra:transparent; --on-accent:#faf8f4;
+        --high:#a83a22; --high-fill:#f5e4df; --radius:3px; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#141414; --fg:#fefefe; --muted:#959595; --border:#474747;
+          --tint:#202020; --zebra:#1d1d1d; --accent:#8bc3f0; }
+}
+body { font: 15px/1.45 "IBM Plex Sans", -apple-system, "Segoe UI", Roboto, sans-serif;
+       background: var(--bg); color: var(--fg); max-width: 1050px; margin: 0 auto; padding: 2rem 1rem; }
+h1,h2,h3 { font-family: "IBM Plex Serif", Georgia, serif; line-height: 1.2; }
+h2 { border-bottom: 1px solid var(--border); padding-bottom: .3rem; margin-top: 2.2rem; }
+a { color: var(--accent); }
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 14px; display: block; overflow-x: auto; }
+th, td { text-align: left; padding: .35rem .6rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th { background: var(--th-bg); color: var(--th-fg); }
+tbody tr:nth-child(even) { background: var(--zebra); }
+code { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+       background: rgba(127,127,127,.12); padding: .1em .3em; border-radius: 3px; font-size: 90%; }
+nav { font-size: 13px; color: var(--muted); margin-bottom: 1.5rem; }
+nav a { margin-right: .8rem; }
+blockquote { margin: .6rem 0; padding: .5rem .9rem; border-left: 4px solid var(--high);
+             background: var(--high-fill); border-radius: 0 var(--radius) var(--radius) 0; }
+blockquote p { margin: 0; }
+header.brand { display: flex; align-items: center; gap: .7rem; margin-bottom: .8rem;
+               color: var(--muted); font-size: 14px; }
+header.brand img { max-height: 40px; }
+footer.brand { margin-top: 2.5rem; border-top: 1px solid var(--border); padding-top: .7rem;
+               color: var(--muted); font-size: 13px; }
+:root { --th-bg:transparent; --th-fg:#1c2430; }
+</style></head>
+<body><nav><a href="../../index.html">Overview</a><a href="../../findings.html">Findings</a><a href="../../query-provenance.html">Query provenance</a><a href="../../avd.html">avd</a><a href="../../compliance.html">compliance</a><a href="../../cost.html">cost</a><a href="../../governance.html">governance</a><a href="../../inventory.html">inventory</a><a href="../../monitoring.html">monitoring</a><a href="../../networking.html">networking</a><a href="../../operations.html">operations</a><a href="../../resilience.html">resilience</a></nav>
+<h1>rg-app</h1>
+<p><a href="../../index.html">← index</a> · <a href="../../subscriptions/production.html">subscription: Production</a></p>
+<ul>
+<li><strong>Subscription</strong>: Production</li>
+<li><strong>Location</strong>: UK South</li>
+<li><strong>Resources</strong>: 26</li>
+</ul>
+<h2>ca-api</h2>
+<p><strong>Container App</strong> (<code>microsoft.app/containerapps</code>)</p>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>UK South</td></tr>
+<tr><td>Tags</td><td>env=prod</td></tr>
+<tr><td>Managed Environment Id</td><td>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.App/managedEnvironments/cae-prod</td></tr>
+<tr><td>Running Status</td><td>Running</td></tr>
+</tbody></table>
+<p><strong>Related</strong>: cae-prod (runs on)</p>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.App/containerApps/ca-api</code></p>
+<h2>cae-prod</h2>
+<p><strong>Container Apps Environment</strong> (<code>microsoft.app/managedenvironments</code>)</p>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>UK South</td></tr>
+<tr><td>Tags</td><td>env=prod</td></tr>
+</tbody></table>
+<p><strong>Related</strong>: ca-api (runs on) · cae (nic in subnet)</p>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.App/managedEnvironments/cae-prod</code></p>
+<h2>avset-app</h2>
+<p><strong>Availability Set</strong> (<code>microsoft.compute/availabilitysets</code>)</p>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>UK South</td></tr>
+<tr><td>Sku</td><td>Aligned</td></tr>
+<tr><td>Tags</td><td>env=prod</td></tr>
+<tr><td>Platform Fault Domain Count</td><td>2</td></tr>
+<tr><td>Platform Update Domain Count</td><td>5</td></tr>
+</tbody></table>
+<p><strong>Related</strong>: vm-app-01 (attached to)</p>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/availabilitySets/avset-app</code></p>
+<h2>des-prod</h2>
+<p><strong>Disk Encryption Set</strong> (<code>microsoft.compute/diskencryptionsets</code>)</p>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>UK South</td></tr>
+<tr><td>Identity Type</td><td>SystemAssigned</td></tr>
+<tr><td>Tags</td><td>env=prod</td></tr>
+<tr><td>Encryption Type</td><td>EncryptionAtRestWithCustomerKey</td></tr>
+</tbody></table>
+<p><strong>Related</strong>: kv-prod (depends on) · vm-app-01-os (depends on)</p>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/diskEncryptionSets/des-prod</code></p>
+<h2>vm-app-01-os</h2>
+<p><strong>Managed Disk</strong> (<code>microsoft.compute/disks</code>)</p>
+<blockquote>
+<p>⚠️ <strong>LOW</strong> — vm-app-01-os is missing tags: env</p>
+</blockquote>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>UK South</td></tr>
+<tr><td>Disk Size GB</td><td>64</td></tr>
+<tr><td>Disk State</td><td>Attached</td></tr>
+</tbody></table>
+<p><strong>Related</strong>: des-prod (depends on) · vm-app-01 (attached to)</p>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/disks/vm-app-01-os</code></p>
+<h2>vm-app-01</h2>
+<p><strong>Virtual Machine</strong> (<code>microsoft.compute/virtualmachines</code>)</p>
+<blockquote>
+<p>⚠️ <strong>HIGH</strong> — vm-app-01: high severity Defender assessment is unhealthy</p>
+</blockquote>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>UK South</td></tr>
+<tr><td>Tags</td><td>env=prod</td></tr>
+</tbody></table>
+<p><strong>Related</strong>: alert-cpu (monitors) · avset-app (attached to) · rsv-prod (monitors) · vm-app-01-nic (attached to) · vm-app-01-os (attached to)</p>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/virtualMachines/vm-app-01</code></p>
+<h2>aks-prod</h2>
+<p><strong>AKS Cluster</strong> (<code>microsoft.containerservice/managedclusters</code>)</p>
+<blockquote>
+<p>⚠️ <strong>MEDIUM</strong> — aks-prod allows local Kubernetes accounts</p>
+</blockquote>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>UK South</td></tr>
+<tr><td>Identity Type</td><td>SystemAssigned</td></tr>
+<tr><td>Tags</td><td>env=prod</td></tr>
+<tr><td>Kubernetes Version</td><td>1.30.4</td></tr>
+<tr><td>Node Resource Group</td><td>MC_rg-app_aks-prod_uksouth</td></tr>
+<tr><td>Enable RBAC</td><td>true</td></tr>
+<tr><td>Disable Local Accounts</td><td>false</td></tr>
+</tbody></table>
+<p><strong>Related</strong>: aks (nic in subnet) · aks-nodepool1-12345678-vmss (attached to) · law-prod (logs to)</p>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.ContainerService/managedClusters/aks-prod</code></p>
+<h2>psql-prod</h2>
+<p><strong>PostgreSQL Flexible Server</strong> (<code>microsoft.dbforpostgresql/flexibleservers</code>)</p>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>UK South</td></tr>
+<tr><td>Sku</td><td>Standard_B1ms</td></tr>
+<tr><td>Tags</td><td>env=prod</td></tr>
+<tr><td>Version</td><td>16</td></tr>
+<tr><td>State</td><td>Ready</td></tr>
+</tbody></table>
+<p><strong>Related</strong>: db (nic in subnet)</p>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.DBforPostgreSQL/flexibleServers/psql-prod</code></p>
+<h2>hp-prod</h2>
+<p><strong>AVD Host Pool</strong> (<code>microsoft.desktopvirtualization/hostpools</code>)</p>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>UK South</td></tr>
+<tr><td>Tags</td><td>env=prod</td></tr>
+<tr><td>Host Pool Type</td><td>Pooled</td></tr>
+<tr><td>Load Balancer Type</td><td>BreadthFirst</td></tr>
+<tr><td>Max Session Limit</td><td>10</td></tr>
+</tbody></table>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.DesktopVirtualization/hostPools/hp-prod</code></p>
+<h2>appi-prod</h2>
+<p><strong>Application Insights</strong> (<code>microsoft.insights/components</code>)</p>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>UK South</td></tr>
+<tr><td>Kind</td><td>web</td></tr>
+<tr><td>Tags</td><td>env=prod</td></tr>
+<tr><td>Application_Type</td><td>web</td></tr>
+<tr><td>Workspace Resource Id</td><td>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.OperationalInsights/workspaces/law-prod</td></tr>
+<tr><td>Retention In Days</td><td>90</td></tr>
+</tbody></table>
+<p><strong>Related</strong>: law-prod (logs to)</p>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Insights/components/appi-prod</code></p>
+<h2>dcr-prod</h2>
+<p><strong>Data Collection Rule</strong> (<code>microsoft.insights/datacollectionrules</code>)</p>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>UK South</td></tr>
+<tr><td>Tags</td><td>env=prod</td></tr>
+</tbody></table>
+<p><strong>Related</strong>: law-prod (logs to)</p>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Insights/dataCollectionRules/dcr-prod</code></p>
+<h2>alert-cpu</h2>
+<p><strong>Metric Alert</strong> (<code>microsoft.insights/metricalerts</code>)</p>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>Global</td></tr>
+<tr><td>Tags</td><td>env=prod</td></tr>
+<tr><td>Scopes</td><td>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Compute/virtualMachines/vm-app-01</td></tr>
+<tr><td>Severity</td><td>2</td></tr>
+<tr><td>Enabled</td><td>true</td></tr>
+<tr><td>Evaluation Frequency</td><td>PT5M</td></tr>
+</tbody></table>
+<p><strong>Related</strong>: vm-app-01 (monitors)</p>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Insights/metricAlerts/alert-cpu</code></p>
+<h2>kv-prod</h2>
+<p><strong>Key Vault</strong> (<code>microsoft.keyvault/vaults</code>)</p>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>UK South</td></tr>
+<tr><td>Tags</td><td>env=prod</td></tr>
+<tr><td>Enable Soft Delete</td><td>true</td></tr>
+<tr><td>Enable Purge Protection</td><td>true</td></tr>
+<tr><td>Public Network Access</td><td>Disabled</td></tr>
+</tbody></table>
+<p><strong>Related</strong>: app (in vnet) · des-prod (depends on)</p>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.KeyVault/vaults/kv-prod</code></p>
+<h2>agw-prod</h2>
+<p><strong>Application Gateway</strong> (<code>microsoft.network/applicationgateways</code>)</p>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>UK South</td></tr>
+<tr><td>Sku</td><td>WAF_v2</td></tr>
+<tr><td>Tags</td><td>env=prod</td></tr>
+<tr><td>Operational State</td><td>Running</td></tr>
+</tbody></table>
+<p><strong>Related</strong>: agw (nic in subnet) · pip-agw (attached to) · vm-app-01-nic (attached to) · wafpol-prod (depends on)</p>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/applicationGateways/agw-prod</code></p>
+<h2>wafpol-prod</h2>
+<p><strong>Application Gateway WAF Policy</strong> (<code>microsoft.network/applicationgatewaywebapplicationfirewallpolicies</code>)</p>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>UK South</td></tr>
+<tr><td>Tags</td><td>env=prod</td></tr>
+</tbody></table>
+<p><strong>Related</strong>: agw-prod (depends on)</p>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies/wafpol-prod</code></p>
+<h2>pe-sql.nic.4f2a</h2>
+<p><strong>Network Interface</strong> (<code>microsoft.network/networkinterfaces</code>)</p>
+<blockquote>
+<p>⚠️ <strong>LOW</strong> — pe-sql.nic.4f2a is missing tags: env</p>
+</blockquote>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>UK South</td></tr>
+</tbody></table>
+<p><strong>Related</strong>: app (nic in subnet) · pe-sql (attached to)</p>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/networkInterfaces/pe-sql.nic.4f2a</code></p>
+<h2>vm-app-01-nic</h2>
+<p><strong>Network Interface</strong> (<code>microsoft.network/networkinterfaces</code>)</p>
+<blockquote>
+<p>⚠️ <strong>LOW</strong> — vm-app-01-nic is missing tags: env</p>
+</blockquote>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>UK South</td></tr>
+</tbody></table>
+<p><strong>Related</strong>: agw-prod (attached to) · app (nic in subnet) · asg-web (nsg attached) · vm-app-01 (attached to) · vm-app-01-pip (attached to)</p>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/networkInterfaces/vm-app-01-nic</code></p>
+<h2>pe-sql</h2>
+<p><strong>Private Endpoint</strong> (<code>microsoft.network/privateendpoints</code>)</p>
+<blockquote>
+<p>⚠️ <strong>LOW</strong> — pe-sql is missing tags: env</p>
+</blockquote>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>UK South</td></tr>
+</tbody></table>
+<p><strong>Related</strong>: app (nic in subnet) · pe-sql.nic.4f2a (attached to) · sql-prod (private endpoint for)</p>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/privateEndpoints/pe-sql</code></p>
+<h2>pip-agw</h2>
+<p><strong>Public IP Address</strong> (<code>microsoft.network/publicipaddresses</code>)</p>
+<blockquote>
+<p>⚠️ <strong>LOW</strong> — pip-agw is missing tags: env</p>
+</blockquote>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>UK South</td></tr>
+<tr><td>Sku</td><td>Standard</td></tr>
+<tr><td>Ip Address</td><td>20.0.0.20</td></tr>
+<tr><td>Public IPAllocation Method</td><td>Static</td></tr>
+</tbody></table>
+<p><strong>Related</strong>: agw-prod (attached to)</p>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/publicIPAddresses/pip-agw</code></p>
+<h2>vm-app-01-pip</h2>
+<p><strong>Public IP Address</strong> (<code>microsoft.network/publicipaddresses</code>)</p>
+<blockquote>
+<p>⚠️ <strong>MEDIUM</strong> — vm-app-01-pip uses the retiring Basic SKU
+⚠️ <strong>LOW</strong> — vm-app-01-pip is missing tags: env</p>
+</blockquote>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>UK South</td></tr>
+<tr><td>Sku</td><td>Basic</td></tr>
+<tr><td>Ip Address</td><td>20.0.0.10</td></tr>
+</tbody></table>
+<p><strong>Related</strong>: vm-app-01-nic (attached to)</p>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/publicIPAddresses/vm-app-01-pip</code></p>
+<h2>vnet-app</h2>
+<p><strong>Virtual Network</strong> (<code>microsoft.network/virtualnetworks</code>)</p>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>UK South</td></tr>
+<tr><td>Tags</td><td>env=prod</td></tr>
+</tbody></table>
+<p><strong>Related</strong>: agw (subnet of) · aks (subnet of) · app (subnet of) · cae (subnet of) · db (subnet of) · vnet-hub (peered with)</p>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Network/virtualNetworks/vnet-app</code></p>
+<h2>law-prod</h2>
+<p><strong>Log Analytics Workspace</strong> (<code>microsoft.operationalinsights/workspaces</code>)</p>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>UK South</td></tr>
+<tr><td>Tags</td><td>env=prod</td></tr>
+<tr><td>Retention In Days</td><td>30</td></tr>
+</tbody></table>
+<p><strong>Related</strong>: aks-prod (logs to) · appi-prod (logs to) · dcr-prod (logs to)</p>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.OperationalInsights/workspaces/law-prod</code></p>
+<h2>rsv-prod</h2>
+<p><strong>Recovery Services Vault</strong> (<code>microsoft.recoveryservices/vaults</code>)</p>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>UK South</td></tr>
+<tr><td>Sku</td><td>RS0</td></tr>
+<tr><td>Tags</td><td>env=prod</td></tr>
+<tr><td>Provisioning State</td><td>Succeeded</td></tr>
+</tbody></table>
+<p><strong>Related</strong>: vm-app-01 (monitors)</p>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.RecoveryServices/vaults/rsv-prod</code></p>
+<h2>sql-prod</h2>
+<p><strong>SQL Server</strong> (<code>microsoft.sql/servers</code>)</p>
+<blockquote>
+<p>⚠️ <strong>MEDIUM</strong> — sql-prod accepts TLS 1.0
+⚠️ <strong>LOW</strong> — sql-prod does not require Entra-only authentication</p>
+</blockquote>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>UK South</td></tr>
+<tr><td>Tags</td><td>env=prod</td></tr>
+<tr><td>Public Network Access</td><td>Disabled</td></tr>
+<tr><td>Version</td><td>12.0</td></tr>
+</tbody></table>
+<p><strong>Related</strong>: app-db (attached to) · pe-sql (private endpoint for)</p>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Sql/servers/sql-prod</code></p>
+<h2>app-db</h2>
+<p><strong>SQL Database</strong> (<code>microsoft.sql/servers/databases</code>)</p>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>UK South</td></tr>
+<tr><td>Tags</td><td>env=prod</td></tr>
+<tr><td>Status</td><td>Online</td></tr>
+<tr><td>Current Service Objective Name</td><td>S0</td></tr>
+</tbody></table>
+<p><strong>Related</strong>: sql-prod (attached to)</p>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Sql/servers/sql-prod/databases/app-db</code></p>
+<h2>stprodapp01</h2>
+<p><strong>Storage Account</strong> (<code>microsoft.storage/storageaccounts</code>)</p>
+<blockquote>
+<p>⚠️ <strong>HIGH</strong> — stprodapp01 allows public blob access
+⚠️ <strong>HIGH</strong> — stprodapp01 allows public network access
+⚠️ <strong>LOW</strong> — stprodapp01 is missing tags: env
+⚠️ <strong>LOW</strong> — stprodapp01 allows shared key access</p>
+</blockquote>
+<table><thead><tr><th>Setting</th><th>Value</th></tr></thead><tbody>
+<tr><td>Location</td><td>UK South</td></tr>
+<tr><td>Kind</td><td>Storage V2</td></tr>
+<tr><td>Allow Blob Public Access</td><td>true</td></tr>
+<tr><td>Supports Https Traffic Only</td><td>true</td></tr>
+<tr><td>Minimum Tls Version</td><td>TLS1_2</td></tr>
+<tr><td>Allow Shared Key Access</td><td>true</td></tr>
+</tbody></table>
+<p><strong>Related</strong>: app (in vnet)</p>
+<p><code>/subscriptions/sub-prod/resourceGroups/rg-app/providers/Microsoft.Storage/storageAccounts/stprodapp01</code></p>
+<section class="website-evidence"><h2>Website screenshots</h2><p>Saved website views from this machine. Capture time is separate from the Azure audit time.</p><article><h3>agw-prod</h3><p><code>listener</code> · No hostname configured</p><p>No screenshot saved</p></article></section>
+<footer class="brand">Generated by azdocs.</footer></body></html>

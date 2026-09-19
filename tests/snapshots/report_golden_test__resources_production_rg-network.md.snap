@@ -1,0 +1,288 @@
+---
+source: tests/report_golden_test.rs
+assertion_line: 46
+expression: content
+---
+# rg-network
+
+[← index](../../index.md) · [subscription: Production](../../subscriptions/production.md)
+
+- **Subscription**: Production
+- **Location**: UK South
+- **Resources**: 18
+
+
+## asg-web
+
+**Application Security Group** (`microsoft.network/applicationsecuritygroups`)
+
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Tags | env=prod |
+
+**Related**: vm-app-01-nic (nsg attached)
+
+`/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/applicationSecurityGroups/asg-web`
+
+## fw-hub
+
+**Azure Firewall** (`microsoft.network/azurefirewalls`)
+
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Tags | env=prod |
+| Threat Intel Mode | Alert |
+
+**Related**: azurefirewallsubnet (nic in subnet) · fwpol-hub (depends on) · pip-fw (attached to)
+
+`/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/azureFirewalls/fw-hub`
+
+## cn-onprem
+
+**Gateway Connection** (`microsoft.network/connections`)
+
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Tags | env=prod |
+| Connection Type | IPsec |
+| Connection Status | Connected |
+
+**Related**: lng-onprem (attached to) · vgw-hub (attached to)
+
+`/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/connections/cn-onprem`
+
+## fwpol-hub
+
+**Firewall Policy** (`microsoft.network/firewallpolicies`)
+
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Tags | env=prod |
+| Threat Intel Mode | Alert |
+
+**Related**: fw-hub (depends on)
+
+`/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/firewallPolicies/fwpol-hub`
+
+## lng-onprem
+
+**Local Network Gateway** (`microsoft.network/localnetworkgateways`)
+
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Tags | env=prod |
+| Gateway Ip Address | 203.0.113.10 |
+
+**Related**: cn-onprem (attached to)
+
+`/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/localNetworkGateways/lng-onprem`
+
+## natgw-hub
+
+**NAT Gateway** (`microsoft.network/natgateways`)
+
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Tags | env=prod |
+| Idle Timeout In Minutes | 4 |
+
+**Related**: pip-natgw (attached to) · shared (attached to)
+
+`/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/natGateways/natgw-hub`
+
+## nsg-app
+
+**Network Security Group** (`microsoft.network/networksecuritygroups`)
+
+> ⚠️ **HIGH** — nsg-app: rule allow-ssh allows Internet -> port 22
+> ⚠️ **HIGH** — nsg-app: rule allow-ssh opens management port 22 to the Internet
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Tags | env=prod |
+
+**Related**: shared (nsg attached)
+
+`/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/networkSecurityGroups/nsg-app`
+
+## nsg-unused
+
+**Network Security Group** (`microsoft.network/networksecuritygroups`)
+
+> ⚠️ **INFO** — nsg-unused is not associated with any subnet or NIC
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Tags | env=prod |
+
+
+`/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/networkSecurityGroups/nsg-unused`
+
+## privatelink.blob.core.windows.net
+
+**Private DNS Zone** (`microsoft.network/privatednszones`)
+
+> ⚠️ **INFO** — privatelink.blob.core.windows.net is linked to no virtual network
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Tags | env=prod |
+| Number Of Virtual Network Links | 0 |
+| Number Of Record Sets | 1 |
+
+
+`/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/privateDnsZones/privatelink.blob.core.windows.net`
+
+## privatelink.database.windows.net
+
+**Private DNS Zone** (`microsoft.network/privatednszones`)
+
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Tags | env=prod |
+| Number Of Virtual Network Links | 1 |
+| Number Of Record Sets | 2 |
+
+**Related**: link-hub (attached to) · vnet-hub (dns linked)
+
+`/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/privateDnsZones/privatelink.database.windows.net`
+
+## link-hub
+
+**Private DNS VNet Link** (`microsoft.network/privatednszones/virtualnetworklinks`)
+
+
+| Setting | Value |
+|---|---|
+| Location | Global |
+| Tags | env=prod |
+| Registration Enabled | false |
+| Virtual Network Link State | Completed |
+
+**Related**: privatelink.database.windows.net (attached to)
+
+`/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/privateDnsZones/privatelink.database.windows.net/virtualNetworkLinks/link-hub`
+
+## pip-fw
+
+**Public IP Address** (`microsoft.network/publicipaddresses`)
+
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Tags | env=prod |
+| Ip Address | 20.0.0.12 |
+| Public IPAllocation Method | Static |
+
+**Related**: fw-hub (attached to)
+
+`/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/publicIPAddresses/pip-fw`
+
+## pip-natgw
+
+**Public IP Address** (`microsoft.network/publicipaddresses`)
+
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Tags | env=prod |
+| Ip Address | 20.0.0.11 |
+| Public IPAllocation Method | Static |
+
+**Related**: natgw-hub (attached to)
+
+`/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/publicIPAddresses/pip-natgw`
+
+## pip-vgw
+
+**Public IP Address** (`microsoft.network/publicipaddresses`)
+
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Tags | env=prod |
+| Ip Address | 20.0.0.13 |
+| Public IPAllocation Method | Static |
+
+**Related**: vgw-hub (attached to)
+
+`/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/publicIPAddresses/pip-vgw`
+
+## rt-shared
+
+**Route Table** (`microsoft.network/routetables`)
+
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Tags | env=prod |
+| Disable Bgp Route Propagation | true |
+
+**Related**: shared (attached to)
+
+`/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/routeTables/rt-shared`
+
+## rt-unused
+
+**Route Table** (`microsoft.network/routetables`)
+
+> ⚠️ **INFO** — rt-unused is associated with no subnet
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Tags | env=prod |
+
+
+`/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/routeTables/rt-unused`
+
+## vgw-hub
+
+**Virtual Network Gateway** (`microsoft.network/virtualnetworkgateways`)
+
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Tags | env=prod |
+| Gateway Type | Vpn |
+| Vpn Type | RouteBased |
+
+**Related**: cn-onprem (attached to) · gateway (nic in subnet) · pip-vgw (attached to)
+
+`/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/virtualNetworkGateways/vgw-hub`
+
+## vnet-hub
+
+**Virtual Network** (`microsoft.network/virtualnetworks`)
+
+
+| Setting | Value |
+|---|---|
+| Location | UK South |
+| Tags | env=prod |
+
+**Related**: azurefirewallsubnet (subnet of) · gateway (subnet of) · privatelink.database.windows.net (dns linked) · shared (subnet of) · vnet-app (peered with)
+
+`/subscriptions/sub-prod/resourceGroups/rg-network/providers/Microsoft.Network/virtualNetworks/vnet-hub`

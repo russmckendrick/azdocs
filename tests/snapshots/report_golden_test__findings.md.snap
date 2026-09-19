@@ -1,12 +1,13 @@
 ---
 source: tests/report_golden_test.rs
+assertion_line: 46
 expression: content
 ---
 # Findings
 
 [← index](index.md)
 
-**2 high · 1 medium · 9 low · 1 info**
+**5 high · 8 medium · 17 low · 5 info**
 
 
 ## High
@@ -14,30 +15,52 @@ expression: content
 | Title | Category | Check | Resource |
 |---|---|---|---|
 | nsg-app: rule allow-ssh allows Internet -> port 22 | security | `nsg_open_to_internet` | `/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/networksecuritygroups/nsg-app` |
+| nsg-app: rule allow-ssh opens management port 22 to the Internet | security | `nsg_management_ports_open` | `/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/networksecuritygroups/nsg-app` |
 | stprodapp01 allows public blob access | security | `storage_public_blob_access` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01` |
+| stprodapp01 allows public network access | security | `storage_public_network_access` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01` |
+| vm-app-01: high severity Defender assessment is unhealthy | security | `defender_unhealthy_high` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.compute/virtualmachines/vm-app-01` |
 
 ## Medium
 
 | Title | Category | Check | Resource |
 |---|---|---|---|
+| vm-app-01-pip uses the retiring Basic SKU | cost | `basic_sku_public_ips_and_lbs` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/publicipaddresses/vm-app-01-pip` |
+| Defender for Servers is off in sub-prod | security | `defender_plan_off` | `/subscriptions/sub-prod` |
+| aks-prod allows local Kubernetes accounts | security | `aks_local_accounts_enabled` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.containerservice/managedclusters/aks-prod` |
+| oai-prod accepts local (key) authentication | security | `local_auth_enabled` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.cognitiveservices/accounts/oai-prod` |
+| redis-dev accepts non-SSL connections | security | `redis_insecure_transport` | `/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.cache/redis/redis-dev` |
+| sql-prod accepts TLS 1.0 | security | `sql_weak_tls` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.sql/servers/sql-prod` |
 | web-dev does not enforce HTTPS-only traffic | security | `web_app_https_only_disabled` | `/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.web/sites/web-dev` |
+| web-dev-cert expires within 30 days | security | `certificates_expiring` | `/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.web/certificates/web-dev-cert` |
 
 ## Low
 
 | Title | Category | Check | Resource |
 |---|---|---|---|
+| aks-nodepool1-12345678-vmss is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-prod/resourcegroups/mc_rg-app_aks-prod_uksouth/providers/microsoft.compute/virtualmachinescalesets/aks-nodepool1-12345678-vmss` |
 | asp-dev is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.web/serverfarms/asp-dev` |
+| id-unused is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.managedidentity/userassignedidentities/id-unused` |
 | id-web-dev is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.managedidentity/userassignedidentities/id-web-dev` |
 | pe-sql is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/privateendpoints/pe-sql` |
 | pe-sql.nic.4f2a is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/networkinterfaces/pe-sql.nic.4f2a` |
+| pip-agw is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/publicipaddresses/pip-agw` |
+| redis-dev is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.cache/redis/redis-dev` |
 | stprodapp01 is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01` |
 | vm-app-01-nic is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/networkinterfaces/vm-app-01-nic` |
 | vm-app-01-os is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.compute/disks/vm-app-01-os` |
 | vm-app-01-pip is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.network/publicipaddresses/vm-app-01-pip` |
 | web-dev is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.web/sites/web-dev` |
+| web-dev-cert is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.web/certificates/web-dev-cert` |
+| web-dev-snap is missing tags: env | governance | `missing_required_tags` | `/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.compute/snapshots/web-dev-snap` |
+| sql-prod does not require Entra-only authentication | security | `sql_entra_only_auth_off` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.sql/servers/sql-prod` |
+| stprodapp01 allows shared key access | security | `storage_shared_key_access` | `/subscriptions/sub-prod/resourcegroups/rg-app/providers/microsoft.storage/storageaccounts/stprodapp01` |
 
 ## Info
 
 | Title | Category | Check | Resource |
 |---|---|---|---|
+| id-unused is assigned to no resource | cost | `unused_user_assigned_identities` | `/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.managedidentity/userassignedidentities/id-unused` |
+| privatelink.blob.core.windows.net is linked to no virtual network | cost | `private_dns_zones_unlinked` | `/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/privatednszones/privatelink.blob.core.windows.net` |
+| rt-unused is associated with no subnet | cost | `route_tables_without_subnets` | `/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/routetables/rt-unused` |
+| web-dev-snap's source disk no longer exists | cost | `orphaned_snapshots` | `/subscriptions/sub-dev/resourcegroups/rg-dev/providers/microsoft.compute/snapshots/web-dev-snap` |
 | nsg-unused is not associated with any subnet or NIC | security | `unassociated_nsgs` | `/subscriptions/sub-prod/resourcegroups/rg-network/providers/microsoft.network/networksecuritygroups/nsg-unused` |
