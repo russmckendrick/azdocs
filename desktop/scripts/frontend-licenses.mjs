@@ -85,7 +85,8 @@ const report = [
 ].join("\n");
 
 if (check) {
-  const current = existsSync(target) ? readFileSync(target, "utf8") : "";
+  // A Windows checkout may carry CRLF; the comparison is about content.
+  const current = existsSync(target) ? readFileSync(target, "utf8").replace(/\r\n/g, "\n") : "";
   if (current !== report) {
     console.error("THIRD_PARTY_LICENSES.md is stale; run node scripts/frontend-licenses.mjs");
     process.exit(1);
