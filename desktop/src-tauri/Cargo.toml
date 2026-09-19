@@ -5,6 +5,9 @@ description = "Desktop explorer for azdocs Azure estate snapshots"
 authors = ["azdocs contributors"]
 edition = "2024"
 rust-version = "1.89"
+# The desktop app ships as installers, never as a crate; this also lets
+# cargo-deny accept its versionless path dependency on the CLI crate.
+publish = false
 license = "MIT"
 repository = "https://github.com/russmckendrick/azdocs"
 readme = "../../README.md"
