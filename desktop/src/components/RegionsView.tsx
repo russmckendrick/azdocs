@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { LOCATION_ICON } from "../azure-icons";
 import { displayLocation } from "../azure-values";
@@ -46,6 +46,8 @@ const LABEL_GAP = 6;
 const CHAR_WIDTH = 6.3;
 /** Every active region is the same small marker; the count is in its label. */
 const MARK_RADIUS = 4;
+/** A click within this many pixels of a marker centre selects it. */
+const HIT_RADIUS = 12;
 
 function overlaps(a: Box, b: Box) {
   return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
@@ -301,7 +303,50 @@ export function RegionsView({
     return { ...mark, x, y };
   });
   const labels = placeLabels(viewed, width, height);
+  const viewedQuiet = quiet.map((region) => {
+    const [x, y] = applyCamera(camera, region.x, region.y);
+    const detail: RegionDetail = {
+      key: region.key,
+      storedName: null,
+      label: region.label,
+      point: region.point,
+      count: 0,
+    };
+    return { ...region, x, y, detail };
+  });
   const totalCount = active.reduce((sum, mark) => sum + mark.count, 0);
+  // Neighbouring datacentres (London and Cardiff, the Virginia pair) sit
+  // closer than any comfortable hit target, so overlapping targets would
+  // let whichever paints last steal the click. Clicks resolve to the
+  // nearest marker centre instead; the groups keep keyboard activation.
+  const hitTargets = [
+    ...labels.map(({ mark }) => ({
+      x: mark.x,
+      y: mark.y,
+      detail: {
+        key: mark.name.toLowerCase(),
+        storedName: mark.name,
+        label: mark.label,
+        point: mark.point,
+        count: mark.count,
+      } satisfies RegionDetail,
+    })),
+    ...viewedQuiet.map((region) => ({ x: region.x, y: region.y, detail: region.detail })),
+  ];
+  function handleMapClick(event: MouseEvent<SVGSVGElement>) {
+    if (consumedByDrag()) return;
+    const frame = event.currentTarget.getBoundingClientRect();
+    const px = event.clientX - frame.left;
+    const py = event.clientY - frame.top;
+    let nearest: { distance: number; detail: RegionDetail } | undefined;
+    for (const target of hitTargets) {
+      const distance = Math.hypot(target.x - px, target.y - py);
+      if (distance <= HIT_RADIUS && (!nearest || distance < nearest.distance)) {
+        nearest = { distance, detail: target.detail };
+      }
+    }
+    if (nearest) setSelected(nearest.detail);
+  }
 
   function openResources(mark: { name: string; label: string }) {
     setSelected(null);
@@ -312,7 +357,6 @@ export function RegionsView({
     });
   }
   function show(detail: RegionDetail) {
-    if (consumedByDrag()) return;
     setSelected(detail);
   }
 
@@ -333,44 +377,34 @@ export function RegionsView({
             role="img"
             aria-label={words.map_aria}
             className={camera.k > 1 ? (panning ? "map-panning" : "map-pannable") : undefined}
+            onClick={handleMapClick}
             {...pointerHandlers}
           >
             <g transform={`translate(${camera.tx} ${camera.ty}) scale(${camera.k * scale})`}>
               <path className="regions-map-land" d={LAND_PATH} fillRule="evenodd" />
             </g>
-            {quiet.map((region) => {
-              const [x, y] = applyCamera(camera, region.x, region.y);
-              const detail: RegionDetail = {
-                key: region.key,
-                storedName: null,
-                label: region.label,
-                point: region.point,
-                count: 0,
-              };
-              return (
-                <g
-                  key={region.key}
-                  className="regions-mark regions-mark-other"
-                  role="button"
-                  tabIndex={0}
-                  aria-haspopup="dialog"
-                  aria-label={fill(words.show_region, { name: region.label })}
-                  onClick={() => show(detail)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
-                      show(detail);
-                    }
-                  }}
-                >
-                  <title>
-                    {region.label} · {region.physicalLocation}
-                  </title>
-                  <circle className="regions-mark-target" cx={x} cy={y} r={11} />
-                  <circle className="regions-mark-quiet" cx={x} cy={y} r={3} />
-                </g>
-              );
-            })}
+            {viewedQuiet.map((region) => (
+              <g
+                key={region.key}
+                className="regions-mark regions-mark-other"
+                role="button"
+                tabIndex={0}
+                aria-haspopup="dialog"
+                aria-label={fill(words.show_region, { name: region.label })}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    show(region.detail);
+                  }
+                }}
+              >
+                <title>
+                  {region.label} · {region.physicalLocation}
+                </title>
+                <circle className="regions-mark-target" cx={region.x} cy={region.y} r={6} />
+                <circle className="regions-mark-quiet" cx={region.x} cy={region.y} r={3} />
+              </g>
+            ))}
             {labels.map(({ mark, count, text, box, side, anchor }) => {
               const [edgeX, edgeY] = edgeTowards(mark, anchor);
               const detail: RegionDetail = {
@@ -388,7 +422,6 @@ export function RegionsView({
                   tabIndex={0}
                   aria-haspopup="dialog"
                   aria-label={fill(words.show_region, { name: mark.label })}
-                  onClick={() => show(detail)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();
@@ -408,7 +441,7 @@ export function RegionsView({
                       y2={anchor[1]}
                     />
                   ) : null}
-                  <circle className="regions-mark-target" cx={mark.x} cy={mark.y} r={mark.radius + 8} />
+                  <circle className="regions-mark-target" cx={mark.x} cy={mark.y} r={mark.radius + 2} />
                   <circle className="map-pulse" cx={mark.x} cy={mark.y} r={mark.radius} />
                   <circle className="regions-mark-active" cx={mark.x} cy={mark.y} r={mark.radius} />
                   <text className="regions-label" x={box.x} y={box.y + LABEL_HEIGHT - 3}>

@@ -405,7 +405,11 @@ by dragging once zoomed; the land scales about the frame while markers and
 labels are re-projected through the camera, so they keep their pixel size and
 labels re-place themselves as room appears. A faint coastline stroke (`--map-coast`) defines the land in both modes. The
 land is projected once per width change into pixel space, so labels and
-strokes never scale with the map. Any marker — in use or not — opens a details dialog: the programmatic name,
+strokes never scale with the map. Neighbouring datacentres (London and Cardiff, the Virginia pair) sit closer
+than any comfortable hit target, so clicks on the map resolve to the nearest
+marker centre within 12px rather than to overlapping target shapes; the
+marker groups keep keyboard activation. Any marker — in use or not — opens a
+details dialog: the programmatic name,
 physical location, geography, coordinates, availability-zone support, paired
 region, opening year, open or announced status, Microsoft's data-residency
 statement and the snapshot's count there, with *Open resources* for a region
