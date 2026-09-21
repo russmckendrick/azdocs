@@ -34,6 +34,7 @@ const SHARED_CASES: Array<[input: string, expected: string]> = [
 
 const metadata: AzureMetadata = {
   locations: { uksouth: "UK South" },
+  regions: {},
   kinds: {
     "microsoft.documentdb/databaseaccounts:globaldocumentdb": "Global Document DB",
     "*:storagev2": "Storage V2",

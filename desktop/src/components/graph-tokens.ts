@@ -8,5 +8,5 @@ export function cssToken(name: string, fallback: string) {
 }
 
 export function kindClassColor(kindClass: string) {
-  return cssToken(KIND_CLASSES.has(kindClass) ? `--kind-${kindClass}` : "--cat-other", "#5a6470");
+  return cssToken(KIND_CLASSES.has(kindClass) ? `--kind-${kindClass}` : "--cat-other", "#52697d");
 }

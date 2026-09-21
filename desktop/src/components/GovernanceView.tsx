@@ -96,7 +96,7 @@ export function GovernanceView({
                 <div
                   style={{
                     width: `${Math.max(2, entry.percent)}%`,
-                    background: entry.healthy ? "var(--green)" : "var(--amber)",
+                    background: entry.healthy ? "var(--az-success)" : "var(--az-warning)",
                   }}
                 />
               </div>

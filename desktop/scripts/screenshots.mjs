@@ -26,6 +26,7 @@ const VIEWS = [
   ["overview", "Overview"],
   ["estate", "Estate"],
   ["map", "Map"],
+  ["regions", "Regions"],
   ["inventory", "Inventory"],
   ["findings", "Findings"],
   ["governance", "Governance"],

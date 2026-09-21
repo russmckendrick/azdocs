@@ -34,7 +34,7 @@ import {
 } from "../format";
 import { useLabels } from "../labels";
 import { SEVERITIES, SEVERITY_TOKEN } from "../ordering";
-import { DatabaseStamp, ViewHeading } from "./view-chrome";
+import { DatabaseStamp } from "./view-chrome";
 import {
   dashboardComparison,
   dashboardData,
@@ -44,12 +44,19 @@ import {
 } from "./dashboard-model";
 import { useDashboardNumber } from "./dashboard-motion";
 import { DashboardModal, type DashboardSelection } from "./DashboardModal";
+import { LAND_PATH, MAP_HEIGHT, MAP_WIDTH, project } from "./world-map";
 
+/**
+ * One KPI card: the Azure icon in a soft tinted container, the metric label
+ * beside it, the value, then the supporting line. `accent` names the design
+ * token the container is tinted with — a semantic colour, never decoration.
+ */
 function Kpi({
   title,
   value,
   suffix,
   icon,
+  accent,
   detail,
   signal,
   onClick,
@@ -58,6 +65,7 @@ function Kpi({
   value: number;
   suffix?: string;
   icon: string;
+  accent: string;
   detail: string;
   signal?: boolean;
   onClick: () => void;
@@ -66,13 +74,16 @@ function Kpi({
   return (
     <button
       className="dashboard-kpi"
+      style={{ "--kpi-accent": accent } as CSSProperties}
       aria-label={`${title} ${value.toLocaleString()}${suffix ?? ""} · ${detail}`}
       onClick={onClick}
       aria-haspopup="dialog"
     >
-      <span className="dashboard-kpi-label">
+      <span className="dashboard-kpi-head">
+        <span className="dashboard-kpi-icon">
+          <img src={icon} alt="" />
+        </span>
         {title}
-        <img src={icon} alt="" />
       </span>
       <strong className={signal ? "risk" : undefined}>
         {number}
@@ -80,7 +91,7 @@ function Kpi({
       </strong>
       <span className="dashboard-kpi-detail">
         {detail}
-        <ArrowUpRight size={16} />
+        <ChevronRight size={16} />
       </span>
     </button>
   );
@@ -131,7 +142,7 @@ function DataBar({
       className="dashboard-bar"
       onClick={onClick}
       aria-haspopup="dialog"
-      style={{ "--bar-color": color ?? "var(--accent)" } as CSSProperties}
+      style={{ "--bar-color": color ?? "var(--az-primary)" } as CSSProperties}
     >
       {icon && <img src={icon} alt="" />}
       <span className="dashboard-bar-main">
@@ -144,6 +155,66 @@ function DataBar({
         </span>
       </span>
     </button>
+  );
+}
+
+/**
+ * Resource locations: an understated world map with one small pulsing
+ * Azure-blue marker per region. Regions the catalogue cannot place are still
+ * counted in the list beneath, so nothing is only on the map.
+ */
+function ResourceMap({
+  locations,
+  regions,
+  label,
+  nameOf,
+  onSelect,
+}: {
+  locations: Array<{ name: string; count: number }>;
+  regions: EstateSnapshot["azureMetadata"]["regions"];
+  label: string;
+  nameOf: (location: string) => string;
+  onSelect: (location: { name: string; count: number }) => void;
+}) {
+  const markers = locations.flatMap((location) => {
+    const region = regions[location.name.toLowerCase()];
+    if (!region) return [];
+    const [x, y] = project(region.longitude, region.latitude);
+    return [{ ...location, x, y, radius: 3.5 }];
+  });
+  return (
+    <div className="dashboard-map">
+      <svg viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`} role="img" aria-label={label}>
+        <path className="dashboard-map-land" d={LAND_PATH} fillRule="evenodd" />
+        {markers.map((marker) => {
+          const name = nameOf(marker.name);
+          return (
+            <g
+              key={marker.name}
+              className="dashboard-map-marker"
+              role="button"
+              tabIndex={0}
+              aria-haspopup="dialog"
+              aria-label={`${name} · ${marker.count.toLocaleString()}`}
+              onClick={() => onSelect(marker)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelect(marker);
+                }
+              }}
+            >
+              <title>
+                {name} · {marker.count.toLocaleString()}
+              </title>
+              <circle cx={marker.x} cy={marker.y} r={marker.radius + 8} className="dashboard-map-target" />
+              <circle cx={marker.x} cy={marker.y} r={marker.radius} className="map-pulse" />
+              <circle cx={marker.x} cy={marker.y} r={marker.radius} />
+            </g>
+          );
+        })}
+      </svg>
+    </div>
   );
 }
 
@@ -297,6 +368,7 @@ export function OverviewView({
   onOpenResource,
   onOpenRelationships,
   onLoadSnapshot,
+  onOpenRegions,
 }: {
   bootstrap: AppBootstrap;
   estate: EstateSnapshot;
@@ -306,6 +378,8 @@ export function OverviewView({
   onOpenResource: (id: string) => void;
   onOpenRelationships: (id: string) => void;
   onLoadSnapshot: (id: string) => void;
+  /** The Regions page: every datacentre on a full map, not a resource list. */
+  onOpenRegions: () => void;
 }) {
   const [subscriptionId, setSubscriptionId] = useState("");
   const [days, setDays] = useState(90);
@@ -346,40 +420,40 @@ export function OverviewView({
   let offset = 0;
   return (
     <div className="overview-workspace">
-      <ViewHeading
-        title={words.title}
-        description={fill(d.recorded, { date: dateTime(estate.createdAt) })}
-      >
-        <div className="dashboard-heading-controls">
-          <label>
-            {d.scope}
-            <select
-              value={subscriptionId}
-              onChange={(event) => setSubscriptionId(event.target.value)}
-            >
-              <option value="">{d.all_subscriptions}</option>
-              {estate.subscriptions.map((subscription) => (
-                <option key={subscription.id} value={subscription.id}>
-                  {subscription.displayName}
-                </option>
-              ))}
-            </select>
-          </label>
-          <DatabaseStamp
-            label={words.snapshot_stamp}
-            value={
-              <>
-                {estate.id.slice(0, 8)} · {estate.status}
-              </>
-            }
-          />
-        </div>
-      </ViewHeading>
+      {/* No page header here: the dashboard is the orientation. One compact
+          row scopes it and stamps the snapshot; the heading stays for
+          assistive technology only. */}
+      <h1 className="sr-only">{words.title}</h1>
+      <div className="dashboard-toolbar">
+        <label className="dashboard-scope">
+          <span>{d.scope}</span>
+          <select
+            value={subscriptionId}
+            onChange={(event) => setSubscriptionId(event.target.value)}
+          >
+            <option value="">{d.all_subscriptions}</option>
+            {estate.subscriptions.map((subscription) => (
+              <option key={subscription.id} value={subscription.id}>
+                {subscription.displayName}
+              </option>
+            ))}
+          </select>
+        </label>
+        <DatabaseStamp
+          label={words.snapshot_stamp}
+          value={
+            <>
+              {estate.id.slice(0, 8)} · {estate.status}
+            </>
+          }
+        />
+      </div>
       <div className="dashboard-kpis">
         <Kpi
           title={words.resources}
           value={data.resources.length}
           icon={ALL_RESOURCES_ICON}
+          accent="var(--az-resource)"
           detail={plural(d.groups_context, data.groups)}
           onClick={() => inspect("resources", words.resources)}
         />
@@ -387,6 +461,9 @@ export function OverviewView({
           title={d.audit}
           value={data.findings.length}
           icon={AUDIT_ICON}
+          accent={
+            data.severity.high > 0 ? "var(--az-danger)" : "var(--az-primary)"
+          }
           signal={data.severity.high > 0}
           detail={fill(d.high_context, { count: data.severity.high })}
           onClick={() => inspect("findings", d.audit)}
@@ -396,6 +473,7 @@ export function OverviewView({
           value={data.percent}
           suffix="%"
           icon={TAGS_ICON}
+          accent="var(--az-governance)"
           detail={fill(d.tags_context, {
             tagged: data.tagged.length,
             total: data.resources.length,
@@ -412,40 +490,71 @@ export function OverviewView({
           title={words.relationships}
           value={data.edges.length}
           icon={RELATIONSHIPS_ICON}
+          accent="var(--az-relationship)"
           detail={d.links_context}
           onClick={() => inspect("relationships", words.relationships)}
         />
       </div>
       <div className="dashboard-grid">
         <Panel
-          title={d.history}
-          className="dashboard-history"
-          action={
-            <select
-              aria-label={d.history_range}
-              value={days}
-              onChange={(event) => setDays(Number(event.target.value))}
-            >
-              <option value={30}>{d.range_month}</option>
-              <option value={90}>{d.range_quarter}</option>
-              <option value={0}>{d.range_all}</option>
-            </select>
-          }
+          title={d.regions}
+          icon={LOCATION_ICON}
+          className="dashboard-history dashboard-map-panel"
         >
-          <HistoryChart
-            key={`${estate.id}:${days}`}
-            series={series}
-            onSelect={(snapshot) =>
-              setSelection({
-                kind: "snapshot",
-                title: dateTime(snapshot.createdAt),
-                scopeName: d.all_subscriptions,
-                filter: {},
-                snapshot,
-              })
+          <div className="dashboard-map-layout">
+          <ResourceMap
+            locations={data.locations}
+            regions={estate.azureMetadata.regions}
+            label={words.regions_caption}
+            nameOf={(location) =>
+              displayLocation(
+                estate.azureMetadata,
+                location,
+                words.location_not_stored,
+              )
+            }
+            onSelect={(location) =>
+              inspect(
+                "resources",
+                displayLocation(
+                  estate.azureMetadata,
+                  location.name,
+                  words.location_not_stored,
+                ),
+                { location: location.name },
+              )
             }
           />
-          <p className="dashboard-note">{d.history_note}</p>
+          <div className="dashboard-bars">
+            {data.locations.slice(0, 6).map((location) => (
+              <DataBar
+                key={location.name}
+                label={displayLocation(
+                  estate.azureMetadata,
+                  location.name,
+                  words.location_not_stored,
+                )}
+                count={location.count}
+                max={data.locations[0]?.count ?? 1}
+                onClick={() =>
+                  inspect(
+                    "resources",
+                    displayLocation(
+                      estate.azureMetadata,
+                      location.name,
+                      words.location_not_stored,
+                    ),
+                    { location: location.name },
+                  )
+                }
+              />
+            ))}
+          </div>
+          <button className="dashboard-panel-link" onClick={onOpenRegions}>
+            {d.all_regions}
+            <ArrowUpRight size={14} />
+          </button>
+          </div>
         </Panel>
         <Panel
           title={d.severity}
@@ -550,42 +659,34 @@ export function OverviewView({
           </button>
         </Panel>
         <Panel
-          title={d.regions}
-          icon={LOCATION_ICON}
-          className="dashboard-third"
+          title={d.history}
+          className="dashboard-third dashboard-trend"
+          action={
+            <select
+              aria-label={d.history_range}
+              value={days}
+              onChange={(event) => setDays(Number(event.target.value))}
+            >
+              <option value={30}>{d.range_month}</option>
+              <option value={90}>{d.range_quarter}</option>
+              <option value={0}>{d.range_all}</option>
+            </select>
+          }
         >
-          <div className="dashboard-bars">
-            {data.locations.slice(0, 6).map((location) => (
-              <DataBar
-                key={location.name}
-                label={displayLocation(
-                  estate.azureMetadata,
-                  location.name,
-                  words.location_not_stored,
-                )}
-                count={location.count}
-                max={data.locations[0]?.count ?? 1}
-                onClick={() =>
-                  inspect(
-                    "resources",
-                    displayLocation(
-                      estate.azureMetadata,
-                      location.name,
-                      words.location_not_stored,
-                    ),
-                    { location: location.name },
-                  )
-                }
-              />
-            ))}
-          </div>
-          <button
-            className="dashboard-panel-link"
-            onClick={() => inspect("resources", d.regions)}
-          >
-            {d.all_regions}
-            <ArrowUpRight size={14} />
-          </button>
+          <HistoryChart
+            key={`${estate.id}:${days}`}
+            series={series}
+            onSelect={(snapshot) =>
+              setSelection({
+                kind: "snapshot",
+                title: dateTime(snapshot.createdAt),
+                scopeName: d.all_subscriptions,
+                filter: {},
+                snapshot,
+              })
+            }
+          />
+          <p className="dashboard-note">{d.history_note}</p>
         </Panel>
         <Panel
           title={d.subscriptions}
@@ -620,11 +721,13 @@ export function OverviewView({
                     {subscription.percent}%
                   </span>
                   <span className="dashboard-adoption-track">
-                    <span style={{ transform: `scaleY(${subscription.percent / 100})` }} />
+                    <span style={{ transform: `scaleX(${subscription.percent / 100})` }} />
                   </span>
-                  <img src={SUBSCRIPTION_ICON} alt="" />
-                  <span title={subscription.displayName}>
-                    {subscription.displayName}
+                  <span className="dashboard-adoption-name">
+                    <img src={SUBSCRIPTION_ICON} alt="" />
+                    <span title={subscription.displayName}>
+                      {subscription.displayName}
+                    </span>
                   </span>
                 </button>
               ))}

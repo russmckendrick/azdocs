@@ -78,10 +78,10 @@ interface GraphPalette {
 function readGraphPalette(): GraphPalette {
   return {
     nodeFill: cssToken("--graph-node-fill", "#ffffff"),
-    nodeBorder: cssToken("--graph-node-border", "#d8d2c6"),
-    frameBorder: cssToken("--graph-frame-border", "#9aa2ac"),
-    focusFill: cssToken("--graph-focus-fill", "#f3efe7"),
-    focusBorder: cssToken("--graph-focus-border", "#0b5da8"),
+    nodeBorder: cssToken("--graph-node-border", "#d6e1eb"),
+    frameBorder: cssToken("--graph-frame-border", "#9fb1c3"),
+    focusFill: cssToken("--graph-focus-fill", "#e9f4ff"),
+    focusBorder: cssToken("--graph-focus-border", "#0878e8"),
   };
 }
 
@@ -93,7 +93,7 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
         width: RESOURCE_W,
         height: RESOURCE_H,
         shape: "round-rectangle",
-        "corner-radius": "4px",
+        "corner-radius": "8px",
         "background-color": palette.nodeFill,
         "background-opacity": 1,
         "border-width": 1,
@@ -112,7 +112,7 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
         width: GROUP_W,
         height: GROUP_H,
         shape: "round-rectangle",
-        "corner-radius": "6px",
+        "corner-radius": "10px",
         "background-color": palette.nodeFill,
         "background-opacity": 1,
         "border-width": 1,
@@ -135,7 +135,7 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
         width: AGGREGATE_W,
         height: AGGREGATE_H,
         shape: "round-rectangle",
-        "corner-radius": "4px",
+        "corner-radius": "8px",
         "background-color": palette.nodeFill,
         "background-opacity": 0.7,
         "border-width": 1,
@@ -154,7 +154,7 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
         width: RESOURCE_W,
         height: RESOURCE_H,
         shape: "round-rectangle",
-        "corner-radius": "4px",
+        "corner-radius": "8px",
         "background-color": palette.nodeFill,
         "background-opacity": 0.5,
         "border-width": 1,
@@ -173,7 +173,7 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
         width: LANE_BAR_W,
         height: LANE_BAR_H,
         shape: "round-rectangle",
-        "corner-radius": "4px",
+        "corner-radius": "8px",
         "background-color": palette.nodeFill,
         "background-opacity": 0.7,
         "border-width": 1,
@@ -190,7 +190,7 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
       selector: "node.lane-frame, node.vnet-frame, node.subnet-frame",
       style: {
         shape: "round-rectangle",
-        "corner-radius": "6px",
+        "corner-radius": "10px",
         "background-color": palette.nodeFill,
         "background-opacity": 0,
         "border-width": 1.2,
@@ -210,7 +210,7 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
     {
       selector: "node.subnet-frame",
       style: {
-        "corner-radius": "4px",
+        "corner-radius": "8px",
         "border-opacity": 0.6,
       },
     },
@@ -220,7 +220,7 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
         width: 260,
         height: 44,
         shape: "round-rectangle",
-        "corner-radius": "4px",
+        "corner-radius": "8px",
         "background-color": palette.nodeFill,
         "background-opacity": 0.4,
         "border-width": 1,
@@ -248,8 +248,8 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
       style: {
         "background-color": palette.focusFill,
         "background-opacity": 1,
-        "border-width": 1,
-        "border-color": palette.nodeBorder,
+        "border-width": 2,
+        "border-color": palette.focusBorder,
         "border-opacity": 1,
         "z-index": 14,
       },
@@ -259,8 +259,16 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
       style: { "border-width": 1.5, "border-color": palette.focusBorder },
     },
     {
+      // Keyboard focus reads as a ring around the node, matching the DOM
+      // focus outline, so it stays distinct from the selected node's border.
       selector: "node:grabbed, node.keyboard-focus",
-      style: { "border-width": 2, "border-color": palette.focusBorder },
+      style: {
+        "border-width": 2,
+        "border-color": palette.focusBorder,
+        "underlay-color": palette.focusBorder,
+        "underlay-opacity": 0.18,
+        "underlay-padding": "4px",
+      },
     },
     {
       selector: "node.trace-source, node.trace-peer",
@@ -293,7 +301,7 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
     {
       selector: "edge.relationship-edge",
       style: {
-        width: "mapData(weight, 1, 20, 1.2, 3)",
+        width: "mapData(weight, 1, 20, 1.5, 2.5)",
         "curve-style": "round-taxi",
         "taxi-direction": "horizontal",
         "taxi-turn": "data(taxiTurn)",
@@ -327,7 +335,7 @@ function graphStyles(palette: GraphPalette): StylesheetJson {
     {
       selector: "edge.relationship-edge.trace-active",
       style: {
-        width: "mapData(weight, 1, 20, 2.1, 4.6)",
+        width: "mapData(weight, 1, 20, 2.5, 4)",
         "line-opacity": 1,
         "line-style": "dashed",
         "line-dash-pattern": [7, 5],

@@ -6,6 +6,12 @@ queries or software dependencies.
 
 ## Fonts
 
+Inter is the desktop interface face, bundled from the `@fontsource-variable/inter`
+npm package under the SIL Open Font License 1.1. Copyright © 2016 The Inter
+Project Authors, with Reserved Font Name “Inter”; the licence text ships in
+the package and the bundled app's `notices/frontend-licenses.md` lists it.
+Upstream: [Inter](https://github.com/rsms/inter).
+
 IBM Plex Serif, Sans and Mono are included under the SIL Open Font License 1.1.
 Copyright © 2017 IBM Corp., with Reserved Font Name “Plex”. Font files are in
 `data/fonts/` and `desktop/src/assets/fonts/`; the complete notice and licence
@@ -34,6 +40,18 @@ represent an unrelated product or service.
 The azdocs application mark is separate, original project artwork. azdocs is
 not affiliated with or endorsed by Microsoft. Microsoft and Azure are trademarks
 of Microsoft Corporation.
+
+## Map data
+
+`data/azure_regions.toml` and `data/azure_locations.toml` are generated from
+Microsoft's published [Azure regions list](https://learn.microsoft.com/azure/reliability/regions-list)
+and the data behind the [Microsoft datacenter map](https://datacenters.microsoft.com/globe/explore):
+region names, physical locations, geographies and coordinates, which are facts
+about Microsoft's service rather than creative content. The desktop's land
+outline (`desktop/src/components/land-outline.ts`) is derived from
+[Natural Earth](https://www.naturalearthdata.com/) 1:110m land polygons, which
+are in the public domain, via the `world-atlas` package (ISC) used only at
+generation time.
 
 ## Adapted Microsoft queries
 

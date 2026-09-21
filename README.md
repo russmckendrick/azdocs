@@ -217,8 +217,9 @@ credentials, collected databases or unsanitised estate reports to public issues.
 
 ## Credits
 
-The desktop and bundled print fallbacks use [IBM Plex](https://github.com/IBM/plex)
-under the SIL Open Font License 1.1. Field Report's PDF prefers installed
+The desktop interface uses [Inter](https://rsms.me/inter/) and the bundled
+print fallbacks use [IBM Plex](https://github.com/IBM/plex), both under the
+SIL Open Font License 1.1. Field Report's PDF prefers installed
 Charter, Arial and Courier New; Word names those fonts for its reader to resolve.
 See [Fonts](docs/reference/themes.md#fonts). Azure service icons come from
 [Microsoft's architecture icon set](https://learn.microsoft.com/en-us/azure/architecture/icons/).

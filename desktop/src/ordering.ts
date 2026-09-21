@@ -23,10 +23,10 @@ export function severityRank(severity: string) {
  * `.severity-*` CSS classes the other components use.
  */
 export const SEVERITY_TOKEN: Record<Severity, string> = {
-  high: "var(--coral)",
-  medium: "var(--amber)",
-  low: "var(--muted)",
-  info: "var(--accent)",
+  high: "var(--severity-high)",
+  medium: "var(--severity-medium)",
+  low: "var(--severity-low)",
+  info: "var(--severity-info)",
 };
 
 /**

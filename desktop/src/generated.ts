@@ -249,7 +249,14 @@ export type TagCoverage = { tagged: number, untagged: number, percent: number, }
 
 export type SeverityCounts = { high: number, medium: number, low: number, info: number, };
 
-export type AzureMetadata = { locations: { [key in string]: string }, kinds: { [key in string]: string }, };
+export type AzureMetadata = { locations: { [key in string]: string }, kinds: { [key in string]: string },
+/**
+ * Regions with published coordinates, for the Overview's locations map;
+ * a location missing here is listed but not plotted.
+ */
+regions: { [key in string]: RegionPoint }, };
+
+export type RegionPoint = { latitude: number, longitude: number, physicalLocation: string, geography: string, availabilityZones: boolean, open: boolean, pairedRegion?: string | null, yearOpened?: number | null, dataResidency?: string | null, };
 
 export type Governance = {
 /**

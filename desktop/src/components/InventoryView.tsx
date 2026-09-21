@@ -227,7 +227,7 @@ export function InventoryView({ estate, search, dashboardFilter }: { estate: Est
             </div>
             <div className="query-description">
               {activeDef?.description}
-              {run?.error ? <span style={{ color: "var(--coral)" }}>{fill(words.failed, { error: run.error })}</span> : null}
+              {run?.error ? <span style={{ color: "var(--az-danger)" }}>{fill(words.failed, { error: run.error })}</span> : null}
             </div>
 
             <details className="inventory-evidence" key={activeQuery}>
@@ -282,7 +282,7 @@ export function InventoryView({ estate, search, dashboardFilter }: { estate: Est
                 {run?.durationMs != null ? fill(words.collected_in, { ms: run.durationMs }) : ""}
               </span>
               <ShowMore list={list} inline />
-              <span className="mono" style={{ marginLeft: "auto", color: "var(--faintest)" }}>
+              <span className="mono" style={{ marginLeft: "auto", color: "var(--az-text-muted)" }}>
                 queries/{activeCategory}/{activeQuery}.toml
               </span>
             </div>

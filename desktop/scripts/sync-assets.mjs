@@ -34,8 +34,10 @@ for (const icon of icons) {
   copyFileSync(from, to);
   copied += 1;
 }
+// The interface face is Inter, bundled from @fontsource-variable/inter; only
+// the monospace fallback the stylesheet declares still comes from data/fonts.
 const fontsDir = resolve(dataDir, "fonts");
-for (const font of readdirSync(fontsDir).filter((name) => name.endsWith(".ttf"))) {
+for (const font of readdirSync(fontsDir).filter((name) => /^IBMPlexMono-.*\.ttf$/.test(name))) {
   const to = resolve(publicDir, "fonts", font);
   mkdirSync(dirname(to), { recursive: true });
   copyFileSync(resolve(fontsDir, font), to);

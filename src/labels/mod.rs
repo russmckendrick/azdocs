@@ -327,6 +327,12 @@ mod tests {
         "unknown",
         "unresolved",
         "vaults",
+        "active",
+        "names",
+        "ew",
+        "ns",
+        "longitude",
+        "latitude",
     ];
 
     fn builtin_source() -> &'static str {

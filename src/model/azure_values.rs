@@ -3,8 +3,58 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
+use serde::Deserialize;
+
 const BUILTIN_LOCATIONS: &str = include_str!("../../data/azure_locations.toml");
 const BUILTIN_KINDS: &str = include_str!("../../data/azure_kinds.toml");
+const BUILTIN_REGIONS: &str = include_str!("../../data/azure_regions.toml");
+
+/// One Azure region the desktop can place on a map: the display name and
+/// physical location Microsoft publishes, its coordinates, and where those
+/// came from (`datacenter-map` or an approximate `physical-location`).
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Region {
+    pub name: String,
+    pub display_name: String,
+    pub physical_location: String,
+    pub geography: String,
+    pub latitude: f64,
+    pub longitude: f64,
+    pub source: String,
+    pub availability_zones: bool,
+    pub open: bool,
+    pub paired_region: Option<String>,
+    pub year_opened: Option<u32>,
+    pub data_residency: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RegionCatalogue {
+    region: Vec<Region>,
+}
+
+fn parse_regions(content: &str) -> Result<BTreeMap<String, Region>, toml::de::Error> {
+    let catalogue: RegionCatalogue = toml::from_str(content)?;
+    Ok(catalogue
+        .region
+        .into_iter()
+        .map(|region| (region.name.to_ascii_lowercase(), region))
+        .collect())
+}
+
+/// Every region with published coordinates, keyed by lowercase programmatic
+/// name. Built in only: a coordinate is a fact, not wording, so the
+/// display-name overrides do not apply here.
+pub fn region_catalogue() -> &'static BTreeMap<String, Region> {
+    static REGIONS: OnceLock<BTreeMap<String, Region>> = OnceLock::new();
+    REGIONS.get_or_init(|| {
+        parse_regions(BUILTIN_REGIONS).unwrap_or_else(|err| {
+            panic!("embedded Azure region catalogue is valid; guaranteed by unit test: {err}")
+        })
+    })
+}
 
 fn user_data_path(file_name: &str) -> Option<PathBuf> {
     directories::ProjectDirs::from("", "", "azdocs").map(|dirs| dirs.config_dir().join(file_name))
@@ -131,6 +181,34 @@ mod tests {
     fn unit_parses_embedded_location_metadata_when_loading_builtins() {
         let map = parse(BUILTIN_LOCATIONS).expect("embedded locations must parse");
         assert_eq!(map.get("uksouth").map(String::as_str), Some("UK South"));
+    }
+
+    #[test]
+    fn unit_parses_embedded_region_catalogue_when_loading_builtins() {
+        let regions = parse_regions(BUILTIN_REGIONS).expect("embedded regions must parse");
+        let uksouth = &regions["uksouth"];
+        assert_eq!(uksouth.display_name, "UK South");
+        assert!((uksouth.latitude - 50.9).abs() < 1.0);
+        assert!((uksouth.longitude + 0.8).abs() < 1.0);
+        assert_eq!(uksouth.source, "datacenter-map");
+        assert!(uksouth.availability_zones);
+        assert_eq!(uksouth.paired_region.as_deref(), Some("UK West"));
+    }
+
+    #[test]
+    fn unit_names_every_catalogue_region_when_loading_builtins() {
+        // A region the map can plot must also have a display name, or the map
+        // and the tables would disagree about what to call it.
+        let names = parse(BUILTIN_LOCATIONS).expect("embedded locations must parse");
+        for name in parse_regions(BUILTIN_REGIONS)
+            .expect("embedded regions must parse")
+            .keys()
+        {
+            assert!(
+                names.contains_key(name),
+                "{name} has coordinates but no display name"
+            );
+        }
     }
 
     #[test]
