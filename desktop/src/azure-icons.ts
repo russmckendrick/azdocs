@@ -17,15 +17,3 @@ export const LOCATION_ICON = "/icons/general/10818-icon-service-Location.svg";
 export function resourceIcon(type: { icon: string } | undefined) {
   return type?.icon ?? ALL_RESOURCES_ICON;
 }
-
-export const SIDEBAR_ICONS = {
-  overview: "/icons/general/10015-icon-service-Dashboard.svg",
-  estate: ALL_RESOURCES_ICON,
-  topology: RELATIONSHIPS_ICON,
-  inventory: "/icons/general/10841-icon-service-Table.svg",
-  findings: AUDIT_ICON,
-  governance: TAGS_ICON,
-  history: "/icons/monitor/00563-icon-service-Change-Analysis.svg",
-  exports: "/icons/general/10797-icon-service-Download.svg",
-  settings: "/icons/general/10805-icon-service-Gear.svg",
-};

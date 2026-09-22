@@ -557,3 +557,76 @@ async fn unit_failed_collection_preserves_the_attempted_query_and_scope() {
     assert_eq!(runs[0].provenance.as_ref(), Some(&expected));
     assert!(runs[0].error.is_some());
 }
+
+#[tokio::test]
+async fn unit_collect_keeps_inventory_usable_when_a_finding_check_fails() {
+    use azdocs::{
+        arg::ArgClient,
+        auth::StaticTokenProvider,
+        collect::{CollectRequest, run},
+    };
+    use std::sync::Arc;
+    use wiremock::{Mock, MockServer, Request, ResponseTemplate, matchers::method};
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(|request: &Request| {
+            let body: serde_json::Value = serde_json::from_slice(&request.body).unwrap();
+            if body["query"].as_str().unwrap().contains("identityId") {
+                ResponseTemplate::new(400).set_body_json(
+                    json!({"error":{"code":"BadRequest","message":"audit unavailable"}}),
+                )
+            } else {
+                ResponseTemplate::new(200).set_body_json(json!({"data":fixture_resources()}))
+            }
+        })
+        .expect(2)
+        .mount(&server)
+        .await;
+    let store = Store::open_in_memory().unwrap();
+    let pack = QueryPack::builtin().unwrap();
+    let summary = run(
+        &store,
+        Arc::new(ArgClient::with_endpoint(
+            reqwest::Client::new(),
+            StaticTokenProvider("t".into()),
+            &server.uri(),
+        )),
+        CollectRequest {
+            tenant_id: "tenant".into(),
+            queries: ["all_resources", "unused_user_assigned_identities"]
+                .iter()
+                .map(|name| pack.get(name).unwrap().clone())
+                .collect(),
+            subscriptions: vec![],
+            concurrency: 2,
+            notes: None,
+            audit: Default::default(),
+            quiet: true,
+            cancel: Default::default(),
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(summary.status, SnapshotStatus::Warnings);
+    assert_eq!(summary.queries_failed, 1);
+    assert!(!store.resources(&summary.snapshot_id).unwrap().is_empty());
+    assert!(
+        store
+            .query_runs(&summary.snapshot_id)
+            .unwrap()
+            .iter()
+            .any(|run| run.query_name == "unused_user_assigned_identities"
+                && run.error.is_some()
+                && run.provenance.is_some())
+    );
+    assert_eq!(
+        store.resolve_snapshot("latest").unwrap(),
+        summary.snapshot_id
+    );
+    assert_eq!(store.snapshot_trend(10).unwrap().len(), 1);
+    let next = store.create_snapshot("tenant", None).unwrap();
+    assert_eq!(
+        store.previous_snapshot(&next.id).unwrap().unwrap().id,
+        summary.snapshot_id
+    );
+}

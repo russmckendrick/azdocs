@@ -212,6 +212,7 @@ export async function collectEstate(
     });
     await pause(1000);
     onUpdate({ event: "stage", data: { stage: "capture" } });
+    const { default: previewImage } = await import("./fixtures/website.png?inline");
     onUpdate({
       event: "screenshots",
       data: {
@@ -219,13 +220,14 @@ export async function collectEstate(
           completed: 0,
           total: 1,
           url: "https://example.test/",
+          previewImage,
           captured: 0,
           failed: 0,
           cancelled: false,
         },
       },
     });
-    await pause(1600);
+    await pause(3000);
     onUpdate({
       event: "screenshots",
       data: {

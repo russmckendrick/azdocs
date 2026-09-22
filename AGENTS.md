@@ -100,7 +100,13 @@ Built-in query pack = TOML files in `queries/<category>/`, embedded via
 `all_resources`/`subscriptions`/`resource_groups` fill typed tables, other
 inventory rows go to `query_results`, findings to `findings`. Resource
 display names are data too: `data/display_names.toml` (embedded), user
-overrides at `<config dir>/azdocs/display_names.toml`.
+overrides at `<config dir>/azdocs/display_names.toml`. Region
+names and coordinates too: `data/azure_locations.toml` and
+`data/azure_regions.toml`, generated from Microsoft\'s published lists by
+`cargo run --example update_azure_locations`. Region
+names and coordinates too: `data/azure_locations.toml` and
+`data/azure_regions.toml`, generated from Microsoft\'s published lists by
+`cargo run --example update_azure_locations`.
 
 ## Themes are data
 
@@ -186,9 +192,12 @@ Chrome decays with nesting depth; fonts and leaf sizes never do.
 
 ## Desktop design
 
-The desktop app wears the "Field Report" language. `desktop/src/styles.css` is
-the **only** place a colour value is written down (light canonical, dark = a 1:1
-token remap; tri-state theme — System/Light/Dark — persisted from Settings).
+The desktop app is a premium desktop data application: a dark navy
+navigation frame in both modes, a cool neutral workspace, restrained Azure
+blue, Inter throughout, and colour reserved for data and signals.
+`desktop/src/styles.css` is the **only** place a colour value is written down
+(light canonical; dark re-tunes the same `--az-*` roles in two blocks that
+must agree; tri-state theme — System/Light/Dark — persisted from Settings).
 
 - [docs/reference/design.md](docs/reference/design.md) — the authoritative sheet.
 - [docs/reference/design.html](docs/reference/design.html) — swatches, type
@@ -198,11 +207,15 @@ token remap; tri-state theme — System/Light/Dark — persisted from Settings).
 - [DESIGN.md](DESIGN.md) — a pointer to the above, plus the rules most often
   broken. It used to restate the whole palette; three copies is how they drift.
 
-Hard rules: no numbering chrome, selection is a quiet `--evidence` fill (never
-a coloured bar), colour only for data (category set) and signals (severity
-set), type never below 11px. The Cytoscape stage reads `--graph-*`/`--kind-*`
-tokens at build time and rebuilds on theme change — never hardcode a canvas
-colour.
+Hard rules: no numbering chrome, selection is a quiet `--az-selected` fill
+(never a coloured bar), blue only for actions/selection/links/series and
+otherwise colour only for data (category set), signals (severity set) and the
+three named accents, type never below 11px, cards only on Overview, Azure
+artwork in the workspace and Lucide outline icons in navigation. The
+Cytoscape stage reads `--graph-*`/`--kind-*` tokens at build time and
+rebuilds on theme change — never hardcode a canvas colour. On macOS the
+title bar overlays the navy frame (`titleBarStyle: Overlay`); the shell sets
+`data-titlebar="overlay"` and the stylesheet pads and widens the rail for it.
 
 ## The wire contract is generated
 

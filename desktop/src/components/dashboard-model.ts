@@ -6,7 +6,12 @@ import type {
   Finding,
   Resource,
   SnapshotComparison,
+  SnapshotStatus,
 } from "../types";
+
+export function hasCompleteInventory(status: SnapshotStatus | undefined) {
+  return status === "complete" || status === "warnings";
+}
 
 export function resourceMatchesDashboard(
   resource: Resource,
@@ -168,8 +173,8 @@ export function dashboardComparison(
     (snapshot) => snapshot.id === diff?.baseSnapshotId,
   );
   return diff &&
-    base?.status === "complete" &&
-    estate.status === "complete" &&
+    base && hasCompleteInventory(base.status) &&
+    hasCompleteInventory(estate.status) &&
     base.tenantId === estate.tenantId
     ? { diff, base }
     : undefined;
@@ -206,4 +211,15 @@ export function resourceHistoryScale(values: number[]) {
   const max = Math.max(min + step, Math.ceil((high + padding) / step) * step);
   const ticks = Array.from({ length: Math.round((max - min) / step) + 1 }, (_, index) => min + index * step);
   return { min, max, ticks };
+}
+
+/** Thin only the interactive markers; the line and snapshot list retain every observation. */
+export function resourceHistoryMarkers<T extends { x: number; y: number }>(points: T[]) {
+  const markers: T[] = [];
+  for (const point of [...points].reverse()) {
+    if (!markers.some(marker => Math.hypot(marker.x - point.x, marker.y - point.y) < 24)) {
+      markers.push(point);
+    }
+  }
+  return markers.reverse();
 }

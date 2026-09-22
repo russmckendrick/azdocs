@@ -15,12 +15,23 @@ import {
 } from "react";
 import {
   ChevronDown,
+  Compass,
   FolderSearch2,
+  Globe,
+  History,
+  Layers,
+  LayoutDashboard,
   LoaderCircle,
+  type LucideIcon,
   PanelLeftClose,
   PanelLeftOpen,
   RefreshCw,
   Search,
+  Settings,
+  ShieldAlert,
+  Table2,
+  Tags,
+  Upload,
 } from "lucide-react";
 import {
   cancelCollect,
@@ -33,7 +44,7 @@ import {
   isTauri,
   selectTenant,
 } from "./api";
-import { SIDEBAR_ICONS, resourceIcon } from "./azure-icons";
+import { resourceIcon } from "./azure-icons";
 import {
   initialNavigationState,
   navigationReducer,
@@ -47,6 +58,7 @@ import { GovernanceView } from "./components/GovernanceView";
 import { HistoryView } from "./components/HistoryView";
 import { InventoryView } from "./components/InventoryView";
 import { OverviewView } from "./components/OverviewView";
+import { RegionsView } from "./components/RegionsView";
 import { ResourceDetailView } from "./components/ResourceDetailView";
 import { SettingsView } from "./components/SettingsView";
 import type {
@@ -59,7 +71,7 @@ import type {
   ThemePreference,
   ViewId,
 } from "./types";
-import { dayMonthTime, errorMessage, fill } from "./format";
+import { dayMonthTime, errorMessage, fill, snapshotStatusLabel } from "./format";
 import { installLabels, useLabels, type Labels } from "./labels";
 import { matchesResourceSearch, useResourceTypeMap } from "./estate-lookups";
 import { ErrorStrip } from "./components/view-chrome";
@@ -70,7 +82,6 @@ const TopologyView = lazy(() =>
   })),
 );
 
-/** The side-nav entries; labels come from `desktop.nav` under the same ids. */
 /** Text-size steps for mod +/-/0; the CSS scales rem-based type and spacing. */
 const UI_SCALES = [1, 1.1, 1.2, 1.3, 1.5] as const;
 
@@ -79,15 +90,21 @@ function readUiScale(): number {
   return UI_SCALES.includes(stored as (typeof UI_SCALES)[number]) ? stored : 1;
 }
 
-const views: Array<{ id: Exclude<ViewId, "settings"> }> = [
-  { id: "overview" },
-  { id: "estate" },
-  { id: "topology" },
-  { id: "inventory" },
-  { id: "findings" },
-  { id: "governance" },
-  { id: "history" },
-  { id: "exports" },
+/**
+ * The side-nav entries; labels come from `desktop.nav` under the same ids.
+ * Navigation uses one outline icon set. Azure artwork stays in the workspace,
+ * where it identifies real subscriptions, groups and resources.
+ */
+const views: Array<{ id: Exclude<ViewId, "settings">; icon: LucideIcon }> = [
+  { id: "overview", icon: LayoutDashboard },
+  { id: "estate", icon: Layers },
+  { id: "topology", icon: Compass },
+  { id: "regions", icon: Globe },
+  { id: "inventory", icon: Table2 },
+  { id: "findings", icon: ShieldAlert },
+  { id: "governance", icon: Tags },
+  { id: "history", icon: History },
+  { id: "exports", icon: Upload },
 ];
 
 function readThemePreference(): ThemePreference {
@@ -216,6 +233,14 @@ export default function App() {
     else document.documentElement.dataset.theme = themePreference;
     writePreference("theme", themePreference);
   }, [themePreference]);
+
+  useEffect(() => {
+    // On macOS the native title bar overlays the sidebar (tauri.conf.json
+    // `titleBarStyle: Overlay`); the stylesheet pads the frame below the
+    // traffic lights when this attribute is present.
+    if (isTauri && navigator.platform.toLowerCase().includes("mac"))
+      document.documentElement.dataset.titlebar = "overlay";
+  }, []);
 
   const loadSnapshot = useCallback(async (snapshotId?: string) => {
     const request = ++snapshotRequest.current;
@@ -447,9 +472,10 @@ export default function App() {
       await loadSnapshot(result.snapshotId);
       setCollectionMessage(
         [
-          fill(shell.collected, {
+          fill(result.status === "warnings" ? shell.collected_warnings : shell.collected, {
             rows: result.rowsIngested.toLocaleString(),
             status: result.status,
+            failed: result.queriesFailed,
           }),
           result.screenshots
             ? (result.screenshots.error ??
@@ -541,159 +567,6 @@ export default function App() {
   return (
     <WebsiteContext.Provider value={websites}>
       <div className="app-shell">
-        <header className="masthead">
-          <div className="brand">
-            <div className="brand-product" role="img" aria-label="azdocs">
-              <span className="brand-mark" aria-hidden="true" />
-              <strong aria-hidden="true">zdocs</strong>
-            </div>
-            {!isTauri ? <em>{shell.preview_badge}</em> : null}
-          </div>
-          <label className="snapshot-control tenant-control">
-            <span>{settingsWords.tenant}</span>
-            <select
-              value={bootstrap?.activeTenantId ?? ""}
-              disabled={loading || websites.blocked || settingsDirty}
-              onChange={(event) => void handleTenant(event.target.value)}
-              aria-label={settingsWords.select_tenant}
-            >
-              <option value="" disabled>
-                {settingsWords.select_tenant}
-              </option>
-              {bootstrap?.tenants.map((tenant) => (
-                <option key={tenant.tenantId} value={tenant.tenantId}>
-                  {tenant.name}
-                  {tenant.configured
-                    ? ""
-                    : ` · ${settingsWords.tenant_offline}`}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={14} aria-hidden="true" />
-          </label>
-          <label className="snapshot-control">
-            <span>{shell.snapshot}</span>
-            <select
-              value={estate?.id ?? ""}
-              onChange={(event) => void loadSnapshot(event.target.value)}
-              disabled={
-                !bootstrap?.snapshots.length ||
-                loading ||
-                websites.blocked ||
-                settingsDirty
-              }
-              aria-label={shell.snapshot_picker}
-            >
-              {bootstrap?.snapshots.map((snapshot) => (
-                <option key={snapshot.id} value={snapshot.id}>
-                  {fill(shell.snapshot_option, {
-                    date: dayMonthTime(snapshot.createdAt),
-                    count: snapshot.resources,
-                  })}
-                </option>
-              ))}
-            </select>
-            <ChevronDown size={14} aria-hidden="true" />
-          </label>
-          <div className="global-search">
-            <Search size={15} aria-hidden="true" />
-            <input
-              ref={searchRef}
-              disabled={settingsDirty}
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value);
-                setSearchOpen(Boolean(event.target.value.trim()));
-                setActiveSearchIndex(0);
-              }}
-              onFocus={() => setSearchOpen(Boolean(search.trim()))}
-              onKeyDown={handleSearchKeyDown}
-              placeholder={shell.search_placeholder}
-              aria-label={shell.search_aria}
-              role="combobox"
-              aria-autocomplete="list"
-              aria-expanded={searchOpen && searchMatches.length > 0}
-              aria-controls="global-resource-results"
-              aria-activedescendant={
-                searchOpen && searchMatches.length > 0
-                  ? `global-resource-result-${activeSearchIndex}`
-                  : undefined
-              }
-            />
-            <kbd>{shortcutLabel}</kbd>
-            {searchOpen && search ? (
-              <div
-                className="global-search-results"
-                id="global-resource-results"
-                role="listbox"
-                aria-label={shell.search_results}
-              >
-                {searchMatches.map((resource, index) => {
-                  const type = resourceTypeMap.get(resource.azureType);
-                  return (
-                    <button
-                      key={resource.id}
-                      id={`global-resource-result-${index}`}
-                      role="option"
-                      aria-selected={index === activeSearchIndex}
-                      className={index === activeSearchIndex ? "active" : ""}
-                      onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => chooseSearchResult(index)}
-                    >
-                      <img src={resourceIcon(type)} alt="" />
-                      <span>
-                        <strong>{resource.name}</strong>
-                        <small>
-                          {type?.displayName ?? resource.azureType} ·{" "}
-                          {resource.resourceGroup}
-                        </small>
-                      </span>
-                    </button>
-                  );
-                })}
-                {searchMatches.length === 0 ? (
-                  <p>{shell.search_no_matches}</p>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-          <div className="masthead-actions">
-            <button
-              className="quiet-button"
-              disabled={websites.blocked}
-              onClick={handleDatabase}
-              title={bootstrap?.databasePath}
-            >
-              <FolderSearch2 size={15} />
-              {shell.open_data}
-            </button>
-            <button
-              className="collect-button"
-              onClick={() => setCollectionOpen(true)}
-              aria-haspopup="dialog"
-              disabled={!bootstrap}
-              title={
-                bootstrap?.hasCredentials
-                  ? `${shell.collect_hint} ${websiteWords.collect_note}`
-                  : fill(shell.configure_credentials, {
-                      path: bootstrap?.configPath ?? "azdocs.toml",
-                    })
-              }
-            >
-              {collecting || websites.busy ? (
-                <LoaderCircle className="spin" size={15} />
-              ) : (
-                <RefreshCw size={15} />
-              )}
-              {collecting
-                ? shell.collecting
-                : websites.busy
-                  ? websiteWords.states.running
-                  : shell.collect}
-            </button>
-          </div>
-        </header>
-
         <div
           className={
             sidebarCollapsed ? "app-body sidebar-collapsed" : "app-body"
@@ -704,268 +577,431 @@ export default function App() {
             id="primary-navigation"
             aria-label={shell.primary_navigation}
           >
-            <button
-              className="nav-row sidebar-toggle"
-              onClick={toggleSidebar}
-              aria-expanded={!sidebarCollapsed}
-              aria-controls="primary-navigation"
-              aria-label={
-                sidebarCollapsed
-                  ? overviewWords.dashboard.expand_sidebar
-                  : overviewWords.dashboard.collapse_sidebar
-              }
-              title={
-                sidebarCollapsed
-                  ? overviewWords.dashboard.expand_sidebar
-                  : overviewWords.dashboard.collapse_sidebar
-              }
-            >
-              {sidebarCollapsed ? (
-                <PanelLeftOpen size={19} />
-              ) : (
-                <PanelLeftClose size={19} />
-              )}
-              <span>{overviewWords.dashboard.collapse_sidebar}</span>
-            </button>
-            {views.map((item) => {
-              const badge =
-                item.id === "findings" && highFindings > 0
-                  ? highFindings
-                  : undefined;
-              return (
-                <button
-                  key={item.id}
-                  className={view === item.id ? "nav-row active" : "nav-row"}
-                  onClick={() => openSection(item.id)}
-                  aria-current={view === item.id ? "page" : undefined}
-                  title={nav[item.id]}
-                  aria-label={
-                    badge ? `${nav[item.id]} · ${badge}` : nav[item.id]
-                  }
-                >
-                  <img
-                    className="nav-azure-icon"
-                    src={SIDEBAR_ICONS[item.id]}
-                    alt=""
-                  />
-                  <span>{nav[item.id]}</span>
-                  {badge ? <span className="nav-badge">{badge}</span> : null}
-                </button>
-              );
-            })}
-            <div className="nav-spacer" />
-            <button
-              className={view === "settings" ? "nav-row active" : "nav-row"}
-              onClick={() => openSection("settings")}
-              aria-current={view === "settings" ? "page" : undefined}
-              title={nav.settings}
-              aria-label={nav.settings}
-            >
-              <img
-                className="nav-azure-icon"
-                src={SIDEBAR_ICONS.settings}
-                alt=""
-              />
-              <span>{nav.settings}</span>
-            </button>
-          </nav>
-
-          <main
-            className={
-              view === "topology" ? "workspace workspace-topology" : "workspace"
-            }
-          >
-            {collecting && !collectionOpen && collectionMessage ? (
-              <div className="collection-strip" role="status">
-                <LoaderCircle className={collecting ? "spin" : ""} size={15} />
-                <span>{collectionMessage}</span>
-                <button
-                  className="quiet-button"
-                  onClick={() => setCollectionOpen(true)}
-                >
-                  {websiteWords.show_collection}
-                </button>
-              </div>
-            ) : null}
-            {error ? (
-              <ErrorStrip message={error} onDismiss={() => setError(undefined)} />
-            ) : null}
-
-            {navigation.result &&
-            navigation.result.view === view &&
-            !selectedResource ? (
-              <div className="dashboard-result-scope">
-                <button className="quiet-button" onClick={navigateBack}>
-                  {overviewWords.dashboard.back}
-                </button>
-                <span>
-                  {fill(overviewWords.dashboard.filter, {
-                    selection: navigation.result.label,
-                  })}
+            <div className="sidebar-brand" data-tauri-drag-region>
+              <div className="brand-product" role="img" aria-label="azdocs">
+                <span className="brand-mark" aria-hidden="true" />
+                <span className="brand-copy" aria-hidden="true">
+                  <strong>azdocs</strong>
+                  <small>{shell.tagline}</small>
                 </span>
-                <button
-                  className="quiet-button"
-                  onClick={() => dispatchNavigation({ type: "clear-results" })}
-                >
-                  {overviewWords.dashboard.clear_filter}
-                </button>
               </div>
-            ) : null}
-            {loading && !estate ? <LoadingWorkspace /> : null}
-            {!loading && !estate && !error && view !== "settings" ? (
-              <EmptyWorkspace
-                canCollect={Boolean(bootstrap?.hasCredentials)}
-                onCollect={() => setCollectionOpen(true)}
-                onOpen={handleDatabase}
-                onSetup={() => openSection("settings")}
-              />
-            ) : null}
-            {view === "settings" && bootstrap ? (
-              <SettingsView
-                bootstrap={bootstrap}
-                estate={estate}
-                themePreference={themePreference}
-                resolvedTheme={resolvedTheme}
-                onThemeChange={setThemePreference}
-                onOpenDatabase={handleDatabase}
-                onConfigChange={applyConfiguration}
-                onDirtyChange={setSettingsDirty}
-                onShowShortcuts={() => setShortcutsOpen(true)}
-                blocked={websites.blocked}
-              />
-            ) : null}
-            {estate && view !== "settings" ? (
-              <>
-                {view === "overview" && bootstrap && !selectedResource ? (
-                  <OverviewView
-                    bootstrap={bootstrap}
-                    estate={estate}
-                    comparison={comparison}
-                    onOpenResults={openDashboardResults}
-                    onOpenResource={openResource}
-                    onOpenRelationships={openRelationships}
-                    onLoadSnapshot={(id) => void loadSnapshot(id)}
-                  />
-                ) : null}
-                {view === "estate" && !selectedResource ? (
-                  <EstateExplorer
-                    estate={estate}
-                    search={search}
-                    scope={scope}
-                    dashboardFilter={navigation.result?.filter}
-                    onScopeChange={setScope}
-                    onSelectResource={openResource}
-                  />
-                ) : null}
-                {view === "topology" ? (
-                  <Suspense fallback={<LoadingWorkspace />}>
-                    <TopologyView
-                      estate={estate}
-                      theme={resolvedTheme}
-                      workspace={navigation.relationships}
-                      active={!selectedResource}
-                      backLabel={
-                        navigation.history.length > 0
-                          ? fill(nav.back_to, {
-                              target: frameLabel(
-                                navigation.history.at(-1),
-                                nav,
-                                estate,
-                              ),
-                            })
-                          : undefined
-                      }
-                      onBack={
-                        navigation.history.length > 0 ? navigateBack : undefined
-                      }
-                      onNavigate={navigateRelationships}
-                      onWorkspaceChange={updateRelationships}
-                      onInspect={openResource}
-                    />
-                  </Suspense>
-                ) : null}
-                {view === "inventory" && !selectedResource ? (
-                  <InventoryView
-                    estate={estate}
-                    search={search}
-                    dashboardFilter={navigation.result?.filter}
-                  />
-                ) : null}
-                {view === "findings" && !selectedResource ? (
-                  <FindingsView
-                    estate={estate}
-                    search={search}
-                    dashboardFilter={navigation.result?.filter}
-                    onOpenResource={openResource}
-                  />
-                ) : null}
-                {view === "governance" && bootstrap && !selectedResource ? (
-                  <GovernanceView
-                    estate={estate}
-                    requiredTags={bootstrap.requiredTags}
-                    onOpenFindings={(destination) =>
-                      destination
-                        ? openDashboardResults(destination)
-                        : openSection("findings")
-                    }
-                  />
-                ) : null}
-                {view === "history" && bootstrap && !selectedResource ? (
-                  <HistoryView
-                    bootstrap={bootstrap}
-                    estate={estate}
-                    previousComparison={comparison}
-                    onLoadSnapshot={(id) => void loadSnapshot(id)}
-                    dashboardFilter={navigation.result?.filter}
-                    onOpenResource={openResource}
-                  />
-                ) : null}
-                {view === "exports" && bootstrap && !selectedResource ? (
-                  <ExportsView estate={estate} />
-                ) : null}
-                {selectedResource ? (
-                  <div
-                    className={
-                      view === "topology"
-                        ? "resource-record-overlay"
-                        : "resource-record-surface"
+            </div>
+            <div className="nav-list">
+              {views.map((item) => {
+                const Icon = item.icon;
+                const badge =
+                  item.id === "findings" && highFindings > 0
+                    ? highFindings
+                    : undefined;
+                return (
+                  <button
+                    key={item.id}
+                    className={view === item.id ? "nav-row active" : "nav-row"}
+                    onClick={() => openSection(item.id)}
+                    aria-current={view === item.id ? "page" : undefined}
+                    title={nav[item.id]}
+                    aria-label={
+                      badge ? `${nav[item.id]} · ${badge}` : nav[item.id]
                     }
                   >
-                    <ResourceDetailView
-                      resource={selectedResource}
-                      type={resourceTypeMap.get(selectedResource.azureType)}
-                      estate={estate}
-                      backLabel={fill(nav.back_to, {
-                        target: frameLabel(
-                          navigation.history.at(-1),
-                          nav,
-                          estate,
-                        ),
+                    <Icon size={18} aria-hidden="true" />
+                    <span>{nav[item.id]}</span>
+                    {badge ? <span className="nav-badge">{badge}</span> : null}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="nav-spacer" />
+            <div className="sidebar-footer">
+              <button
+                className={view === "settings" ? "nav-row active" : "nav-row"}
+                onClick={() => openSection("settings")}
+                aria-current={view === "settings" ? "page" : undefined}
+                title={nav.settings}
+                aria-label={nav.settings}
+              >
+                <Settings size={18} aria-hidden="true" />
+                <span>{nav.settings}</span>
+              </button>
+            </div>
+          </nav>
+
+          <div className="app-main">
+            <header className="commandbar" data-tauri-drag-region>
+              <button
+                className="icon-button sidebar-toggle"
+                onClick={toggleSidebar}
+                aria-expanded={!sidebarCollapsed}
+                aria-controls="primary-navigation"
+                aria-label={
+                  sidebarCollapsed
+                    ? overviewWords.dashboard.expand_sidebar
+                    : overviewWords.dashboard.collapse_sidebar
+                }
+                title={
+                  sidebarCollapsed
+                    ? overviewWords.dashboard.expand_sidebar
+                    : overviewWords.dashboard.collapse_sidebar
+                }
+              >
+                {sidebarCollapsed ? (
+                  <PanelLeftOpen size={18} />
+                ) : (
+                  <PanelLeftClose size={18} />
+                )}
+              </button>
+              <label className="snapshot-control tenant-control">
+                <span>{settingsWords.tenant}</span>
+                <select
+                  value={bootstrap?.activeTenantId ?? ""}
+                  disabled={loading || websites.blocked || settingsDirty}
+                  onChange={(event) => void handleTenant(event.target.value)}
+                  aria-label={settingsWords.select_tenant}
+                >
+                  <option value="" disabled>
+                    {settingsWords.select_tenant}
+                  </option>
+                  {bootstrap?.tenants.map((tenant) => (
+                    <option key={tenant.tenantId} value={tenant.tenantId}>
+                      {tenant.name}
+                      {tenant.configured
+                        ? ""
+                        : ` · ${settingsWords.tenant_offline}`}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={14} aria-hidden="true" />
+              </label>
+              <label className="snapshot-control">
+                <span>{shell.snapshot}</span>
+                <select
+                  value={estate?.id ?? ""}
+                  onChange={(event) => void loadSnapshot(event.target.value)}
+                  disabled={
+                    !bootstrap?.snapshots.length ||
+                    loading ||
+                    websites.blocked ||
+                    settingsDirty
+                  }
+                  aria-label={shell.snapshot_picker}
+                >
+                  {bootstrap?.snapshots.map((snapshot) => (
+                    <option key={snapshot.id} value={snapshot.id}>
+                      {fill(shell.snapshot_option, {
+                        date: dayMonthTime(snapshot.createdAt),
+                        count: snapshot.resources,
                       })}
-                      onBack={navigateBack}
-                      onSelectResource={openResource}
-                      onOpenTopology={() =>
-                        openRelationships(selectedResource.id)
-                      }
-                      onOpenFindings={() =>
-                        openResourceFindings(
-                          selectedResource.id,
-                          selectedResource.name,
-                        )
-                      }
-                    />
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={14} aria-hidden="true" />
+              </label>
+              <div className="global-search">
+                <Search size={15} aria-hidden="true" />
+                <input
+                  ref={searchRef}
+                  disabled={settingsDirty}
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    setSearchOpen(Boolean(event.target.value.trim()));
+                    setActiveSearchIndex(0);
+                  }}
+                  onFocus={() => setSearchOpen(Boolean(search.trim()))}
+                  onKeyDown={handleSearchKeyDown}
+                  placeholder={shell.search_placeholder}
+                  aria-label={shell.search_aria}
+                  role="combobox"
+                  aria-autocomplete="list"
+                  aria-expanded={searchOpen && searchMatches.length > 0}
+                  aria-controls="global-resource-results"
+                  aria-activedescendant={
+                    searchOpen && searchMatches.length > 0
+                      ? `global-resource-result-${activeSearchIndex}`
+                      : undefined
+                  }
+                />
+                <kbd>{shortcutLabel}</kbd>
+                {searchOpen && search ? (
+                  <div
+                    className="global-search-results"
+                    id="global-resource-results"
+                    role="listbox"
+                    aria-label={shell.search_results}
+                  >
+                    {searchMatches.map((resource, index) => {
+                      const type = resourceTypeMap.get(resource.azureType);
+                      return (
+                        <button
+                          key={resource.id}
+                          id={`global-resource-result-${index}`}
+                          role="option"
+                          aria-selected={index === activeSearchIndex}
+                          className={index === activeSearchIndex ? "active" : ""}
+                          onMouseDown={(event) => event.preventDefault()}
+                          onClick={() => chooseSearchResult(index)}
+                        >
+                          <img src={resourceIcon(type)} alt="" />
+                          <span>
+                            <strong>{resource.name}</strong>
+                            <small>
+                              {type?.displayName ?? resource.azureType} ·{" "}
+                              {resource.resourceGroup}
+                            </small>
+                          </span>
+                        </button>
+                      );
+                    })}
+                    {searchMatches.length === 0 ? (
+                      <p>{shell.search_no_matches}</p>
+                    ) : null}
                   </div>
                 ) : null}
-              </>
-            ) : null}
-          </main>
+              </div>
+              {!isTauri ? (
+                <em className="preview-badge">{shell.preview_badge}</em>
+              ) : null}
+              <div className="commandbar-actions">
+                <button
+                  className="quiet-button"
+                  disabled={websites.blocked}
+                  onClick={handleDatabase}
+                  title={bootstrap?.databasePath}
+                >
+                  <FolderSearch2 size={15} />
+                  {shell.open_data}
+                </button>
+                <button
+                  className="collect-button"
+                  onClick={() => setCollectionOpen(true)}
+                  aria-haspopup="dialog"
+                  disabled={!bootstrap}
+                  title={
+                    bootstrap?.hasCredentials
+                      ? `${shell.collect_hint} ${websiteWords.collect_note}`
+                      : fill(shell.configure_credentials, {
+                          path: bootstrap?.configPath ?? "azdocs.toml",
+                        })
+                  }
+                >
+                  {collecting || websites.busy ? (
+                    <LoaderCircle className="spin" size={15} />
+                  ) : (
+                    <RefreshCw size={15} />
+                  )}
+                  {collecting
+                    ? shell.collecting
+                    : websites.busy
+                      ? websiteWords.states.running
+                      : shell.collect}
+                </button>
+              </div>
+            </header>
+
+            <main
+              className={
+                view === "topology" ? "workspace workspace-topology" : "workspace"
+              }
+            >
+              {collecting && !collectionOpen && collectionMessage ? (
+                <div className="collection-strip" role="status">
+                  <LoaderCircle className={collecting ? "spin" : ""} size={15} />
+                  <span>{collectionMessage}</span>
+                  <button
+                    className="quiet-button"
+                    onClick={() => setCollectionOpen(true)}
+                  >
+                    {websiteWords.show_collection}
+                  </button>
+                </div>
+              ) : null}
+              {error ? (
+                <ErrorStrip message={error} onDismiss={() => setError(undefined)} />
+              ) : null}
+
+              {navigation.result &&
+              navigation.result.view === view &&
+              !selectedResource ? (
+                <div className="dashboard-result-scope">
+                  <button className="quiet-button" onClick={navigateBack}>
+                    {overviewWords.dashboard.back}
+                  </button>
+                  <span>
+                    {fill(overviewWords.dashboard.filter, {
+                      selection: navigation.result.label,
+                    })}
+                  </span>
+                  <button
+                    className="quiet-button"
+                    onClick={() => dispatchNavigation({ type: "clear-results" })}
+                  >
+                    {overviewWords.dashboard.clear_filter}
+                  </button>
+                </div>
+              ) : null}
+              {loading && !estate ? <LoadingWorkspace /> : null}
+              {!loading && !estate && !error && view !== "settings" ? (
+                <EmptyWorkspace
+                  canCollect={Boolean(bootstrap?.hasCredentials)}
+                  onCollect={() => setCollectionOpen(true)}
+                  onOpen={handleDatabase}
+                  onSetup={() => openSection("settings")}
+                />
+              ) : null}
+              {view === "settings" && bootstrap ? (
+                <SettingsView
+                  bootstrap={bootstrap}
+                  estate={estate}
+                  themePreference={themePreference}
+                  resolvedTheme={resolvedTheme}
+                  onThemeChange={setThemePreference}
+                  onOpenDatabase={handleDatabase}
+                  onConfigChange={applyConfiguration}
+                  onDirtyChange={setSettingsDirty}
+                  onShowShortcuts={() => setShortcutsOpen(true)}
+                  blocked={websites.blocked}
+                />
+              ) : null}
+              {estate && view !== "settings" ? (
+                <>
+                  {view === "overview" && bootstrap && !selectedResource ? (
+                    <OverviewView
+                      bootstrap={bootstrap}
+                      estate={estate}
+                      comparison={comparison}
+                      onOpenResults={openDashboardResults}
+                      onOpenResource={openResource}
+                      onOpenRelationships={openRelationships}
+                      onLoadSnapshot={(id) => void loadSnapshot(id)}
+                      onOpenRegions={() => openSection("regions")}
+                    />
+                  ) : null}
+                  {view === "estate" && !selectedResource ? (
+                    <EstateExplorer
+                      estate={estate}
+                      search={search}
+                      scope={scope}
+                      dashboardFilter={navigation.result?.filter}
+                      onScopeChange={setScope}
+                      onSelectResource={openResource}
+                    />
+                  ) : null}
+                  {view === "topology" ? (
+                    <Suspense fallback={<LoadingWorkspace />}>
+                      <TopologyView
+                        estate={estate}
+                        theme={resolvedTheme}
+                        workspace={navigation.relationships}
+                        active={!selectedResource}
+                        backLabel={
+                          navigation.history.length > 0
+                            ? fill(nav.back_to, {
+                                target: frameLabel(
+                                  navigation.history.at(-1),
+                                  nav,
+                                  estate,
+                                ),
+                              })
+                            : undefined
+                        }
+                        onBack={
+                          navigation.history.length > 0 ? navigateBack : undefined
+                        }
+                        onNavigate={navigateRelationships}
+                        onWorkspaceChange={updateRelationships}
+                        onInspect={openResource}
+                      />
+                    </Suspense>
+                  ) : null}
+                  {view === "regions" && !selectedResource ? (
+                    <RegionsView
+                      estate={estate}
+                      onOpenResults={openDashboardResults}
+                    />
+                  ) : null}
+                  {view === "inventory" && !selectedResource ? (
+                    <InventoryView
+                      estate={estate}
+                      search={search}
+                      dashboardFilter={navigation.result?.filter}
+                    />
+                  ) : null}
+                  {view === "findings" && !selectedResource ? (
+                    <FindingsView
+                      estate={estate}
+                      search={search}
+                      dashboardFilter={navigation.result?.filter}
+                      onOpenResource={openResource}
+                    />
+                  ) : null}
+                  {view === "governance" && bootstrap && !selectedResource ? (
+                    <GovernanceView
+                      estate={estate}
+                      requiredTags={bootstrap.requiredTags}
+                      onOpenFindings={(destination) =>
+                        destination
+                          ? openDashboardResults(destination)
+                          : openSection("findings")
+                      }
+                    />
+                  ) : null}
+                  {view === "history" && bootstrap && !selectedResource ? (
+                    <HistoryView
+                      bootstrap={bootstrap}
+                      estate={estate}
+                      previousComparison={comparison}
+                      onLoadSnapshot={(id) => void loadSnapshot(id)}
+                      dashboardFilter={navigation.result?.filter}
+                      onOpenResource={openResource}
+                    />
+                  ) : null}
+                  {view === "exports" && bootstrap && !selectedResource ? (
+                    <ExportsView estate={estate} />
+                  ) : null}
+                  {selectedResource ? (
+                    <div
+                      className={
+                        view === "topology"
+                          ? "resource-record-overlay"
+                          : "resource-record-surface"
+                      }
+                    >
+                      <ResourceDetailView
+                        resource={selectedResource}
+                        type={resourceTypeMap.get(selectedResource.azureType)}
+                        estate={estate}
+                        backLabel={fill(nav.back_to, {
+                          target: frameLabel(
+                            navigation.history.at(-1),
+                            nav,
+                            estate,
+                          ),
+                        })}
+                        onBack={navigateBack}
+                        onSelectResource={openResource}
+                        onOpenTopology={() =>
+                          openRelationships(selectedResource.id)
+                        }
+                        onOpenFindings={() =>
+                          openResourceFindings(
+                            selectedResource.id,
+                            selectedResource.name,
+                          )
+                        }
+                      />
+                    </div>
+                  ) : null}
+                </>
+              ) : null}
+            </main>
+          </div>
         </div>
 
         <footer className="statusbar" aria-label={shell.status_aria}>
           <span className={`status-dot ${estate?.status ?? "unknown"}`} />
           <span>
             {estate
-              ? fill(shell.status_snapshot, { status: estate.status })
+              ? (estate.status === "warnings" ? snapshotStatusLabel(estate.status) : fill(shell.status_snapshot, { status: estate.status }))
               : shell.status_none}
           </span>
           <span className="status-divider" />
@@ -1035,14 +1071,19 @@ export default function App() {
 function LoadingWorkspace() {
   const { shell } = useLabels().desktop;
   return (
-    <div className="loading-workspace" role="status">
-      <div className="loading-cabinet">
-        <span />
-        <span />
-        <span />
+    <div className="loading-workspace" role="status" aria-live="polite">
+      <div className="skeleton skeleton-head" />
+      <div className="skeleton-row">
+        {[0, 1, 2, 3].map((slot) => (
+          <div key={slot} className="skeleton skeleton-card" />
+        ))}
       </div>
-      <strong>{shell.loading_title}</strong>
-      <p>{shell.loading_detail}</p>
+      <div className="skeleton-panels">
+        <div className="skeleton skeleton-panel" />
+        <div className="skeleton skeleton-panel" />
+      </div>
+      <strong className="sr-only">{shell.loading_title}</strong>
+      <p className="sr-only">{shell.loading_detail}</p>
     </div>
   );
 }
@@ -1061,7 +1102,6 @@ function EmptyWorkspace({
   const { shell, settings } = useLabels().desktop;
   return (
     <div className="empty-workspace">
-      <PanelLeftClose size={38} strokeWidth={1.3} />
       <h1>{shell.empty_title}</h1>
       <p>{shell.empty_detail}</p>
       <div>

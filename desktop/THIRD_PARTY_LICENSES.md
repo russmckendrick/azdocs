@@ -8,6 +8,7 @@ release time; see docs/development/releasing.md.
 
 | Package | Version | Licence | Source |
 |---|---|---|---|
+| @fontsource-variable/inter | 5.3.0 | OFL-1.1 | https://github.com/fontsource/font-files |
 | @tauri-apps/api | 2.11.1 | Apache-2.0 OR MIT | https://github.com/tauri-apps/tauri |
 | @tauri-apps/plugin-dialog | 2.7.2 | MIT OR Apache-2.0 | https://github.com/tauri-apps/plugins-workspace |
 | cytoscape | 3.34.1 | MIT | https://github.com/cytoscape/cytoscape.js |

@@ -1,0 +1,903 @@
+# Azure region catalogue: display name, physical location, geography and
+# coordinates for every region azdocs can place on a map. Generated from
+# Microsoft's Azure regions list and datacenter map; refresh with:
+#   cargo run --example update_azure_locations
+#
+# `source` records where the coordinates came from: "datacenter-map" is
+# Microsoft's published latitude/longitude; "physical-location" is the
+# approximate centre of the city the regions list names, for the
+# restricted-access regions the map omits. Regions without coordinates
+# are not listed here; azure_locations.toml still names them.
+# `availability_zones` and `paired_region` follow the regions list;
+# `open`, `year_opened` and `data_residency` follow the datacenter map.
+
+[[region]]
+name = "australiacentral"
+display_name = "Australia Central"
+physical_location = "Canberra"
+geography = "Australia"
+latitude = -35.2976
+longitude = 149.1013
+source = "datacenter-map"
+availability_zones = false
+open = true
+paired_region = "Australia Central 2"
+year_opened = 2018
+data_residency = "Stored at rest in Australia"
+
+[[region]]
+name = "australiacentral2"
+display_name = "Australia Central 2"
+physical_location = "Canberra"
+geography = "Australia"
+latitude = -35.2809
+longitude = 149.1300
+source = "physical-location"
+availability_zones = false
+open = true
+paired_region = "Australia Central"
+
+[[region]]
+name = "australiaeast"
+display_name = "Australia East"
+physical_location = "New South Wales"
+geography = "Australia"
+latitude = -31.2532
+longitude = 146.9211
+source = "datacenter-map"
+availability_zones = true
+open = true
+paired_region = "Australia Southeast"
+year_opened = 2014
+data_residency = "Stored at rest in Australia"
+
+[[region]]
+name = "australiasoutheast"
+display_name = "Australia Southeast"
+physical_location = "Victoria"
+geography = "Australia"
+latitude = -37.8142
+longitude = 144.9632
+source = "datacenter-map"
+availability_zones = false
+open = true
+paired_region = "Australia East"
+year_opened = 2014
+data_residency = "Stored at rest in Australia"
+
+[[region]]
+name = "austriaeast"
+display_name = "Austria East"
+physical_location = "Vienna"
+geography = "Austria"
+latitude = 48.5998
+longitude = 16.4048
+source = "datacenter-map"
+availability_zones = true
+open = false
+data_residency = "Stored at rest in Austria"
+
+[[region]]
+name = "belgiumcentral"
+display_name = "Belgium Central"
+physical_location = "Brussels"
+geography = "Belgium"
+latitude = 51.3500
+longitude = 5.0600
+source = "datacenter-map"
+availability_zones = true
+open = false
+data_residency = "Stored at rest in Belgium"
+
+[[region]]
+name = "brazilsouth"
+display_name = "Brazil South"
+physical_location = "Sao Paulo State"
+geography = "Brazil"
+latitude = -23.7451
+longitude = -46.6699
+source = "datacenter-map"
+availability_zones = true
+open = true
+paired_region = "South Central US"
+year_opened = 2014
+data_residency = "Replicated to the US"
+
+[[region]]
+name = "brazilsoutheast"
+display_name = "Brazil Southeast"
+physical_location = "Rio"
+geography = "Brazil"
+latitude = -22.9068
+longitude = -43.1729
+source = "physical-location"
+availability_zones = false
+open = true
+paired_region = "Brazil South"
+
+[[region]]
+name = "canadacentral"
+display_name = "Canada Central"
+physical_location = "Toronto"
+geography = "Canada"
+latitude = 43.6535
+longitude = -79.3839
+source = "datacenter-map"
+availability_zones = true
+open = true
+paired_region = "Canada East"
+year_opened = 2016
+data_residency = "Stored at rest in Canada"
+
+[[region]]
+name = "canadaeast"
+display_name = "Canada East"
+physical_location = "Quebec"
+geography = "Canada"
+latitude = 46.8260
+longitude = -71.2352
+source = "datacenter-map"
+availability_zones = false
+open = true
+paired_region = "Canada Central"
+year_opened = 2016
+data_residency = "Stored at rest in Canada"
+
+[[region]]
+name = "centralindia"
+display_name = "Central India"
+physical_location = "Pune"
+geography = "India"
+latitude = 18.5214
+longitude = 75.0545
+source = "datacenter-map"
+availability_zones = true
+open = true
+paired_region = "South India"
+year_opened = 2015
+data_residency = "Stored at rest in India"
+
+[[region]]
+name = "centralus"
+display_name = "Central US"
+physical_location = "Iowa"
+geography = "United States"
+latitude = 41.4510
+longitude = -94.5593
+source = "datacenter-map"
+availability_zones = true
+open = true
+paired_region = "East US 2"
+year_opened = 2014
+data_residency = "Stored at rest in the United States"
+
+[[region]]
+name = "chilecentral"
+display_name = "Chile Central"
+physical_location = "Santiago"
+geography = "Chile"
+latitude = -33.4700
+longitude = -70.8000
+source = "datacenter-map"
+availability_zones = true
+open = false
+data_residency = "Stored at rest in Chile"
+
+[[region]]
+name = "chinaeast"
+display_name = "China East"
+physical_location = "Shanghai"
+geography = "china"
+latitude = 31.2323
+longitude = 121.9692
+source = "datacenter-map"
+availability_zones = false
+open = true
+year_opened = 2014
+data_residency = "A sovereign offering: independent, dedicated network within China"
+
+[[region]]
+name = "chinaeast2"
+display_name = "China East 2"
+physical_location = "Shanghai"
+geography = "china"
+latitude = 30.5702
+longitude = 119.9265
+source = "datacenter-map"
+availability_zones = false
+open = true
+year_opened = 2018
+data_residency = "A sovereign offering: independent, dedicated network within China"
+
+[[region]]
+name = "chinanorth"
+display_name = "China North"
+physical_location = "Beijing"
+geography = "china"
+latitude = 40.5065
+longitude = 116.0912
+source = "datacenter-map"
+availability_zones = false
+open = true
+year_opened = 2014
+data_residency = "A sovereign offering: independent, dedicated network within China"
+
+[[region]]
+name = "chinanorth2"
+display_name = "China North 2"
+physical_location = "Beijing"
+geography = "china"
+latitude = 39.6311
+longitude = 118.3977
+source = "datacenter-map"
+availability_zones = false
+open = true
+year_opened = 2018
+data_residency = "A sovereign offering: independent, dedicated network within China"
+
+[[region]]
+name = "chinanorth3"
+display_name = "China North 3"
+physical_location = "Hebei"
+geography = "china"
+latitude = 42.7106
+longitude = 116.2780
+source = "datacenter-map"
+availability_zones = true
+open = true
+year_opened = 2022
+data_residency = "A sovereign offering: independent, dedicated network within China"
+
+[[region]]
+name = "denmarkeast"
+display_name = "Denmark East"
+physical_location = "Copenhagen"
+geography = "Denmark"
+latitude = 55.6649
+longitude = 12.5808
+source = "datacenter-map"
+availability_zones = true
+open = false
+data_residency = "Stored at rest in Denmark"
+
+[[region]]
+name = "eastasia"
+display_name = "East Asia"
+physical_location = "Hong Kong"
+geography = "Asia Pacific"
+latitude = 22.3964
+longitude = 114.1095
+source = "datacenter-map"
+availability_zones = true
+open = true
+paired_region = "Southeast Asia"
+year_opened = 2010
+data_residency = "Stored at rest in the Asia Pacific region"
+
+[[region]]
+name = "eastus"
+display_name = "East US"
+physical_location = "Virginia"
+geography = "United States"
+latitude = 38.7541
+longitude = -78.1348
+source = "datacenter-map"
+availability_zones = true
+open = true
+paired_region = "West US"
+year_opened = 2014
+data_residency = "Stored at rest in the United States"
+
+[[region]]
+name = "eastus2"
+display_name = "East US 2"
+physical_location = "Virginia"
+geography = "United States"
+latitude = 36.6684
+longitude = -81.1230
+source = "datacenter-map"
+availability_zones = true
+open = true
+paired_region = "Central US"
+year_opened = 2012
+data_residency = "Stored at rest in the United States"
+
+[[region]]
+name = "eastus3"
+display_name = "East US 3"
+physical_location = "Georgia"
+geography = "unitedstates"
+latitude = 32.8405
+longitude = -83.7169
+source = "datacenter-map"
+availability_zones = false
+open = false
+data_residency = "Stored at rest in the United States"
+
+[[region]]
+name = "finlandcentral"
+display_name = "Finland Central"
+physical_location = "Helsinki"
+geography = "finland"
+latitude = 60.1830
+longitude = 24.8748
+source = "datacenter-map"
+availability_zones = false
+open = false
+data_residency = "Stored at rest in Finland"
+
+[[region]]
+name = "francecentral"
+display_name = "France Central"
+physical_location = "Paris"
+geography = "France"
+latitude = 48.8567
+longitude = 2.3515
+source = "datacenter-map"
+availability_zones = true
+open = true
+paired_region = "France South"
+year_opened = 2018
+data_residency = "Stored at rest in France"
+
+[[region]]
+name = "francesouth"
+display_name = "France South"
+physical_location = "Marseille"
+geography = "France"
+latitude = 43.2965
+longitude = 5.3698
+source = "physical-location"
+availability_zones = false
+open = true
+paired_region = "France Central"
+
+[[region]]
+name = "germanynorth"
+display_name = "Germany North"
+physical_location = "Berlin"
+geography = "Germany"
+latitude = 52.5200
+longitude = 13.4050
+source = "physical-location"
+availability_zones = false
+open = true
+paired_region = "Germany West Central"
+
+[[region]]
+name = "germanywestcentral"
+display_name = "Germany West Central"
+physical_location = "Frankfurt"
+geography = "Germany"
+latitude = 50.2106
+longitude = 8.6821
+source = "datacenter-map"
+availability_zones = true
+open = true
+paired_region = "Germany North"
+year_opened = 2019
+data_residency = "Stored at rest in Germany"
+
+[[region]]
+name = "greececentral"
+display_name = "Greece Central"
+physical_location = "Athens"
+geography = "greece"
+latitude = 37.9839
+longitude = 23.7283
+source = "datacenter-map"
+availability_zones = false
+open = false
+data_residency = "Stored at rest in Greece"
+
+[[region]]
+name = "indiasouthcentral"
+display_name = "India South Central"
+physical_location = "Hyderabad"
+geography = "India"
+latitude = 17.3850
+longitude = 78.4867
+source = "physical-location"
+availability_zones = true
+open = true
+paired_region = "Central India"
+
+[[region]]
+name = "indonesiacentral"
+display_name = "Indonesia Central"
+physical_location = "Jakarta"
+geography = "Indonesia"
+latitude = -6.1754
+longitude = 106.8272
+source = "datacenter-map"
+availability_zones = true
+open = false
+data_residency = "Stored at rest in Indonesia"
+
+[[region]]
+name = "israelcentral"
+display_name = "Israel Central"
+physical_location = "Israel"
+geography = "Israel"
+latitude = 31.5313
+longitude = 35.8668
+source = "datacenter-map"
+availability_zones = true
+open = true
+year_opened = 2023
+data_residency = "Stored at rest in Israel"
+
+[[region]]
+name = "italynorth"
+display_name = "Italy North"
+physical_location = "Milan"
+geography = "Italy"
+latitude = 45.2668
+longitude = 9.6905
+source = "datacenter-map"
+availability_zones = true
+open = true
+year_opened = 2023
+data_residency = "Stored at rest in Italy"
+
+[[region]]
+name = "japaneast"
+display_name = "Japan East"
+physical_location = "Tokyo, Saitama"
+geography = "Japan"
+latitude = 37.6828
+longitude = 139.7595
+source = "datacenter-map"
+availability_zones = true
+open = true
+paired_region = "Japan West"
+year_opened = 2014
+data_residency = "Stored at rest in Japan"
+
+[[region]]
+name = "japanwest"
+display_name = "Japan West"
+physical_location = "Osaka"
+geography = "Japan"
+latitude = 34.6199
+longitude = 135.4904
+source = "datacenter-map"
+availability_zones = true
+open = true
+paired_region = "Japan East"
+year_opened = 2014
+data_residency = "Stored at rest in Japan"
+
+[[region]]
+name = "koreacentral"
+display_name = "Korea Central"
+physical_location = "Seoul"
+geography = "Korea"
+latitude = 37.5667
+longitude = 126.9783
+source = "datacenter-map"
+availability_zones = true
+open = true
+paired_region = "Korea South"
+year_opened = 2017
+data_residency = "Stored at rest in Korea"
+
+[[region]]
+name = "koreasouth"
+display_name = "Korea South"
+physical_location = "Busan"
+geography = "Korea"
+latitude = 35.1796
+longitude = 129.0756
+source = "physical-location"
+availability_zones = false
+open = true
+paired_region = "Korea Central"
+
+[[region]]
+name = "malaysiawest"
+display_name = "Malaysia West"
+physical_location = "Kuala Lumpur"
+geography = "Malaysia"
+latitude = 4.5503
+longitude = 101.8093
+source = "datacenter-map"
+availability_zones = true
+open = false
+data_residency = "Stored at rest in Malaysia"
+
+[[region]]
+name = "mexicocentral"
+display_name = "Mexico Central"
+physical_location = "Querétaro State"
+geography = "Mexico"
+latitude = 20.8543
+longitude = -99.8476
+source = "datacenter-map"
+availability_zones = true
+open = false
+data_residency = "Stored at rest in Mexico"
+
+[[region]]
+name = "newzealandnorth"
+display_name = "New Zealand North"
+physical_location = "Auckland"
+geography = "New Zealand"
+latitude = -36.8521
+longitude = 174.7632
+source = "datacenter-map"
+availability_zones = true
+open = false
+data_residency = "Stored at rest in New Zealand"
+
+[[region]]
+name = "northcentralus"
+display_name = "North Central US"
+physical_location = "Illinois"
+geography = "United States"
+latitude = 40.0797
+longitude = -89.4337
+source = "datacenter-map"
+availability_zones = false
+open = true
+paired_region = "South Central US"
+year_opened = 2009
+data_residency = "Stored at rest in the United States"
+
+[[region]]
+name = "northeurope"
+display_name = "North Europe"
+physical_location = "Ireland"
+geography = "Europe"
+latitude = 52.8652
+longitude = -7.9795
+source = "datacenter-map"
+availability_zones = true
+open = true
+paired_region = "West Europe"
+year_opened = 2009
+data_residency = "Stored at rest in Europe"
+
+[[region]]
+name = "norwayeast"
+display_name = "Norway East"
+physical_location = "Norway"
+geography = "Norway"
+latitude = 59.9133
+longitude = 10.7390
+source = "datacenter-map"
+availability_zones = true
+open = true
+paired_region = "Norway West"
+year_opened = 2019
+data_residency = "Stored at rest in Norway"
+
+[[region]]
+name = "norwaywest"
+display_name = "Norway West"
+physical_location = "Norway"
+geography = "Norway"
+latitude = 58.9700
+longitude = 5.7331
+source = "physical-location"
+availability_zones = false
+open = true
+paired_region = "Norway East"
+
+[[region]]
+name = "polandcentral"
+display_name = "Poland Central"
+physical_location = "Warsaw"
+geography = "Poland"
+latitude = 52.2320
+longitude = 21.8067
+source = "datacenter-map"
+availability_zones = true
+open = true
+year_opened = 2023
+data_residency = "Stored at rest in Poland"
+
+[[region]]
+name = "qatarcentral"
+display_name = "Qatar Central"
+physical_location = "Doha"
+geography = "Qatar"
+latitude = 26.2856
+longitude = 51.5264
+source = "datacenter-map"
+availability_zones = true
+open = true
+year_opened = 2022
+data_residency = "Stored at rest in Qatar"
+
+[[region]]
+name = "saudiarabiaeast"
+display_name = "Saudi Arabia East"
+physical_location = "Dammam"
+geography = "saudiarabia"
+latitude = 24.7136
+longitude = 46.6753
+source = "datacenter-map"
+availability_zones = false
+open = false
+data_residency = "Stored at rest in Dammam"
+
+[[region]]
+name = "southafricanorth"
+display_name = "South Africa North"
+physical_location = "Johannesburg"
+geography = "South Africa"
+latitude = -26.2041
+longitude = 28.0473
+source = "datacenter-map"
+availability_zones = true
+open = true
+paired_region = "South Africa West"
+year_opened = 2019
+data_residency = "Stored at rest in South Africa"
+
+[[region]]
+name = "southafricawest"
+display_name = "South Africa West"
+physical_location = "Cape Town"
+geography = "South Africa"
+latitude = -33.9249
+longitude = 18.4241
+source = "physical-location"
+availability_zones = false
+open = true
+paired_region = "South Africa North"
+
+[[region]]
+name = "southcentralindia"
+display_name = "India South Central"
+physical_location = "Hyderabad"
+geography = "india"
+latitude = 17.3400
+longitude = 78.5000
+source = "datacenter-map"
+availability_zones = false
+open = false
+data_residency = "Stored at rest in India"
+
+[[region]]
+name = "southcentralus"
+display_name = "South Central US"
+physical_location = "Texas"
+geography = "United States"
+latitude = 29.5543
+longitude = -96.8774
+source = "datacenter-map"
+availability_zones = true
+open = true
+paired_region = "North Central US"
+year_opened = 2008
+data_residency = "Stored at rest in the United States"
+
+[[region]]
+name = "southeastasia"
+display_name = "Southeast Asia"
+physical_location = "Singapore"
+geography = "Asia Pacific"
+latitude = 1.1300
+longitude = 105.3000
+source = "datacenter-map"
+availability_zones = true
+open = true
+paired_region = "East Asia"
+year_opened = 2010
+data_residency = "Stored at rest in the Asia Pacific region"
+
+[[region]]
+name = "southindia"
+display_name = "South India"
+physical_location = "Chennai"
+geography = "India"
+latitude = 13.0837
+longitude = 80.2702
+source = "datacenter-map"
+availability_zones = false
+open = true
+paired_region = "Central India"
+year_opened = 2015
+data_residency = "Stored at rest in India"
+
+[[region]]
+name = "spaincentral"
+display_name = "Spain Central"
+physical_location = "Madrid"
+geography = "Spain"
+latitude = 40.4167
+longitude = -3.7036
+source = "datacenter-map"
+availability_zones = true
+open = false
+data_residency = "Stored at rest in Spain"
+
+[[region]]
+name = "swedencentral"
+display_name = "Sweden Central"
+physical_location = "Gävle"
+geography = "Sweden"
+latitude = 60.6678
+longitude = 17.1388
+source = "datacenter-map"
+availability_zones = true
+open = true
+paired_region = "Sweden South"
+year_opened = 2021
+data_residency = "Stored at rest in Sweden"
+
+[[region]]
+name = "switzerlandnorth"
+display_name = "Switzerland North"
+physical_location = "Zurich"
+geography = "Switzerland"
+latitude = 47.2744
+longitude = 8.8410
+source = "datacenter-map"
+availability_zones = true
+open = true
+paired_region = "Switzerland West"
+year_opened = 2019
+data_residency = "Stored at rest in Switzerland"
+
+[[region]]
+name = "switzerlandwest"
+display_name = "Switzerland West"
+physical_location = "Geneva"
+geography = "Switzerland"
+latitude = 46.2044
+longitude = 6.1432
+source = "physical-location"
+availability_zones = false
+open = true
+paired_region = "Switzerland North"
+
+[[region]]
+name = "taiwannorth"
+display_name = "Taiwan North"
+physical_location = "Taipei"
+geography = "taiwan"
+latitude = 25.0397
+longitude = 121.4139
+source = "datacenter-map"
+availability_zones = false
+open = false
+data_residency = "Stored at rest in Taiwan"
+
+[[region]]
+name = "uaecentral"
+display_name = "UAE Central"
+physical_location = "Abu Dhabi"
+geography = "UAE"
+latitude = 24.4539
+longitude = 54.3773
+source = "physical-location"
+availability_zones = false
+open = true
+paired_region = "UAE North"
+
+[[region]]
+name = "uaenorth"
+display_name = "UAE North"
+physical_location = "Dubai"
+geography = "UAE"
+latitude = 25.2047
+longitude = 55.2707
+source = "datacenter-map"
+availability_zones = true
+open = true
+paired_region = "UAE Central"
+year_opened = 2019
+data_residency = "Stored at rest in the United Arab Emirates"
+
+[[region]]
+name = "uksouth"
+display_name = "UK South"
+physical_location = "London"
+geography = "United Kingdom"
+latitude = 51.5073
+longitude = -0.1276
+source = "datacenter-map"
+availability_zones = true
+open = true
+paired_region = "UK West"
+year_opened = 2016
+data_residency = "Stored at rest in the United Kingdom"
+
+[[region]]
+name = "ukwest"
+display_name = "UK West"
+physical_location = "Cardiff"
+geography = "United Kingdom"
+latitude = 51.4817
+longitude = -3.1792
+source = "datacenter-map"
+availability_zones = false
+open = true
+paired_region = "UK South"
+year_opened = 2016
+data_residency = "Stored at rest in the United Kingdom"
+
+[[region]]
+name = "westcentralus"
+display_name = "West Central US"
+physical_location = "Wyoming"
+geography = "United States"
+latitude = 43.1700
+longitude = -107.5685
+source = "datacenter-map"
+availability_zones = false
+open = true
+paired_region = "West US 2"
+year_opened = 2016
+data_residency = "Stored at rest in the United States"
+
+[[region]]
+name = "westeurope"
+display_name = "West Europe"
+physical_location = "Netherlands"
+geography = "Europe"
+latitude = 52.5002
+longitude = 7.0481
+source = "datacenter-map"
+availability_zones = true
+open = true
+paired_region = "North Europe"
+year_opened = 2010
+data_residency = "Stored at rest in Europe"
+
+[[region]]
+name = "westindia"
+display_name = "West India"
+physical_location = "Mumbai"
+geography = "India"
+latitude = 19.0760
+longitude = 72.8777
+source = "physical-location"
+availability_zones = false
+open = true
+paired_region = "South India"
+
+[[region]]
+name = "westus"
+display_name = "West US"
+physical_location = "California"
+geography = "United States"
+latitude = 36.7015
+longitude = -118.7560
+source = "datacenter-map"
+availability_zones = false
+open = true
+paired_region = "East US"
+year_opened = 2012
+data_residency = "Stored at rest in the United States"
+
+[[region]]
+name = "westus2"
+display_name = "West US 2"
+physical_location = "Washington"
+geography = "United States"
+latitude = 47.2868
+longitude = -120.2126
+source = "datacenter-map"
+availability_zones = true
+open = true
+paired_region = "West Central US"
+year_opened = 2007
+data_residency = "Stored at rest in the United States"
+
+[[region]]
+name = "westus3"
+display_name = "West US 3"
+physical_location = "Phoenix"
+geography = "United States"
+latitude = 34.3953
+longitude = -111.7633
+source = "datacenter-map"
+availability_zones = true
+open = true
+paired_region = "East US"
+year_opened = 2021
+data_residency = "Stored at rest in the United States"

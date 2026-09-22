@@ -249,7 +249,14 @@ export type TagCoverage = { tagged: number, untagged: number, percent: number, }
 
 export type SeverityCounts = { high: number, medium: number, low: number, info: number, };
 
-export type AzureMetadata = { locations: { [key in string]: string }, kinds: { [key in string]: string }, };
+export type AzureMetadata = { locations: { [key in string]: string }, kinds: { [key in string]: string },
+/**
+ * Regions with published coordinates, for the Overview's locations map;
+ * a location missing here is listed but not plotted.
+ */
+regions: { [key in string]: RegionPoint }, };
+
+export type RegionPoint = { latitude: number, longitude: number, physicalLocation: string, geography: string, availabilityZones: boolean, open: boolean, pairedRegion?: string | null, yearOpened?: number | null, dataResidency?: string | null, };
 
 export type Governance = {
 /**
@@ -453,7 +460,7 @@ export type WebsiteCapture = { url: string, finalUrl?: string | null, capturedAt
 
 export type WebsiteCaptureRequest = { snapshotId: string, urls: Array<string>, retryOnly: boolean, };
 
-export type WebsiteProgress = { completed: number, total: number, url?: string | null, captured: number, failed: number, cancelled: boolean, };
+export type WebsiteProgress = { completed: number, total: number, url?: string | null, captured: number, failed: number, cancelled: boolean, previewImage?: string | null, };
 
 export type WebsiteBatchResult = { captured: number, failed: number, skipped: number, cancelled: boolean, error?: string | null, };
 

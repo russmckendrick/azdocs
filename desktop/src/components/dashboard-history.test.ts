@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { mockBootstrap } from "../mock-data";
 import { resourceHistoryScale } from "./dashboard-model";
-import { HistoryChart } from "./OverviewView";
+import { HistoryChart } from "./HistoryChart";
 
 describe("resource history axis labels", () => {
   it("renders distinct complete integer labels for nearby totals on large estates", () => {

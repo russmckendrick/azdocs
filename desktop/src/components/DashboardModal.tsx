@@ -14,7 +14,7 @@ import type {
   SnapshotComparison,
   SnapshotSummary,
 } from "../types";
-import { fill, plural, resourceName, spaced } from "../format";
+import { snapshotStatusLabel, fill, plural, resourceName, spaced } from "../format";
 import { useLabels } from "../labels";
 import { stableCompare } from "../ordering";
 import {
@@ -276,7 +276,7 @@ export function DashboardModal({
         </div>
         <div>
           <dt>{history.status}</dt>
-          <dd>{snapshot.status}</dd>
+          <dd>{snapshotStatusLabel(snapshot.status)}</dd>
         </div>
         <div>
           <dt>{d.scope}</dt>

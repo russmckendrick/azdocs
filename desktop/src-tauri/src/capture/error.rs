@@ -3,6 +3,8 @@
 pub enum CaptureError {
     #[error("A capture or collection is already running")]
     Busy,
+    #[error("The main window is unavailable for website capture")]
+    MissingWindow,
     #[error("Unsupported website URL")]
     UnsupportedUrl,
     #[error("URL is not a discovered, enabled endpoint")]

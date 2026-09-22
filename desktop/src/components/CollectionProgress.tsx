@@ -7,7 +7,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { elapsedTime, type CollectionFeedback } from "../collection-feedback";
-import { fill } from "../format";
+import { fill, snapshotStatusLabel } from "../format";
 import { useLabels } from "../labels";
 import type { WebsiteProgress } from "../types";
 
@@ -52,13 +52,18 @@ export function ScreenshotProgress({
   const words = useLabels().common.websites;
   return (
     <div className="capture-live-progress">
-      <div className="collection-progress-heading" role="status">
-        <strong>{words.states.running}</strong>
-        <span>
+      <div className="collection-progress-summary">
+        <span role="status">
           {fill(words.count_progress, {
             completed: progress.completed,
             total: progress.total,
           })}
+        </span>
+        <span>
+          {words.failed_count}{" "}
+          <strong data-signal={progress.failed > 0 ? "warning" : undefined}>
+            {progress.failed}
+          </strong>
         </span>
       </div>
       <ProgressBar
@@ -66,27 +71,29 @@ export function ScreenshotProgress({
         total={progress.total}
         label={words.title}
       />
-      <dl className="collection-live-stats">
-        <div>
-          <dt>{words.saved_count}</dt>
-          <dd>{progress.captured}</dd>
-        </div>
-        <div>
-          <dt>{words.failed_count}</dt>
-          <dd data-signal={progress.failed > 0 ? "warning" : undefined}>
-            {progress.failed}
-          </dd>
-        </div>
-        <div>
-          <dt>{words.remaining_count}</dt>
-          <dd>{Math.max(0, progress.total - progress.completed)}</dd>
-        </div>
-      </dl>
       {progress.url ? (
-        <div className="collection-current">
-          <span>{words.current_url}</span>
-          <code>{progress.url}</code>
-        </div>
+        <figure
+          className="capture-inline-preview"
+          aria-label={words.capture_preview}
+        >
+          <figcaption title={progress.url}>
+            <code>{progress.url}</code>
+          </figcaption>
+          <div className="capture-preview-surface">
+            {progress.previewImage ? (
+              <img
+                src={progress.previewImage}
+                alt={progress.url}
+                width={720}
+                height={450}
+              />
+            ) : (
+              <span className="capture-preview-loading" role="status">
+                {words.preview_loading}
+              </span>
+            )}
+          </div>
+        </figure>
       ) : null}
     </div>
   );
@@ -97,7 +104,10 @@ export function CollectionProgress({
 }: {
   feedback: CollectionFeedback;
 }) {
-  const words = useLabels().common.websites;
+  const {
+    common: { websites: words },
+    desktop: { shell },
+  } = useLabels();
   const [now, setNow] = useState(Date.now);
   useEffect(() => {
     setNow(Date.now());
@@ -106,148 +116,121 @@ export function CollectionProgress({
     return () => window.clearInterval(timer);
   }, [feedback.startedAt, feedback.endedAt]);
   const stages = ["inventory", "discovery", "capture"] as const;
-  const failed =
-    feedback.stage === "failed" || feedback.result?.status === "failed";
+  const result = feedback.result;
+  const failed = feedback.stage === "failed" || result?.status === "failed";
   const cancelled =
-    feedback.stage === "cancelled" || feedback.result?.status === "cancelled";
-  const running = feedback.endedAt === undefined;
-  const current =
-    feedback.stage === "complete"
-      ? failed
-        ? 0
-        : 3
-      : stages.indexOf(
-          feedback.stage === "failed" || feedback.stage === "cancelled"
-            ? "inventory"
-            : feedback.stage,
-        );
+    feedback.stage === "cancelled" || result?.status === "cancelled";
+  const running = feedback.endedAt === undefined && !failed && !cancelled;
+  const current = stages.indexOf(feedback.stage as (typeof stages)[number]);
   const titles = {
     inventory: words.stage_inventory,
     discovery: words.stage_discovery,
     capture: words.title,
   };
-  const result = feedback.result;
   const issues =
-    feedback.stage === "failed" ||
+    failed ||
     cancelled ||
-    (result &&
+    Boolean(
+      result &&
       (result.status !== "complete" ||
-        Boolean(
-          result.screenshots?.failed ||
-          result.screenshots?.error ||
-          result.screenshots?.cancelled,
-        )));
+        result.screenshots?.failed ||
+        result.screenshots?.error ||
+        result.screenshots?.cancelled),
+    );
   return (
     <div className="collection-feedback">
       <div className="collection-progress-heading">
-        <strong>
-          {feedback.stage === "complete" ? (
-            <>
-              {issues ? <AlertTriangle size={18} /> : <Check size={18} />}{" "}
-              {words.finished}
-            </>
-          ) : feedback.stage === "failed" ? (
-            <>
-              <AlertTriangle size={18} />
-              {words.failed_count}
-            </>
-          ) : feedback.stage === "cancelled" ? (
-            <>
-              <AlertTriangle size={18} />
-              {words.stage_cancelled}
-            </>
-          ) : (
-            <>
-              <LoaderCircle size={18} className="spin" />
-              {titles[feedback.stage]}
-            </>
-          )}
-        </strong>
-        <span className="collection-elapsed">
-          <Clock3 size={13} />
-          {words.elapsed}{" "}
+        {running ? (
+          <ol className="collection-stages" aria-label={words.stages}>
+            {stages.map((stage, index) => (
+              <li
+                key={stage}
+                className={
+                  index < current ? "done" : index === current ? "current" : ""
+                }
+                aria-current={index === current ? "step" : undefined}
+              >
+                {index < current ? (
+                  <Check size={12} />
+                ) : index === current ? (
+                  <LoaderCircle size={12} className="spin" />
+                ) : (
+                  <Circle size={12} />
+                )}
+                <span>{titles[stage]}</span>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <strong role="status">
+            {issues ? <AlertTriangle size={14} /> : <Check size={14} />}
+            {failed
+              ? words.failed_count
+              : cancelled
+                ? words.stage_cancelled
+                : result?.status === "warnings"
+                  ? snapshotStatusLabel(result.status)
+                  : result?.status === "partial"
+                    ? fill(shell.status_snapshot, { status: result.status })
+                    : words.finished}
+          </strong>
+        )}
+        <span
+          className="collection-elapsed"
+          aria-label={words.elapsed}
+          title={words.elapsed}
+        >
+          <Clock3 size={12} />
           <time>
             {elapsedTime(feedback.startedAt, feedback.endedAt ?? now)}
           </time>
         </span>
       </div>
-      <ol className="collection-stages" aria-label={words.stages}>
-        {stages.map((stage, index) => (
-          <li
-            key={stage}
-            className={
-              index < current
-                ? "done"
-                : index === current && (running || failed)
-                  ? "current"
-                  : ""
-            }
-            aria-current={index === current && running ? "step" : undefined}
-          >
-            {index < current ? (
-              <Check size={14} />
-            ) : index === current && failed ? (
-              <AlertTriangle size={14} />
-            ) : index === current && running ? (
-              <LoaderCircle size={14} className="spin" />
-            ) : (
-              <Circle size={14} />
-            )}
-            <span>{titles[stage]}</span>
-          </li>
-        ))}
-      </ol>
       {feedback.stage === "capture" && feedback.screenshots ? (
         <ScreenshotProgress progress={feedback.screenshots} />
       ) : null}
       {feedback.stage === "inventory" ? (
         <>
-          <div className="collection-progress-heading" role="status">
-            <span>{words.query_progress}</span>
-            <strong>
+          <div className="collection-progress-summary">
+            <span role="status">
               {feedback.queries
                 ? fill(words.count_progress, {
                     completed: feedback.queries.completed,
                     total: feedback.queries.total,
                   })
                 : words.preparing}
-            </strong>
+            </span>
+            <span>
+              {words.rows_count}{" "}
+              <strong>{(feedback.queries?.rows ?? 0).toLocaleString()}</strong>
+            </span>
+            <span>
+              {words.failed_count}{" "}
+              <strong
+                data-signal={feedback.queries?.failed ? "warning" : undefined}
+              >
+                {feedback.queries?.failed ?? 0}
+              </strong>
+            </span>
           </div>
           <ProgressBar
             completed={feedback.queries?.completed}
             total={feedback.queries?.total}
             label={words.query_progress}
           />
-          <dl className="collection-live-stats">
-            <div>
-              <dt>{words.rows_count}</dt>
-              <dd>{(feedback.queries?.rows ?? 0).toLocaleString()}</dd>
-            </div>
-            <div>
-              <dt>{words.failed_count}</dt>
-              <dd
-                data-signal={feedback.queries?.failed ? "warning" : undefined}
-              >
-                {feedback.queries?.failed ?? 0}
-              </dd>
-            </div>
-          </dl>
-          <div className="collection-current">
-            <span>{words.latest_query}</span>
-            <p>{feedback.queries?.latestQuery ?? words.preparing}</p>
-          </div>
+          {feedback.queries?.latestQuery ? (
+            <p
+              className="collection-current-query"
+              title={feedback.queries.latestQuery}
+            >
+              {feedback.queries.latestQuery}
+            </p>
+          ) : null}
         </>
       ) : null}
       {feedback.stage === "discovery" ||
       (feedback.stage === "capture" && !feedback.screenshots) ? (
-        <>
-          <ProgressBar label={titles[feedback.stage]} />
-          <p>
-            {feedback.stage === "discovery"
-              ? words.discovering
-              : words.preparing}
-          </p>
-        </>
+        <ProgressBar label={titles[feedback.stage]} />
       ) : null}
       {result ? (
         <dl className="collection-live-stats completion-stats">
@@ -273,6 +256,11 @@ export function CollectionProgress({
             </dd>
           </div>
         </dl>
+      ) : null}
+      {result?.screenshots?.error ? (
+        <p role="alert">{result.screenshots.error}</p>
+      ) : result?.screenshots?.cancelled ? (
+        <p>{words.cancelled}</p>
       ) : null}
     </div>
   );

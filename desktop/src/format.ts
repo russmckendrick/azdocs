@@ -11,6 +11,10 @@ import { createElement, Fragment, type ReactNode } from "react";
 
 import { labels } from "./labels";
 
+export function snapshotStatusLabel(status: string) {
+  return status === "warnings" ? labels().common.snapshot_warnings : status;
+}
+
 const memo = new Map<string, Intl.DateTimeFormat>();
 
 function formatter(options: Intl.DateTimeFormatOptions) {

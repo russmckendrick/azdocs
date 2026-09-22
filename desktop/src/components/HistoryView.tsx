@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, CircleDashed, GitCompareArrows, Rows3 } from "lucide-react";
 import { compareSnapshots } from "../api";
 import type { AppBootstrap, DashboardFilter, EstateSnapshot, FieldChange, SnapshotComparison } from "../types";
-import { dateTime, dayMonth, errorMessage, fill, plural, resourceName } from "../format";
+import { snapshotStatusLabel, dateTime, dayMonth, errorMessage, fill, plural, resourceName } from "../format";
 import { useLabels } from "../labels";
 import { ShowMore } from "./progressive-list";
 import { useProgressiveList } from "./use-progressive-list";
@@ -112,7 +112,7 @@ export function HistoryView({ bootstrap, estate, previousComparison, onLoadSnaps
               <span className="snapshot-time"><i /><span><strong>{dateTime(snapshot.createdAt)}</strong><small>{snapshot.notes ?? snapshot.id.slice(0, 8)}</small></span></span>
               <span>{fill(words.resources, { count: snapshot.resources })}<small>{fill(words.subscriptions, { count: snapshot.subscriptions })}</small></span>
               <span>{snapshot.findings}<small>{words.audit_signals}</small></span>
-              <span className={`snapshot-status ${snapshot.status}`}>{snapshot.status === "complete" ? <CheckCircle2 size={14} /> : <CircleDashed size={14} />}{snapshot.status}</span>
+              <span className={`snapshot-status ${snapshot.status}`}>{snapshot.status === "complete" ? <CheckCircle2 size={14} /> : <CircleDashed size={14} />}{snapshotStatusLabel(snapshot.status)}</span>
             </button>
           ))}
           {trend.length > 1 ? (
@@ -136,7 +136,7 @@ export function HistoryView({ bootstrap, estate, previousComparison, onLoadSnaps
                     {trend.map((point) => (
                       <tr key={point.snapshotId} className={point.snapshotId === estate.id ? "current" : undefined}>
                         <td>{dateTime(point.createdAt)}</td>
-                        <td>{point.status}</td>
+                        <td>{snapshotStatusLabel(point.status)}</td>
                         <td className="numeric mono-cell">{point.resources}</td>
                         <td className="numeric mono-cell">{point.tagged}</td>
                         <td className="numeric mono-cell">{point.findings}</td>

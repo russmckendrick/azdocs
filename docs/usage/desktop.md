@@ -34,6 +34,7 @@ themes by `pnpm run screenshots` (see [browser preview](#browser-preview)).
 | Overview | [light](assets/desktop-overview-light.png) | [dark](assets/desktop-overview-dark.png) |
 | Estate | [light](assets/desktop-estate-light.png) | [dark](assets/desktop-estate-dark.png) |
 | Map | [light](assets/desktop-map-light.png) | [dark](assets/desktop-map-dark.png) |
+| Regions | [light](assets/desktop-regions-light.png) | [dark](assets/desktop-regions-dark.png) |
 | Inventory | [light](assets/desktop-inventory-light.png) | [dark](assets/desktop-inventory-dark.png) |
 | Findings | [light](assets/desktop-findings-light.png) | [dark](assets/desktop-findings-dark.png) |
 | Governance | [light](assets/desktop-governance-light.png) | [dark](assets/desktop-governance-dark.png) |
@@ -134,6 +135,17 @@ pnpm run tauri build
   and identified as stale with Retry and Revert controls. Relationships remain
   Rust post-pass edges already stored in SQLite; opening this view does not add
   API calls.
+- **Regions** draws every Azure datacentre azdocs knows on one world map and
+  highlights, labels and sizes the regions this snapshot uses; the other
+  datacentres stay as quiet dots. Click any datacentre for its details —
+  location, coordinates, availability zones, paired region, opening year,
+  status and data residency — with **Open resources** for regions in use.
+  Zoom with the corner controls and drag to pan. The table
+  beneath lists each active region with its physical location, geography and
+  share of resources, and a marker or row opens the Estate filtered to that
+  region. Coordinates come from Microsoft's published region data (see
+  [Azure metadata](../development/azure-metadata.md)); a location the
+  catalogue cannot place, such as `global`, is noted under the table.
 - **Findings** orders stored audit evidence by severity and links every
   resource-scoped result back to its resource properties. Tick findings to
   copy their resource ids or save them as a CSV with the same columns as

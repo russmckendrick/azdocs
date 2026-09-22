@@ -1,5 +1,5 @@
 use std::sync::{Arc, Mutex};
-use tauri::WebviewWindow;
+use tauri::Webview;
 use tokio::sync::oneshot;
 
 pub type NavigationError = Arc<Mutex<Option<String>>>;
@@ -15,14 +15,14 @@ mod platform;
 #[path = "linux.rs"]
 mod platform;
 
-pub fn configure(window: &WebviewWindow, error: NavigationError) -> Result<(), String> {
+pub fn configure(window: &Webview, error: NavigationError) -> Result<(), String> {
     let label = window.label().to_owned();
     window
         .with_webview(move |view| platform::configure(view, error, label))
         .map_err(|e| e.to_string())
 }
 
-pub async fn screenshot(window: &WebviewWindow) -> Result<Vec<u8>, String> {
+pub async fn screenshot(window: &Webview) -> Result<Vec<u8>, String> {
     let (tx, rx) = oneshot::channel();
     window
         .with_webview(move |view| platform::screenshot(view, tx))
@@ -35,7 +35,7 @@ pub fn cleanup(label: &str) {
 }
 
 #[cfg(target_os = "macos")]
-pub async fn evaluate(window: &WebviewWindow, js: &str) -> Result<serde_json::Value, String> {
+pub async fn evaluate(window: &Webview, js: &str) -> Result<serde_json::Value, String> {
     let (tx, rx) = oneshot::channel();
     let js = js.to_owned();
     window

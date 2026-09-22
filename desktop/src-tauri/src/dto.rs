@@ -160,6 +160,25 @@ impl From<TrendPoint> for TrendPointDto {
 pub struct AzureMetadataDto {
     pub locations: BTreeMap<String, String>,
     pub kinds: BTreeMap<String, String>,
+    /// Regions with published coordinates, for the Overview's locations map;
+    /// a location missing here is listed but not plotted.
+    pub regions: BTreeMap<String, RegionPointDto>,
+}
+
+/// Where a region sits on the map, from `data/azure_regions.toml`.
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename = "RegionPoint", optional_fields = nullable)]
+pub struct RegionPointDto {
+    pub latitude: f64,
+    pub longitude: f64,
+    pub physical_location: String,
+    pub geography: String,
+    pub availability_zones: bool,
+    pub open: bool,
+    pub paired_region: Option<String>,
+    pub year_opened: Option<u32>,
+    pub data_residency: Option<String>,
 }
 
 impl AzureMetadataDto {
@@ -167,6 +186,25 @@ impl AzureMetadataDto {
         Self {
             locations: azure_values::location_display_names().clone(),
             kinds: azure_values::kind_display_names().clone(),
+            regions: azure_values::region_catalogue()
+                .iter()
+                .map(|(name, region)| {
+                    (
+                        name.clone(),
+                        RegionPointDto {
+                            latitude: region.latitude,
+                            longitude: region.longitude,
+                            physical_location: region.physical_location.clone(),
+                            geography: region.geography.clone(),
+                            availability_zones: region.availability_zones,
+                            open: region.open,
+                            paired_region: region.paired_region.clone(),
+                            year_opened: region.year_opened,
+                            data_residency: region.data_residency.clone(),
+                        },
+                    )
+                })
+                .collect(),
         }
     }
 }
@@ -1152,6 +1190,7 @@ pub struct WebsiteProgress {
     pub captured: usize,
     pub failed: usize,
     pub cancelled: bool,
+    pub preview_image: Option<String>,
 }
 
 #[derive(Debug, Serialize, TS)]

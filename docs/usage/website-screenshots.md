@@ -33,9 +33,11 @@ Downloads, popups, device permission requests and non-HTTP(S) navigation are den
 
 macOS uses WebKit, Windows uses WebView2, and Linux uses WebKitGTK. This does not
 install Chrome or a browser driver. WebView2 uses Chromium as part of Windows'
-native webview runtime. Where a mapped view is needed, a temporary capture window
-may appear without requesting keyboard focus. The view is destroyed after each
-attempt, including cancellation and timeouts.
+native webview runtime. Capture previews appear inside the collection panel,
+without opening another browser window. A fixed-size isolated child view renders
+the original 1440 × 900 image outside the visible workspace and sends image
+previews to the panel. The view is destroyed after each attempt, including
+cancellation and timeouts.
 
 ## Which endpoints are included
 

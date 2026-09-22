@@ -121,7 +121,7 @@ impl Store {
         if reference == "latest" {
             self.require_tenant()?;
             return self.conn.query_row(
-                "SELECT id FROM snapshots WHERE status IN ('complete','partial') AND (?1 IS NULL OR lower(tenant_id) = ?1) ORDER BY created_at DESC, id DESC LIMIT 1",
+                "SELECT id FROM snapshots WHERE status IN ('complete','warnings','partial') AND (?1 IS NULL OR lower(tenant_id) = ?1) ORDER BY created_at DESC, id DESC LIMIT 1",
                 [self.tenant_id.as_deref()], |row| row.get(0),
             ).map_err(|err| match err { rusqlite::Error::QueryReturnedNoRows => StoreError::NoSnapshots, other => other.into() });
         }

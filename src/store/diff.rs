@@ -97,7 +97,7 @@ impl Store {
                     (SELECT COUNT(*) FROM findings WHERE snapshot_id = s.id AND severity = 'info'),
                     (SELECT COUNT(*) FROM edges WHERE snapshot_id = s.id)
              FROM snapshots s
-             WHERE s.status IN ('complete','partial') AND (?1 IS NULL OR lower(s.tenant_id) = ?1)
+             WHERE s.status IN ('complete','warnings','partial') AND (?1 IS NULL OR lower(s.tenant_id) = ?1)
              ORDER BY s.created_at DESC, s.id DESC LIMIT ?2",
         )?;
         let count =

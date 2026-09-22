@@ -80,20 +80,9 @@ pub async fn capture_websites(
     let lease = state.captures.begin()?;
     let path = database_path(&state)?;
     crate::commands::open_store(&state)?.resolve_snapshot(&request.snapshot_id)?;
-    crate::capture::run(
-        &app,
-        &path,
-        request,
-        &lease,
-        &crate::settings::session(&state)?
-            .labels
-            .common
-            .websites
-            .capture_window,
-        |progress| {
-            let _ = on_event.send(progress);
-        },
-    )
+    crate::capture::run(&app, &path, request, &lease, |progress| {
+        let _ = on_event.send(progress);
+    })
     .await
 }
 

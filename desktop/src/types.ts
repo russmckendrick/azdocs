@@ -23,6 +23,7 @@ export type ViewId =
   | "overview"
   | "estate"
   | "topology"
+  | "regions"
   | "inventory"
   | "findings"
   | "governance"

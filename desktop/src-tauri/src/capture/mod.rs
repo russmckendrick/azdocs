@@ -14,7 +14,8 @@ use std::time::Duration;
 
 use azdocs::model::websites::{CaptureStatus, CapturedWebsite, EndpointStatus};
 use azdocs::store::Store;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use base64::Engine as _;
+use tauri::{AppHandle, Manager, Webview, WebviewUrl, webview::WebviewBuilder};
 
 use crate::dto::{WebsiteBatchResult, WebsiteCaptureRequest, WebsiteProgress};
 use crate::error::AppError;
@@ -84,10 +85,15 @@ pub fn allowed_navigation(url: &str) -> bool {
     })
 }
 
-struct CaptureView(WebviewWindow);
+struct CaptureView(Webview);
 impl Drop for CaptureView {
     fn drop(&mut self) {
-        let _ = self.0.destroy();
+        let _ = self.0.close();
+        let label = self.0.label().to_owned();
+        let _ = self
+            .0
+            .app_handle()
+            .run_on_main_thread(move || native::cleanup(&label));
     }
 }
 
@@ -98,7 +104,7 @@ async fn cancelled(flag: &AtomicBool) {
 }
 
 #[cfg(not(target_os = "macos"))]
-async fn evaluate(window: &WebviewWindow, js: &str) -> Result<serde_json::Value, String> {
+async fn evaluate(window: &Webview, js: &str) -> Result<serde_json::Value, String> {
     let (tx, rx) = tokio::sync::oneshot::channel();
     let tx = Mutex::new(Some(tx));
     window
@@ -114,7 +120,7 @@ async fn evaluate(window: &WebviewWindow, js: &str) -> Result<serde_json::Value,
 }
 
 #[cfg(target_os = "macos")]
-async fn evaluate(window: &WebviewWindow, js: &str) -> Result<serde_json::Value, String> {
+async fn evaluate(window: &Webview, js: &str) -> Result<serde_json::Value, String> {
     native::evaluate(window, js).await
 }
 
@@ -122,43 +128,38 @@ async fn capture_page(
     app: &AppHandle,
     label: &str,
     url: &str,
-    title: &str,
+    on_preview: impl Fn(String),
 ) -> Result<CapturedWebsite, String> {
     let parsed = tauri::Url::parse(url).map_err(|e| e.to_string())?;
     if !allowed_navigation(url) {
         return Err(CaptureError::UnsupportedUrl.to_string());
     }
     // Start blank so native policies are installed before any remote code runs.
-    let window = WebviewWindowBuilder::new(
-        app,
+    let builder = WebviewBuilder::new(
         label,
         WebviewUrl::External(tauri::Url::parse("about:blank").map_err(|e| e.to_string())?),
     )
-    .title(title)
-    .inner_size(1440.0, 900.0)
-    .resizable(false)
     .focused(false)
-    .visible(false)
-    .skip_taskbar(true)
     .incognito(true)
     .on_navigation(|url| allowed_navigation(url.as_str()))
     .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny)
     .on_download(|_, _| false)
-    .initialization_script_for_all_frames(include_str!("isolation.js"))
-    .build()
-    .map_err(|e| e.to_string())?;
-    let cleanup_label = label.to_owned();
-    window.on_window_event(move |event| {
-        if matches!(event, tauri::WindowEvent::Destroyed) {
-            native::cleanup(&cleanup_label);
-        }
-    });
+    .initialization_script_for_all_frames(include_str!("isolation.js"));
+    // Keep the capture viewport fixed for report evidence. A mapped child outside
+    // the visible workspace paints without opening or focusing another window;
+    // the collection panel receives image previews, never remote page scripts.
+    let window = app
+        .get_window("main")
+        .ok_or_else(|| CaptureError::MissingWindow.to_string())?
+        .add_child(
+            builder,
+            tauri::LogicalPosition::new(-1440.0, 0.0),
+            tauri::LogicalSize::new(1440.0, 900.0),
+        )
+        .map_err(|e| e.to_string())?;
     let view = CaptureView(window);
     let error = Arc::new(Mutex::new(None));
     native::configure(&view.0, Arc::clone(&error))?;
-    // WebView2/WebKitGTK need a mapped view; never request keyboard focus.
-    #[cfg(any(target_os = "windows", target_os = "linux"))]
-    view.0.show().map_err(|e| e.to_string())?;
     view.0.navigate(parsed).map_err(|e| e.to_string())?;
     loop {
         if let Some(error) = error.lock().map_err(|e| e.to_string())?.clone() {
@@ -170,12 +171,21 @@ async fn capture_page(
         }
         tokio::time::sleep(Duration::from_millis(200)).await;
     }
+    if let Ok(Ok(bytes)) =
+        tokio::time::timeout(Duration::from_millis(750), native::screenshot(&view.0)).await
+        && let Ok(preview) = preview_image(&bytes)
+    {
+        on_preview(preview);
+    }
     tokio::time::sleep(Duration::from_secs(2)).await;
     if let Some(error) = error.lock().map_err(|e| e.to_string())?.clone() {
         return Err(error);
     }
     let final_url = view.0.url().map_err(|e| e.to_string())?.to_string();
     let bytes = native::screenshot(&view.0).await?;
+    if let Ok(preview) = preview_image(&bytes) {
+        on_preview(preview);
+    }
     let image = image::load_from_memory(&bytes).map_err(|e| e.to_string())?;
     if image.width() == 0 || image.height() == 0 {
         return Err(CaptureError::EmptyImage.to_string());
@@ -193,12 +203,24 @@ async fn capture_page(
     })
 }
 
+fn preview_image(bytes: &[u8]) -> Result<String, String> {
+    let image = image::load_from_memory(bytes).map_err(|e| e.to_string())?;
+    let image = image.thumbnail(720, 450).to_rgb8();
+    let mut jpeg = Cursor::new(Vec::new());
+    image
+        .write_to(&mut jpeg, image::ImageFormat::Jpeg)
+        .map_err(|e| e.to_string())?;
+    Ok(format!(
+        "data:image/jpeg;base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(jpeg.into_inner())
+    ))
+}
+
 pub async fn run(
     app: &AppHandle,
     path: &Path,
     request: WebsiteCaptureRequest,
     lease: &BatchLease<'_>,
-    title: &str,
     on_progress: impl Fn(WebsiteProgress),
 ) -> Result<WebsiteBatchResult, AppError> {
     let (snapshot, urls, skipped) = {
@@ -255,6 +277,7 @@ pub async fn run(
             captured: result.captured,
             failed: result.failed,
             cancelled: false,
+            preview_image: None,
         });
         // Destruction is asynchronous in Tauri. Unique identities also keep late
         // native callbacks from a cancelled page separate from the next page.
@@ -265,12 +288,20 @@ pub async fn run(
         );
         let outcome = tokio::select! {
             _ = cancelled(&lease.cancel) => { result.cancelled=true; Err(CaptureError::Cancelled.to_string()) }
-            outcome = tokio::time::timeout(Duration::from_secs(30),capture_page(app,&label,url,title)) => outcome.unwrap_or_else(|_| Err(CaptureError::Timeout.to_string())),
+            outcome = tokio::time::timeout(Duration::from_secs(30),capture_page(app,&label,url, |preview| on_progress(WebsiteProgress {
+                completed: index,
+                total: urls.len(),
+                url: Some(url.clone()),
+                captured: result.captured,
+                failed: result.failed,
+                cancelled: false,
+                preview_image: Some(preview),
+            }))) => outcome.unwrap_or_else(|_| Err(CaptureError::Timeout.to_string())),
         };
         // CaptureView's drop queues destruction even when timeout/select drops
         // the future. Wait for the manager to remove it before the next URL.
         let cleanup = tokio::time::timeout(Duration::from_secs(5), async {
-            while app.get_webview_window(&label).is_some() {
+            while app.get_webview(&label).is_some() {
                 tokio::time::sleep(Duration::from_millis(25)).await;
             }
         })
@@ -312,6 +343,7 @@ pub async fn run(
         captured: result.captured,
         failed: result.failed,
         cancelled: result.cancelled,
+        preview_image: None,
     });
     Ok(result)
 }

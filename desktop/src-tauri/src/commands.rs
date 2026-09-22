@@ -622,20 +622,9 @@ pub async fn collect_snapshot(
             };
             let discovery_error = summary.screenshots.take().and_then(|s| s.error);
             summary.screenshots = Some(
-                match crate::capture::run(
-                    &app,
-                    &capture_path,
-                    request,
-                    &lease,
-                    &crate::settings::session(&state)?
-                        .labels
-                        .common
-                        .websites
-                        .capture_window,
-                    |progress| {
-                        let _ = capture_channel.send(CollectionEvent::Screenshots { progress });
-                    },
-                )
+                match crate::capture::run(&app, &capture_path, request, &lease, |progress| {
+                    let _ = capture_channel.send(CollectionEvent::Screenshots { progress });
+                })
                 .await
                 {
                     Ok(mut result) => {

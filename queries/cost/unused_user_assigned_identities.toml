@@ -8,13 +8,15 @@ kql = '''
 resources
 | where type == "microsoft.managedidentity/userassignedidentities"
 | project id, name, resourceGroup, subscriptionId, identityId = tolower(id)
-| join kind=leftanti (
+| join kind=leftouter (
     resources
     | where isnotempty(identity.userAssignedIdentities)
     | mv-expand bagexpansion=array uai = identity.userAssignedIdentities
     | project identityId = tolower(tostring(uai[0]))
     | distinct identityId
+    | extend referenced = true
 ) on identityId
+| where isnull(referenced)
 | project id, name, resourceGroup, subscriptionId,
           summary = strcat(name, " is assigned to no resource")
 | order by id asc

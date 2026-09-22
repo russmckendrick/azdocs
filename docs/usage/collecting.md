@@ -83,11 +83,12 @@ the scope's ARM id and appear as estate-level findings in reports.
 | Status | Meaning |
 |---|---|
 | `complete` | Every query succeeded |
-| `partial` | Some queries failed; the rest of the data is usable |
+| `warnings` | Inventory collected, but one or more finding checks failed; their evidence is unavailable |
+| `partial` | An inventory query failed or inventory rows could not be ingested; the rest of the data is usable |
 | `failed` | Everything failed, or the collect was abandoned and reconciled on a later open |
 | `cancelled` | Stopped on request (Ctrl-C, or the desktop's Cancel) before every query ran; what finished is kept |
 
-Only `complete` and `partial` snapshots resolve as `latest`. Per-query results
+`complete`, `warnings` and `partial` snapshots resolve as `latest`. Per-query results
 (row counts, rows ingest could not shape, durations, errors) are recorded —
 inspect with `azdocs snapshots show <id>`. `--fail-on` decides which outcome
 makes the command exit non-zero; see the [CLI reference](cli.md#exit-codes).
@@ -98,6 +99,11 @@ Resource Graph allows short bursts, then throttles. azdocs paces itself from
 the quota headers ARG returns and honours `Retry-After` on 429s, so
 `ARG throttled (429); backing off` warnings during collect are normal — the
 throttled query fails if it exhausts its retries. Other query errors can also
-produce a partial snapshot; if every selected query fails, the snapshot is failed.
+produce warnings or a partial snapshot according to the missing evidence; if every selected query fails, the snapshot is failed.
+
+Finding failures are never interpreted as passed checks. Their errors and exact
+queries remain in collection coverage and snapshot details. `--fail-on partial`
+retains strict behaviour and exits non-zero for warnings too. Existing snapshots
+keep the status recorded when they were collected.
 
 Next: [Reports](reports.md)

@@ -20,7 +20,7 @@ export type Severity = "high" | "medium" | "low" | "info";
  * `SnapshotStatus::as_str` fall out of step.
  */
 export type SnapshotStatus =
-  "running" | "complete" | "partial" | "failed" | "cancelled";
+  "running" | "complete" | "warnings" | "partial" | "failed" | "cancelled";
 
 /** `QueryKind` in src/querypack/mod.rs. */
 export type QueryKind = "inventory" | "finding";

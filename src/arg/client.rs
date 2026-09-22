@@ -250,9 +250,24 @@ fn summarize_api_error(body: &str) -> String {
     struct ErrorDetail {
         code: String,
         message: String,
+        #[serde(default)]
+        details: Vec<ErrorDetail>,
+    }
+    fn describe(error: &ErrorDetail, messages: &mut Vec<String>) {
+        if messages.len() >= 8 {
+            return;
+        }
+        messages.push(format!("{}: {}", error.code, error.message));
+        for detail in &error.details {
+            describe(detail, messages);
+        }
     }
     match serde_json::from_str::<ErrorBody>(body) {
-        Ok(parsed) => format!("{}: {}", parsed.error.code, parsed.error.message),
+        Ok(parsed) => {
+            let mut messages = Vec::new();
+            describe(&parsed.error, &mut messages);
+            messages.join("; ")
+        }
         Err(_) => body.chars().take(300).collect(),
     }
 }
@@ -260,6 +275,15 @@ fn summarize_api_error(body: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn unit_summarize_api_error_preserves_nested_query_diagnostics() {
+        let body = r#"{"error":{"code":"BadRequest","message":"Supply correlation ID","details":[{"code":"InvalidQuery","message":"Query is invalid","details":[{"code":"UnsupportedJoin","message":"leftanti is not supported"}]}]}}"#;
+        assert_eq!(
+            summarize_api_error(body),
+            "BadRequest: Supply correlation ID; InvalidQuery: Query is invalid; UnsupportedJoin: leftanti is not supported"
+        );
+    }
 
     #[test]
     fn summarize_api_error_extracts_code_and_message() {
