@@ -10,6 +10,38 @@ are cut from the Unreleased section at tag time; see
 
 Nothing yet.
 
+## [0.3.0] - 2026-09-22
+
+### Added
+
+- Regions explorer with an interactive world map, Azure region metadata,
+  resource counts, zoom controls and region details.
+- Overview resource-history chart with selectable snapshots, clearer date
+  labels and markers that remain usable when collections are close together.
+- Collection `warnings` status for complete inventory with failed finding
+  checks. These snapshots remain available through `latest` and history;
+  missing audit evidence remains recorded, and `--fail-on partial` still
+  returns a non-zero exit code for warnings.
+- Inline website capture previews in the collection panel, using an isolated
+  native child webview without opening another window.
+
+### Changed
+
+- Desktop layout with a navy navigation frame, denser data views, Inter
+  typography, restrained selection fills and consistent light/dark tokens.
+- Overview and Regions share the world-map backdrop; Overview keeps a static
+  summary while Regions provides the interactive exploration controls.
+- Collection progress groups inventory, endpoint discovery and screenshots,
+  with compact permission results and expandable collection options.
+- Dependabot groups updates and limits concurrent routine pull requests.
+
+### Fixed
+
+- Region map clicks select the nearest marker when hit areas overlap.
+- The unused managed identity check uses an Azure Resource Graph-supported
+  join, and nested API errors retain the underlying query diagnostics.
+- Dropped inventory rows mark a collection partial instead of complete.
+
 ## [0.2.0] - 2026-09-19
 
 ### Added
@@ -71,7 +103,8 @@ Softer Azure desktop theme and clearer Settings surfaces. See
 First public release: CLI, TUI and desktop explorer. See
 [docs/releases/0.1.0.md](docs/releases/0.1.0.md).
 
-[Unreleased]: https://github.com/russmckendrick/azdocs/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/russmckendrick/azdocs/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/russmckendrick/azdocs/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/russmckendrick/azdocs/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/russmckendrick/azdocs/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/russmckendrick/azdocs/releases/tag/v0.1.0

@@ -78,7 +78,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     store.save_website_inventory(&snapshot.id, &endpoints, &[])?;
     drop(store);
     let mut context = tauri::generate_context!();
-    context.config_mut().app.windows.clear();
+    context.config_mut().app.windows.truncate(1);
+    context.config_mut().app.windows[0].url = tauri::WebviewUrl::External("about:blank".parse()?);
     let control = Arc::new(CaptureControl::default());
     let app = tauri::Builder::default().setup(move |app| {
         let app=app.handle().clone();
@@ -86,7 +87,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let run = async {
                 let lease=control.begin().map_err(|e|e.to_string())?;
                 let request=WebsiteCaptureRequest {snapshot_id:snapshot.id.clone(),urls:vec![],retry_only:false};
-                let result=capture::run(&app,&path,request,&lease,"azdocs screenshot smoke test",|p|println!("{p:?}")).await.map_err(|e|e.to_string())?;
+                let result=capture::run(&app,&path,request,&lease,|p| { assert_eq!(app.windows().len(), 1, "Capture opened a popup"); println!("Capture {}/{} preview={}",p.completed,p.total,p.preview_image.is_some()); }).await.map_err(|e|e.to_string())?;
                 let store=Store::open(&path).map_err(|e|e.to_string())?;
                 for (i,c) in store.website_captures(&snapshot.id,true).map_err(|e|e.to_string())?.iter().enumerate() {
                     if !c.png.is_empty() {
@@ -96,13 +97,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!("{} {:?} final={:?} error={:?}",c.url,c.status,c.final_url,c.error);
                 }
                 if result.captured!=3 || result.failed!=1 { return Err(format!("Unexpected batch result: {result:?}")); }
-                if app.webview_windows().keys().any(|label| label.starts_with("website-capture-")) { return Err("Capture window leaked".into()); }
+                if app.webviews().keys().any(|label| label.starts_with("website-capture-")) { return Err("Capture window leaked".into()); }
                 drop(lease);
                 let lease = control.begin().map_err(|e|e.to_string())?;
                 let cancel_control = Arc::clone(&control);
                 tauri::async_runtime::spawn(async move { tokio::time::sleep(std::time::Duration::from_millis(700)).await; cancel_control.cancel(); });
-                let result = capture::run(&app, &path, WebsiteCaptureRequest { snapshot_id: snapshot.id.clone(), urls: vec![format!("{base}/never")], retry_only: false }, &lease, "azdocs screenshot cancellation test", |_| {}).await.map_err(|e|e.to_string())?;
-                if !result.cancelled || app.webview_windows().keys().any(|label| label.starts_with("website-capture-")) { return Err("Cancellation leaked a capture window".into()); }
+                let result = capture::run(&app, &path, WebsiteCaptureRequest { snapshot_id: snapshot.id.clone(), urls: vec![format!("{base}/never")], retry_only: false }, &lease, |_| {}).await.map_err(|e|e.to_string())?;
+                if !result.cancelled || app.webviews().keys().any(|label| label.starts_with("website-capture-")) { return Err("Cancellation leaked a capture window".into()); }
                 println!("Native capture smoke test passed. Output: {}",output.display());
                 Ok::<(),String>(())
             }.await;

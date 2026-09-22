@@ -137,6 +137,21 @@ mod tests {
     }
 
     #[test]
+    fn unit_builtin_queries_use_only_arg_supported_join_flavours() {
+        let pack = QueryPack::builtin().unwrap();
+        for query in pack.all() {
+            for clause in query.kql.split("join kind=").skip(1) {
+                let flavour = clause.split_whitespace().next().unwrap();
+                assert!(
+                    matches!(flavour, "innerunique" | "inner" | "leftouter" | "fullouter"),
+                    "{} uses unsupported ARG join {flavour}",
+                    query.name
+                );
+            }
+        }
+    }
+
+    #[test]
     fn merge_dir_overrides_builtin_by_name() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(

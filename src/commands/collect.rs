@@ -205,6 +205,10 @@ pub async fn run(
         )
     );
     match summary.status {
+        SnapshotStatus::Warnings => println!(
+            "{}",
+            fill(&words.warnings_hint, &[("id", &summary.snapshot_id)])
+        ),
         SnapshotStatus::Partial => println!(
             "{}",
             fill(&words.partial_hint, &[("id", &summary.snapshot_id)])

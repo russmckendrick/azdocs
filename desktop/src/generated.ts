@@ -460,7 +460,7 @@ export type WebsiteCapture = { url: string, finalUrl?: string | null, capturedAt
 
 export type WebsiteCaptureRequest = { snapshotId: string, urls: Array<string>, retryOnly: boolean, };
 
-export type WebsiteProgress = { completed: number, total: number, url?: string | null, captured: number, failed: number, cancelled: boolean, };
+export type WebsiteProgress = { completed: number, total: number, url?: string | null, captured: number, failed: number, cancelled: boolean, previewImage?: string | null, };
 
 export type WebsiteBatchResult = { captured: number, failed: number, skipped: number, cancelled: boolean, error?: string | null, };
 

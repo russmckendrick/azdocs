@@ -49,6 +49,7 @@ pub struct MetaLabels {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CommonLabels {
+    pub snapshot_warnings: String,
     pub access: AccessLabels,
     pub websites: WebsiteLabels,
     pub subscription_scope: String,
@@ -472,6 +473,7 @@ pub struct CollectLabels {
     pub collecting: String,
     pub snapshot_written: String,
     pub partial_hint: String,
+    pub warnings_hint: String,
     pub failed_hint: String,
     pub cancelled_hint: String,
     pub no_subscriptions: String,
@@ -933,6 +935,8 @@ pub struct DesktopDashboardLabels {
     pub history: String,
     pub history_note: String,
     pub history_empty: String,
+    pub history_snapshots: Plural,
+    pub history_incomplete: String,
     pub history_range: String,
     pub range_month: String,
     pub range_quarter: String,
@@ -1229,6 +1233,7 @@ pub struct DesktopShellLabels {
     pub preparing_collection: String,
     pub snapshot_stored: String,
     pub collected: String,
+    pub collected_warnings: String,
     pub collection_cancelled: String,
     pub cancel_collection: String,
     pub source_note: String,
@@ -1669,6 +1674,8 @@ pub struct WebsiteLabels {
     pub cancelled: String,
     pub discovering: String,
     pub capture_window: String,
+    pub capture_preview: String,
+    pub preview_loading: String,
     pub captured_at: String,
     pub attempted_at: String,
     pub final_url: String,

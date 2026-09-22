@@ -8,7 +8,8 @@ import type { DashboardDestination, EstateSnapshot, RegionPoint } from "../types
 import { EmptyState, ViewHeading } from "./view-chrome";
 import { MapControls } from "./MapControls";
 import { applyCamera, useMapCamera } from "./use-map-camera";
-import { LAND_PATH, MAP_HEIGHT, MAP_WIDTH, project } from "./world-map";
+import { MAP_HEIGHT, MAP_WIDTH, project } from "./world-map";
+import { WorldMapBackdrop } from "./WorldMapBackdrop";
 
 /** A catalogued Azure region placed on the page's map, in pixels. */
 interface RegionMark {
@@ -41,9 +42,9 @@ interface Box {
   h: number;
 }
 
-const LABEL_HEIGHT = 14;
-const LABEL_GAP = 6;
-const CHAR_WIDTH = 6.3;
+const LABEL_HEIGHT = 16;
+const LABEL_GAP = 8;
+const CHAR_WIDTH = 6.9;
 /** Every active region is the same small marker; the count is in its label. */
 const MARK_RADIUS = 4;
 /** A click within this many pixels of a marker centre selects it. */
@@ -58,7 +59,6 @@ type Side = "right" | "right-below" | "right-above" | "left" | "left-below" | "l
 interface Placement {
   mark: RegionMark;
   count: string;
-  text: string;
   box: Box;
   side: Side;
   /** Where a leader line meets the label; only drawn off the default side. */
@@ -120,7 +120,7 @@ function placeLabels(marks: RegionMark[], width: number, height: number): Placem
         : side === "below"
           ? [box.x + box.w / 2, box.y]
           : [box.x + box.w / 2, box.y + h];
-    return { mark, count, text, box, side, anchor };
+    return { mark, count, box, side, anchor };
   });
 }
 
@@ -381,7 +381,7 @@ export function RegionsView({
             {...pointerHandlers}
           >
             <g transform={`translate(${camera.tx} ${camera.ty}) scale(${camera.k * scale})`}>
-              <path className="regions-map-land" d={LAND_PATH} fillRule="evenodd" />
+              <WorldMapBackdrop />
             </g>
             {viewedQuiet.map((region) => (
               <g
@@ -405,7 +405,7 @@ export function RegionsView({
                 <circle className="regions-mark-quiet" cx={region.x} cy={region.y} r={3} />
               </g>
             ))}
-            {labels.map(({ mark, count, text, box, side, anchor }) => {
+            {labels.map(({ mark, count, box, side, anchor }) => {
               const [edgeX, edgeY] = edgeTowards(mark, anchor);
               const detail: RegionDetail = {
                 key: mark.name.toLowerCase(),
@@ -443,9 +443,11 @@ export function RegionsView({
                   ) : null}
                   <circle className="regions-mark-target" cx={mark.x} cy={mark.y} r={mark.radius + 2} />
                   <circle className="map-pulse" cx={mark.x} cy={mark.y} r={mark.radius} />
+                  <circle className="map-marker-ring" cx={mark.x} cy={mark.y} r={mark.radius + 4} />
                   <circle className="regions-mark-active" cx={mark.x} cy={mark.y} r={mark.radius} />
                   <text className="regions-label" x={box.x} y={box.y + LABEL_HEIGHT - 3}>
-                    {text}
+                    {mark.label}
+                    <tspan className="regions-label-count">{` · ${count}`}</tspan>
                   </text>
                 </g>
               );

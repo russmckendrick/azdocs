@@ -1,4 +1,4 @@
-import { AlertTriangle, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ChevronRight, ShieldCheck } from "lucide-react";
 import type { ConnectionCheck } from "../types";
 import { useLabels } from "../labels";
 import { dayMonthTime, fill } from "../format";
@@ -6,9 +6,11 @@ import { dayMonthTime, fill } from "../format";
 export function PermissionStatus({
   check,
   expanded = false,
+  compact = false,
 }: {
   check: ConnectionCheck;
   expanded?: boolean;
+  compact?: boolean;
 }) {
   const {
     common: { access },
@@ -17,22 +19,21 @@ export function PermissionStatus({
     },
   } = useLabels();
   const safe = check.verdict === "read_only";
-  return (
-    <section
-      className={`permission-status ${safe ? "permission-good" : "permission-warning"}`}
-      aria-label={access.title}
-    >
-      <div className="permission-heading">
-        {safe ? (
-          <ShieldCheck size={19} aria-hidden="true" />
-        ) : (
-          <AlertTriangle size={19} aria-hidden="true" />
-        )}
-        <strong>{access.verdicts[check.verdict]}</strong>
-        <span>
-          {fill(access.checked, { time: dayMonthTime(check.checkedAt) })}
-        </span>
-      </div>
+  const heading = (
+    <>
+      {safe ? (
+        <ShieldCheck size={19} aria-hidden="true" />
+      ) : (
+        <AlertTriangle size={19} aria-hidden="true" />
+      )}
+      <strong>{access.verdicts[check.verdict]}</strong>
+      <span>
+        {fill(access.checked, { time: dayMonthTime(check.checkedAt) })}
+      </span>
+    </>
+  );
+  const content = (
+    <>
       <p>{access.detail}</p>
       {check.issues.length > 0 && (
         <ul>
@@ -85,6 +86,32 @@ export function PermissionStatus({
           <p>{words.no_subscriptions}</p>
         )}
       </details>
+    </>
+  );
+  const className = `permission-status ${safe ? "permission-good" : "permission-warning"}`;
+  if (compact) {
+    return (
+      <details
+        className={`${className} permission-compact`}
+        open={!safe || check.issues.length > 0}
+        aria-label={access.title}
+      >
+        <summary className="permission-heading">
+          <ChevronRight
+            size={12}
+            className="permission-disclosure"
+            aria-hidden="true"
+          />
+          {heading}
+        </summary>
+        {content}
+      </details>
+    );
+  }
+  return (
+    <section className={className} aria-label={access.title}>
+      <div className="permission-heading">{heading}</div>
+      {content}
     </section>
   );
 }

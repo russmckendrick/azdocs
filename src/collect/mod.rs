@@ -14,7 +14,7 @@ use tokio::task::JoinSet;
 use crate::arg::ArgClient;
 use crate::auth::TokenProvider;
 use crate::model::{QueryRun, SnapshotStatus};
-use crate::querypack::QueryDef;
+use crate::querypack::{QueryDef, QueryKind};
 use crate::store::Store;
 
 /// Outcome of a collect run.
@@ -64,8 +64,8 @@ pub struct CollectRequest {
 }
 
 /// Runs the selected queries concurrently (bounded by `concurrency`), ingesting
-/// each result into the store as it arrives. Individual query failures mark the
-/// snapshot `partial` rather than aborting the run.
+/// each result into the store as it arrives. Finding-check failures are warnings;
+/// missing inventory keeps the snapshot partial. All outcomes remain recorded.
 pub async fn run<P: TokenProvider + 'static>(
     store: &Store,
     client: Arc<ArgClient<P>>,
@@ -156,6 +156,7 @@ pub async fn run_with_progress<P: TokenProvider + 'static>(
     });
     let mut completed = 0;
     let mut queries_failed = 0;
+    let mut inventory_incomplete = false;
     let mut rows_ingested: u64 = 0;
     let mut heartbeat = tokio::time::interval(HEARTBEAT_INTERVAL);
     heartbeat.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
@@ -180,6 +181,8 @@ pub async fn run_with_progress<P: TokenProvider + 'static>(
                 let count = data.rows.len() as u64;
                 match ingest::ingest(store, &snapshot.id, &def, &data.rows) {
                     Ok(outcome) => {
+                        inventory_incomplete |=
+                            def.kind == QueryKind::Inventory && outcome.rows_dropped > 0;
                         rows_ingested += count - outcome.rows_dropped;
                         progress.set_message(format!("{} ({count} rows)", def.name));
                         QueryRun {
@@ -206,6 +209,9 @@ pub async fn run_with_progress<P: TokenProvider + 'static>(
                 query_failure(&def, duration_ms, err)
             }
         };
+        if run_record.error.is_some() && def.kind == QueryKind::Inventory {
+            inventory_incomplete = true;
+        }
         // Record even failed queries: absence of rows does not erase what was attempted.
         run_record.provenance = Some(def.provenance(&subscriptions));
         store.record_query_run(&snapshot.id, &run_record)?;
@@ -257,12 +263,14 @@ pub async fn run_with_progress<P: TokenProvider + 'static>(
         "post-pass complete"
     );
 
-    let status = if queries_failed == 0 {
-        SnapshotStatus::Complete
-    } else if queries_failed < total {
-        SnapshotStatus::Partial
-    } else {
+    let status = if total > 0 && queries_failed == total {
         SnapshotStatus::Failed
+    } else if inventory_incomplete {
+        SnapshotStatus::Partial
+    } else if queries_failed > 0 {
+        SnapshotStatus::Warnings
+    } else {
+        SnapshotStatus::Complete
     };
     store.set_snapshot_status(&snapshot.id, status)?;
 

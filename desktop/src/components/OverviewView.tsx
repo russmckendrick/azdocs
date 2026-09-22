@@ -1,7 +1,5 @@
 import {
-  useEffect,
   useMemo,
-  useRef,
   useState,
   type CSSProperties,
   type ReactNode,
@@ -22,9 +20,9 @@ import type {
   DashboardFilter,
   EstateSnapshot,
   SnapshotComparison,
-  SnapshotSummary,
 } from "../types";
 import {
+  snapshotStatusLabel,
   capitalise,
   dayMonth,
   dateTime,
@@ -40,11 +38,12 @@ import {
   dashboardData,
   dashboardHistory,
   queryCoverage,
-  resourceHistoryScale,
 } from "./dashboard-model";
 import { useDashboardNumber } from "./dashboard-motion";
 import { DashboardModal, type DashboardSelection } from "./DashboardModal";
-import { LAND_PATH, MAP_HEIGHT, MAP_WIDTH, project } from "./world-map";
+import { MAP_HEIGHT, MAP_WIDTH, project } from "./world-map";
+import { WorldMapBackdrop } from "./WorldMapBackdrop";
+import { HistoryChart } from "./HistoryChart";
 
 /**
  * One KPI card: the Azure icon in a soft tinted container, the metric label
@@ -185,7 +184,7 @@ function ResourceMap({
   return (
     <div className="dashboard-map">
       <svg viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`} role="img" aria-label={label}>
-        <path className="dashboard-map-land" d={LAND_PATH} fillRule="evenodd" />
+        <WorldMapBackdrop />
         {markers.map((marker) => {
           const name = nameOf(marker.name);
           return (
@@ -209,153 +208,12 @@ function ResourceMap({
               </title>
               <circle cx={marker.x} cy={marker.y} r={marker.radius + 8} className="dashboard-map-target" />
               <circle cx={marker.x} cy={marker.y} r={marker.radius} className="map-pulse" />
+              <circle cx={marker.x} cy={marker.y} r={marker.radius + 3} className="map-marker-ring" />
               <circle cx={marker.x} cy={marker.y} r={marker.radius} />
             </g>
           );
         })}
       </svg>
-    </div>
-  );
-}
-
-export function HistoryChart({
-  series,
-  onSelect,
-}: {
-  series: SnapshotSummary[];
-  onSelect: (snapshot: SnapshotSummary) => void;
-}) {
-  const words = useLabels().desktop.overview;
-  const chart = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(630);
-  useEffect(() => {
-    const element = chart.current;
-    if (!element) return;
-    const observer = new ResizeObserver((entries) =>
-      setWidth(Math.max(240, entries[0].contentRect.width)),
-    );
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-  const endX = width - 20;
-  const complete = series.filter((snapshot) => snapshot.status === "complete");
-  const scale = resourceHistoryScale(complete.map(snapshot => snapshot.resources));
-  const tickLabels = scale.ticks.map(tick => tick.toLocaleString());
-  const startX = Math.max(45, Math.max(...tickLabels.map(label => label.length)) * 7 + 12);
-  const yPosition = (value: number) => 154 - ((value - scale.min) / (scale.max - scale.min)) * 120;
-  const first = Date.parse(series[0]?.createdAt ?? "");
-  const span = Math.max(1, Date.parse(series.at(-1)?.createdAt ?? "") - first);
-  const points = series.map((snapshot) => ({
-    snapshot,
-    x:
-      series.length === 1
-        ? width / 2
-        : startX + ((Date.parse(snapshot.createdAt) - first) / span) * (endX - startX),
-    y: yPosition(snapshot.resources),
-  }));
-  let connected = false;
-  const segments: (typeof points)[] = [];
-  for (const point of points) {
-    if (point.snapshot.status !== "complete") {
-      connected = false;
-      continue;
-    }
-    if (!connected) segments.push([]);
-    segments.at(-1)?.push(point);
-    connected = true;
-  }
-  connected = false;
-  const path = points
-    .map((point) => {
-      if (point.snapshot.status !== "complete") {
-        connected = false;
-        return "";
-      }
-      const command = connected ? "L" : "M";
-      connected = true;
-      return `${command}${point.x},${point.y}`;
-    })
-    .join(" ");
-  return (
-    <div className="dashboard-history-chart" ref={chart}>
-      <svg viewBox={`0 0 ${width} 190`} aria-label={words.growth_aria}>
-        {scale.ticks.map((tick, index) => (
-          <g key={tick}>
-            <line
-              x1={startX}
-              x2={endX}
-              y1={yPosition(tick)}
-              y2={yPosition(tick)}
-              className="dashboard-gridline"
-            />
-            <text x={startX - 10} y={yPosition(tick) + 4} textAnchor="end">
-              {tickLabels[index]}
-            </text>
-          </g>
-        ))}
-        {segments
-          .filter((segment) => segment.length > 1)
-          .map((segment, index) => (
-            <path
-              key={index}
-              className="dashboard-history-area"
-              d={`M${segment[0].x},154 ${segment.map((point) => `L${point.x},${point.y}`).join(" ")} L${segment.at(-1)!.x},154 Z`}
-            />
-          ))}
-        <path className="dashboard-history-line" d={path} pathLength="1" />
-        {points.map(({ snapshot, x, y }) => (
-          <g
-            key={snapshot.id}
-            role="button"
-            tabIndex={0}
-            aria-haspopup="dialog"
-            aria-label={`${dateTime(snapshot.createdAt)} · ${snapshot.resources} · ${snapshot.status}`}
-            onClick={() => onSelect(snapshot)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                onSelect(snapshot);
-              }
-            }}
-            className="dashboard-history-point"
-          >
-            <title>
-              {dateTime(snapshot.createdAt)} · {snapshot.resources} ·{" "}
-              {snapshot.status}
-            </title>
-            <circle
-              cx={x}
-              cy={snapshot.status === "complete" ? y : 154}
-              r="12"
-              className="dashboard-point-target"
-            />
-            <circle
-              cx={x}
-              cy={snapshot.status === "complete" ? y : 154}
-              r="4"
-              className={
-                snapshot.status === "complete"
-                  ? "dashboard-point"
-                  : "dashboard-point-gap"
-              }
-            />
-            {snapshot.status !== "complete" && (
-              <text x={x} y="142" textAnchor="middle">
-                {snapshot.status}
-              </text>
-            )}
-          </g>
-        ))}
-        <text x={startX} y="181">
-          {dayMonth(series[0]?.createdAt)}
-        </text>
-        <text x={endX} y="181" textAnchor="end">
-          {dayMonth(series.at(-1)?.createdAt)}
-        </text>
-      </svg>
-      {complete.length < 2 && (
-        <p className="dashboard-note">{words.dashboard.history_empty}</p>
-      )}
     </div>
   );
 }
@@ -443,7 +301,7 @@ export function OverviewView({
           label={words.snapshot_stamp}
           value={
             <>
-              {estate.id.slice(0, 8)} · {estate.status}
+              {estate.id.slice(0, 8)} · {snapshotStatusLabel(estate.status)}
             </>
           }
         />
@@ -500,8 +358,13 @@ export function OverviewView({
           title={d.regions}
           icon={LOCATION_ICON}
           className="dashboard-history dashboard-map-panel"
+          action={
+            <button className="dashboard-panel-link" onClick={onOpenRegions}>
+              {d.all_regions}
+              <ArrowUpRight size={14} />
+            </button>
+          }
         >
-          <div className="dashboard-map-layout">
           <ResourceMap
             locations={data.locations}
             regions={estate.azureMetadata.regions}
@@ -525,36 +388,31 @@ export function OverviewView({
               )
             }
           />
-          <div className="dashboard-bars">
+          <ul className="dashboard-map-locations">
             {data.locations.slice(0, 6).map((location) => (
-              <DataBar
-                key={location.name}
-                label={displayLocation(
-                  estate.azureMetadata,
-                  location.name,
-                  words.location_not_stored,
-                )}
-                count={location.count}
-                max={data.locations[0]?.count ?? 1}
-                onClick={() =>
-                  inspect(
-                    "resources",
-                    displayLocation(
-                      estate.azureMetadata,
-                      location.name,
-                      words.location_not_stored,
-                    ),
-                    { location: location.name },
-                  )
-                }
-              />
+              <li key={location.name}>
+                <button
+                  aria-haspopup="dialog"
+                  onClick={() =>
+                    inspect(
+                      "resources",
+                      displayLocation(
+                        estate.azureMetadata,
+                        location.name,
+                        words.location_not_stored,
+                      ),
+                      { location: location.name },
+                    )
+                  }
+                >
+                  <span>
+                    {displayLocation(estate.azureMetadata, location.name, words.location_not_stored)}
+                  </span>
+                  <b>{location.count.toLocaleString()}</b>
+                </button>
+              </li>
             ))}
-          </div>
-          <button className="dashboard-panel-link" onClick={onOpenRegions}>
-            {d.all_regions}
-            <ArrowUpRight size={14} />
-          </button>
-          </div>
+          </ul>
         </Panel>
         <Panel
           title={d.severity}

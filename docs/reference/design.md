@@ -314,8 +314,9 @@ with the subscription scope and the snapshot stamp. The responsive
 twelve-column grid leads with the resource-locations map (small pulsing Azure-blue markers on
 an understated world map) in the wide panel beside the findings-by-severity
 donut (the total and "Audit findings" at its
-centre, a named, counted legend beside it); the map's direct-labelled region
-list sits alongside it. Resource composition (horizontal bars with the Azure
+centre, a named, counted legend beside it). The map fills its panel's width,
+with the six leading region names and counts in a compact wrapping action row
+below it and *Browse all regions* in the panel header. Resource composition (horizontal bars with the Azure
 icon, label and count), resource history (a 2px Azure line over a faint area;
 points enlarge on hover, and partial or failed snapshots are marked in the
 warning colour with their status) and tag coverage by subscription (the
@@ -373,8 +374,10 @@ Result navigation follows
 [`navigation-state.ts`](../../desktop/src/navigation-state.ts); all wording
 continues to come from the typed [labels](labels.md).
 
-The locations map draws land in `--map-land` on the card, so the water is the
-card itself, and never becomes a heat map. The outline is Natural Earth's
+The locations map shares the Regions view's shaded land, subtle geographic
+grid and neutral water surface through `WorldMapBackdrop`; small uniform
+Azure-blue markers retain their pulse and a fine persistent ring. It remains
+a static overview with clickable markers and never becomes a heat map. The outline is Natural Earth's
 1:110m land layer (public domain), simplified to about three thousand points
 by `desktop/scripts/build-land-outline.mjs` into the generated
 [`land-outline.ts`](../../desktop/src/components/land-outline.ts) and projected
@@ -390,6 +393,14 @@ opens the same detail dialog as the list. *Browse all regions* opens the
 Regions page rather than a dialog listing every resource.
 
 ### Regions
+
+The Regions canvas has a softly graded neutral water surface and shaded land,
+using the existing surface and map tokens in both themes. A faint 30-degree
+latitude/longitude grid shares the land projection and camera; coastlines and
+grid strokes retain their pixel width at every zoom. Active markers have a
+persistent fine blue ring as well as the existing pulse, so they remain distinct
+with reduced motion. Direct labels are 12px with blue resource counts, and the
+legend sits in a separate flat footer beneath the map.
 
 Regions is the map at full width: every datacentre in the catalogue as a
 quiet hollow dot (its name and physical location on hover) and the regions

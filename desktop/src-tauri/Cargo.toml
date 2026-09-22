@@ -1,6 +1,6 @@
 [package]
 name = "azdocs-desktop"
-version = "0.2.0"
+version = "0.3.0"
 description = "Desktop explorer for azdocs Azure estate snapshots"
 authors = ["azdocs contributors"]
 edition = "2024"
@@ -23,7 +23,7 @@ tauri-build = { version = "2", features = [] }
 azdocs = { path = "../.." }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["unstable"] }
 tauri-plugin-dialog = "2"
 thiserror = { workspace = true }
 tokio = { workspace = true }

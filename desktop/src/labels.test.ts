@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { DEFAULT_LABELS } from "./labels";
+import { afterEach, describe, expect, it } from "vitest";
+import { DEFAULT_LABELS, installLabels, labels, type Labels } from "./labels";
 import { fill, plural } from "./format";
 import { mockBootstrap } from "./mock-data";
 import { EXPORT_PRESETS } from "./components/export-presets";
@@ -58,5 +58,27 @@ describe("DEFAULT_LABELS", () => {
 
   it("unit_gives_the_browser_preview_the_built_ins_when_it_bootstraps", () => {
     expect(mockBootstrap.labels).toBe(DEFAULT_LABELS);
+  });
+});
+
+afterEach(() => installLabels(DEFAULT_LABELS));
+
+describe("bootstrap label compatibility", () => {
+  it("fills new labels from the frontend defaults while retaining tenant wording", () => {
+    const old = JSON.parse(JSON.stringify(DEFAULT_LABELS));
+    delete old.desktop.overview.dashboard.history_snapshots;
+    delete old.desktop.overview.dashboard.history_incomplete;
+    old.desktop.overview.dashboard.history = "Estate history";
+    installLabels(old as Labels);
+    expect(
+      plural(labels().desktop.overview.dashboard.history_snapshots, 8),
+    ).toBe("8 snapshots");
+    expect(labels().desktop.overview.dashboard.history_incomplete).toBe(
+      DEFAULT_LABELS.desktop.overview.dashboard.history_incomplete,
+    );
+    expect(labels().desktop.overview.dashboard.history).toBe("Estate history");
+    expect(DEFAULT_LABELS.desktop.overview.dashboard.history).toBe(
+      "Resource history",
+    );
   });
 });

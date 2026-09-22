@@ -32,6 +32,10 @@ platform adapters. macOS uses `WKWebView.takeSnapshot`, Windows uses WebView2
 queues depend on its original navigation delegate, so the restrictive capture
 delegate uses native WebKit JavaScript evaluation. Each view has a unique label;
 the coordinator waits for asynchronous Tauri destruction before advancing.
+Capture uses Tauri's `unstable` child-webview API: a mapped 1440 × 900 child of
+`main` is positioned outside the visible workspace, preserving viewport size
+without a popup. Bounded JPEG previews travel through `WebsiteProgress`; the
+React progress panel renders images rather than embedding remote scripts.
 The main-window command guard rejects azdocs commands from capture views, and
 Tauri capabilities remain restricted to `main`.
 
@@ -68,7 +72,7 @@ xvfb-run -a cargo run -p azdocs-desktop --locked --example website_capture_smoke
 
 The local-only smoke example checks painted pixels, delayed assets, JavaScript,
 redirect final URLs, HTTP error-page capture, clean cookies, deadlines, cancellation
-and window destruction. It writes PNGs and its disposable fixture database under
+child-view destruction, and the absence of capture popup windows. It writes PNGs and its disposable fixture database under
 `output/website-smoke/`. CI runs the example on macOS, Windows and Linux and
 uploads these artifacts with seven-day retention. Upload failures produce a visible
 warning and job summary, while native smoke failures still fail CI. This lets the

@@ -56,3 +56,24 @@ function ringPath(ring: ReadonlyArray<number>) {
 
 /** Every landmass as one path; holes (inland seas) rely on the even-odd rule. */
 export const LAND_PATH = LAND_RINGS.map(ringPath).join("");
+
+/** Geographic reference lines use the land's projection and camera. */
+function graticulePath() {
+  const lines: string[] = [];
+  for (let longitude = -180; longitude <= 180; longitude += 30) {
+    const points: string[] = [];
+    for (let latitude = LATITUDE_BOTTOM; latitude <= LATITUDE_TOP; latitude += 2) {
+      const [x, y] = project(longitude, latitude);
+      points.push(`${points.length ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`);
+    }
+    lines.push(points.join(""));
+  }
+  for (let latitude = -30; latitude <= 60; latitude += 30) {
+    const [left, y] = project(-180, latitude);
+    const [right] = project(180, latitude);
+    lines.push(`M${left.toFixed(1)},${y.toFixed(1)}H${right.toFixed(1)}`);
+  }
+  return lines.join("");
+}
+
+export const GRATICULE_PATH = graticulePath();

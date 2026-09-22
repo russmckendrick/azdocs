@@ -25,7 +25,7 @@ const chrome =
 const VIEWS = [
   ["overview", "Overview"],
   ["estate", "Estate"],
-  ["map", "Map"],
+  ["map", "Explore"],
   ["regions", "Regions"],
   ["inventory", "Inventory"],
   ["findings", "Findings"],

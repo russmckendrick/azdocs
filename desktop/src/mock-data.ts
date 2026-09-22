@@ -436,7 +436,7 @@ export const mockBootstrap: AppBootstrap = {
   ],
   activeTenantId: "11111111-1111-4111-8111-111111111111",
   configError: null,
-  appVersion: "0.2.0",
+  appVersion: "0.3.0",
   labels: DEFAULT_LABELS,
   databasePath: "/Users/demo/Library/Application Support/azdocs/azdocs.db",
   configPath: "/Users/demo/Library/Application Support/azdocs/azdocs.toml",

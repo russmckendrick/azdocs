@@ -1190,6 +1190,7 @@ pub struct WebsiteProgress {
     pub captured: usize,
     pub failed: usize,
     pub cancelled: bool,
+    pub preview_image: Option<String>,
 }
 
 #[derive(Debug, Serialize, TS)]

@@ -21,10 +21,12 @@ fn unit_fail_on_policy_matrix() {
     use SnapshotStatus::*;
     for (status, policy, fails) in [
         (Complete, FailOn::Failed, false),
+        (Warnings, FailOn::Failed, false),
         (Partial, FailOn::Failed, false),
         (Failed, FailOn::Failed, true),
         (Cancelled, FailOn::Failed, true),
         (Complete, FailOn::Partial, false),
+        (Warnings, FailOn::Partial, true),
         (Partial, FailOn::Partial, true),
         (Failed, FailOn::Partial, true),
         (Cancelled, FailOn::Partial, true),

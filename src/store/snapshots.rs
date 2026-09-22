@@ -69,7 +69,7 @@ impl Store {
                 &format!(
                     "SELECT {SNAPSHOT_COLUMNS} FROM snapshots
                      WHERE lower(tenant_id) = lower(?1) AND id != ?2
-                       AND status IN ('complete','partial')
+                       AND status IN ('complete','warnings','partial')
                        AND (created_at < ?3 OR (created_at = ?3 AND id < ?2))
                      ORDER BY created_at DESC, id DESC LIMIT 1"
                 ),

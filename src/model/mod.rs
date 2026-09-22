@@ -30,6 +30,8 @@ pub struct Snapshot {
 pub enum SnapshotStatus {
     Running,
     Complete,
+    /// Inventory finished, but one or more finding checks could not complete.
+    Warnings,
     Partial,
     Failed,
     /// Stopped on request before every query ran. Real but incomplete
@@ -42,6 +44,7 @@ impl SnapshotStatus {
         match self {
             Self::Running => "running",
             Self::Complete => "complete",
+            Self::Warnings => "warnings",
             Self::Partial => "partial",
             Self::Failed => "failed",
             Self::Cancelled => "cancelled",
@@ -52,6 +55,7 @@ impl SnapshotStatus {
         match value {
             "running" => Some(Self::Running),
             "complete" => Some(Self::Complete),
+            "warnings" => Some(Self::Warnings),
             "partial" => Some(Self::Partial),
             "failed" => Some(Self::Failed),
             "cancelled" => Some(Self::Cancelled),
@@ -62,7 +66,7 @@ impl SnapshotStatus {
     /// Whether a snapshot in this state is a usable, finished collection.
     /// Only these resolve as the implicit `latest` or as a diff baseline.
     pub fn is_usable(self) -> bool {
-        matches!(self, Self::Complete | Self::Partial)
+        matches!(self, Self::Complete | Self::Warnings | Self::Partial)
     }
 }
 

@@ -22,9 +22,29 @@ export const DEFAULT_LABELS: Labels = defaults;
 
 let current: Labels = DEFAULT_LABELS;
 
+function withDefaults(defaults: unknown, incoming: unknown): unknown {
+  if (
+    defaults === null ||
+    typeof defaults !== "object" ||
+    Array.isArray(defaults)
+  )
+    return incoming ?? defaults;
+  const values =
+    incoming !== null && typeof incoming === "object"
+      ? (incoming as Record<string, unknown>)
+      : {};
+  return Object.fromEntries(
+    Object.entries(defaults).map(([key, value]) => [
+      key,
+      withDefaults(value, values[key]),
+    ]),
+  );
+}
+
 /** Install the bootstrap payload's labels. Call before the first render that reads them. */
 export function installLabels(next: Labels) {
-  current = next;
+  // A running desktop process can predate a hot-reloaded frontend's new copy.
+  current = withDefaults(DEFAULT_LABELS, next) as Labels;
 }
 
 /** The installed labels, for code that runs outside a component. */

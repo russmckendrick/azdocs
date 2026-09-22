@@ -44,7 +44,8 @@ azdocs snapshots show latest --format json | jq '.query_runs[] | select(.error !
 - `2` when the command line itself is invalid (clap's usage error).
 
 `collect --fail-on failed` is the default: the command exits non-zero only when
-every query failed. `--fail-on partial` also fails when any query failed.
+every query failed or collection was cancelled. `--fail-on partial` also fails
+for audit warnings and incomplete inventory, including dropped inventory rows.
 The snapshot line is always printed first, so a pipeline still learns the id.
 
 ## `init`

@@ -15,6 +15,7 @@ import {
 } from "react";
 import {
   ChevronDown,
+  Compass,
   FolderSearch2,
   Globe,
   History,
@@ -31,7 +32,6 @@ import {
   Table2,
   Tags,
   Upload,
-  Waypoints,
 } from "lucide-react";
 import {
   cancelCollect,
@@ -71,7 +71,7 @@ import type {
   ThemePreference,
   ViewId,
 } from "./types";
-import { dayMonthTime, errorMessage, fill } from "./format";
+import { dayMonthTime, errorMessage, fill, snapshotStatusLabel } from "./format";
 import { installLabels, useLabels, type Labels } from "./labels";
 import { matchesResourceSearch, useResourceTypeMap } from "./estate-lookups";
 import { ErrorStrip } from "./components/view-chrome";
@@ -98,7 +98,7 @@ function readUiScale(): number {
 const views: Array<{ id: Exclude<ViewId, "settings">; icon: LucideIcon }> = [
   { id: "overview", icon: LayoutDashboard },
   { id: "estate", icon: Layers },
-  { id: "topology", icon: Waypoints },
+  { id: "topology", icon: Compass },
   { id: "regions", icon: Globe },
   { id: "inventory", icon: Table2 },
   { id: "findings", icon: ShieldAlert },
@@ -472,9 +472,10 @@ export default function App() {
       await loadSnapshot(result.snapshotId);
       setCollectionMessage(
         [
-          fill(shell.collected, {
+          fill(result.status === "warnings" ? shell.collected_warnings : shell.collected, {
             rows: result.rowsIngested.toLocaleString(),
             status: result.status,
+            failed: result.queriesFailed,
           }),
           result.screenshots
             ? (result.screenshots.error ??
@@ -1000,7 +1001,7 @@ export default function App() {
           <span className={`status-dot ${estate?.status ?? "unknown"}`} />
           <span>
             {estate
-              ? fill(shell.status_snapshot, { status: estate.status })
+              ? (estate.status === "warnings" ? snapshotStatusLabel(estate.status) : fill(shell.status_snapshot, { status: estate.status }))
               : shell.status_none}
           </span>
           <span className="status-divider" />

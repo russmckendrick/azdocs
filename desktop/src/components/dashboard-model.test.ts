@@ -111,7 +111,7 @@ describe("dashboard evidence", () => {
       }),
     ).toBe(false);
   });
-  it("excludes future and foreign-tenant history while retaining incomplete gaps", () => {
+  it("excludes future and foreign-tenant history while retaining incomplete records", () => {
     const bootstrap = {
       ...mockBootstrap,
       snapshots: [
@@ -147,6 +147,9 @@ describe("dashboard evidence", () => {
       ],
     };
     expect(queryCoverage(estate)[0]).toMatchObject({ succeeded: 1, total: 3 });
+  });
+  it("keeps inventory comparisons available when only audit checks have warnings", () => {
+    expect(dashboardComparison(mockBootstrap, { ...mockEstate, status: "warnings" }, mockComparison)?.diff).toBe(mockComparison);
   });
   it("suppresses comparisons involving incomplete or foreign-tenant snapshots", () => {
     expect(
