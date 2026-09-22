@@ -1,13 +1,14 @@
 name = "arc_machine_extensions"
 category = "arc"
 kind = "inventory"
-resource_types = ["microsoft.hybridcompute/machines/extensions"]
-resource_table = true
+resource_types = ["microsoft.hybridcompute/machines"]
+resource_id_field = "machineId"
 description = "Extensions installed on Azure Arc-enabled servers"
 kql = '''
 resources
 | where type == "microsoft.hybridcompute/machines/extensions"
 | project id, name, resourceGroup, subscriptionId,
+          machineId = tolower(substring(id, 0, indexof(id, "/extensions"))),
           machineName = tostring(split(id, "/")[8]),
           extensionType = tostring(properties.type),
           publisher = tostring(properties.publisher),
