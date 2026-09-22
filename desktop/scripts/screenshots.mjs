@@ -21,13 +21,14 @@ const chrome =
     win32: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
   }[process.platform];
 
-// aria-label prefixes of the side-nav rows, in the order the docs show them.
+// aria-label prefixes of the side-nav rows, in the order the docs show them,
+// and for a view that is a tab inside a section, the tab's text.
 const VIEWS = [
   ["overview", "Overview"],
   ["estate", "Estate"],
   ["map", "Explore"],
   ["regions", "Regions"],
-  ["inventory", "Inventory"],
+  ["query-results", "Estate", "Query results"],
   ["findings", "Findings"],
   ["governance", "Governance"],
   ["changes", "Changes"],
@@ -47,8 +48,9 @@ try {
     await page.goto(url, { waitUntil: "networkidle0" });
     await page.waitForSelector('button[aria-label^="Estate"]');
     await page.waitForSelector(".loading-workspace", { hidden: true });
-    for (const [slug, label] of VIEWS) {
+    for (const [slug, label, tab] of VIEWS) {
       await page.click(`nav.side-nav button[aria-label^="${label}"]`);
+      if (tab) await page.click(`nav.view-tabs ::-p-text(${tab})`);
       // The map lays out on a canvas; give it a moment after the route.
       await new Promise((done) => setTimeout(done, slug === "map" ? 2500 : 600));
       const file = resolve(outDir, `desktop-${slug}-${theme}.png`);

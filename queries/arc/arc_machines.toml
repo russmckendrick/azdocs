@@ -1,6 +1,8 @@
 name = "arc_machines"
 category = "arc"
 kind = "inventory"
+resource_types = ["microsoft.hybridcompute/machines"]
+resource_table = true
 description = "Azure Arc-enabled servers with OS, agent, and connectivity status"
 kql = '''
 resources

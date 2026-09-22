@@ -3,6 +3,7 @@
 name = "patch_assessments"
 category = "operations"
 kind = "inventory"
+resource_id_field = "resourceId"
 description = "VM and Arc patch assessments with pending updates, reboot status and observation time"
 kql = '''
 // Only summary records: per-patch rows would duplicate the machine totals. ARG assessment history is limited to seven days.

@@ -1,6 +1,8 @@
 name = "static_web_apps"
 category = "compute"
 kind = "inventory"
+resource_types = ["microsoft.web/staticsites"]
+resource_table = true
 description = "Static Web Apps with hostname, source repository, and network access"
 kql = '''
 resources

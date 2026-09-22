@@ -1,6 +1,8 @@
 name = "key_vaults"
 category = "identity"
 kind = "inventory"
+resource_types = ["microsoft.keyvault/vaults"]
+resource_table = true
 description = "Key vaults with protection and network settings"
 kql = '''
 resources

@@ -13,6 +13,7 @@ pub mod provenance;
 pub mod site;
 pub mod theme;
 pub mod websites;
+pub(crate) mod world_map;
 pub mod xlsx;
 
 mod document;
@@ -248,6 +249,33 @@ pub struct ResourceTypeSection {
     pub resources: Vec<details::ResourceDetail>,
 }
 
+/// Resources per location, busiest first, then by what the reader sees, with
+/// the stored code as the deterministic tie-breaker. Shared by the report and
+/// the diagram workbook's map so both place the same markers.
+pub fn location_counts(resources: &[crate::model::Resource]) -> Vec<NameCount> {
+    let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
+    for resource in resources {
+        *counts
+            .entry(resource.location.as_deref().unwrap_or("(none)"))
+            .or_default() += 1;
+    }
+    let mut counts: Vec<NameCount> = counts
+        .into_iter()
+        .map(|(name, count)| NameCount {
+            display: azure_values::display_location(name).into_owned(),
+            name: name.to_owned(),
+            count,
+        })
+        .collect();
+    counts.sort_by(|a, b| {
+        b.count
+            .cmp(&a.count)
+            .then(a.display.cmp(&b.display))
+            .then(a.name.cmp(&b.name))
+    });
+    counts
+}
+
 impl ReportContext {
     pub fn build(store: &Store, snapshot_id: &str) -> Result<Self, StoreError> {
         Self::build_scoped(store, snapshot_id, &ReportScope::default(), true)
@@ -347,13 +375,9 @@ impl ReportContext {
             .collect();
 
         let mut type_counts: BTreeMap<&str, usize> = BTreeMap::new();
-        let mut location_counts: BTreeMap<&str, usize> = BTreeMap::new();
         let mut tagged = 0;
         for resource in &resources {
             *type_counts.entry(&resource.azure_type).or_default() += 1;
-            *location_counts
-                .entry(resource.location.as_deref().unwrap_or("(none)"))
-                .or_default() += 1;
             // `{}` is untagged too — one definition of "tagged", shared with
             // the governance analysis.
             if governance::tag_keys(resource).next().is_some() {
@@ -369,22 +393,7 @@ impl ReportContext {
             })
             .collect();
         type_counts.sort_by(|a, b| b.count.cmp(&a.count).then(a.azure_type.cmp(&b.azure_type)));
-        let mut location_counts: Vec<NameCount> = location_counts
-            .into_iter()
-            .map(|(name, count)| NameCount {
-                display: azure_values::display_location(name).into_owned(),
-                name: name.to_owned(),
-                count,
-            })
-            .collect();
-        // Busiest first, then by what the reader sees, with the stored code as
-        // the deterministic tie-breaker.
-        location_counts.sort_by(|a, b| {
-            b.count
-                .cmp(&a.count)
-                .then(a.display.cmp(&b.display))
-                .then(a.name.cmp(&b.name))
-        });
+        let location_counts = location_counts(&resources);
 
         let mut severity_counts = SeverityCounts::default();
         for finding in &findings {

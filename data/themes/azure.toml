@@ -1,0 +1,108 @@
+# Azure: the desktop app carried into print. The navy navigation frame becomes
+# the cover, Azure blue carries headings and links, and tables and summary
+# figures take the workspace's cool neutral tints. Values mirror the light
+# `--az-*` roles in desktop/src/styles.css.
+
+title = "Azure"
+description = "The desktop's navy frame and Azure blue, with tinted tables and a gradient cover."
+
+[palette]
+primary = "#0668cc"
+primary_dark = "#102239"
+primary_tint = "#e9f4ff"
+accent = "$primary"
+accent_tint = "lighten($primary, 0.9)"
+on_primary = "#ffffff"
+band = "#1a4169"
+on_band = "#ffffff"
+ink = "#14233a"
+muted = "#53677e"
+rule = "#d6e1eb"
+surface = "#ffffff"
+zebra = "#f4f8fc"
+# Figures take the desktop's data colours: --az-primary bars, the --cat-*
+# service families, and the Overview map's --map-* surface.
+bar = "#0878e8"
+bar_track = "#eef4f9"
+
+[palette.series]
+network = "#107c10"
+compute = "#0078d4"
+data = "#c19c00"
+identity = "#8457e8"
+monitoring = "#19b8d9"
+integration = "#d83b01"
+other = "#52697d"
+
+[palette.map]
+sea = "#d6e9f6"
+land = "#c5dcae"
+land_south = "#e6dcb6"
+coast = "#93b37c"
+grid = "mix(#d6e9f6, #ffffff, 0.7)"
+marker = "#0878e8"
+marker_ring = "#0878e8"
+leader = "#53677e"
+
+[palette.severity.high]
+text = "darken(#d64535, 0.12)"
+fill = "lighten(#d64535, 0.87)"
+
+[palette.severity.medium]
+text = "darken(#e59b18, 0.42)"
+fill = "lighten(#e59b18, 0.84)"
+
+[palette.severity.low]
+text = "#53677e"
+fill = "#eef4f9"
+
+[palette.severity.info]
+text = "#327bc2"
+fill = "lighten(#327bc2, 0.88)"
+
+[palette.dark]
+surface = "#0b1420"
+ink = "#f1f6fa"
+muted = "#a8bacb"
+rule = "#25384a"
+tint = "#142231"
+zebra = "#101c2a"
+accent = "#2997ff"
+
+[typography]
+pdf_use_docx_fonts = false
+serif = "IBM Plex Sans"
+sans = "IBM Plex Sans"
+mono = "IBM Plex Mono"
+docx_serif = "Arial"
+docx_sans = "Arial"
+docx_mono = "Courier New"
+base_pt = 10.5
+reference_scale = 0.9
+small_pt = 8.5
+table_pt = 9.0
+table_header_pt = 9.0
+title_pt = 32.0
+subtitle_pt = 13.0
+h1_pt = 20.0
+h2_pt = 14.5
+h3_pt = 12.0
+stat_value_pt = 22.0
+stat_label_pt = 8.5
+line_height = 1.45
+
+[layout]
+reference_table_borders = true
+reference_table_inset_pt = 3.0
+cover = "block"
+cover_background = "azure-gradient.svg"
+table = "banded"
+stat = "card"
+heading_numbering = false
+divider_pages = false
+running_header = true
+zebra_rows = true
+rule_pt = 0.5
+radius_pt = 4.0
+table_inset_pt = 6.0
+cover_band_pt = 0.0

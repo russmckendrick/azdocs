@@ -77,3 +77,66 @@ function graticulePath() {
 }
 
 export const GRATICULE_PATH = graticulePath();
+
+/** The globe's outline within the cropped latitudes, filled as sea. */
+function seaPath() {
+  const points: string[] = [];
+  const edge = (longitude: number, from: number, to: number) => {
+    const step = from < to ? 2 : -2;
+    for (let latitude = from; step > 0 ? latitude <= to : latitude >= to; latitude += step) {
+      const [x, y] = project(longitude, latitude);
+      points.push(`${points.length ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`);
+    }
+  };
+  edge(-180, LATITUDE_BOTTOM, LATITUDE_TOP);
+  edge(180, LATITUDE_TOP, LATITUDE_BOTTOM);
+  return `${points.join("")}Z`;
+}
+
+export const SEA_PATH = seaPath();
+
+/**
+ * Nudges markers apart so neighbouring regions (UK South beside West Europe)
+ * stay separately clickable. Each marker keeps its true anchor; callers draw
+ * a leader from the anchor to any marker that moved. Deterministic: markers
+ * are relaxed in input order and coincident ones split on a fixed angle.
+ */
+export function spreadMarkers<T extends { x: number; y: number }>(
+  markers: ReadonlyArray<T>,
+  gap: number,
+): Array<T & { anchorX: number; anchorY: number }> {
+  const placed = markers.map((marker) => ({ ...marker, anchorX: marker.x, anchorY: marker.y }));
+  for (let pass = 0; pass < 80; pass += 1) {
+    let moved = false;
+    for (let a = 0; a < placed.length; a += 1) {
+      for (let b = a + 1; b < placed.length; b += 1) {
+        const first = placed[a];
+        const second = placed[b];
+        let dx = second.x - first.x;
+        let dy = second.y - first.y;
+        let distance = Math.hypot(dx, dy);
+        if (distance >= gap) continue;
+        if (distance < 0.01) {
+          const angle = (b * 2.399963) % (2 * Math.PI);
+          dx = Math.cos(angle);
+          dy = Math.sin(angle);
+          distance = 1;
+        }
+        const push = (gap - distance) / 2 + 0.01;
+        const ux = dx / distance;
+        const uy = dy / distance;
+        first.x -= ux * push;
+        first.y -= uy * push;
+        second.x += ux * push;
+        second.y += uy * push;
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+  for (const marker of placed) {
+    marker.x = Math.min(MAP_WIDTH - gap / 2, Math.max(gap / 2, marker.x));
+    marker.y = Math.min(MAP_HEIGHT - gap / 2, Math.max(gap / 2, marker.y));
+  }
+  return placed;
+}

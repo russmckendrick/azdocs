@@ -1,6 +1,7 @@
 name = "resources_with_system_identity"
 category = "identity"
 kind = "inventory"
+resource_id_field = "id"
 description = "Resources running with a system-assigned managed identity"
 kql = '''
 resources

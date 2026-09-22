@@ -1,6 +1,8 @@
 name = "public_dns_zones"
 category = "networking"
 kind = "inventory"
+resource_types = ["microsoft.network/dnszones"]
+resource_table = true
 description = "Public DNS zones with record-set counts and delegated name servers"
 kql = '''
 resources

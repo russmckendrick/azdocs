@@ -136,7 +136,8 @@ jobs:
       # The topology invariant (drawn + folded + aggregated == total) is only
       # actually enforced if these run. They did not run until now.
       # This also regenerates desktop/src/generated.ts from the DTOs and
-      # desktop/src/generated-labels.json from data/labels/en.toml.
+      # desktop/src/generated-labels.json from data/labels/en.toml, and
+      # desktop/src/generated-report-themes.json from data/themes/.
       - name: "🧪 Test desktop backend"
         run: cargo test -p azdocs-desktop --locked
       - name: "📸 Native screenshot smoke test · Linux"
@@ -164,8 +165,8 @@ jobs:
       - name: "🔄 Check generated TypeScript is current"
         shell: bash
         run: |
-          if ! git diff --exit-code -- desktop/src/generated.ts desktop/src/generated-labels.json; then
-            echo "::error::desktop/src/generated.ts or generated-labels.json is stale."
+          if ! git diff --exit-code -- desktop/src/generated.ts desktop/src/generated-labels.json desktop/src/generated-report-themes.json; then
+            echo "::error::desktop/src/generated.ts, generated-labels.json or generated-report-themes.json is stale."
             echo "Run 'cargo test -p azdocs-desktop' and commit the result."
             exit 1
           fi

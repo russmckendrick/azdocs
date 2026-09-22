@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Check,
+  Database,
   FileOutput,
   FilePenLine,
   FileText,
@@ -14,6 +15,7 @@ import {
   cancelExport,
   chooseExportDirectory,
   exportSnapshot,
+  getReportThemes,
   isTauri,
   openExportFolder,
   revealExportPath,
@@ -22,22 +24,24 @@ import type {
   EstateSnapshot,
   ExportEvent,
   ExportResult,
+  ReportThemes,
   Severity,
 } from "../types";
 
 const SEVERITIES: Severity[] = ["high", "medium", "low", "info"];
-import { errorMessage, fill, plural } from "../format";
+import { errorMessage, fill, plural, sentenceCase } from "../format";
 import { useLabels } from "../labels";
-import { ViewHeading } from "./view-chrome";
+import { DatabaseStamp, ViewHeading } from "./view-chrome";
 import { EXPORT_PRESETS, type ExportPresetId } from "./export-presets";
+import { ThemeSpecimen } from "./ThemeSpecimen";
 
 const DEFAULT_PRESET = EXPORT_PRESETS[0]!;
 
 function PresetIcon({ id }: { id: ExportPresetId }) {
-  if (id === "field-report") return <FileText size={20} />;
-  if (id === "word-report") return <FilePenLine size={20} />;
-  if (id === "data-workbook") return <Table2 size={20} />;
-  return <Network size={20} />;
+  if (id === "field-report") return <FileText size={18} />;
+  if (id === "word-report") return <FilePenLine size={18} />;
+  if (id === "data-workbook") return <Table2 size={18} />;
+  return <Network size={18} />;
 }
 
 function relativeOutput(result: ExportResult, output: string) {
@@ -60,10 +64,41 @@ export function ExportsView({ estate }: { estate: EstateSnapshot }) {
   const [message, setMessage] = useState(words.choose_directory);
   const [result, setResult] = useState<ExportResult>();
   const [error, setError] = useState<string>();
+  const [themes, setThemes] = useState<ReportThemes>();
+  const [themeName, setThemeName] = useState<string>();
+
+  useEffect(() => {
+    let current = true;
+    getReportThemes(estate.id)
+      .then((next) => {
+        if (!current) return;
+        setThemes(next);
+        // Open on the configured theme; keep a choice already made.
+        setThemeName(
+          (chosen) =>
+            chosen ??
+            next.themes.find((theme) => theme.name === next.configured)?.name ??
+            next.themes[0]?.name,
+        );
+      })
+      // Without previews the export still uses the configured theme.
+      .catch(() => {
+        if (current) setThemes(undefined);
+      });
+    return () => {
+      current = false;
+    };
+  }, [estate.id]);
 
   const preset =
     EXPORT_PRESETS.find((item) => item.id === presetId) ?? DEFAULT_PRESET;
   const copy = words.presets[preset.id];
+  const printed = preset.formats.some(
+    (format) => format === "pdf" || format === "docx",
+  );
+  const theme = themes?.themes.find((item) => item.name === themeName);
+  const themeTitle = (item: { name: string; title: string }) =>
+    item.title || sentenceCase(item.name);
 
   function invalidateRun() {
     setResult(undefined);
@@ -111,16 +146,14 @@ export function ExportsView({ estate }: { estate: EstateSnapshot }) {
           exportKind: preset.exportKind,
           formats: preset.formats,
           diagramType: preset.diagramType,
-          includeReference:
-            preset.formats.some(
-              (format) => format === "pdf" || format === "docx",
-            ) && includeReference,
+          includeReference: printed && includeReference,
           subscriptionId: subscriptionId || null,
           resourceGroup: resourceGroup || null,
           minSeverity:
             preset.exportKind === "reports" && minSeverity
               ? (minSeverity as Severity)
               : null,
+          theme: printed && theme ? theme.name : null,
         },
         handleEvent,
       );
@@ -147,19 +180,21 @@ export function ExportsView({ estate }: { estate: EstateSnapshot }) {
 
   return (
     <div className="exports-workspace">
-      <ViewHeading
-        title={words.title}
-        description={words.description}
-        modifier="export-heading"
-      >
-        <div className="export-snapshot" aria-label={words.source_aria}>
-          <span>{words.snapshot}</span>
-          <strong>
-            {fill(words.resources, {
-              count: estate.resources.length.toLocaleString(),
-            })}
-          </strong>
-          <small className="mono">{estate.id}</small>
+      <ViewHeading title={words.title} description={words.description}>
+        <div role="group" aria-label={words.source_aria}>
+          <DatabaseStamp
+            icon={<Database size={16} />}
+            label={words.snapshot}
+            value={
+              <span title={estate.id}>
+                {fill(words.resources, {
+                  count: estate.resources.length.toLocaleString(),
+                })}
+                {" · "}
+                {estate.id.slice(0, 8)}
+              </span>
+            }
+          />
         </div>
       </ViewHeading>
 
@@ -169,12 +204,10 @@ export function ExportsView({ estate }: { estate: EstateSnapshot }) {
             className="export-section"
             aria-labelledby="export-deliverable-heading"
           >
-            <div className="export-section-heading">
-              <div>
-                <h2 id="export-deliverable-heading">{words.choose_title}</h2>
-                <p>{words.choose_detail}</p>
-              </div>
-            </div>
+            <header className="export-section-heading">
+              <h2 id="export-deliverable-heading">{words.choose_title}</h2>
+              <p>{words.choose_detail}</p>
+            </header>
 
             <fieldset className="export-deliverable-list">
               <legend className="sr-only">{words.legend}</legend>
@@ -221,9 +254,7 @@ export function ExportsView({ estate }: { estate: EstateSnapshot }) {
               })}
             </fieldset>
 
-            {preset.formats.some(
-              (format) => format === "pdf" || format === "docx",
-            ) && (
+            {printed && (
               <label className="export-reference-option">
                 <input
                   type="checkbox"
@@ -240,9 +271,63 @@ export function ExportsView({ estate }: { estate: EstateSnapshot }) {
                 </span>
               </label>
             )}
+            {printed && themes && themes.themes.length > 0 ? (
+              <fieldset className="export-style">
+                <legend className="export-section-heading">
+                  <h2>{words.theme_title}</h2>
+                </legend>
+                <p>{words.theme_detail}</p>
+                <div
+                  className="export-style-options"
+                  role="radiogroup"
+                  aria-label={words.theme_legend}
+                >
+                  {themes.themes.map((item) => {
+                    const selected = item.name === themeName;
+                    return (
+                      <label
+                        key={item.name}
+                        className={
+                          selected
+                            ? "export-style-option selected"
+                            : "export-style-option"
+                        }
+                      >
+                        <input
+                          type="radio"
+                          name="export-style"
+                          value={item.name}
+                          checked={selected}
+                          disabled={running}
+                          onChange={() => {
+                            setThemeName(item.name);
+                            invalidateRun();
+                          }}
+                        />
+                        <ThemeSpecimen theme={item} />
+                        <span className="export-style-copy">
+                          <span>
+                            <strong>{themeTitle(item)}</strong>
+                            {item.name === themes.configured ? (
+                              <small className="export-style-configured">
+                                {words.theme_configured}
+                              </small>
+                            ) : null}
+                          </span>
+                          <small>{item.description}</small>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            ) : null}
             <fieldset className="export-scope">
-              <legend>{words.scope_title}</legend>
+              <legend className="export-section-heading">
+                <h2>{words.scope_title}</h2>
+              </legend>
               <p>{words.scope_note}</p>
+              <div className="export-scope-fields">
               <label>
                 <span>{words.scope_subscription}</span>
                 <select
@@ -312,6 +397,7 @@ export function ExportsView({ estate }: { estate: EstateSnapshot }) {
                   </select>
                 </label>
               ) : null}
+              </div>
             </fieldset>
             <p className="export-advanced-note">{words.advanced_note}</p>
           </section>
@@ -348,6 +434,12 @@ export function ExportsView({ estate }: { estate: EstateSnapshot }) {
               <dt>{words.deliverable}</dt>
               <dd>{copy.label}</dd>
             </div>
+            {printed && theme ? (
+              <div>
+                <dt>{words.theme}</dt>
+                <dd>{themeTitle(theme)}</dd>
+              </div>
+            ) : null}
             <div>
               <dt>{words.format}</dt>
               <dd className="mono">{preset.extension}</dd>
@@ -359,7 +451,7 @@ export function ExportsView({ estate }: { estate: EstateSnapshot }) {
           </dl>
 
           <button
-            className="export-run-button"
+            className="collect-button export-run-button"
             onClick={() => void runExport()}
             disabled={running}
           >

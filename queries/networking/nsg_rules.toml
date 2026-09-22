@@ -1,6 +1,7 @@
 name = "nsg_rules"
 category = "networking"
 kind = "inventory"
+resource_types = ["microsoft.network/networksecuritygroups"]
 description = "Custom NSG security rules with direction, priority, and address/port scopes"
 kql = '''
 resources

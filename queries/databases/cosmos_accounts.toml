@@ -1,6 +1,8 @@
 name = "cosmos_accounts"
 category = "databases"
 kind = "inventory"
+resource_types = ["microsoft.documentdb/databaseaccounts"]
+resource_table = true
 description = "Cosmos DB accounts with API kind and consistency"
 kql = '''
 resources

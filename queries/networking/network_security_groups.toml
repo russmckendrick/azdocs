@@ -1,6 +1,8 @@
 name = "network_security_groups"
 category = "networking"
 kind = "inventory"
+resource_types = ["microsoft.network/networksecuritygroups"]
+resource_table = true
 description = "NSGs with rule counts and attachment summary"
 kql = '''
 resources

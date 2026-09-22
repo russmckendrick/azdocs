@@ -2,6 +2,8 @@
 name = "recovery_vaults"
 category = "storage"
 kind = "inventory"
+resource_types = ["microsoft.recoveryservices/vaults"]
+resource_table = true
 description = "Recovery Services and Backup vaults with observed protection and security settings"
 kql = '''
 resources

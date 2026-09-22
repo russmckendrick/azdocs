@@ -1,6 +1,8 @@
 name = "private_dns_zones"
 category = "networking"
 kind = "inventory"
+resource_types = ["microsoft.network/privatednszones"]
+resource_table = true
 description = "Private DNS zones with record and VNet link counts"
 kql = '''
 resources

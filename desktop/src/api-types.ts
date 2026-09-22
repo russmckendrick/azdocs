@@ -22,6 +22,11 @@ export type Severity = "high" | "medium" | "low" | "info";
 export type SnapshotStatus =
   "running" | "complete" | "warnings" | "partial" | "failed" | "cancelled";
 
+/** `CoverStyle`, `TableStyle` and `StatStyle` in src/report/theme/mod.rs. */
+export type ReportCoverStyle = "band" | "editorial" | "block";
+export type ReportTableStyle = "solid-header" | "hairline" | "banded";
+export type ReportStatStyle = "card" | "outline" | "bare";
+
 /** `QueryKind` in src/querypack/mod.rs. */
 export type QueryKind = "inventory" | "finding";
 

@@ -1,6 +1,8 @@
 name = "waf_policies"
 category = "networking"
 kind = "inventory"
+resource_types = ["microsoft.network/frontdoorwebapplicationfirewallpolicies"]
+resource_table = true
 description = "Web application firewall policies for Front Door and Application Gateway with mode, rule sets and linked services"
 kql = '''
 resources

@@ -1,0 +1,61 @@
+{
+  "themes": [
+    {
+      "name": "azure",
+      "title": "Azure",
+      "description": "The desktop's navy frame and Azure blue, with tinted tables and a gradient cover.",
+      "cover": "block",
+      "table": "banded",
+      "stat": "card",
+      "zebraRows": true,
+      "palette": {
+        "primary": "#0668cc",
+        "primaryDark": "#102239",
+        "primaryTint": "#e9f4ff",
+        "accent": "#0078d4",
+        "onPrimary": "#ffffff",
+        "band": "#1a4169",
+        "onBand": "#ffffff",
+        "ink": "#14233a",
+        "muted": "#53677e",
+        "rule": "#d6e1eb",
+        "surface": "#ffffff",
+        "zebra": "#f4f8fc",
+        "high": "#bc3d2f",
+        "highFill": "#fae7e5",
+        "medium": "#855a0e",
+        "mediumFill": "#fbefda"
+      },
+      "coverArt": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"210mm\" height=\"297mm\" viewBox=\"0 0 2100 2970\">\n  <!-- Cover artwork for A4 portrait. Double-brace palette names are filled from the\n       resolved theme palette, so the artwork follows the branding colours. -->\n  <defs>\n    <linearGradient id=\"sweep\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\">\n      <stop offset=\"0\" stop-color=\"#102239\"/>\n      <stop offset=\"0.55\" stop-color=\"#1a4169\"/>\n      <stop offset=\"1\" stop-color=\"#0668cc\"/>\n    </linearGradient>\n    <radialGradient id=\"glow\" cx=\"0.82\" cy=\"0.12\" r=\"0.62\">\n      <stop offset=\"0\" stop-color=\"#0078d4\" stop-opacity=\"0.42\"/>\n      <stop offset=\"1\" stop-color=\"#0078d4\" stop-opacity=\"0\"/>\n    </radialGradient>\n    <radialGradient id=\"floor\" cx=\"0.1\" cy=\"1\" r=\"0.7\">\n      <stop offset=\"0\" stop-color=\"#102239\" stop-opacity=\"0.55\"/>\n      <stop offset=\"1\" stop-color=\"#102239\" stop-opacity=\"0\"/>\n    </radialGradient>\n  </defs>\n  <rect width=\"2100\" height=\"2970\" fill=\"url(#sweep)\"/>\n  <rect width=\"2100\" height=\"2970\" fill=\"url(#glow)\"/>\n  <rect width=\"2100\" height=\"2970\" fill=\"url(#floor)\"/>\n  <g fill=\"none\" stroke=\"#ffffff\" stroke-opacity=\"0.07\" stroke-width=\"3\">\n    <circle cx=\"1780\" cy=\"420\" r=\"420\"/>\n    <circle cx=\"1780\" cy=\"420\" r=\"640\"/>\n    <circle cx=\"1780\" cy=\"420\" r=\"880\"/>\n    <circle cx=\"1780\" cy=\"420\" r=\"1140\"/>\n    <circle cx=\"1780\" cy=\"420\" r=\"1420\"/>\n  </g>\n  <rect y=\"2940\" width=\"2100\" height=\"30\" fill=\"#0078d4\" fill-opacity=\"0.85\"/>\n</svg>\n"
+    },
+    {
+      "name": "field-report",
+      "title": "Field Report",
+      "description": "Paper, ink, serif hierarchy and evidence-led colour.",
+      "cover": "editorial",
+      "table": "hairline",
+      "stat": "bare",
+      "zebraRows": false,
+      "palette": {
+        "primary": "#1c2430",
+        "primaryDark": "#14181d",
+        "primaryTint": "#f3efe7",
+        "accent": "#0078d4",
+        "onPrimary": "#faf8f4",
+        "band": "#1c2430",
+        "onBand": "#faf8f4",
+        "ink": "#1c2430",
+        "muted": "#5a6470",
+        "rule": "#d8d2c6",
+        "surface": "#faf8f4",
+        "zebra": "#f3efe7",
+        "high": "#a83a22",
+        "highFill": "#f5e4df",
+        "medium": "#8a6d00",
+        "mediumFill": "#f3edd1"
+      },
+      "coverArt": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"210mm\" height=\"297mm\" viewBox=\"0 0 2100 2970\">\n  <!-- Cover artwork for A4 portrait: a warm paper gradient that keeps the\n       editorial cover's ink type legible. Double-brace palette names are\n       filled from the resolved theme palette. -->\n  <defs>\n    <linearGradient id=\"paper\" x1=\"0\" y1=\"0\" x2=\"0.35\" y2=\"1\">\n      <stop offset=\"0\" stop-color=\"#faf8f4\"/>\n      <stop offset=\"0.6\" stop-color=\"#f3efe7\"/>\n      <stop offset=\"1\" stop-color=\"#d8d2c6\"/>\n    </linearGradient>\n    <radialGradient id=\"light\" cx=\"0.5\" cy=\"0.36\" r=\"0.55\">\n      <stop offset=\"0\" stop-color=\"#faf8f4\" stop-opacity=\"0.9\"/>\n      <stop offset=\"1\" stop-color=\"#faf8f4\" stop-opacity=\"0\"/>\n    </radialGradient>\n    <radialGradient id=\"brand\" cx=\"1\" cy=\"1\" r=\"0.6\">\n      <stop offset=\"0\" stop-color=\"#0078d4\" stop-opacity=\"0.12\"/>\n      <stop offset=\"1\" stop-color=\"#0078d4\" stop-opacity=\"0\"/>\n    </radialGradient>\n  </defs>\n  <rect width=\"2100\" height=\"2970\" fill=\"url(#paper)\"/>\n  <rect width=\"2100\" height=\"2970\" fill=\"url(#brand)\"/>\n  <rect width=\"2100\" height=\"2970\" fill=\"url(#light)\"/>\n  <g fill=\"none\" stroke=\"#1c2430\" stroke-opacity=\"0.05\" stroke-width=\"3\">\n    <circle cx=\"2100\" cy=\"2970\" r=\"700\"/>\n    <circle cx=\"2100\" cy=\"2970\" r=\"1000\"/>\n    <circle cx=\"2100\" cy=\"2970\" r=\"1320\"/>\n    <circle cx=\"2100\" cy=\"2970\" r=\"1660\"/>\n  </g>\n  <rect y=\"2950\" width=\"2100\" height=\"20\" fill=\"#1c2430\"/>\n</svg>\n"
+    }
+  ],
+  "configured": "azure"
+}

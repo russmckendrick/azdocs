@@ -3,6 +3,7 @@
 name = "resource_changes"
 category = "monitoring"
 kind = "inventory"
+resource_id_field = "resourceId"
 description = "Recent ARM control-plane changes with recorded actor, time and changed properties"
 kql = '''
 // ARG change history lasts 14 days and does not represent a complete activity/data-plane log. Missing actor information stays unknown.

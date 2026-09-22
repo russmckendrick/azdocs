@@ -1,6 +1,8 @@
 name = "app_service_slots"
 category = "compute"
 kind = "inventory"
+resource_types = ["microsoft.web/sites/slots"]
+resource_table = true
 description = "App Service deployment slots with their parent site, state and HTTPS-only setting"
 kql = '''
 resources

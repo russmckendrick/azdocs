@@ -2,6 +2,10 @@ use std::path::{Path, PathBuf};
 
 use anyhow::anyhow;
 
+/// Width of the workbook's map sheet: wide enough that a label beside each
+/// marker still leaves the coastline readable.
+const MAP_SHEET_WIDTH: f64 = 1200.0;
+
 /// Default export root when no `--out` is given.
 const DEFAULT_ROOT: &str = "output";
 
@@ -10,10 +14,18 @@ use crate::diagram::graph::NamedGraph;
 use crate::diagram::page::DiagramDetail;
 use crate::diagram::{DiagramScope, EstateGraph, drawio, mermaid, png, svg};
 use crate::labels::{Labels, fill};
+use crate::report::theme::ThemeTokens;
 use crate::store::Store;
 
-pub fn run(store: &Store, args: &DiagramArgs, labels: &Labels) -> anyhow::Result<()> {
-    run_with_outputs(store, args, labels).map(|_| ())
+/// `tokens` colours the workbook's map sheet; the graph sheets keep the fixed
+/// diagram palette.
+pub fn run(
+    store: &Store,
+    args: &DiagramArgs,
+    labels: &Labels,
+    tokens: &ThemeTokens,
+) -> anyhow::Result<()> {
+    run_with_outputs(store, args, labels, tokens).map(|_| ())
 }
 
 /// Generate diagrams and return every file written by the request.
@@ -24,6 +36,7 @@ pub fn run_with_outputs(
     store: &Store,
     args: &DiagramArgs,
     labels: &Labels,
+    tokens: &ThemeTokens,
 ) -> anyhow::Result<Vec<PathBuf>> {
     let snapshot_id = store.resolve_snapshot(&args.snapshot)?;
     let words = &labels.diagram;
@@ -68,7 +81,7 @@ pub fn run_with_outputs(
             "resource-groups",
             labels,
         ),
-        DiagramType::Workbook => workbook(store, &snapshot_id, &scope, args, labels),
+        DiagramType::Workbook => workbook(store, &snapshot_id, &scope, args, labels, tokens),
     }
 }
 
@@ -240,6 +253,7 @@ fn workbook(
     scope: &DiagramScope,
     args: &DiagramArgs,
     labels: &Labels,
+    tokens: &ThemeTokens,
 ) -> anyhow::Result<Vec<PathBuf>> {
     let words = &labels.diagram;
     let formats = match args.format {
@@ -299,6 +313,71 @@ fn workbook(
     for (name, _, graph) in &sheets {
         warn_if_large(name, graph, labels);
     }
+    // The resource-locations map, drawn by the report's renderer in the
+    // theme's colours: the whole globe rather than the print crop, with an
+    // editable label beside every marker. Absent when nothing can be placed.
+    let locations = crate::report::location_counts(&crate::diagram::graph::scoped_resources(
+        store,
+        snapshot_id,
+        scope,
+    )?);
+    let palette = &tokens.palette;
+    let map = crate::report::world_map::figure(
+        &locations,
+        palette,
+        crate::report::world_map::View::Globe,
+        MAP_SHEET_WIDTH,
+    );
+    let note = |location: &crate::report::NameCount| {
+        fill(
+            &words.workbook.region_note,
+            &[("region", &location.display), ("count", &location.count)],
+        )
+    };
+    let map_labels: Vec<drawio::ImageLabel> = map
+        .iter()
+        .flat_map(|figure| &figure.markers)
+        .map(|marker| drawio::ImageLabel {
+            text: note(&locations[marker.location]),
+            x: marker.x,
+            y: marker.y,
+            radius: marker.radius,
+        })
+        .collect();
+    let placed: std::collections::BTreeSet<usize> = map
+        .iter()
+        .flat_map(|figure| &figure.markers)
+        .map(|marker| marker.location)
+        .collect();
+    let unplaced: Vec<String> = locations
+        .iter()
+        .enumerate()
+        .filter(|(index, _)| !placed.contains(index))
+        .map(|(_, location)| note(location))
+        .collect();
+    let caption = (!unplaced.is_empty()).then(|| {
+        fill(
+            &words.workbook.unplaced_note,
+            &[("locations", &unplaced.join(", "))],
+        )
+    });
+    let map_sheets: Vec<drawio::ImageSheet<'_>> = map
+        .iter()
+        .map(|figure| drawio::ImageSheet {
+            name: words.workbook.regions.as_str(),
+            svg: &figure.svg,
+            width: figure.width,
+            height: figure.height,
+            labels: &map_labels,
+            caption: caption.as_deref(),
+            colors: drawio::LabelColors {
+                fill: &palette.surface,
+                stroke: &palette.rule,
+                text: &palette.ink,
+                muted: &palette.muted,
+            },
+        })
+        .collect();
 
     let mut outputs = Vec::new();
     for format in formats {
@@ -322,8 +401,9 @@ fn workbook(
                     .collect();
                 write_out(
                     &out,
-                    drawio::render_workbook_for(
+                    drawio::render_workbook_with(
                         &named_sheets,
+                        &map_sheets,
                         DiagramDetail::Full,
                         &labels.diagram,
                     )
@@ -333,7 +413,10 @@ fn workbook(
                     "{}",
                     fill(
                         &labels.cli.diagram.workbook_written,
-                        &[("count", &sheets.len()), ("path", &out.display())]
+                        &[
+                            ("count", &(sheets.len() + map_sheets.len())),
+                            ("path", &out.display())
+                        ]
                     )
                 );
                 outputs.push(out);
@@ -357,6 +440,22 @@ fn workbook(
                         fill(
                             &labels.cli.diagram.sheet_written,
                             &[("name", name), ("path", &out.display())]
+                        )
+                    );
+                    outputs.push(out);
+                }
+                if let Some(svg) = map.as_ref().map(|figure| &figure.svg) {
+                    let (extension, content) = match format {
+                        DiagramFormat::Png => ("png", png::from_svg(svg, png::DEFAULT_SCALE)?),
+                        _ => ("svg", svg.clone().into_bytes()),
+                    };
+                    let out = dir.join(format!("regions.{extension}"));
+                    write_out(&out, &content)?;
+                    println!(
+                        "{}",
+                        fill(
+                            &labels.cli.diagram.sheet_written,
+                            &[("name", &words.workbook.regions), ("path", &out.display())]
                         )
                     );
                     outputs.push(out);

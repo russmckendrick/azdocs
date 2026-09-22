@@ -25,6 +25,9 @@ const MANUAL_IMPORTS: &[(&str, &str)] = &[
     ("EdgeKind", "./api-types"),
     ("ExportKind", "./api-types"),
     ("KindClass", "./api-types"),
+    ("ReportCoverStyle", "./api-types"),
+    ("ReportStatStyle", "./api-types"),
+    ("ReportTableStyle", "./api-types"),
     ("QueryKind", "./api-types"),
     ("Severity", "./api-types"),
     ("SnapshotStatus", "./api-types"),
@@ -141,6 +144,9 @@ pub fn generated_typescript() -> String {
     decl::<WebsiteBatchResult>(&mut out, &cfg);
     decl::<ExportRequestDto>(&mut out, &cfg);
     decl::<ExportResultDto>(&mut out, &cfg);
+    decl::<ReportThemesDto>(&mut out, &cfg);
+    decl::<ReportThemeDto>(&mut out, &cfg);
+    decl::<ReportThemePaletteDto>(&mut out, &cfg);
     decl::<ExportEvent>(&mut out, &cfg);
 
     let used = |module: &str| -> Vec<&str> {
@@ -193,6 +199,23 @@ pub fn generated_labels_json() -> String {
     json
 }
 
+/// The built-in themes against the default branding, for the browser
+/// preview's export picker. Built-ins only, so the output is the same on every
+/// host.
+pub fn generated_report_themes_json() -> String {
+    let themes = azdocs::report::theme::ThemePack::builtin()
+        .map_err(|error| error.to_string())
+        .and_then(|pack| {
+            crate::commands::report_themes_from(&pack, &azdocs::config::BrandingConfig::default())
+                .map_err(|error| error.to_string())
+        })
+        .expect("built-in themes resolve; guaranteed by the theme unit tests");
+    let mut json = serde_json::to_string_pretty(&themes)
+        .expect("theme previews serialise; they are plain strings and bools");
+    json.push('\n');
+    json
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
@@ -219,6 +242,11 @@ mod tests {
         );
         std::fs::write(labels_target(), super::generated_labels_json())
             .expect("write desktop/src/generated-labels.json");
+        std::fs::write(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../src/generated-report-themes.json"),
+            super::generated_report_themes_json(),
+        )
+        .expect("write desktop/src/generated-report-themes.json");
     }
 
     #[test]

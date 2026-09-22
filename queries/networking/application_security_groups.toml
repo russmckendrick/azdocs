@@ -1,6 +1,8 @@
 name = "application_security_groups"
 category = "networking"
 kind = "inventory"
+resource_types = ["microsoft.network/applicationsecuritygroups"]
+resource_table = true
 description = "Application security groups; NIC membership is derived as relationships"
 kql = '''
 resources

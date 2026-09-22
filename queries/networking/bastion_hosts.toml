@@ -1,6 +1,8 @@
 name = "bastion_hosts"
 category = "networking"
 kind = "inventory"
+resource_types = ["microsoft.network/bastionhosts"]
+resource_table = true
 description = "Bastion hosts with SKU, VNet placement, and public IP"
 kql = '''
 resources

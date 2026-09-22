@@ -64,12 +64,14 @@ fn render_document(
 ) -> anyhow::Result<Vec<u8>> {
     let render_branding = document.render_branding(branding);
     let branding = &render_branding;
-    let (mut docx, usable_twips, usable_height_twips) = style::document(branding);
+    let (mut docx, geometry) = style::document(branding);
+    let usable_twips = geometry.usable;
     let ctx = style::Ctx {
         tokens: &branding.tokens,
         labels: &branding.labels,
         usable_twips,
-        usable_height_twips,
+        usable_height_twips: geometry.usable_height,
+        page_twips: geometry.page,
         table_grid: document.technical_reference && branding.tokens.layout.reference_table_borders,
     };
 
@@ -125,6 +127,10 @@ fn render_document(
     // leaders inside the actual text column in Word and other readers.
     let document_xml =
         document_xml.replace("w:pos=\"80000\"", &format!("w:pos=\"{usable_twips}\""));
+    // docx-rs writes every anchored picture in front of the text. The only
+    // anchor the report emits is cover artwork, which belongs behind it;
+    // everything else is inline and carries no behindDoc attribute.
+    let document_xml = document_xml.replace("behindDoc=\"0\"", "behindDoc=\"1\"");
     package.document = repeat_table_headers(&document_xml).into_bytes();
     // docx-rs collects hyperlink relationships in a hash map, so their order
     // in the part changed from run to run while every id still resolved.

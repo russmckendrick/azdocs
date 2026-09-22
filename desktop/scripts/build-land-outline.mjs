@@ -1,5 +1,8 @@
 // Writes src/components/land-outline.ts: the world's land as simplified
-// polygon rings in degrees, for the Overview's resource-locations map.
+// polygon rings in degrees, for the Overview's resource-locations map, and
+// the same rings as ../data/land_outline.json, which the CLI embeds for the
+// map in the PDF and Word reports. One run writes both so they cannot drift
+// (world-map.test.ts checks they agree).
 //
 // The source is Natural Earth's 1:110m land layer (public domain) as packaged
 // by world-atlas (ISC), a dev dependency: nothing from the package ships, only
@@ -20,6 +23,7 @@ import topojsonSimplify from "topojson-simplify";
 const require = createRequire(import.meta.url);
 const desktopDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const target = resolve(desktopDir, "src/components/land-outline.ts");
+const dataTarget = resolve(desktopDir, "../data/land_outline.json");
 
 const { feature } = topojsonClient;
 const { presimplify, simplify, quantile } = topojsonSimplify;
@@ -132,4 +136,5 @@ ${body}
 ];
 `,
 );
-console.log(`wrote ${target}: ${rings.length} rings, ${points} points`);
+writeFileSync(dataTarget, `[\n${rings.map((ring) => `[${ring.join(",")}]`).join(",\n")}\n]\n`);
+console.log(`wrote ${target} and ${dataTarget}: ${rings.length} rings, ${points} points`);

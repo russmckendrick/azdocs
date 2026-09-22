@@ -3,6 +3,7 @@
 name = "defender_subassessments"
 category = "security"
 kind = "inventory"
+resource_id_field = "resourceId"
 description = "Defender subassessment evidence with status, resource details and remediation metadata"
 kql = '''
 // Retain the parent assessment ID: subassessments are detailed occurrences, not additional independent recommendations.

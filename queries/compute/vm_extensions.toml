@@ -1,6 +1,8 @@
 name = "vm_extensions"
 category = "compute"
 kind = "inventory"
+resource_types = ["microsoft.compute/virtualmachines"]
+resource_id_field = "vmId"
 description = "VM extensions with publisher, type, and owning virtual machine"
 kql = '''
 resources
@@ -11,7 +13,7 @@ resources
     | where type == "microsoft.compute/virtualmachines"
     | project vmId = tolower(id), vmName = name
   ) on vmId
-| project id, name, resourceGroup, subscriptionId, vmName,
+| project id, name, resourceGroup, subscriptionId, vmId, vmName,
           extensionType = tostring(properties.type),
           publisher = tostring(properties.publisher),
           typeHandlerVersion = tostring(properties.typeHandlerVersion),

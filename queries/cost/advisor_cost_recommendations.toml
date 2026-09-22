@@ -2,6 +2,7 @@
 name = "advisor_cost_recommendations"
 category = "cost"
 kind = "inventory"
+resource_id_field = "resourceId"
 description = "Azure Advisor cost recommendations with reported savings, currency, period, and affected resource"
 kql = '''
 advisorresources

@@ -80,6 +80,22 @@ pub enum ThemeError {
         expr: String,
         reason: String,
     },
+    #[error(
+        "theme `{theme}` names cover background `{file}`, which does not exist (available: {available})"
+    )]
+    UnknownBackground {
+        theme: String,
+        file: String,
+        available: String,
+    },
+    #[error(
+        "theme `{theme}` cover background `{file}` has an unknown placeholder `{{{{{placeholder}}}}}`"
+    )]
+    BackgroundPlaceholder {
+        theme: String,
+        file: String,
+        placeholder: String,
+    },
 }
 
 #[derive(Debug, thiserror::Error)]

@@ -1,6 +1,8 @@
 name = "storage_accounts"
 category = "storage"
 kind = "inventory"
+resource_types = ["microsoft.storage/storageaccounts"]
+resource_table = true
 description = "Storage accounts with SKU, access tier, and network rules"
 kql = '''
 resources

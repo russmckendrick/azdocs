@@ -1,6 +1,8 @@
 name = "app_service_plans"
 category = "compute"
 kind = "inventory"
+resource_types = ["microsoft.web/serverfarms"]
+resource_table = true
 description = "App Service plans with SKU and app counts"
 kql = '''
 resources

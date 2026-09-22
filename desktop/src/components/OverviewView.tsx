@@ -41,14 +41,16 @@ import {
 } from "./dashboard-model";
 import { useDashboardNumber } from "./dashboard-motion";
 import { DashboardModal, type DashboardSelection } from "./DashboardModal";
-import { MAP_HEIGHT, MAP_WIDTH, project } from "./world-map";
+import { MAP_HEIGHT, MAP_WIDTH, project, spreadMarkers } from "./world-map";
 import { WorldMapBackdrop } from "./WorldMapBackdrop";
 import { HistoryChart } from "./HistoryChart";
 
 /**
- * One KPI card: the Azure icon in a soft tinted container, the metric label
- * beside it, the value, then the supporting line. `accent` names the design
- * token the container is tinted with — a semantic colour, never decoration.
+ * One KPI tile: the Azure icon in a soft tinted square on the left, then the
+ * label, the value with its movement since the previous snapshot, and the
+ * supporting line. `accent` names the design token the square is tinted with
+ * — a semantic colour, never decoration. `delta.tone` is set only where a
+ * rise or fall is itself a signal (findings), so other movement stays quiet.
  */
 function Kpi({
   title,
@@ -58,6 +60,7 @@ function Kpi({
   accent,
   detail,
   signal,
+  delta,
   onClick,
 }: {
   title: string;
@@ -67,6 +70,7 @@ function Kpi({
   accent: string;
   detail: string;
   signal?: boolean;
+  delta?: { text: string; description: string; tone?: "risk" | "good" };
   onClick: () => void;
 }) {
   const number = useDashboardNumber(value);
@@ -74,24 +78,32 @@ function Kpi({
     <button
       className="dashboard-kpi"
       style={{ "--kpi-accent": accent } as CSSProperties}
-      aria-label={`${title} ${value.toLocaleString()}${suffix ?? ""} · ${detail}`}
+      aria-label={`${title} ${value.toLocaleString()}${suffix ?? ""}${delta ? ` (${delta.description})` : ""} · ${detail}`}
       onClick={onClick}
       aria-haspopup="dialog"
     >
-      <span className="dashboard-kpi-head">
-        <span className="dashboard-kpi-icon">
-          <img src={icon} alt="" />
-        </span>
-        {title}
+      <span className="dashboard-kpi-icon">
+        <img src={icon} alt="" />
       </span>
-      <strong className={signal ? "risk" : undefined}>
-        {number}
-        {suffix}
-      </strong>
-      <span className="dashboard-kpi-detail">
+      <span className="dashboard-kpi-label">{title}</span>
+      <span className="dashboard-kpi-value">
+        <strong className={signal ? "risk" : undefined}>
+          {number}
+          {suffix}
+        </strong>
+        {delta && (
+          <span
+            className={`dashboard-kpi-delta ${delta.tone ?? ""}`}
+            title={delta.description}
+          >
+            {delta.text}
+          </span>
+        )}
+      </span>
+      <span className="dashboard-kpi-detail" title={detail}>
         {detail}
-        <ChevronRight size={16} />
       </span>
+      <ChevronRight size={16} className="dashboard-kpi-chevron" />
     </button>
   );
 }
@@ -162,6 +174,9 @@ function DataBar({
  * Azure-blue marker per region. Regions the catalogue cannot place are still
  * counted in the list beneath, so nothing is only on the map.
  */
+/** Marker centres sit at least this far apart, so hit targets never overlap. */
+const MARKER_GAP = 14;
+
 function ResourceMap({
   locations,
   regions,
@@ -175,12 +190,15 @@ function ResourceMap({
   nameOf: (location: string) => string;
   onSelect: (location: { name: string; count: number }) => void;
 }) {
-  const markers = locations.flatMap((location) => {
-    const region = regions[location.name.toLowerCase()];
-    if (!region) return [];
-    const [x, y] = project(region.longitude, region.latitude);
-    return [{ ...location, x, y, radius: 3.5 }];
-  });
+  const markers = spreadMarkers(
+    locations.flatMap((location) => {
+      const region = regions[location.name.toLowerCase()];
+      if (!region) return [];
+      const [x, y] = project(region.longitude, region.latitude);
+      return [{ ...location, x, y, radius: 3.5 }];
+    }),
+    MARKER_GAP,
+  );
   return (
     <div className="dashboard-map">
       <svg viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`} role="img" aria-label={label}>
@@ -206,7 +224,19 @@ function ResourceMap({
               <title>
                 {name} · {marker.count.toLocaleString()}
               </title>
-              <circle cx={marker.x} cy={marker.y} r={marker.radius + 8} className="dashboard-map-target" />
+              {marker.x !== marker.anchorX || marker.y !== marker.anchorY ? (
+                <>
+                  <line
+                    x1={marker.anchorX}
+                    y1={marker.anchorY}
+                    x2={marker.x}
+                    y2={marker.y}
+                    className="dashboard-map-leader"
+                  />
+                  <circle cx={marker.anchorX} cy={marker.anchorY} r={1.4} className="dashboard-map-anchor" />
+                </>
+              ) : null}
+              <circle cx={marker.x} cy={marker.y} r={MARKER_GAP / 2} className="dashboard-map-target" />
               <circle cx={marker.x} cy={marker.y} r={marker.radius} className="map-pulse" />
               <circle cx={marker.x} cy={marker.y} r={marker.radius + 3} className="map-marker-ring" />
               <circle cx={marker.x} cy={marker.y} r={marker.radius} />
@@ -275,6 +305,38 @@ export function OverviewView({
       )?.displayName ?? (scoped ? scopeName : d.all_subscriptions);
     setSelection({ kind, title, scopeName: name, filter: constraints });
   }
+  /** Movement since the compared snapshot. Its counts are estate-wide, so a
+   *  subscription scope shows none rather than a misleading figure. */
+  function movement(
+    key: "resources" | "findings" | "edges",
+    signal = false,
+  ): { text: string; description: string; tone?: "risk" | "good" } | undefined {
+    if (!comparison || subscriptionId) return undefined;
+    const change =
+      comparison.diff.targetCounts[key] - comparison.diff.baseCounts[key];
+    if (!change) return undefined;
+    const text = fill(change > 0 ? d.delta_up : d.delta_down, {
+      count: Math.abs(change).toLocaleString(),
+    });
+    return {
+      text,
+      description: fill(d.kpi_delta, {
+        delta: text,
+        date: dayMonth(comparison.base.createdAt),
+      }),
+      tone: signal ? (change > 0 ? "risk" : "good") : undefined,
+    };
+  }
+  const coverageRuns = coverage.reduce(
+    (total, category) => ({
+      succeeded: total.succeeded + category.succeeded,
+      total: total.total + category.total,
+    }),
+    { succeeded: 0, total: 0 },
+  );
+  const coverageGaps = coverage.filter(
+    (category) => category.succeeded < category.total,
+  );
   const severityShares = SEVERITIES.map((level) =>
     data.findings.length
       ? (data.severity[level] / data.findings.length) * 100
@@ -320,6 +382,7 @@ export function OverviewView({
           icon={ALL_RESOURCES_ICON}
           accent="var(--az-resource)"
           detail={plural(d.groups_context, data.groups)}
+          delta={movement("resources")}
           onClick={() => inspect("resources", words.resources)}
         />
         <Kpi
@@ -331,6 +394,7 @@ export function OverviewView({
           }
           signal={data.severity.high > 0}
           detail={fill(d.high_context, { count: data.severity.high })}
+          delta={movement("findings", true)}
           onClick={() => inspect("findings", d.audit)}
         />
         <Kpi
@@ -357,6 +421,7 @@ export function OverviewView({
           icon={RELATIONSHIPS_ICON}
           accent="var(--az-relationship)"
           detail={d.links_context}
+          delta={movement("edges")}
           onClick={() => inspect("relationships", words.relationships)}
         />
       </div>
@@ -489,6 +554,44 @@ export function OverviewView({
               ))}
             </div>
           </div>
+          {/* The most actionable list on the page sits under the counts it
+              explains, not below the fold. */}
+          <h3 className="dashboard-subhead">{d.attention}</h3>
+          <div className="dashboard-checks">
+            {data.checks.slice(0, 4).map((check) => (
+              <button
+                className="dashboard-check"
+                key={`${check.queryName}:${check.severity}`}
+                onClick={() =>
+                  inspect("findings", spaced(check.queryName), {
+                    queryName: check.queryName,
+                    severity: check.severity,
+                  })
+                }
+                aria-haspopup="dialog"
+                aria-label={`${common.severity[check.severity].name} · ${spaced(check.queryName)} · ${plural(d.check_count, check.count)}`}
+              >
+                <span className={`severity-label ${check.severity}`}>
+                  {common.severity[check.severity].name}
+                </span>
+                <strong title={spaced(check.queryName)}>
+                  {spaced(check.queryName)}
+                </strong>
+                <span>{check.count.toLocaleString()}</span>
+                <ChevronRight size={14} />
+              </button>
+            ))}
+            {!data.checks.length && (
+              <p className="dashboard-note">{words.no_findings}</p>
+            )}
+          </div>
+          <button
+            className="dashboard-panel-link"
+            onClick={() => inspect("findings", d.audit)}
+          >
+            {words.review_all}
+            <ArrowUpRight size={14} />
+          </button>
         </Panel>
         <Panel
           title={d.types}
@@ -548,6 +651,47 @@ export function OverviewView({
               })
             }
           />
+          {/* Changes since the previous snapshot are part of the same story,
+              so they close the trend instead of taking a panel of their own. */}
+          <div className="dashboard-changes" role="group" aria-label={d.changes}>
+            {!comparison ? (
+              <span>{d.changes_empty}</span>
+            ) : (["added", "changed", "removed"] as const).every(
+                (kind) => !comparison.diff[kind].length,
+              ) ? (
+              <span>
+                {fill(d.changes_none, {
+                  date: dayMonth(comparison.base.createdAt),
+                })}
+              </span>
+            ) : (
+              <>
+                <span>
+                  {fill(d.baseline, {
+                    date: dayMonth(comparison.base.createdAt),
+                  })}
+                </span>
+                {(["added", "changed", "removed"] as const).map((kind) => (
+                  <button
+                    key={kind}
+                    className={kind}
+                    onClick={() =>
+                      inspect(
+                        "changes",
+                        historyWords[kind],
+                        { changeKind: kind },
+                        false,
+                      )
+                    }
+                    aria-haspopup="dialog"
+                  >
+                    <strong>{comparison.diff[kind].length}</strong>
+                    {historyWords[kind]}
+                  </button>
+                ))}
+              </>
+            )}
+          </div>
           <p className="dashboard-note">{d.history_note}</p>
         </Panel>
         <Panel
@@ -594,124 +738,82 @@ export function OverviewView({
                 </button>
               ))}
           </div>
+          {/* Key coverage is estate-wide, so it only joins the unscoped view. */}
+          {!subscriptionId && estate.governance.topKeys.length > 0 && (
+            <>
+              <h3 className="dashboard-subhead">
+                {common.governance.coverage_by_key}
+              </h3>
+              <ul className="dashboard-keys">
+                {estate.governance.topKeys.slice(0, 6).map((entry) => (
+                  <li key={entry.key} title={entry.key}>
+                    <span>{entry.key}</span>
+                    <b>{entry.percent}%</b>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
           <p className="dashboard-note">{d.tags_note}</p>
         </Panel>
-        <Panel
-          title={d.coverage}
-          className="dashboard-coverage"
-          action={
-            <span className="dashboard-caption">{d.all_subscriptions}</span>
-          }
-        >
-          <div className="dashboard-coverage-bars">
-            {coverage.map((category) => (
-              <button
-                key={category.category}
-                className="dashboard-coverage-row"
-                onClick={() =>
-                  inspect(
-                    "queries",
-                    spaced(category.category),
-                    { category: category.category },
-                    false,
-                  )
-                }
-                aria-haspopup="dialog"
-              >
-                <span>{spaced(category.category)}</span>
-                <span className="dashboard-bar-track">
-                  <span
-                    style={{
-                      transform: `scaleX(${category.total ? category.succeeded / category.total : 0})`,
-                    }}
-                  />
-                </span>
-                <b>
-                  {fill(d.coverage_count, {
-                    succeeded: category.succeeded,
-                    total: category.total,
-                  })}
-                </b>
-              </button>
-            ))}
-          </div>
-          {!coverage.length && (
-            <p className="dashboard-note">{d.coverage_empty}</p>
-          )}
-          <p className="dashboard-note">{d.coverage_note}</p>
-        </Panel>
-        <Panel title={d.changes} className="dashboard-changes">
-          {comparison ? (
+        {/* Collection health is one line when every query ran, and names
+            only the categories that fell short when some did not. */}
+        <section className="dashboard-panel dashboard-coverage">
+          <h2>{d.coverage}</h2>
+          {coverage.length ? (
             <>
-              <p className="dashboard-note">
-                {fill(d.baseline, {
-                  date: dayMonth(comparison.base.createdAt),
-                })}
-              </p>
-              <div className="dashboard-change-counts">
-                {(["added", "changed", "removed"] as const).map((kind) => (
-                  <button
-                    key={kind}
-                    className={kind}
-                    onClick={() =>
-                      inspect(
-                        "changes",
-                        historyWords[kind],
-                        { changeKind: kind },
-                        false,
-                      )
-                    }
-                    aria-haspopup="dialog"
-                  >
-                    <strong>{comparison.diff[kind].length}</strong>
-                    <span>{historyWords[kind]}</span>
-                  </button>
-                ))}
-              </div>
-              <p className="dashboard-note">{d.changes_note}</p>
+              <span className="dashboard-bar-track">
+                <span
+                  style={{
+                    transform: `scaleX(${coverageRuns.total ? coverageRuns.succeeded / coverageRuns.total : 0})`,
+                  }}
+                />
+              </span>
+              <span className="dashboard-coverage-summary">
+                {plural(d.coverage_summary, coverage.length, coverageRuns)}
+              </span>
             </>
           ) : (
-            <p className="dashboard-note">{d.changes_empty}</p>
+            <span className="dashboard-coverage-summary">
+              {d.coverage_empty}
+            </span>
           )}
-        </Panel>
-        <Panel
-          title={d.attention}
-          icon={AUDIT_ICON}
-          className="dashboard-attention"
-          action={
-            <button
-              className="dashboard-panel-link"
-              onClick={() => inspect("findings", d.audit)}
-            >
-              {words.review_all}
-              <ArrowUpRight size={14} />
-            </button>
-          }
-        >
-          {data.checks.slice(0, 3).map((check) => (
-            <button
-              className="dashboard-check"
-              key={`${check.queryName}:${check.severity}`}
-              onClick={() =>
-                inspect("findings", spaced(check.queryName), {
-                  queryName: check.queryName,
-                  severity: check.severity,
-                })
-              }
-              aria-haspopup="dialog"
-            >
-              <span className={`severity-label ${check.severity}`}>
-                {common.severity[check.severity].name}
-              </span>
-              <strong>{spaced(check.queryName)}</strong>
-              <span>{plural(d.check_count, check.count)}</span>
-              <ChevronRight size={16} />
-            </button>
-          ))}
-          {!data.checks.length && (
-            <p className="dashboard-note">{words.no_findings}</p>
+          {coverageGaps.length > 0 && (
+            <div className="dashboard-coverage-gaps">
+              <span>{d.coverage_gaps}</span>
+              {coverageGaps.map((category) => (
+                <button
+                  key={category.category}
+                  onClick={() =>
+                    inspect(
+                      "queries",
+                      spaced(category.category),
+                      { category: category.category },
+                      false,
+                    )
+                  }
+                  aria-haspopup="dialog"
+                >
+                  {spaced(category.category)}
+                  <b>
+                    {fill(d.coverage_count, {
+                      succeeded: category.succeeded,
+                      total: category.total,
+                    })}
+                  </b>
+                </button>
+              ))}
+            </div>
           )}
-        </Panel>
+          <button
+            className="dashboard-panel-link"
+            onClick={() => inspect("queries", d.coverage, {}, false)}
+          >
+            {d.all_queries}
+            <ArrowUpRight size={14} />
+          </button>
+          <p className="dashboard-note">{d.coverage_note}</p>
+        </section>
       </div>
       {selection && (
         <DashboardModal

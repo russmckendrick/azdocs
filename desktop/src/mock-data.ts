@@ -436,7 +436,7 @@ export const mockBootstrap: AppBootstrap = {
   ],
   activeTenantId: "11111111-1111-4111-8111-111111111111",
   configError: null,
-  appVersion: "0.3.0",
+  appVersion: "0.4.0",
   labels: DEFAULT_LABELS,
   databasePath: "/Users/demo/Library/Application Support/azdocs/azdocs.db",
   configPath: "/Users/demo/Library/Application Support/azdocs/azdocs.toml",
@@ -484,12 +484,27 @@ export const mockQueryPack: QueryDefMeta[] = [
     category: "inventory",
     kind: "inventory",
     description: "Every resource with identity, tags, SKU and properties.",
+    resourceTypes: [],
+    resourceColumn: null,
+    resourceTable: false,
   },
   {
     name: "virtual_networks",
     category: "networking",
     kind: "inventory",
-    description: "Virtual networks with address space and peering state.",
+    description: "Virtual networks with address spaces and DNS settings",
+    resourceTypes: ["microsoft.network/virtualnetworks"],
+    resourceColumn: "id",
+    resourceTable: true,
+  },
+  {
+    name: "subnets",
+    category: "networking",
+    kind: "inventory",
+    description: "Subnets expanded from every virtual network",
+    resourceTypes: ["microsoft.network/virtualnetworks"],
+    resourceColumn: "vnetId",
+    resourceTable: false,
   },
   {
     name: "storage_accounts",
@@ -497,6 +512,9 @@ export const mockQueryPack: QueryDefMeta[] = [
     kind: "inventory",
     description:
       "Storage accounts with TLS floor, HTTPS-only and public access flags.",
+    resourceTypes: ["microsoft.storage/storageaccounts"],
+    resourceColumn: "id",
+    resourceTable: true,
   },
   {
     name: "sql_servers_and_dbs",
@@ -504,104 +522,90 @@ export const mockQueryPack: QueryDefMeta[] = [
     kind: "inventory",
     description:
       "SQL logical servers with their databases, TLS floor and AAD-only state.",
+    resourceTypes: ["microsoft.sql/servers", "microsoft.sql/servers/databases"],
+    resourceColumn: "id",
+    resourceTable: true,
   },
   {
     name: "storage_public_blob_access",
     category: "storage",
     kind: "finding",
     description: "Storage accounts that allow anonymous public blob access.",
+    resourceTypes: [],
+    resourceColumn: null,
+    resourceTable: false,
   },
   {
     name: "nsg_open_to_internet",
     category: "networking",
     kind: "finding",
     description: "NSG rules permitting management ports from any source.",
+    resourceTypes: [],
+    resourceColumn: null,
+    resourceTable: false,
   },
 ];
 
+const mockRows: Record<string, QueryRows> = {
+  virtual_networks: {
+    queryName: "virtual_networks",
+    columns: ["id", "name", "location", "resourceGroup", "subscriptionId", "addressPrefixes", "dnsServers", "subnetCount"],
+    rows: [
+      { id: ids.vnetHub, name: "vnet-hub", location: "uksouth", resourceGroup: "rg-network", subscriptionId: "sub-prod", addressPrefixes: ["10.0.0.0/16"], dnsServers: [], subnetCount: 2 },
+      { id: ids.vnetApp, name: "vnet-app", location: "uksouth", resourceGroup: "rg-app", subscriptionId: "sub-prod", addressPrefixes: ["10.1.0.0/16"], dnsServers: ["10.0.0.4"], subnetCount: 1 },
+    ],
+  },
+  subnets: {
+    queryName: "subnets",
+    columns: ["id", "name", "vnetId", "vnetName", "subscriptionId", "resourceGroup", "addressPrefix", "nsgId", "routeTableId"],
+    rows: [
+      { id: `${ids.vnetApp}/subnets/snet-app`, name: "snet-app", vnetId: ids.vnetApp, vnetName: "vnet-app", subscriptionId: "sub-prod", resourceGroup: "rg-app", addressPrefix: "10.1.1.0/24", nsgId: ids.nsg, routeTableId: "" },
+      { id: `${ids.vnetHub}/subnets/azurefirewallsubnet`, name: "AzureFirewallSubnet", vnetId: ids.vnetHub, vnetName: "vnet-hub", subscriptionId: "sub-prod", resourceGroup: "rg-network", addressPrefix: "10.0.0.0/26", nsgId: "", routeTableId: "" },
+      { id: `${ids.vnetHub}/subnets/snet-shared`, name: "snet-shared", vnetId: ids.vnetHub, vnetName: "vnet-hub", subscriptionId: "sub-prod", resourceGroup: "rg-network", addressPrefix: "10.0.1.0/24", nsgId: ids.nsg, routeTableId: "" },
+    ],
+  },
+  storage_accounts: {
+    queryName: "storage_accounts",
+    columns: ["id", "name", "resourceGroup", "location", "minimumTlsVersion", "supportsHttpsTrafficOnly", "allowBlobPublicAccess"],
+    rows: [
+      { id: ids.storage, name: "stprodapp01", resourceGroup: "rg-app", location: "uksouth", minimumTlsVersion: "TLS1_2", supportsHttpsTrafficOnly: true, allowBlobPublicAccess: true },
+    ],
+  },
+  sql_servers_and_dbs: {
+    queryName: "sql_servers_and_dbs",
+    columns: ["id", "name", "type", "resourceGroup", "location", "minimalTlsVersion", "publicNetworkAccess"],
+    rows: [
+      { id: ids.sql, name: "sql-prod", type: "microsoft.sql/servers", resourceGroup: "rg-app", location: "uksouth", minimalTlsVersion: "1.2", publicNetworkAccess: "Disabled" },
+    ],
+  },
+};
+
 export function mockQueryRows(queryName: string): QueryRows {
-  if (queryName === "virtual_networks") {
-    return {
+  return (
+    mockRows[queryName] ?? {
       queryName,
-      columns: [
-        "name",
-        "resourceGroup",
-        "location",
-        "addressPrefixes",
-        "peeringState",
-      ],
-      rows: [
-        {
-          name: "vnet-hub",
-          resourceGroup: "rg-network",
-          location: "uksouth",
-          addressPrefixes: "10.0.0.0/16",
-          peeringState: "Connected",
-        },
-        {
-          name: "vnet-app",
-          resourceGroup: "rg-app",
-          location: "uksouth",
-          addressPrefixes: "10.1.0.0/16",
-          peeringState: "Connected",
-        },
-      ],
-    };
-  }
-  if (queryName === "storage_accounts") {
-    return {
-      queryName,
-      columns: [
-        "name",
-        "resourceGroup",
-        "location",
-        "minimumTlsVersion",
-        "supportsHttpsTrafficOnly",
-        "allowBlobPublicAccess",
-      ],
-      rows: [
-        {
-          name: "stprodapp01",
-          resourceGroup: "rg-app",
-          location: "uksouth",
-          minimumTlsVersion: "TLS1_2",
-          supportsHttpsTrafficOnly: true,
-          allowBlobPublicAccess: true,
-        },
-      ],
-    };
-  }
-  if (queryName === "sql_servers_and_dbs") {
-    return {
-      queryName,
-      columns: [
-        "name",
-        "resourceGroup",
-        "location",
-        "minimalTlsVersion",
-        "publicNetworkAccess",
-      ],
-      rows: [
-        {
-          name: "sql-prod",
-          resourceGroup: "rg-app",
-          location: "uksouth",
-          minimalTlsVersion: "1.2",
-          publicNetworkAccess: "Disabled",
-        },
-      ],
-    };
-  }
-  return {
-    queryName,
-    columns: ["name", "type", "resourceGroup", "location"],
-    rows: resources.map((item) => ({
-      name: item.name,
-      type: item.azureType,
-      resourceGroup: item.resourceGroup,
-      location: item.location,
-    })),
-  };
+      columns: ["name", "type", "resourceGroup", "location"],
+      rows: resources.map((item) => ({
+        name: item.name,
+        type: item.azureType,
+        resourceGroup: item.resourceGroup,
+        location: item.location,
+      })),
+    }
+  );
+}
+
+/** The browser-preview stand-in for `resource_query_rows`. */
+export function mockResourceQueryRows(resourceId: string): QueryRows[] {
+  return mockQueryPack.flatMap((def) => {
+    const stored = mockRows[def.name];
+    if (!def.resourceColumn || !stored) return [];
+    const column = def.resourceColumn;
+    const rows = stored.rows.filter(
+      (row) => String(row[column] ?? "").toLowerCase() === resourceId,
+    );
+    return rows.length ? [{ ...stored, rows }] : [];
+  });
 }
 
 /** The comparison the app fetches on demand once a snapshot is open. */
@@ -875,6 +879,24 @@ export const mockEstate: EstateSnapshot = {
         reviewedOn: "2026-09-13",
         revision: null,
       },
+    },
+    {
+      queryName: "subnets",
+      category: "networking",
+      rowCount: 3,
+      durationMs: 198,
+    },
+    {
+      queryName: "storage_accounts",
+      category: "storage",
+      rowCount: 1,
+      durationMs: 203,
+    },
+    {
+      queryName: "sql_servers_and_dbs",
+      category: "databases",
+      rowCount: 1,
+      durationMs: 231,
     },
     {
       queryName: "storage_public_blob_access",

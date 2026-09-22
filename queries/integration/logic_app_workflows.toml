@@ -1,6 +1,8 @@
 name = "logic_app_workflows"
 category = "integration"
 kind = "inventory"
+resource_types = ["microsoft.logic/workflows"]
+resource_table = true
 description = "Logic App workflows with state, identity, and integration account"
 kql = '''
 resources

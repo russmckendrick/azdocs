@@ -1,6 +1,8 @@
 name = "data_collection_rules"
 category = "monitoring"
 kind = "inventory"
+resource_types = ["microsoft.insights/datacollectionrules"]
+resource_table = true
 description = "Data collection rules with data source kinds, destination workspaces and data flows"
 kql = '''
 resources

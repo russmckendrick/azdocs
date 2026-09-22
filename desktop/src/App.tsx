@@ -29,7 +29,6 @@ import {
   Search,
   Settings,
   ShieldAlert,
-  Table2,
   Tags,
   Upload,
 } from "lucide-react";
@@ -74,7 +73,7 @@ import type {
 import { dayMonthTime, errorMessage, fill, snapshotStatusLabel } from "./format";
 import { installLabels, useLabels, type Labels } from "./labels";
 import { matchesResourceSearch, useResourceTypeMap } from "./estate-lookups";
-import { ErrorStrip } from "./components/view-chrome";
+import { ErrorStrip, EstateTabs } from "./components/view-chrome";
 
 const TopologyView = lazy(() =>
   import("./components/TopologyView").then((module) => ({
@@ -100,12 +99,16 @@ const views: Array<{ id: Exclude<ViewId, "settings">; icon: LucideIcon }> = [
   { id: "estate", icon: Layers },
   { id: "topology", icon: Compass },
   { id: "regions", icon: Globe },
-  { id: "inventory", icon: Table2 },
   { id: "findings", icon: ShieldAlert },
   { id: "governance", icon: Tags },
   { id: "history", icon: History },
   { id: "exports", icon: Upload },
 ];
+
+/** Query results is Estate's second tab, so the rail lights Estate for it. */
+function railSection(view: ViewId): ViewId {
+  return view === "inventory" ? "estate" : view;
+}
 
 function readThemePreference(): ThemePreference {
   const stored = readPreference<string>("theme", "system");
@@ -572,12 +575,15 @@ export default function App() {
             sidebarCollapsed ? "app-body sidebar-collapsed" : "app-body"
           }
         >
+          {/* The whole rail moves the window: "deep" makes every descendant a
+              drag handle, and Tauri still lets buttons take their clicks. */}
           <nav
             className="side-nav"
             id="primary-navigation"
             aria-label={shell.primary_navigation}
+            data-tauri-drag-region="deep"
           >
-            <div className="sidebar-brand" data-tauri-drag-region>
+            <div className="sidebar-brand">
               <div className="brand-product" role="img" aria-label="azdocs">
                 <span className="brand-mark" aria-hidden="true" />
                 <span className="brand-copy" aria-hidden="true">
@@ -596,12 +602,18 @@ export default function App() {
                 return (
                   <button
                     key={item.id}
-                    className={view === item.id ? "nav-row active" : "nav-row"}
+                    className={railSection(view) === item.id ? "nav-row active" : "nav-row"}
                     onClick={() => openSection(item.id)}
-                    aria-current={view === item.id ? "page" : undefined}
-                    title={nav[item.id]}
+                    aria-current={railSection(view) === item.id ? "page" : undefined}
+                    title={
+                      badge
+                        ? `${nav[item.id]} · ${fill(nav.high_findings_badge, { count: badge })}`
+                        : nav[item.id]
+                    }
                     aria-label={
-                      badge ? `${nav[item.id]} · ${badge}` : nav[item.id]
+                      badge
+                        ? `${nav[item.id]} · ${fill(nav.high_findings_badge, { count: badge })}`
+                        : nav[item.id]
                     }
                   >
                     <Icon size={18} aria-hidden="true" />
@@ -875,6 +887,9 @@ export default function App() {
                       onLoadSnapshot={(id) => void loadSnapshot(id)}
                       onOpenRegions={() => openSection("regions")}
                     />
+                  ) : null}
+                  {(view === "estate" || view === "inventory") && !selectedResource ? (
+                    <EstateTabs active={view} onSelect={openSection} />
                   ) : null}
                   {view === "estate" && !selectedResource ? (
                     <EstateExplorer

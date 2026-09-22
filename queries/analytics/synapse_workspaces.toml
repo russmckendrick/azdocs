@@ -1,6 +1,8 @@
 name = "synapse_workspaces"
 category = "analytics"
 kind = "inventory"
+resource_types = ["microsoft.synapse/workspaces"]
+resource_table = true
 description = "Synapse workspaces with managed VNet and network access settings"
 kql = '''
 resources

@@ -2,10 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import { Table2 } from "lucide-react";
 import { getQueryPackMetadata, getQueryRows } from "../api";
 import type { DashboardFilter, EstateSnapshot, QueryDefMeta, QueryRows } from "../types";
+
+/** What the browser needs of a definition; recorded provenance supplies no more. */
+type ListedQuery = Pick<QueryDefMeta, "name" | "category" | "description">;
 import { ShowMore } from "./progressive-list";
 import { useProgressiveList } from "./use-progressive-list";
 import { DatabaseStamp, EmptyState, ErrorStrip, ViewHeading } from "./view-chrome";
 import { capitalise, errorMessage, fill, plural, spaced } from "../format";
+import { QueryRecord } from "./query-record";
+import { cellText, isMachineShaped } from "./resource-queries";
 import { useLabels } from "../labels";
 
 
@@ -26,17 +31,6 @@ const CATEGORY_VARS: Record<string, string> = {
 
 function categoryVar(category: string) {
   return CATEGORY_VARS[category] ?? "--cat-other";
-}
-
-function cellText(value: unknown, none: string): string {
-  if (value === null || value === undefined) return none;
-  if (typeof value === "object") return JSON.stringify(value);
-  return String(value);
-}
-
-function isMachineShaped(column: string) {
-  const needle = column.toLowerCase();
-  return needle === "location" || needle.endsWith("id") || needle.includes("version") || needle.includes("address");
 }
 
 function EvidenceSummary({ evidence }: { evidence: EstateSnapshot["evidenceSummaries"][number] }) {
@@ -93,13 +87,13 @@ export function InventoryView({ estate, search, dashboardFilter }: { estate: Est
         ? { name: run.queryName, category: run.category, kind: recorded.kind, description: recorded.description }
         : pack?.find((entry) => entry.name === run.queryName);
       return def?.kind === "inventory" && def.name !== "all_resources"
-        ? [{ ...def, kind: "inventory" as const }]
+        ? [{ name: def.name, category: def.category, description: def.description }]
         : [];
     }),
     [pack, estate.queryRuns],
   );
   const categories = useMemo(() => {
-    const byCategory = new Map<string, QueryDefMeta[]>();
+    const byCategory = new Map<string, ListedQuery[]>();
     for (const def of inventory) {
       byCategory.set(def.category, [...(byCategory.get(def.category) ?? []), def]);
     }
@@ -230,19 +224,7 @@ export function InventoryView({ estate, search, dashboardFilter }: { estate: Est
               {run?.error ? <span style={{ color: "var(--az-danger)" }}>{fill(words.failed, { error: run.error })}</span> : null}
             </div>
 
-            <details className="inventory-evidence" key={activeQuery}>
-              <summary>{words.provenance}</summary>
-              {run?.provenance ? <div className="inventory-evidence-body">
-                <dl>
-                  <dt>{words.scope}</dt><dd>{run.provenance.authorizationScope}</dd>
-                  <dt>{words.subscriptions}</dt><dd>{run.provenance.subscriptions.join(", ") || words.all_visible}</dd>
-                  <dt>{words.query_hash}</dt><dd className="mono">{run.provenance.kqlSha256}</dd>
-                  {!!run.provenance.sourceUrls.length && <><dt>{words.source}</dt><dd>{run.provenance.sourceUrls.map((url) => <p key={url}>{url}</p>)}</dd></>}
-                  {run.provenance.reviewedOn && <><dt>{words.source_reviewed}</dt><dd>{run.provenance.reviewedOn}</dd></>}
-                </dl>
-                <pre>{run.provenance.kql}</pre>
-              </div> : <p className="muted-copy">{words.provenance_missing}</p>}
-            </details>
+            <QueryRecord key={activeQuery} run={run} />
 
             <div className="data-grid-wrap">
               {rowsLoading ? (

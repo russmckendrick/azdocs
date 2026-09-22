@@ -200,7 +200,7 @@
       "estate": "Estate",
       "topology": "Explore",
       "regions": "Regions",
-      "inventory": "Inventory",
+      "inventory": "Query results",
       "findings": "Findings",
       "governance": "Governance",
       "history": "Changes",
@@ -211,7 +211,8 @@
       "resource_group": "resource group",
       "neighbourhood": "neighbourhood",
       "neighbourhood_of": "{name} neighbourhood",
-      "back_to": "Back to {target}"
+      "back_to": "Back to {target}",
+      "high_findings_badge": "{count} high-severity"
     },
     "shell": {
       "tagline": "Azure estate explorer",
@@ -473,6 +474,9 @@
         "high_context": "{count} high severity",
         "tags_context": "{tagged} of {total} resources have tags",
         "links_context": "Stored connections between resources",
+        "kpi_delta": "{delta} since {date}",
+        "delta_up": "+{count}",
+        "delta_down": "−{count}",
         "history": "Resource history",
         "history_note": "All subscriptions; scope may vary. Incomplete collections are excluded from the trend.",
         "history_empty": "Collect another complete snapshot to see a trend.",
@@ -494,10 +498,16 @@
         "coverage_note": "Successful query runs out of attempted runs, across the whole snapshot. This measures collection, not compliance.",
         "coverage_count": "{succeeded} / {total}",
         "coverage_empty": "No query runs were stored.",
+        "coverage_summary": {
+          "one": "{succeeded} / {total} query runs · {count} category",
+          "other": "{succeeded} / {total} query runs · {count} categories"
+        },
+        "coverage_gaps": "Incomplete",
         "changes": "Changes since previous snapshot",
         "changes_note": "Stored resource additions, removals and property changes. Comparison covers the whole snapshot.",
         "changes_empty": "No complete comparison is available for this snapshot.",
         "baseline": "Compared with {date}",
+        "changes_none": "No resource changes since {date}",
         "details": "{count} matching results",
         "open_results": "Open matching results",
         "close": "Close details",
@@ -632,8 +642,8 @@
       "all_visible": "All visible subscriptions",
       "query_hash": "KQL SHA-256",
       "source_reviewed": "Source reviewed",
-      "title": "Inventory",
-      "description": "The shaped rows every collected query stored for this snapshot — the same tables the reports print, browsable per category.",
+      "title": "Query results",
+      "description": "Every collected query's stored rows, per category — including those about policy, roles and recommendations rather than one resource type.",
       "pack_unreadable": "The query pack could not be read.",
       "pack_failed": "The query pack could not be loaded: {error}",
       "collected_stamp": "Collected queries",
@@ -839,6 +849,15 @@
       "open_group_findings": "Findings in {group}"
     },
     "estate": {
+      "tabs_aria": "Estate views",
+      "tab_resources": "Resources",
+      "columns_aria": "Table columns",
+      "columns_summary": "Summary",
+      "detail_missing": {
+        "one": "{count} resource has no row in this query.",
+        "other": "{count} resources have no row in this query."
+      },
+      "detail_empty": "No stored row describes the resources in this view.",
       "hierarchy_aria": "Estate hierarchy",
       "title": "Azure estate",
       "summary": "{subscriptions} subscriptions · {groups} groups",
@@ -914,6 +933,10 @@
       "open_resources": "Open resources"
     },
     "record": {
+      "collected_title": "Collected detail",
+      "collected_detail": "Rows from the inventory queries that describe this resource, as the reports and data exports hold them.",
+      "loading_collected": "Reading collected rows…",
+      "no_collected": "No inventory query stored a row for this resource.",
       "unknown_subscription": "Unknown",
       "source_note": "Selected SQLite snapshot; this page does not query Azure.",
       "summary_aria": "Resource summary",
@@ -974,6 +997,11 @@
       "loaded": "{visible} of {total} loaded"
     },
     "exports": {
+      "theme_title": "Document style",
+      "theme_detail": "Colour, type and cover for the PDF and Word documents.",
+      "theme_legend": "Document style",
+      "theme_configured": "Configured",
+      "theme": "Style",
       "include_reference": "Include technical reference",
       "reference_detail": "Add key settings for every resource, relationships, grouped findings and collection coverage.",
       "title": "Exports",

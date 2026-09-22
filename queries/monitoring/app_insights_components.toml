@@ -1,6 +1,8 @@
 name = "app_insights_components"
 category = "monitoring"
 kind = "inventory"
+resource_types = ["microsoft.insights/components"]
+resource_table = true
 description = "Application Insights components with retention, sampling, and workspace integration"
 kql = '''
 resources

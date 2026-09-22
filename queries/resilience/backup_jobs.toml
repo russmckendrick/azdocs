@@ -3,6 +3,7 @@
 name = "backup_jobs"
 category = "resilience"
 kind = "inventory"
+resource_id_field = "resourceId"
 description = "Backup and restore job history with original status and provider details"
 kql = '''
 // ARG retains up to 14 days of jobs. No jobs is not evidence of successful backups; target IDs may be unavailable on some job types.

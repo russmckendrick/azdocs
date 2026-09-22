@@ -3,6 +3,7 @@
 name = "resource_health"
 category = "monitoring"
 kind = "inventory"
+resource_id_field = "resourceId"
 description = "Observed resource availability states and provider reasons"
 kql = '''
 // Unavailable, Degraded, Unknown and absent health records have different meanings. This is an observed status, not an uptime calculation.

@@ -3,6 +3,7 @@
 name = "backup_protected_items"
 category = "resilience"
 kind = "inventory"
+resource_id_field = "resourceId"
 description = "Protected items and backup instances with recovery-point and protection metadata"
 kql = '''
 // Recovery Services and Data Protection expose different fields. Do not substitute last backup time for a recovery point or infer protection from existence.

@@ -1,6 +1,8 @@
 name = "log_analytics_workspaces"
 category = "monitoring"
 kind = "inventory"
+resource_types = ["microsoft.operationalinsights/workspaces"]
+resource_table = true
 description = "Log Analytics workspaces with SKU, retention, quota, and network access"
 kql = '''
 resources

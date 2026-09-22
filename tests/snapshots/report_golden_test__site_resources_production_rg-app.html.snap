@@ -1,20 +1,19 @@
 ---
 source: tests/report_golden_test.rs
-assertion_line: 65
 expression: content
 ---
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>rg-app</title><style>
-:root { --bg:#faf8f4; --fg:#1c2430; --muted:#5a6470; --border:#d8d2c6;
-        --primary:#1c2430; --accent:#0078d4; --tint:#f3efe7; --zebra:transparent; --on-accent:#faf8f4;
-        --high:#a83a22; --high-fill:#f5e4df; --radius:3px; }
+:root { --bg:#ffffff; --fg:#14233a; --muted:#53677e; --border:#d6e1eb;
+        --primary:#0668cc; --accent:#0078d4; --tint:#e9f4ff; --zebra:#f4f8fc; --on-accent:#ffffff;
+        --high:#bc3d2f; --high-fill:#fae7e5; --radius:4px; }
 @media (prefers-color-scheme: dark) {
-  :root { --bg:#141414; --fg:#fefefe; --muted:#959595; --border:#474747;
-          --tint:#202020; --zebra:#1d1d1d; --accent:#8bc3f0; }
+  :root { --bg:#0b1420; --fg:#f1f6fa; --muted:#a8bacb; --border:#25384a;
+          --tint:#142231; --zebra:#101c2a; --accent:#2997ff; }
 }
 body { font: 15px/1.45 "IBM Plex Sans", -apple-system, "Segoe UI", Roboto, sans-serif;
        background: var(--bg); color: var(--fg); max-width: 1050px; margin: 0 auto; padding: 2rem 1rem; }
-h1,h2,h3 { font-family: "IBM Plex Serif", Georgia, serif; line-height: 1.2; }
+h1,h2,h3 { font-family: "IBM Plex Sans", Georgia, serif; line-height: 1.2; }
 h2 { border-bottom: 1px solid var(--border); padding-bottom: .3rem; margin-top: 2.2rem; }
 a { color: var(--accent); }
 table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 14px; display: block; overflow-x: auto; }
@@ -33,7 +32,7 @@ header.brand { display: flex; align-items: center; gap: .7rem; margin-bottom: .8
 header.brand img { max-height: 40px; }
 footer.brand { margin-top: 2.5rem; border-top: 1px solid var(--border); padding-top: .7rem;
                color: var(--muted); font-size: 13px; }
-:root { --th-bg:transparent; --th-fg:#1c2430; }
+:root { --th-bg:#e9f4ff; --th-fg:#14233a; }
 </style></head>
 <body><nav><a href="../../index.html">Overview</a><a href="../../findings.html">Findings</a><a href="../../query-provenance.html">Query provenance</a><a href="../../avd.html">avd</a><a href="../../compliance.html">compliance</a><a href="../../cost.html">cost</a><a href="../../governance.html">governance</a><a href="../../inventory.html">inventory</a><a href="../../monitoring.html">monitoring</a><a href="../../networking.html">networking</a><a href="../../operations.html">operations</a><a href="../../resilience.html">resilience</a></nav>
 <h1>rg-app</h1>

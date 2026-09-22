@@ -441,6 +441,12 @@ pub struct LegendLabels {
 pub struct WorkbookLabels {
     pub network_topology: String,
     pub vnet_peerings: String,
+    pub regions: String,
+    /// One map label per region: `{region}` and `{count}`.
+    pub region_note: String,
+    /// Caption for locations with no place on the map, such as `global`:
+    /// `{locations}` is their labels, comma separated.
+    pub unplaced_note: String,
 }
 
 // --------------------------------------------------------------------- cli --
@@ -746,6 +752,12 @@ pub struct DesktopShortcutLabels {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DesktopEstateLabels {
+    pub tabs_aria: String,
+    pub tab_resources: String,
+    pub columns_aria: String,
+    pub columns_summary: String,
+    pub detail_missing: Plural,
+    pub detail_empty: String,
     pub hierarchy_aria: String,
     pub title: String,
     pub summary: String,
@@ -782,6 +794,10 @@ pub struct DesktopEstateLabels {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DesktopRecordLabels {
+    pub collected_title: String,
+    pub collected_detail: String,
+    pub loading_collected: String,
+    pub no_collected: String,
     pub unknown_subscription: String,
     pub source_note: String,
     pub summary_aria: String,
@@ -842,6 +858,11 @@ pub struct DesktopProgressiveLabels {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DesktopExportsLabels {
+    pub theme_title: String,
+    pub theme_detail: String,
+    pub theme_legend: String,
+    pub theme_configured: String,
+    pub theme: String,
     pub include_reference: String,
     pub reference_detail: String,
     pub title: String,
@@ -932,6 +953,9 @@ pub struct DesktopDashboardLabels {
     pub high_context: String,
     pub tags_context: String,
     pub links_context: String,
+    pub kpi_delta: String,
+    pub delta_up: String,
+    pub delta_down: String,
     pub history: String,
     pub history_note: String,
     pub history_empty: String,
@@ -950,10 +974,13 @@ pub struct DesktopDashboardLabels {
     pub coverage_note: String,
     pub coverage_count: String,
     pub coverage_empty: String,
+    pub coverage_summary: Plural,
+    pub coverage_gaps: String,
     pub changes: String,
     pub changes_note: String,
     pub changes_empty: String,
     pub baseline: String,
+    pub changes_none: String,
     pub details: String,
     pub open_results: String,
     pub close: String,
@@ -1163,6 +1190,7 @@ pub struct DesktopNavLabels {
     pub neighbourhood: String,
     pub neighbourhood_of: String,
     pub back_to: String,
+    pub high_findings_badge: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1495,6 +1523,7 @@ pub struct AssessmentLabels {
     pub region: String,
     pub service_mix: String,
     pub geography: String,
+    pub geography_map_caption: String,
     pub subscription_comparison: String,
     pub main_observations: String,
     pub review_first: String,

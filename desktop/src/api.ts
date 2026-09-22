@@ -108,6 +108,20 @@ export async function getQueryRows(
   return (await import("./mock-data")).mockQueryRows(queryName);
 }
 
+/** Every inventory row describing one resource, grouped by query. */
+export async function getResourceQueryRows(
+  snapshotId: string,
+  resourceId: string,
+): Promise<QueryRows[]> {
+  if (!PREVIEW || isTauri)
+    return invoke<QueryRows[]>("resource_query_rows", {
+      snapshotId,
+      resourceId,
+    });
+  await pause(140);
+  return (await import("./mock-data")).mockResourceQueryRows(resourceId);
+}
+
 export async function compareSnapshots(
   baseSnapshotId: string,
   targetSnapshotId: string,
@@ -353,6 +367,16 @@ export async function saveWebsiteImage(
   if (!PREVIEW || isTauri)
     return invoke("save_website_image", { snapshotId, url });
   return false;
+}
+
+export async function getReportThemes(
+  snapshotId: string,
+): Promise<import("./types").ReportThemes> {
+  if (!PREVIEW || isTauri) return invoke("report_themes", { snapshotId });
+  // The built-in themes against the default branding, written by the
+  // bindings test, so the preview shows the colours an export would carry.
+  return (await import("./generated-report-themes.json"))
+    .default as import("./types").ReportThemes;
 }
 
 export async function exportSnapshot(

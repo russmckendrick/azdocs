@@ -1,6 +1,8 @@
 name = "api_management"
 category = "integration"
 kind = "inventory"
+resource_types = ["microsoft.apimanagement/service"]
+resource_table = true
 description = "API Management services with SKU, capacity, VNet mode and public network posture"
 kql = '''
 resources

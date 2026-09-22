@@ -70,6 +70,14 @@ fn themed(theme: &str) -> BrandingContext {
     .unwrap()
 }
 
+fn archive_entry_opt(bytes: &[u8], name: &str) -> Option<String> {
+    let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
+    let mut file = archive.by_name(name).ok()?;
+    let mut out = String::new();
+    file.read_to_string(&mut out).unwrap();
+    Some(out)
+}
+
 fn archive_entry(bytes: &[u8], name: &str) -> String {
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes)).unwrap();
     let mut entry = archive.by_name(name).unwrap();
@@ -150,9 +158,11 @@ fn docx_footer_carries_branding_text_and_a_page_count() {
 #[test]
 fn docx_cover_embeds_the_matching_azdocs_product_mark() {
     let (report, diagrams) = seeded();
-    let field_report = BrandingContext::default();
+    let field_report = themed("field-report");
     let mut block_branding = field_report.clone();
     block_branding.tokens.layout.cover = CoverStyle::Block;
+    // The matte is for a flat block; over artwork the mark stays transparent.
+    block_branding.tokens.cover_background_svg = None;
 
     let light = docx::render(&report, &field_report, &diagrams).unwrap();
     let dark = docx::render(&report, &block_branding, &diagrams).unwrap();
@@ -202,6 +212,7 @@ fn docx_reserves_custom_primary_color_for_brand_accents() {
     let config = BrandingConfig {
         primary_color: "#112233".to_owned(),
         company: "Contoso Ltd".to_owned(),
+        theme: "field-report".to_owned(),
         ..BrandingConfig::default()
     };
     let branding = BrandingContext::resolve(&config, None).unwrap();
@@ -226,7 +237,7 @@ fn docx_reserves_custom_primary_color_for_brand_accents() {
 fn docx_sets_fonts_page_geometry_and_fixed_table_widths() {
     let (report, diagrams) = seeded();
 
-    let bytes = docx::render(&report, &BrandingContext::default(), &diagrams).unwrap();
+    let bytes = docx::render(&report, &themed("field-report"), &diagrams).unwrap();
 
     let styles = archive_entry(&bytes, "word/styles.xml");
     assert!(
@@ -320,7 +331,7 @@ fn docx_type_heading_centres_its_icon_and_keeps_the_level_two_heading_style() {
 fn docx_field_report_uses_plain_headings_and_a_running_header() {
     let (report, diagrams) = seeded();
 
-    let bytes = docx::render(&report, &BrandingContext::default(), &diagrams).unwrap();
+    let bytes = docx::render(&report, &themed("field-report"), &diagrams).unwrap();
 
     let document = archive_entry(&bytes, "word/document.xml");
     assert!(
@@ -357,7 +368,7 @@ fn docx_keeps_headings_figures_and_subheadings_with_their_content() {
 fn docx_reference_settings_use_smaller_bordered_tables_and_resource_icons() {
     let (report, diagrams) = seeded();
 
-    let bytes = docx::render_reference(&report, &BrandingContext::default(), &diagrams).unwrap();
+    let bytes = docx::render_reference(&report, &themed("field-report"), &diagrams).unwrap();
 
     let document = archive_entry(&bytes, "word/document.xml").replace('\u{200b}', "");
     let setting = document
@@ -424,7 +435,9 @@ fn docx_divider_page_strategy_keeps_real_chapter_headings() {
 #[test]
 fn docx_implements_band_editorial_and_printable_block_covers() {
     let (report, diagrams) = seeded();
-    let editorial_branding = BrandingContext::default();
+    // Flat covers: artwork takes a paragraph from the block's height.
+    let mut editorial_branding = themed("field-report");
+    editorial_branding.tokens.cover_background_svg = None;
     let mut band_branding = editorial_branding.clone();
     band_branding.tokens.layout.cover = CoverStyle::Band;
     band_branding.tokens.layout.cover_band_pt = 96.0;
@@ -472,7 +485,7 @@ fn docx_comparison_headers_repeat_and_heading_weights_are_regular() {
 #[test]
 fn docx_table_headers_differ_between_solid_and_hairline_strategies() {
     let (report, diagrams) = seeded();
-    let hairline_branding = BrandingContext::default();
+    let hairline_branding = themed("field-report");
     let mut solid_branding = hairline_branding.clone();
     solid_branding.tokens.layout.table = TableStyle::SolidHeader;
     let primary = solid_branding
@@ -494,6 +507,55 @@ fn docx_table_headers_differ_between_solid_and_hairline_strategies() {
     assert!(
         !hairline_doc.contains(&format!(r#"w:fill="{primary}""#)),
         "hairline headers remain unfilled"
+    );
+}
+
+#[test]
+fn docx_draws_theme_cover_artwork_behind_the_cover_in_the_body() {
+    let (report, diagrams) = seeded();
+
+    let azure = docx::render(&report, &themed("azure"), &diagrams).unwrap();
+    let mut plain = themed("field-report");
+    plain.tokens.cover_background_svg = None;
+    let plain = docx::render(&report, &plain, &diagrams).unwrap();
+
+    let document = archive_entry(&azure, "word/document.xml");
+    let anchors: Vec<&str> = document.split("<wp:anchor ").skip(1).collect();
+    assert_eq!(anchors.len(), 1, "one anchored picture: the cover artwork");
+    let anchor = anchors[0].split("</wp:anchor>").next().unwrap();
+    assert!(anchor.contains(r#"behindDoc="1""#), "behind the text");
+    assert!(
+        anchor.contains(r#"relativeFrom="page""#),
+        "anchored to the sheet"
+    );
+    assert!(
+        anchor.contains(r#"cx="7560310" cy="10692130""#),
+        "artwork fills an A4 sheet"
+    );
+    assert!(
+        document.find("<wp:anchor ").unwrap() < document.find("<w:tbl>").unwrap(),
+        "anchored before the cover table: Word places an in-cell anchor by the cell"
+    );
+    assert!(
+        document.contains(r#"w:val="13730" w:hRule="exact""#),
+        "the unfilled block leaves Word room for the artwork's paragraph"
+    );
+    // Word greys header content out while editing, which washed the cover out.
+    for index in 1..=3 {
+        if let Some(header) = archive_entry_opt(&azure, &format!("word/header{index}.xml")) {
+            assert!(
+                !header.contains("<wp:anchor "),
+                "no artwork in header{index}"
+            );
+        }
+    }
+    assert!(
+        !document.contains(r#"w:fill="1a4169""#),
+        "the block no longer paints a flat band over the artwork"
+    );
+    assert!(
+        !archive_entry(&plain, "word/document.xml").contains("<wp:anchor "),
+        "a theme without artwork anchors nothing"
     );
 }
 

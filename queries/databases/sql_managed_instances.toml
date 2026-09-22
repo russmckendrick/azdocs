@@ -1,6 +1,8 @@
 name = "sql_managed_instances"
 category = "databases"
 kind = "inventory"
+resource_types = ["microsoft.sql/managedinstances"]
+resource_table = true
 description = "SQL managed instances with SKU, vCores, storage, subnet, public endpoint, TLS floor and licence"
 kql = '''
 resources

@@ -222,6 +222,34 @@ impl Store {
         Ok(rows.collect::<Result<_, _>>()?)
     }
 
+    /// Rows of one query whose `column` names `resource_id`. ARG casing is
+    /// inconsistent, so both sides compare lowercased; `column` comes from a
+    /// validated query definition, never user text.
+    pub fn query_results_for_resource(
+        &self,
+        snapshot_id: &str,
+        query_name: &str,
+        column: &str,
+        resource_id: &str,
+    ) -> Result<Vec<Value>, StoreError> {
+        let mut statement = self.conn().prepare(
+            "SELECT row FROM query_results
+             WHERE snapshot_id = ?1 AND query_name = ?2
+               AND lower(json_extract(row, ?3)) = ?4
+             ORDER BY row_index",
+        )?;
+        let path = format!("$.\"{column}\"");
+        let rows = statement.query_map(
+            params![snapshot_id, query_name, path, resource_id.to_lowercase()],
+            |row| {
+                let text: String = row.get(0)?;
+                serde_json::from_str(&text)
+                    .map_err(|_| decode_error("query_results.row", text.chars().take(80).collect()))
+            },
+        )?;
+        Ok(rows.collect::<Result<_, _>>()?)
+    }
+
     pub fn query_runs(&self, snapshot_id: &str) -> Result<Vec<QueryRun>, StoreError> {
         let mut statement = self.conn().prepare(
             "SELECT query_name, category, row_count, duration_ms, error, provenance, rows_dropped
@@ -274,6 +302,24 @@ fn resource_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Resource> {
 mod tests {
     use super::*;
     use crate::model::QueryRun;
+
+    #[test]
+    fn unit_query_results_for_resource_matches_the_column_ignoring_case() {
+        let store = Store::open_in_memory().unwrap();
+        let id = store.create_snapshot("tenant", None).unwrap().id;
+        let rows = [
+            serde_json::json!({"id": "/SUBSCRIPTIONS/S/vnet/SUBNETS/A", "vnetId": "/Subscriptions/S/VNet"}),
+            serde_json::json!({"id": "/subscriptions/s/other/subnets/b", "vnetId": "/subscriptions/s/other"}),
+            serde_json::json!({"id": "/subscriptions/s/vnet/subnets/c", "vnetId": "/subscriptions/s/vnet"}),
+        ];
+        store.insert_query_results(&id, "subnets", &rows).unwrap();
+
+        let matched = store
+            .query_results_for_resource(&id, "subnets", "vnetId", "/subscriptions/s/vnet")
+            .unwrap();
+
+        assert_eq!(matched, vec![rows[0].clone(), rows[2].clone()]);
+    }
 
     #[test]
     fn unit_corrupt_query_result_row_is_an_error() {

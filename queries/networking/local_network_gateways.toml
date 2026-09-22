@@ -1,6 +1,8 @@
 name = "local_network_gateways"
 category = "networking"
 kind = "inventory"
+resource_types = ["microsoft.network/localnetworkgateways"]
+resource_table = true
 description = "Local network gateways with on-premises address, prefixes and BGP settings"
 kql = '''
 resources

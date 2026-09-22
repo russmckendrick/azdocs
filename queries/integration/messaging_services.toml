@@ -1,6 +1,8 @@
 name = "messaging_services"
 category = "integration"
 kind = "inventory"
+resource_types = ["microsoft.eventhub/namespaces", "microsoft.servicebus/namespaces", "microsoft.eventgrid/topics", "microsoft.eventgrid/domains"]
+resource_table = true
 description = "Event Hubs, Service Bus and Event Grid namespaces, topics and domains with SKU, TLS floor and network posture"
 kql = '''
 resources

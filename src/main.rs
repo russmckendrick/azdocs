@@ -164,7 +164,8 @@ fn run_diagram(
     let id = store.resolve_snapshot(&args.snapshot)?;
     let config = document.for_snapshot(&store.get_snapshot(&id)?.tenant_id)?;
     let labels = azdocs::labels::resolve(&config.branding)?;
-    commands::diagram::run(&store, &args, &labels)
+    let tokens = azdocs::report::branding::theme_tokens(&config.branding)?;
+    commands::diagram::run(&store, &args, &labels, &tokens)
 }
 
 fn run_report(

@@ -751,7 +751,7 @@ export function SettingsView(props: Props) {
         }}
       />
       <ViewHeading title={settings.title} description={settings.description} />
-      <nav className="settings-tabs" aria-label={settings.title}>
+      <nav className="view-tabs" aria-label={settings.title}>
         {(["tenants", "defaults", "application"] as const).map((id) => (
           <button
             type="button"

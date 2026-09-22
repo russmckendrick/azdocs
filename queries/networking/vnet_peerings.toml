@@ -1,6 +1,8 @@
 name = "vnet_peerings"
 category = "networking"
 kind = "inventory"
+resource_types = ["microsoft.network/virtualnetworks"]
+resource_id_field = "vnetId"
 description = "VNet peerings with state and remote network"
 kql = '''
 resources

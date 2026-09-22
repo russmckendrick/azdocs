@@ -60,6 +60,19 @@ impl Default for BrandingContext {
     }
 }
 
+/// The configured theme resolved against the branding colours, without the
+/// logo, fonts and labels a full [`BrandingContext`] loads. For consumers that
+/// only draw with the palette, such as the diagram workbook's map.
+pub fn theme_tokens(config: &BrandingConfig) -> Result<ThemeTokens, ConfigError> {
+    validate_color("branding.primary_color", &config.primary_color)?;
+    validate_color("branding.accent_color", &config.accent_color)?;
+    Ok(ThemePack::load()?.resolve(
+        &config.theme,
+        &config.primary_color.to_lowercase(),
+        &config.accent_color.to_lowercase(),
+    )?)
+}
+
 impl BrandingContext {
     /// Validate colors and load the logo (if any); relative logo paths are
     /// resolved against `config_dir` (the directory the config file lives in).
@@ -76,11 +89,8 @@ impl BrandingContext {
         let primary_color = config.primary_color.to_lowercase();
         let accent_color = config.accent_color.to_lowercase();
 
-        let mut tokens = ThemePack::load()?.get(&config.theme)?.resolve(
-            &config.theme,
-            &primary_color,
-            &accent_color,
-        )?;
+        let mut tokens =
+            ThemePack::load()?.resolve(&config.theme, &primary_color, &accent_color)?;
         // Branding beats the theme, which beats the built-in default.
         if !config.font_family.is_empty() {
             tokens.typography.sans = config.font_family.clone();

@@ -1,6 +1,8 @@
 name = "virtual_networks"
 category = "networking"
 kind = "inventory"
+resource_types = ["microsoft.network/virtualnetworks"]
+resource_table = true
 description = "Virtual networks with address spaces and DNS settings"
 kql = '''
 resources

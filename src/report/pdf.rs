@@ -176,6 +176,12 @@ impl ReportWorld {
                 super::document::external_link_svg(&branding.tokens.palette.accent).into_bytes(),
             ),
         );
+        if let Some(svg) = &branding.tokens.cover_background_svg {
+            files.insert(
+                file_id("/cover-background.svg")?,
+                Bytes::new(svg.clone().into_bytes()),
+            );
+        }
         for block in &document.blocks {
             if let super::document::Block::RasterImage { slug, png, .. } = block {
                 let id = file_id(format!("/websites/{slug}.png"))?;

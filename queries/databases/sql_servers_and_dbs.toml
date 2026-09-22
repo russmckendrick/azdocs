@@ -1,6 +1,8 @@
 name = "sql_servers_and_dbs"
 category = "databases"
 kind = "inventory"
+resource_types = ["microsoft.sql/servers", "microsoft.sql/servers/databases"]
+resource_table = true
 description = "SQL servers and databases with version, TLS, auth, and network posture"
 kql = '''
 resources

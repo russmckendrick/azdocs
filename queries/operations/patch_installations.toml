@@ -3,6 +3,7 @@
 name = "patch_installations"
 category = "operations"
 kind = "inventory"
+resource_id_field = "resourceId"
 description = "VM and Arc update installations with outcomes, patch counts and reboot state"
 kql = '''
 // Retain all available summary jobs, including success and warnings. ARG installation history is limited to 30 days.

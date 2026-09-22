@@ -112,3 +112,31 @@ export function ErrorStrip({ message, onDismiss }: { message: string; onDismiss:
     </div>
   );
 }
+
+/**
+ * Estate's two tabs: resources by scope, and every query's stored rows. They
+ * stay separate routes so history, back labels and dashboard links keep
+ * addressing each directly; only the rail shows them as one section.
+ */
+export function EstateTabs({
+  active,
+  onSelect,
+}: {
+  active: "estate" | "inventory";
+  onSelect: (view: "estate" | "inventory") => void;
+}) {
+  const { desktop: { estate: words, nav } } = useLabels();
+  return (
+    <nav className="view-tabs" aria-label={words.tabs_aria}>
+      {(["estate", "inventory"] as const).map((view) => (
+        <button
+          key={view}
+          aria-current={active === view ? "page" : undefined}
+          onClick={() => onSelect(view)}
+        >
+          {view === "estate" ? words.tab_resources : nav.inventory}
+        </button>
+      ))}
+    </nav>
+  );
+}

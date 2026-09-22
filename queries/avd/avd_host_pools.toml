@@ -1,6 +1,8 @@
 name = "avd_host_pools"
 category = "avd"
 kind = "inventory"
+resource_types = ["microsoft.desktopvirtualization/hostpools"]
+resource_table = true
 description = "Azure Virtual Desktop host pools with type, load balancing, and session limits"
 kql = '''
 resources

@@ -21,7 +21,7 @@ use color::{ColorVars, Rgb};
 static BUILTIN_THEMES: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/data/themes");
 
 /// The theme used when `[branding] theme` is unset.
-pub const DEFAULT_THEME: &str = "field-report";
+pub const DEFAULT_THEME: &str = "azure";
 
 /// `<platform config dir>/azdocs/themes`, the drop-in directory for user
 /// themes (same pattern as `querypack::loader::user_queries_dir`).
@@ -36,6 +36,9 @@ pub fn user_themes_dir() -> Option<PathBuf> {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ThemeSpec {
+    /// Display name where a theme is offered by name, as in the desktop's
+    /// export picker. Empty falls back to the file stem.
+    pub title: String,
     pub description: String,
     pub palette: Palette,
     pub typography: Typography,
@@ -63,6 +66,13 @@ pub struct Palette {
     pub surface: String,
     /// Alternating table row fill; only used when `layout.zebra_rows`.
     pub zebra: String,
+    /// Bars in single-series charts, and the track behind every bar.
+    pub bar: String,
+    pub bar_track: String,
+    /// Bars in charts split by service family, one colour per family.
+    pub series: SeriesPalette,
+    /// The resource-locations world map.
+    pub map: MapPalette,
     pub severity: Severity,
     /// The HTML surfaces' `prefers-color-scheme: dark` remap. Expressions
     /// may name any light field (`$surface`, `$ink`, ...); the defaults derive
@@ -96,6 +106,67 @@ impl Default for DarkPalette {
             tint: "lighten($dark_surface, 0.05)".to_owned(),
             zebra: "lighten($dark_surface, 0.04)".to_owned(),
             accent: "lighten($accent, 0.35)".to_owned(),
+        }
+    }
+}
+
+/// One colour per service family in family-split charts. Expressions may name
+/// any light palette field, so a quiet theme can map them all to `$muted`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct SeriesPalette {
+    pub network: String,
+    pub compute: String,
+    pub data: String,
+    pub identity: String,
+    pub monitoring: String,
+    pub integration: String,
+    pub other: String,
+}
+
+impl Default for SeriesPalette {
+    fn default() -> Self {
+        let muted = || "$muted".to_owned();
+        Self {
+            network: muted(),
+            compute: muted(),
+            data: muted(),
+            identity: muted(),
+            monitoring: muted(),
+            integration: muted(),
+            other: muted(),
+        }
+    }
+}
+
+/// World map colours. Land is shaded from `land` in the north to
+/// `land_south`; `marker_ring` draws a halo round each marker and may be empty
+/// for none.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct MapPalette {
+    pub sea: String,
+    pub land: String,
+    pub land_south: String,
+    pub coast: String,
+    pub grid: String,
+    pub marker: String,
+    pub marker_ring: String,
+    /// Leader lines from a displaced marker back to its region.
+    pub leader: String,
+}
+
+impl Default for MapPalette {
+    fn default() -> Self {
+        Self {
+            sea: "$zebra".to_owned(),
+            land: "$rule".to_owned(),
+            land_south: "$rule".to_owned(),
+            coast: "$surface".to_owned(),
+            grid: "$rule".to_owned(),
+            marker: "$accent".to_owned(),
+            marker_ring: String::new(),
+            leader: "$muted".to_owned(),
         }
     }
 }
@@ -166,6 +237,12 @@ pub struct Layout {
     pub table_inset_pt: f32,
     /// Height of the cover band/block, in points.
     pub cover_band_pt: f32,
+    /// File name of an A4 portrait SVG drawn full-bleed behind the cover, from
+    /// `data/themes/backgrounds/` or `<config dir>/azdocs/themes/backgrounds/`.
+    /// Empty keeps the strategy's own fills. It replaces the `band` fill of the
+    /// `block` and `band` covers, so there it must carry `on_band` text; behind
+    /// an `editorial` cover it carries `ink`.
+    pub cover_background: String,
 }
 
 /// Cover strategies. Every emitter implements all three; a theme picks one.
@@ -222,6 +299,10 @@ impl Default for Palette {
             rule: "#d8d2c6".to_owned(),
             surface: "#faf8f4".to_owned(),
             zebra: "#f3efe7".to_owned(),
+            bar: "$muted".to_owned(),
+            bar_track: "$zebra".to_owned(),
+            series: SeriesPalette::default(),
+            map: MapPalette::default(),
             severity: Severity::default(),
             dark: DarkPalette::default(),
         }
@@ -310,6 +391,7 @@ impl Default for Layout {
             radius_pt: 3.0,
             table_inset_pt: 6.0,
             cover_band_pt: 0.0,
+            cover_background: String::new(),
         }
     }
 }
@@ -321,10 +403,16 @@ impl Default for Layout {
 #[derive(Debug, Clone, Serialize)]
 pub struct ThemeTokens {
     pub name: String,
+    pub title: String,
     pub description: String,
     pub palette: Palette,
     pub typography: Typography,
     pub layout: Layout,
+    /// `layout.cover_background` with its `{{field}}` placeholders filled from
+    /// the resolved palette. Emitters read the file from here; the name alone
+    /// travels to the Typst template.
+    #[serde(skip)]
+    pub cover_background_svg: Option<String>,
 }
 
 impl ThemeSpec {
@@ -401,12 +489,40 @@ impl ThemeSpec {
                 fill: at(&format!("palette.severity.{field}.fill"), &s.fill)?,
             })
         };
+        // Empty stays empty: it is how an optional colour says "none".
+        let optional = |field: &str, expr: &str| -> Result<String, ThemeError> {
+            if expr.trim().is_empty() {
+                Ok(String::new())
+            } else {
+                at(field, expr)
+            }
+        };
+        let series = SeriesPalette {
+            network: at("palette.series.network", &p.series.network)?,
+            compute: at("palette.series.compute", &p.series.compute)?,
+            data: at("palette.series.data", &p.series.data)?,
+            identity: at("palette.series.identity", &p.series.identity)?,
+            monitoring: at("palette.series.monitoring", &p.series.monitoring)?,
+            integration: at("palette.series.integration", &p.series.integration)?,
+            other: at("palette.series.other", &p.series.other)?,
+        };
+        let map = MapPalette {
+            sea: at("palette.map.sea", &p.map.sea)?,
+            land: at("palette.map.land", &p.map.land)?,
+            land_south: at("palette.map.land_south", &p.map.land_south)?,
+            coast: at("palette.map.coast", &p.map.coast)?,
+            grid: at("palette.map.grid", &p.map.grid)?,
+            marker: at("palette.map.marker", &p.map.marker)?,
+            marker_ring: optional("palette.map.marker_ring", &p.map.marker_ring)?,
+            leader: at("palette.map.leader", &p.map.leader)?,
+        };
         let take = |map: &mut std::collections::BTreeMap<&str, String>, key: &str| {
             map.remove(key).unwrap_or_default()
         };
 
         Ok(ThemeTokens {
             name: name.to_owned(),
+            title: self.title.clone(),
             description: self.description.clone(),
             palette: Palette {
                 primary: take(&mut resolved, "primary"),
@@ -422,6 +538,10 @@ impl ThemeSpec {
                 rule: take(&mut resolved, "rule"),
                 surface: take(&mut resolved, "surface"),
                 zebra: take(&mut resolved, "zebra"),
+                bar: at("palette.bar", &p.bar)?,
+                bar_track: at("palette.bar_track", &p.bar_track)?,
+                series,
+                map,
                 severity: Severity {
                     high: severity("high", &p.severity.high)?,
                     medium: severity("medium", &p.severity.medium)?,
@@ -440,6 +560,7 @@ impl ThemeSpec {
             },
             typography: self.typography.clone(),
             layout: self.layout.clone(),
+            cover_background_svg: None,
         })
     }
 }
@@ -456,9 +577,9 @@ impl Default for ThemeTokens {
     /// The default theme resolved against the default branding palette; used
     /// by emitters and tests that do not care about branding.
     fn default() -> Self {
-        ThemeSpec::default()
-            .resolve(DEFAULT_THEME, "#0078d4", "#4da3e8")
-            .expect("default theme spec resolves against the default palette")
+        ThemePack::builtin()
+            .and_then(|pack| pack.resolve(DEFAULT_THEME, "#0078d4", "#4da3e8"))
+            .expect("the built-in default theme resolves against the default palette")
     }
 }
 
@@ -468,6 +589,8 @@ impl Default for ThemeTokens {
 #[derive(Debug, Default)]
 pub struct ThemePack {
     themes: BTreeMap<String, ThemeSpec>,
+    /// Cover artwork by file name, built-ins merged with user files.
+    backgrounds: BTreeMap<String, String>,
 }
 
 impl ThemePack {
@@ -498,30 +621,41 @@ impl ThemePack {
             let spec = parse(source, &origin)?;
             pack.themes.insert(stem(path), spec);
         }
+        if let Some(dir) = BUILTIN_THEMES.get_dir(BACKGROUNDS_DIR) {
+            for file in dir.files() {
+                let path = file.path();
+                if path.extension().and_then(|e| e.to_str()) != Some("svg") {
+                    continue;
+                }
+                if let (Some(name), Some(source)) = (
+                    path.file_name().and_then(|n| n.to_str()),
+                    file.contents_utf8(),
+                ) {
+                    pack.backgrounds.insert(name.to_owned(), source.to_owned());
+                }
+            }
+        }
         Ok(pack)
     }
 
-    /// Load every `*.toml` in `dir`, replacing same-named built-ins.
+    /// Load every `*.toml` in `dir`, and every `*.svg` in its `backgrounds/`,
+    /// replacing same-named built-ins.
     pub fn merge_dir(&mut self, dir: &Path) -> Result<(), ThemeError> {
-        let entries = std::fs::read_dir(dir).map_err(|source| ThemeError::ReadDir {
-            path: dir.display().to_string(),
-            source,
-        })?;
-        let mut paths: Vec<PathBuf> = Vec::new();
-        for entry in entries {
-            let entry = entry.map_err(|source| ThemeError::ReadDir {
-                path: dir.display().to_string(),
-                source,
-            })?;
-            let path = entry.path();
-            if path.is_file() && path.extension().and_then(|e| e.to_str()) == Some("toml") {
-                paths.push(path);
+        let backgrounds = dir.join(BACKGROUNDS_DIR);
+        if backgrounds.is_dir() {
+            for path in files_with_extension(&backgrounds, "svg")? {
+                let origin = path.display().to_string();
+                let source =
+                    std::fs::read_to_string(&path).map_err(|source| ThemeError::ReadDir {
+                        path: origin,
+                        source,
+                    })?;
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    self.backgrounds.insert(name.to_owned(), source);
+                }
             }
         }
-        // Deterministic order so two files claiming one name resolve the same
-        // way on every platform.
-        paths.sort();
-        for path in paths {
+        for path in files_with_extension(dir, "toml")? {
             let origin = path.display().to_string();
             let source = std::fs::read_to_string(&path).map_err(|source| ThemeError::ReadDir {
                 path: origin.clone(),
@@ -532,6 +666,119 @@ impl ThemePack {
         Ok(())
     }
 
+    /// Resolve a theme by name and attach its cover artwork, filled from the
+    /// resolved palette.
+    pub fn resolve(
+        &self,
+        name: &str,
+        primary: &str,
+        accent: &str,
+    ) -> Result<ThemeTokens, ThemeError> {
+        let mut tokens = self.get(name)?.resolve(name, primary, accent)?;
+        let file = &tokens.layout.cover_background;
+        if !file.is_empty() {
+            let source =
+                self.backgrounds
+                    .get(file)
+                    .ok_or_else(|| ThemeError::UnknownBackground {
+                        theme: name.to_owned(),
+                        file: file.clone(),
+                        available: self
+                            .backgrounds
+                            .keys()
+                            .cloned()
+                            .collect::<Vec<_>>()
+                            .join(", "),
+                    })?;
+            tokens.cover_background_svg =
+                Some(fill_background(name, file, source, &tokens.palette)?);
+        }
+        Ok(tokens)
+    }
+}
+
+/// Built-in and user cover artwork live in this subdirectory of the themes.
+const BACKGROUNDS_DIR: &str = "backgrounds";
+
+/// Replace every `{{field}}` in cover artwork with that palette colour, so one
+/// SVG follows the theme and the branding colours. An unknown field is an
+/// error rather than a literal `{{...}}` left in the file.
+fn fill_background(
+    theme: &str,
+    file: &str,
+    source: &str,
+    palette: &Palette,
+) -> Result<String, ThemeError> {
+    let colors = palette_fields(palette);
+    let mut out = String::with_capacity(source.len());
+    let mut rest = source;
+    while let Some(start) = rest.find("{{") {
+        out.push_str(&rest[..start]);
+        let after = &rest[start + 2..];
+        let end = after
+            .find("}}")
+            .ok_or_else(|| ThemeError::BackgroundPlaceholder {
+                theme: theme.to_owned(),
+                file: file.to_owned(),
+                placeholder: after.chars().take(24).collect(),
+            })?;
+        let key = after[..end].trim();
+        let color = colors
+            .get(key)
+            .ok_or_else(|| ThemeError::BackgroundPlaceholder {
+                theme: theme.to_owned(),
+                file: file.to_owned(),
+                placeholder: key.to_owned(),
+            })?;
+        out.push_str(color);
+        rest = &after[end + 2..];
+    }
+    out.push_str(rest);
+    Ok(out)
+}
+
+/// The resolved light palette by field name, as cover artwork may name it.
+fn palette_fields(p: &Palette) -> BTreeMap<&'static str, &str> {
+    BTreeMap::from([
+        ("primary", p.primary.as_str()),
+        ("primary_dark", p.primary_dark.as_str()),
+        ("primary_tint", p.primary_tint.as_str()),
+        ("accent", p.accent.as_str()),
+        ("accent_tint", p.accent_tint.as_str()),
+        ("on_primary", p.on_primary.as_str()),
+        ("band", p.band.as_str()),
+        ("on_band", p.on_band.as_str()),
+        ("ink", p.ink.as_str()),
+        ("muted", p.muted.as_str()),
+        ("rule", p.rule.as_str()),
+        ("surface", p.surface.as_str()),
+        ("zebra", p.zebra.as_str()),
+    ])
+}
+
+/// Files in `dir` with one extension, sorted so two files claiming one name
+/// resolve the same way on every platform.
+fn files_with_extension(dir: &Path, extension: &str) -> Result<Vec<PathBuf>, ThemeError> {
+    let entries = std::fs::read_dir(dir).map_err(|source| ThemeError::ReadDir {
+        path: dir.display().to_string(),
+        source,
+    })?;
+    let mut paths = Vec::new();
+    for entry in entries {
+        let entry = entry.map_err(|source| ThemeError::ReadDir {
+            path: dir.display().to_string(),
+            source,
+        })?;
+        let path = entry.path();
+        if path.is_file() && path.extension().and_then(|e| e.to_str()) == Some(extension) {
+            paths.push(path);
+        }
+    }
+    paths.sort();
+    Ok(paths)
+}
+
+impl ThemePack {
     /// Theme names, sorted.
     pub fn names(&self) -> Vec<&str> {
         self.themes.keys().map(String::as_str).collect()
@@ -592,10 +839,100 @@ mod tests {
     }
 
     #[test]
-    fn unit_builtin_pack_contains_only_the_field_report() {
+    fn unit_builtin_pack_ships_azure_and_the_field_report() {
         let pack = ThemePack::builtin().unwrap();
 
-        assert_eq!(pack.names(), vec![DEFAULT_THEME]);
+        assert_eq!(pack.names(), vec!["azure", "field-report"]);
+    }
+
+    #[test]
+    fn unit_builtin_cover_backgrounds_resolve_with_every_placeholder_filled() {
+        let pack = ThemePack::builtin().unwrap();
+
+        for name in pack.names() {
+            let tokens = pack.resolve(name, "#0078d4", "#4da3e8").unwrap();
+            if let Some(svg) = &tokens.cover_background_svg {
+                assert!(!svg.contains("{{"), "theme {name} left a placeholder");
+                assert!(
+                    svg.contains(&tokens.palette.band),
+                    "theme {name} art ignores band"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn unit_resolve_fills_cover_background_from_branding_colors() {
+        let pack = ThemePack::builtin().unwrap();
+
+        let tokens = pack.resolve("azure", "#123456", "#4da3e8").unwrap();
+
+        let svg = tokens.cover_background_svg.unwrap();
+        assert!(svg.contains("#123456"), "the accent stop follows branding");
+    }
+
+    #[test]
+    fn unit_resolve_reports_an_unknown_cover_background() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("art.toml"),
+            "description = \"x\"\n[layout]\ncover = \"block\"\ncover_background = \"nope.svg\"\n",
+        )
+        .unwrap();
+        let mut pack = ThemePack::builtin().unwrap();
+        pack.merge_dir(dir.path()).unwrap();
+
+        let err = pack.resolve("art", "#0078d4", "#4da3e8").unwrap_err();
+
+        assert!(matches!(err, ThemeError::UnknownBackground { .. }), "{err}");
+        assert!(err.to_string().contains("azure-gradient.svg"), "{err}");
+    }
+
+    #[test]
+    fn unit_resolve_rejects_an_unknown_background_placeholder() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir(dir.path().join(BACKGROUNDS_DIR)).unwrap();
+        std::fs::write(
+            dir.path().join(BACKGROUNDS_DIR).join("mine.svg"),
+            "<svg fill=\"{{chartreuse}}\"/>",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.path().join("art.toml"),
+            "description = \"x\"\n[layout]\ncover_background = \"mine.svg\"\n",
+        )
+        .unwrap();
+        let mut pack = ThemePack::builtin().unwrap();
+        pack.merge_dir(dir.path()).unwrap();
+
+        let err = pack.resolve("art", "#0078d4", "#4da3e8").unwrap_err();
+
+        assert!(err.to_string().contains("{{chartreuse}}"), "{err}");
+    }
+
+    #[test]
+    fn unit_merge_dir_loads_user_cover_backgrounds() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir(dir.path().join(BACKGROUNDS_DIR)).unwrap();
+        std::fs::write(
+            dir.path().join(BACKGROUNDS_DIR).join("mine.svg"),
+            "<svg fill=\"{{ band }}\"/>",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.path().join("art.toml"),
+            "description = \"x\"\n[palette]\nband = \"#abcdef\"\n[layout]\ncover_background = \"mine.svg\"\n",
+        )
+        .unwrap();
+        let mut pack = ThemePack::builtin().unwrap();
+        pack.merge_dir(dir.path()).unwrap();
+
+        let tokens = pack.resolve("art", "#0078d4", "#4da3e8").unwrap();
+
+        assert_eq!(
+            tokens.cover_background_svg.as_deref(),
+            Some("<svg fill=\"#abcdef\"/>")
+        );
     }
 
     #[test]
@@ -677,7 +1014,7 @@ mod tests {
 
         pack.merge_dir(dir.path()).unwrap();
 
-        let spec = pack.get(DEFAULT_THEME).unwrap();
+        let spec = pack.get("field-report").unwrap();
         assert_eq!(spec.description, "local override");
         assert_eq!(spec.layout.cover, CoverStyle::Editorial);
     }

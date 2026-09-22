@@ -123,6 +123,21 @@ anywhere on a theme's name.** User overrides live in
 - `docs/reference/labels.md` documents the sibling pattern for wording.
 - Anything drawn on top of a brand colour must go through `readable_on`, or a
   pale `primary_color` produces white-on-white.
+- Two built-ins: `azure` (default; the desktop palette in print) and
+  `field-report`. Cover artwork is data too: `layout.cover_background` names an
+  A4 SVG in `data/themes/backgrounds/` (user: `themes/backgrounds/`) whose
+  `{{palette_field}}` placeholders `ThemePack::resolve` fills. PDF places it
+  as page background (every cover strategy); DOCX rasterises it into a page-anchored picture in
+  the cover's first body paragraph (never a header — Word greys headers out on
+  screen) and `docx/mod.rs` flips that anchor to `behindDoc`. The desktop's Exports picker
+  previews themes from `report_themes` (browser preview:
+  `generated-report-themes.json`, written by the bindings test).
+- Figure colours are theme data as well: `bar`/`bar_track`, `[palette.series]`
+  (one per service family) and `[palette.map]` (the world map, shared by the
+  reports and the draw.io workbook's Regions sheet via `report::world_map`
+  and `report::location_counts`). Print uses `View::Print` (the desktop's
+  crop); the workbook uses `View::Globe` and places label pills with
+  `drawio::place_labels`, a fixed candidate order with no overlap. Defaults reproduce the old quiet look.
 - Field Report's PDF and Word use Charter / Arial / Courier New. The theme's
   `pdf_use_docx_fonts` prefers installed `docx_*` faces, loaded offline during
   branding resolution. Missing PDF faces fall back to the bundled IBM Plex

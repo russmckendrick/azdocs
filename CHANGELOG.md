@@ -10,6 +10,44 @@ are cut from the Unreleased section at tag time; see
 
 Nothing yet.
 
+## [0.4.0] - 2026-09-22
+
+### Added
+
+- Azure document theme, now the default for PDF, Word and HTML exports: the
+  desktop's navy and Azure blue in print, with a gradient cover, banded
+  tables, card stats and the desktop's severity, service-family and map
+  colours. Field Report remains available and gains a paper-gradient cover.
+- Theme-driven cover artwork (`layout.cover_background`, an A4 SVG filled from
+  the resolved palette) and figure colours (`bar`/`bar_track`,
+  `[palette.series]`, `[palette.map]`).
+- Resource-locations world map at the start of the PDF and Word Regional
+  concentration section, with marker area following resource count.
+- Regions sheet in the draw.io workbook with editable, non-overlapping label
+  pills.
+- Document style picker on the desktop Exports page, previewing each theme's
+  cover and body page.
+- VM and Arc machine records list their extensions, and Estate filtered to
+  either machine type offers them as columns.
+
+### Changed
+
+- Estate and Inventory are one desktop section: Estate filtered to a type can
+  show the matching inventory query's columns, each resource record lists
+  every query row that names it, and the remaining queries live under a
+  Query results tab.
+- Overview gains compact KPI tiles with movement since the previous snapshot,
+  priority checks beside the severity chart, tag-key coverage and a single
+  collection-coverage strip.
+- Exports and Settings adopt the same uncarded ledger layout as Changes,
+  Findings and Governance.
+
+### Fixed
+
+- Crowded Overview map markers (such as UK South and UK West) are spread
+  apart with leader lines instead of hiding each other.
+- The findings badge in the navigation names its count as high-severity.
+
 ## [0.3.0] - 2026-09-22
 
 ### Added
@@ -103,7 +141,8 @@ Softer Azure desktop theme and clearer Settings surfaces. See
 First public release: CLI, TUI and desktop explorer. See
 [docs/releases/0.1.0.md](docs/releases/0.1.0.md).
 
-[Unreleased]: https://github.com/russmckendrick/azdocs/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/russmckendrick/azdocs/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/russmckendrick/azdocs/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/russmckendrick/azdocs/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/russmckendrick/azdocs/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/russmckendrick/azdocs/compare/v0.1.0...v0.1.1

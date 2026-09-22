@@ -13,7 +13,7 @@ azdocs diagram --type hierarchy|resources|network|vnets|resource-groups|workbook
 | `network` | VNets/subnets as containers, VMs placed in their subnets, dashed peering edges, NSG associations, private-endpoint links |
 | `vnets` | One diagram per VNet: its subnets and resources, plus dashed stubs to peered VNets |
 | `resource-groups` | One diagram per resource group: VNet subtrees homed there plus a "Not in a virtual network" zone |
-| `workbook` | A single multi-sheet `.drawio` file: network topology, VNet peerings, then every per-VNet and per-RG sheet |
+| `workbook` | A single multi-sheet `.drawio` file: network topology, VNet peerings, every per-VNet and per-RG sheet, then a **Regions** sheet with the resource-locations map |
 
 Diagrams exported here are drawn at **full detail** — every resource gets its
 own icon and name, using a natural 1400px working width. The same graphs
@@ -29,6 +29,15 @@ under `output/diagrams/vnets/` and `output/diagrams/resource-groups/`
 (`--out` names the directory instead). The workbook writes
 `output/azdocs-workbook.drawio` — or, for `svg`/`png`, one file per sheet under
 `output/diagrams/workbook/`, since a raster cannot hold multiple sheets.
+
+The Regions sheet is the full-colour world map from the PDF and Word reports,
+drawn in the configured theme's `[palette.map]` colours but showing the whole
+globe rather than the print crop. Each marker has an editable label pill
+(`UK South · 255`) beside it: right, left, above or below, or further out with
+a leader line when neighbours crowd it, so labels never cover each other or a
+marker. Locations with no place on the map, such as `global`, are listed in
+one caption under it. The sheet is omitted when no resource has a placeable
+region; `svg`/`png` write the map alone as `regions.svg` or `regions.png`.
 
 The desktop's Draw.io Diagram Workbook uses the same workbook output name under
 the directory you choose. Other diagram types and image formats are available

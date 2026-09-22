@@ -1,6 +1,8 @@
 name = "frontdoor_cdn_profiles"
 category = "networking"
 kind = "inventory"
+resource_types = ["microsoft.cdn/profiles"]
+resource_table = true
 description = "Front Door and CDN profiles with SKU, endpoint counts and attached WAF policy"
 kql = '''
 resources

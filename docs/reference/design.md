@@ -232,14 +232,13 @@ cards everywhere.
 | Screen | Primary UI |
 |---|---|
 | Overview | analytical dashboard: KPI cards and chart panels |
-| Estate | subscription tree beside a resource table |
+| Estate | Resources tab: subscription tree beside a resource table, whose columns follow one type's query when filtered to that type; Query results tab: category rail beside a query table |
 | Map | topology canvas |
 | Regions | full-page world map of every Azure datacentre, the snapshot's regions highlighted, above a region table |
-| Inventory | category rail beside a query table |
 | Findings | severity tally, filters, findings list and an evidence drawer |
 | Governance | tagging analysis: stat strip, meters and a compliance ledger |
 | Changes | snapshot ledger beside a comparison |
-| Exports | deliverable list beside the run panel |
+| Exports | deliverable rows and scope beside the run plate, split by a hairline like Changes |
 | Resource record | linear evidence sheet with compact header facts |
 
 Estate keeps its hierarchy rail because scope is part of browsing; the rail
@@ -429,9 +428,9 @@ with its physical location, geography, count and share; a row opens the
 Estate filtered to that region, which is the useful answer to "what is
 there". The Overview's small map stays a static picture.
 
-### Inventory evidence disclosures
+### Query evidence disclosures
 
-Inventory keeps operational summaries and each query's recorded provenance in
+Query results keeps operational summaries and each query's recorded provenance in
 native disclosures, collapsed until requested. Rust owns the summary analysis
 and labelled wording; the frontend renders the supplied statuses, notes,
 columns and cells. Evidence semantics, source limits and historical provenance
@@ -525,9 +524,9 @@ the last successful graph as stale, with Retry and Revert actions and an
 
 ## Settings layout
 
-Settings uses the same tokens: a softly bounded tenant list beside a matching
-editor card. Top-level areas are Tenants, Shared defaults and Application,
-grouped into a compact tab control. Selected tabs and tenants use the
+Settings uses the Changes split, not cards: a ruled tenant ledger beside the
+editor, separated by a vertical hairline. Top-level areas are Tenants, Shared
+defaults and Application, in the shared `view-tabs` control that Estate uses. Selected tabs and tenants use the
 `--az-selected` fill; inputs use surface-1 so they stay distinct from the
 canvas without becoming heavy in dark mode. Tenant Connection, Collection &
 audit and Report branding are separate panels; selecting a tenant here changes
