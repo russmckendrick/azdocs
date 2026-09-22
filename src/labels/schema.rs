@@ -441,6 +441,12 @@ pub struct LegendLabels {
 pub struct WorkbookLabels {
     pub network_topology: String,
     pub vnet_peerings: String,
+    pub regions: String,
+    /// One map label per region: `{region}` and `{count}`.
+    pub region_note: String,
+    /// Caption for locations with no place on the map, such as `global`:
+    /// `{locations}` is their labels, comma separated.
+    pub unplaced_note: String,
 }
 
 // --------------------------------------------------------------------- cli --
@@ -852,6 +858,11 @@ pub struct DesktopProgressiveLabels {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DesktopExportsLabels {
+    pub theme_title: String,
+    pub theme_detail: String,
+    pub theme_legend: String,
+    pub theme_configured: String,
+    pub theme: String,
     pub include_reference: String,
     pub reference_detail: String,
     pub title: String,

@@ -1227,6 +1227,104 @@ pub struct ExportRequestDto {
     /// Reports only: keep findings at this severity or higher (a `Severity`
     /// name; validated against the CLI enum on the Rust side).
     pub min_severity: Option<String>,
+    /// Reports only: a theme name from `report_themes`; absent uses the
+    /// configured `[branding] theme`.
+    pub theme: Option<String>,
+}
+
+/// The document themes an export can use, resolved against the snapshot's
+/// branding so the picker shows the colours the document will carry.
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename = "ReportThemes", optional_fields = nullable)]
+pub struct ReportThemesDto {
+    pub themes: Vec<ReportThemeDto>,
+    /// The configured `[branding] theme`.
+    pub configured: String,
+}
+
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename = "ReportTheme", optional_fields = nullable)]
+pub struct ReportThemeDto {
+    pub name: String,
+    pub title: String,
+    pub description: String,
+    #[ts(type = "ReportCoverStyle")]
+    pub cover: String,
+    #[ts(type = "ReportTableStyle")]
+    pub table: String,
+    #[ts(type = "ReportStatStyle")]
+    pub stat: String,
+    pub zebra_rows: bool,
+    pub palette: ReportThemePaletteDto,
+    /// The cover artwork SVG with its palette placeholders filled.
+    pub cover_art: Option<String>,
+}
+
+/// The resolved colour roles a theme preview draws with.
+#[derive(Debug, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(rename = "ReportThemePalette")]
+pub struct ReportThemePaletteDto {
+    pub primary: String,
+    pub primary_dark: String,
+    pub primary_tint: String,
+    pub accent: String,
+    pub on_primary: String,
+    pub band: String,
+    pub on_band: String,
+    pub ink: String,
+    pub muted: String,
+    pub rule: String,
+    pub surface: String,
+    pub zebra: String,
+    pub high: String,
+    pub high_fill: String,
+    pub medium: String,
+    pub medium_fill: String,
+}
+
+impl ReportThemeDto {
+    pub fn from_tokens(tokens: &azdocs::report::theme::ThemeTokens) -> Self {
+        // The strategies serialise to their kebab-case TOML names.
+        let strategy = |value: serde_json::Result<Value>| {
+            value
+                .ok()
+                .and_then(|value| value.as_str().map(str::to_owned))
+                .unwrap_or_default()
+        };
+        let layout = &tokens.layout;
+        let p = &tokens.palette;
+        Self {
+            name: tokens.name.clone(),
+            title: tokens.title.clone(),
+            description: tokens.description.clone(),
+            cover: strategy(serde_json::to_value(layout.cover)),
+            table: strategy(serde_json::to_value(layout.table)),
+            stat: strategy(serde_json::to_value(layout.stat)),
+            zebra_rows: layout.zebra_rows,
+            palette: ReportThemePaletteDto {
+                primary: p.primary.clone(),
+                primary_dark: p.primary_dark.clone(),
+                primary_tint: p.primary_tint.clone(),
+                accent: p.accent.clone(),
+                on_primary: p.on_primary.clone(),
+                band: p.band.clone(),
+                on_band: p.on_band.clone(),
+                ink: p.ink.clone(),
+                muted: p.muted.clone(),
+                rule: p.rule.clone(),
+                surface: p.surface.clone(),
+                zebra: p.zebra.clone(),
+                high: p.severity.high.text.clone(),
+                high_fill: p.severity.high.fill.clone(),
+                medium: p.severity.medium.text.clone(),
+                medium_fill: p.severity.medium.fill.clone(),
+            },
+            cover_art: tokens.cover_background_svg.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, TS)]

@@ -32,7 +32,7 @@ pub fn render(graph: &EstateGraph, labels: &DiagramLabels) -> String {
 pub fn render_for(graph: &EstateGraph, detail: DiagramDetail, labels: &DiagramLabels) -> String {
     // The empty prefix keeps single-sheet cell ids `n{i}`/`e{i}`; the id scheme
     // is frozen even though the geometry under it is not.
-    render_file(&[(graph.title.as_str(), graph)], false, detail, labels)
+    render_file(&[(graph.title.as_str(), graph)], &[], false, detail, labels)
 }
 
 /// Render several graphs as one multi-sheet `mxfile` workbook. Sheet ids are
@@ -47,11 +47,54 @@ pub fn render_workbook_for(
     detail: DiagramDetail,
     labels: &DiagramLabels,
 ) -> String {
-    render_file(sheets, true, detail, labels)
+    render_file(sheets, &[], true, detail, labels)
+}
+
+/// A workbook sheet that is a picture rather than a graph, such as the
+/// resource-locations map: the SVG as one image cell, each label an editable
+/// pill placed beside its point, and an optional caption beneath.
+pub struct ImageSheet<'a> {
+    pub name: &'a str,
+    pub svg: &'a str,
+    pub width: f64,
+    pub height: f64,
+    /// In placement priority: earlier labels get the nearer spots.
+    pub labels: &'a [ImageLabel],
+    pub caption: Option<&'a str>,
+    pub colors: LabelColors<'a>,
+}
+
+/// A label for one point of an image sheet, in the image's pixels.
+pub struct ImageLabel {
+    pub text: String,
+    pub x: f64,
+    pub y: f64,
+    /// Clearance around the point that no label may cover.
+    pub radius: f64,
+}
+
+/// `#rrggbb` colours for an image sheet's pills, caption and leader lines.
+pub struct LabelColors<'a> {
+    pub fill: &'a str,
+    pub stroke: &'a str,
+    pub text: &'a str,
+    pub muted: &'a str,
+}
+
+/// A workbook of graph sheets followed by image sheets. Image sheets take the
+/// next `azdocs-{i}` ids and `s{i}-` cell prefixes, so the scheme is unchanged.
+pub fn render_workbook_with(
+    sheets: &[(&str, &EstateGraph)],
+    images: &[ImageSheet<'_>],
+    detail: DiagramDetail,
+    labels: &DiagramLabels,
+) -> String {
+    render_file(sheets, images, true, detail, labels)
 }
 
 fn render_file(
     sheets: &[(&str, &EstateGraph)],
+    images: &[ImageSheet<'_>],
     prefixed: bool,
     detail: DiagramDetail,
     labels: &DiagramLabels,
@@ -73,6 +116,10 @@ fn render_file(
                 String::new()
             };
             sheet(writer, index, name, graph, &prefix, detail, labels);
+        }
+        for (offset, image) in images.iter().enumerate() {
+            let index = sheets.len() + offset;
+            image_sheet(writer, index, image, &format!("s{index}-"));
         }
     });
 
@@ -178,6 +225,304 @@ fn sheet(
                 legend_cells(writer, &legend_entries, stamp_top, prefix);
             });
         });
+    });
+}
+
+const LABEL_HEIGHT: f64 = 20.0;
+const LABEL_FONT: f64 = 11.0;
+/// Space between a point's clearance and its label.
+const LABEL_GAP: f64 = 4.0;
+const CAPTION_HEIGHT: f64 = 22.0;
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct Rect {
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+}
+
+impl Rect {
+    fn around(x: f64, y: f64, radius: f64) -> Self {
+        Self {
+            x: x - radius,
+            y: y - radius,
+            width: radius * 2.0,
+            height: radius * 2.0,
+        }
+    }
+
+    fn overlaps(&self, other: &Rect) -> bool {
+        self.x < other.x + other.width
+            && other.x < self.x + self.width
+            && self.y < other.y + other.height
+            && other.y < self.y + self.height
+    }
+
+    fn inside(&self, width: f64, height: f64) -> bool {
+        self.x >= 0.0
+            && self.y >= 0.0
+            && self.x + self.width <= width
+            && self.y + self.height <= height
+    }
+}
+
+/// A label's box and whether it sits away from its point, needing a leader.
+struct PlacedLabel {
+    rect: Rect,
+    leader: bool,
+}
+
+/// Width of a pill for `text`: an estimate, since draw.io measures the font
+/// itself, erring wide so a pill never clips its text.
+fn label_width(text: &str) -> f64 {
+    (text.chars().count() as f64 * LABEL_FONT * 0.6 + 16.0).ceil()
+}
+
+/// Place every label beside its point without covering another label or
+/// point: right, left, above, below; then further out with a leader line,
+/// diagonals included. Closed-form candidates in a fixed order keep the
+/// output deterministic; a label with nowhere free takes its first in-bounds
+/// spot rather than being dropped.
+fn place_labels(image: &ImageSheet<'_>) -> Vec<PlacedLabel> {
+    let points: Vec<Rect> = image
+        .labels
+        .iter()
+        .map(|label| Rect::around(label.x, label.y, label.radius))
+        .collect();
+    let mut taken: Vec<Rect> = Vec::new();
+    let mut placed = Vec::new();
+    for label in image.labels {
+        let (w, h) = (label_width(&label.text), LABEL_HEIGHT);
+        let rect = |x: f64, y: f64| Rect {
+            x,
+            y,
+            width: w,
+            height: h,
+        };
+        let mut candidates = Vec::new();
+        for (ring, leader) in [(0.0, false), (26.0, true), (60.0, true)] {
+            let near = label.radius + LABEL_GAP + ring;
+            candidates.extend(
+                [
+                    rect(label.x + near, label.y - h / 2.0),
+                    rect(label.x - near - w, label.y - h / 2.0),
+                    rect(label.x - w / 2.0, label.y - near - h),
+                    rect(label.x - w / 2.0, label.y + near),
+                ]
+                .map(|r| (r, leader)),
+            );
+            if leader {
+                let d = near * std::f64::consts::FRAC_1_SQRT_2;
+                candidates.extend(
+                    [
+                        rect(label.x + d, label.y - d - h),
+                        rect(label.x + d, label.y + d),
+                        rect(label.x - d - w, label.y - d - h),
+                        rect(label.x - d - w, label.y + d),
+                    ]
+                    .map(|r| (r, true)),
+                );
+            }
+        }
+        let fits = |r: &Rect| r.inside(image.width, image.height);
+        let free = |r: &Rect| {
+            fits(r)
+                && !taken.iter().any(|other| other.overlaps(r))
+                && !points.iter().any(|point| point.overlaps(r))
+        };
+        let (rect, leader) = candidates
+            .iter()
+            .find(|(r, _)| free(r))
+            .or_else(|| candidates.iter().find(|(r, _)| fits(r)))
+            .copied()
+            .unwrap_or((candidates[0].0, false));
+        taken.push(rect);
+        placed.push(PlacedLabel { rect, leader });
+    }
+    placed
+}
+
+fn image_sheet(writer: &mut Writer<Vec<u8>>, index: usize, image: &ImageSheet<'_>, prefix: &str) {
+    let caption_top = image.height + LABEL_GAP;
+    let page_height = if image.caption.is_some() {
+        caption_top + CAPTION_HEIGHT
+    } else {
+        image.height
+    };
+    let placed = place_labels(image);
+    let colors = &image.colors;
+    let layer = format!("{prefix}1");
+    let mut diagram = BytesStart::new("diagram");
+    diagram.push_attribute(("name", image.name));
+    diagram.push_attribute(("id", format!("azdocs-{index}").as_str()));
+    with_element(writer, diagram, |writer| {
+        let mut model = BytesStart::new("mxGraphModel");
+        let (page_width, page_height) = (trim_float(image.width), trim_float(page_height));
+        for (key, value) in [
+            ("dx", "1000"),
+            ("dy", "800"),
+            ("grid", "0"),
+            ("gridSize", "10"),
+            ("guides", "1"),
+            ("tooltips", "1"),
+            ("connect", "1"),
+            ("arrows", "1"),
+            ("fold", "1"),
+            ("page", "1"),
+            ("pageScale", "1"),
+            ("pageWidth", page_width.as_str()),
+            ("pageHeight", page_height.as_str()),
+            ("math", "0"),
+            ("shadow", "0"),
+        ] {
+            model.push_attribute((key, value));
+        }
+        with_element(writer, model, |writer| {
+            with_element(writer, BytesStart::new("root"), |writer| {
+                empty_cell(writer, &[("id", format!("{prefix}0").as_str())]);
+                empty_cell(
+                    writer,
+                    &[
+                        ("id", layer.as_str()),
+                        ("parent", format!("{prefix}0").as_str()),
+                    ],
+                );
+                use base64::Engine as _;
+                let encoded = base64::engine::general_purpose::STANDARD.encode(image.svg);
+                // Locked, so dragging a label never moves the map from under it.
+                let style = format!(
+                    "image;html=1;aspect=fixed;imageAspect=1;connectable=0;\
+                     movable=0;resizable=0;deletable=0;editable=0;\
+                     image=data:image/svg+xml,{encoded}"
+                );
+                geometry_cell(
+                    writer,
+                    &[
+                        ("id", format!("{prefix}image").as_str()),
+                        ("value", ""),
+                        ("style", style.as_str()),
+                        ("parent", layer.as_str()),
+                        ("vertex", "1"),
+                    ],
+                    (0.0, 0.0, image.width, image.height),
+                );
+                // Leaders before pills, so every pill is drawn over its line.
+                let leader_style = format!(
+                    "endArrow=none;html=1;strokeColor={};strokeWidth=1;",
+                    colors.muted
+                );
+                for (offset, (label, spot)) in image.labels.iter().zip(&placed).enumerate() {
+                    if !spot.leader {
+                        continue;
+                    }
+                    let r = spot.rect;
+                    let end = (
+                        label.x.clamp(r.x, r.x + r.width),
+                        label.y.clamp(r.y, r.y + r.height),
+                    );
+                    leader_cell(
+                        writer,
+                        &format!("{prefix}leader{offset}"),
+                        &layer,
+                        &leader_style,
+                        (label.x, label.y),
+                        end,
+                    );
+                }
+                let pill_style = format!(
+                    "rounded=1;arcSize=50;whiteSpace=nowrap;html=1;fontSize={LABEL_FONT};\
+                     fillColor={};strokeColor={};fontColor={};",
+                    colors.fill, colors.stroke, colors.text
+                );
+                for (offset, (label, spot)) in image.labels.iter().zip(&placed).enumerate() {
+                    let r = spot.rect;
+                    geometry_cell(
+                        writer,
+                        &[
+                            ("id", format!("{prefix}label{offset}").as_str()),
+                            ("value", label.text.as_str()),
+                            ("style", pill_style.as_str()),
+                            ("parent", layer.as_str()),
+                            ("vertex", "1"),
+                        ],
+                        (r.x, r.y, r.width, r.height),
+                    );
+                }
+                if let Some(caption) = image.caption {
+                    let style = format!(
+                        "text;html=1;align=left;verticalAlign=middle;fontSize={LABEL_FONT};fontColor={};",
+                        colors.muted
+                    );
+                    geometry_cell(
+                        writer,
+                        &[
+                            ("id", format!("{prefix}caption").as_str()),
+                            ("value", caption),
+                            ("style", style.as_str()),
+                            ("parent", layer.as_str()),
+                            ("vertex", "1"),
+                        ],
+                        (0.0, caption_top, image.width, CAPTION_HEIGHT),
+                    );
+                }
+            });
+        });
+    });
+}
+
+/// A free-standing line from `from` to `to`.
+fn leader_cell(
+    writer: &mut Writer<Vec<u8>>,
+    id: &str,
+    parent: &str,
+    style: &str,
+    from: (f64, f64),
+    to: (f64, f64),
+) {
+    let mut cell = BytesStart::new("mxCell");
+    cell.push_attribute(("id", id));
+    cell.push_attribute(("style", style));
+    cell.push_attribute(("parent", parent));
+    cell.push_attribute(("edge", "1"));
+    with_element(writer, cell, |writer| {
+        let mut geometry = BytesStart::new("mxGeometry");
+        geometry.push_attribute(("relative", "1"));
+        geometry.push_attribute(("as", "geometry"));
+        with_element(writer, geometry, |writer| {
+            for ((x, y), role) in [(from, "sourcePoint"), (to, "targetPoint")] {
+                let mut point = BytesStart::new("mxPoint");
+                point.push_attribute(("x", trim_float(x).as_str()));
+                point.push_attribute(("y", trim_float(y).as_str()));
+                point.push_attribute(("as", role));
+                writer
+                    .write_event(Event::Empty(point))
+                    .expect("writing to Vec cannot fail");
+            }
+        });
+    });
+}
+
+/// A vertex with its geometry as the only child.
+fn geometry_cell(
+    writer: &mut Writer<Vec<u8>>,
+    attributes: &[(&str, &str)],
+    (x, y, width, height): (f64, f64, f64, f64),
+) {
+    let mut cell = BytesStart::new("mxCell");
+    for attribute in attributes {
+        cell.push_attribute(*attribute);
+    }
+    with_element(writer, cell, |writer| {
+        let mut geometry = BytesStart::new("mxGeometry");
+        geometry.push_attribute(("x", trim_float(x).as_str()));
+        geometry.push_attribute(("y", trim_float(y).as_str()));
+        geometry.push_attribute(("width", trim_float(width).as_str()));
+        geometry.push_attribute(("height", trim_float(height).as_str()));
+        geometry.push_attribute(("as", "geometry"));
+        writer
+            .write_event(Event::Empty(geometry))
+            .expect("writing to Vec cannot fail");
     });
 }
 
@@ -674,6 +1019,97 @@ mod tests {
 
     fn labels() -> DiagramLabels {
         crate::labels::Labels::default().diagram
+    }
+
+    fn map_sheet<'a>(labels: &'a [ImageLabel], caption: Option<&'a str>) -> ImageSheet<'a> {
+        ImageSheet {
+            name: "Regions",
+            svg: "<svg xmlns=\"http://www.w3.org/2000/svg\"/>",
+            width: 1200.0,
+            height: 600.0,
+            labels,
+            caption,
+            colors: LabelColors {
+                fill: "#ffffff",
+                stroke: "#d6e1eb",
+                text: "#14233a",
+                muted: "#53677e",
+            },
+        }
+    }
+
+    fn point(text: &str, x: f64, y: f64) -> ImageLabel {
+        ImageLabel {
+            text: text.to_owned(),
+            x,
+            y,
+            radius: 8.0,
+        }
+    }
+
+    #[test]
+    fn unit_image_sheet_follows_the_graph_sheets_with_the_next_ids() {
+        let graph = graph(1);
+        let points = [point("UK South · 3", 580.0, 150.0)];
+
+        let xml = render_workbook_with(
+            &[("Network", &graph)],
+            &[map_sheet(&points, Some("Not on the map: Global · 1"))],
+            DiagramDetail::Full,
+            &labels(),
+        );
+
+        assert!(xml.contains(r#"name="Regions" id="azdocs-1""#), "{xml}");
+        assert!(xml.contains(r#"id="s1-image""#));
+        assert!(xml.contains("image=data:image/svg+xml,"));
+        assert!(xml.contains(r#"id="s1-label0" value="UK South · 3""#));
+        assert!(xml.contains(r#"id="s1-caption" value="Not on the map: Global · 1""#));
+    }
+
+    #[test]
+    fn unit_labels_sit_beside_their_point_when_there_is_room() {
+        let points = [point("UK South · 3", 580.0, 150.0)];
+
+        let placed = place_labels(&map_sheet(&points, None));
+
+        let rect = placed[0].rect;
+        assert!(!placed[0].leader);
+        assert_eq!(rect.x, 580.0 + 8.0 + LABEL_GAP, "to the right");
+        assert_eq!(rect.y + rect.height / 2.0, 150.0, "centred on the point");
+    }
+
+    #[test]
+    fn unit_crowded_labels_never_overlap_each_other_or_a_point() {
+        // A northern-Europe cluster, as close as the real regions sit.
+        let points = [
+            point("UK South · 255", 580.0, 150.0),
+            point("West Europe · 11", 600.0, 140.0),
+            point("Sweden Central · 2", 610.0, 110.0),
+            point("North Europe · 4", 570.0, 135.0),
+        ];
+        let sheet = map_sheet(&points, None);
+
+        let placed = place_labels(&sheet);
+
+        for (a, first) in placed.iter().enumerate() {
+            assert!(first.rect.inside(sheet.width, sheet.height));
+            for second in &placed[a + 1..] {
+                assert!(!first.rect.overlaps(&second.rect), "label {a} overlaps");
+            }
+            for p in &points {
+                let clearance = Rect::around(p.x, p.y, p.radius);
+                assert!(!first.rect.overlaps(&clearance), "label {a} covers a point");
+            }
+        }
+    }
+
+    #[test]
+    fn unit_a_label_at_the_right_edge_turns_inward() {
+        let points = [point("East US · 2", 1195.0, 300.0)];
+
+        let placed = place_labels(&map_sheet(&points, None));
+
+        assert!(placed[0].rect.x + placed[0].rect.width <= 1200.0);
     }
     use crate::diagram::graph::LayoutMode;
     use crate::diagram::graph::{DiagEdge, Node};

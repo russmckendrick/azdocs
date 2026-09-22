@@ -101,6 +101,16 @@ pub struct Ctx<'a> {
     pub labels: &'a crate::labels::Labels,
     pub usable_twips: u32,
     pub usable_height_twips: u32,
+    /// The physical sheet, for artwork anchored to the page rather than the
+    /// text column.
+    pub page_twips: (u32, u32),
+}
+
+/// Sheet and text-column sizes from [`document`], in twips.
+pub struct Geometry {
+    pub usable: u32,
+    pub usable_height: u32,
+    pub page: (u32, u32),
 }
 
 impl<'a> Ctx<'a> {
@@ -121,8 +131,8 @@ impl<'a> Ctx<'a> {
 }
 
 /// Apply page geometry, default fonts and paragraph styles. Returns the
-/// document plus the usable text width, which the caller threads into [`Ctx`].
-pub fn document(branding: &BrandingContext) -> (Docx, u32, u32) {
+/// document plus its geometry, which the caller threads into [`Ctx`].
+pub fn document(branding: &BrandingContext) -> (Docx, Geometry) {
     let tokens = &branding.tokens;
     let typography = &tokens.typography;
 
@@ -189,7 +199,14 @@ pub fn document(branding: &BrandingContext) -> (Docx, u32, u32) {
     } else {
         docx
     };
-    (docx, usable, usable_height)
+    (
+        docx,
+        Geometry {
+            usable,
+            usable_height,
+            page: (width, height),
+        },
+    )
 }
 
 const HEADING_NUMBERING_ID: usize = 42;

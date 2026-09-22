@@ -8,6 +8,7 @@ use crate::labels::{AssessmentLabels, CheckGuidance, Labels};
 use crate::model::{EdgeKind, Resource, azure_types, azure_values};
 use crate::report::analysis::{GroupProfile, Issue, StudyReason};
 use crate::report::governance::{HEALTHY_TAG_COVERAGE_PERCENT, percent, tag_keys};
+use crate::report::theme::SeriesPalette;
 
 fn para<'a>(blocks: &mut Vec<Block<'a>>, text: impl Into<Cow<'a, str>>) {
     blocks.push(Block::Paragraph {
@@ -96,50 +97,63 @@ fn group_name<'a>(group: &'a GroupProfile, labels: &'a Labels) -> &'a str {
         .unwrap_or(&labels.common.subscription_scope)
 }
 
+/// Resources per service family, busiest first, each with its family's
+/// series colour so every family-split chart colours a family the same way.
 fn families<'a>(
     resources: impl Iterator<Item = &'a Resource>,
     words: &AssessmentLabels,
-) -> Vec<(String, usize)> {
-    counts(resources.map(|r| {
+    series: &SeriesPalette,
+) -> Vec<(String, usize, String)> {
+    let mut colors: BTreeMap<String, String> = BTreeMap::new();
+    let counted = counts(resources.map(|r| {
         let t = r.azure_type.as_str();
-        let label = if t.starts_with("microsoft.network/") {
-            &words.family_network
+        let label: (&String, &String) = if t.starts_with("microsoft.network/") {
+            (&words.family_network, &series.network)
         } else if t.starts_with("microsoft.compute/")
             || t.starts_with("microsoft.web/")
             || t.starts_with("microsoft.containerservice/")
             || t.starts_with("microsoft.app/")
             || t.starts_with("microsoft.desktopvirtualization/")
         {
-            &words.family_compute
+            (&words.family_compute, &series.compute)
         } else if t.starts_with("microsoft.storage/")
             || t.starts_with("microsoft.sql/")
             || t.starts_with("microsoft.dbfor")
             || t.starts_with("microsoft.documentdb/")
             || t.starts_with("microsoft.cache/")
         {
-            &words.family_data
+            (&words.family_data, &series.data)
         } else if t.starts_with("microsoft.keyvault/")
             || t.starts_with("microsoft.managedidentity/")
         {
-            &words.family_identity
+            (&words.family_identity, &series.identity)
         } else if t.starts_with("microsoft.insights/")
             || t.starts_with("microsoft.operationalinsights/")
             || t.starts_with("microsoft.recoveryservices/")
             || t.starts_with("microsoft.dataprotection/")
         {
-            &words.family_monitoring
+            (&words.family_monitoring, &series.monitoring)
         } else if t.starts_with("microsoft.logic/")
             || t.starts_with("microsoft.synapse/")
             || t.starts_with("microsoft.datafactory/")
             || t.starts_with("microsoft.cognitiveservices/")
             || t.starts_with("microsoft.search/")
         {
-            &words.family_integration
+            (&words.family_integration, &series.integration)
         } else {
-            &words.family_other
+            (&words.family_other, &series.other)
         };
+        let (label, color) = label;
+        colors.insert(label.clone(), color.clone());
         label.to_owned()
-    }))
+    }));
+    counted
+        .into_iter()
+        .map(|(label, count)| {
+            let color = colors.get(&label).cloned().unwrap_or_default();
+            (label, count, color)
+        })
+        .collect()
 }
 
 fn counts(values: impl Iterator<Item = String>) -> Vec<(String, usize)> {
@@ -164,7 +178,7 @@ fn chart<'a>(
     blocks: &mut Vec<Block<'a>>,
     branding: &BrandingContext,
     slug: &str,
-    values: &[(String, usize)],
+    values: &[(String, usize, String)],
     total: usize,
     caption: &'a str,
 ) {
@@ -184,7 +198,7 @@ fn chart<'a>(
         xml(font),
         xml(&pal.ink)
     );
-    for (index, (label, count)) in values.iter().enumerate() {
+    for (index, (label, count, color)) in values.iter().enumerate() {
         let y = index * 32 + 20;
         let share = percent(*count, total);
         let width = if total == 0 {
@@ -192,7 +206,7 @@ fn chart<'a>(
         } else {
             *count as f64 / total as f64 * 270.0
         };
-        svg.push_str(&format!("<text x=\"0\" y=\"{y}\">{}</text><rect x=\"290\" y=\"{}\" width=\"270\" height=\"12\" fill=\"{}\"/><rect x=\"290\" y=\"{}\" width=\"{width:.2}\" height=\"12\" fill=\"{}\"/><text x=\"674\" y=\"{y}\" text-anchor=\"end\">{count} · {share}%</text>", xml(&crate::model::truncate(label, 36)), y-12, xml(&pal.zebra), y-12, xml(&pal.muted)));
+        svg.push_str(&format!("<text x=\"0\" y=\"{y}\">{}</text><rect x=\"290\" y=\"{}\" width=\"270\" height=\"12\" fill=\"{}\"/><rect x=\"290\" y=\"{}\" width=\"{width:.2}\" height=\"12\" fill=\"{}\"/><text x=\"674\" y=\"{y}\" text-anchor=\"end\">{count} · {share}%</text>", xml(&crate::model::truncate(label, 36)), y-12, xml(&pal.bar_track), y-12, xml(color)));
     }
     svg.push_str("</g></svg>");
     blocks.push(Block::Chart {
@@ -691,7 +705,7 @@ fn composition<'a>(
         blocks,
         branding,
         "estate-families",
-        &families(a.resources.values(), w),
+        &families(a.resources.values(), w, &branding.tokens.palette.series),
         a.resources.len(),
         &w.family_caption,
     );
@@ -712,7 +726,13 @@ fn composition<'a>(
         &report
             .location_counts
             .iter()
-            .map(|l| (l.display.clone(), l.count))
+            .map(|l| {
+                (
+                    l.display.clone(),
+                    l.count,
+                    branding.tokens.palette.bar.clone(),
+                )
+            })
             .collect::<Vec<_>>(),
         report.totals.resources,
         &w.geography_note,
@@ -940,7 +960,11 @@ fn profiles<'a>(
             blocks,
             branding,
             &format!("subscription-families-{index}"),
-            &families(resources.iter().copied(), w),
+            &families(
+                resources.iter().copied(),
+                w,
+                &branding.tokens.palette.series,
+            ),
             resources.len(),
             &w.family_caption,
         );

@@ -1,7 +1,8 @@
-//! The resource-locations world map for the printed assessment: the desktop
-//! Overview's map (same land outline, projection and crop) redrawn in the
-//! theme's print palette. Print has no hover, so marker area carries the
-//! resource count instead; the regions chart beneath names every location.
+//! The resource-locations world map for the printed assessment and the
+//! draw.io workbook: the desktop Overview's map (same land outline,
+//! projection and, in print, crop) redrawn in the theme's palette. Print has
+//! no hover, so marker area carries the resource count instead; the regions
+//! chart beneath names every location, and the workbook labels each marker.
 
 use std::sync::OnceLock;
 
@@ -19,9 +20,34 @@ const MAP_WIDTH: f64 = 400.0;
 /// Rendered width; the PDF and DOCX scale it to the text column either way,
 /// this only sets the DOCX raster's resolution.
 const PIXEL_WIDTH: f64 = 680.0;
-// No Azure region is south of Chile or north of Norway.
-const LATITUDE_TOP: f64 = 74.0;
-const LATITUDE_BOTTOM: f64 = -56.0;
+
+/// Which latitudes a map shows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum View {
+    /// Cropped to where Azure regions are, as on the desktop Overview: no
+    /// region is south of Chile or north of Norway. The print figures.
+    Print,
+    /// The whole globe, pole to pole: the editable draw.io sheet, where a
+    /// crop reads as a cut-off rather than a tight figure.
+    Globe,
+}
+
+impl View {
+    fn latitudes(self) -> (f64, f64) {
+        match self {
+            Self::Print => (74.0, -56.0),
+            Self::Globe => (90.0, -90.0),
+        }
+    }
+
+    fn index(self) -> usize {
+        match self {
+            Self::Print => 0,
+            Self::Globe => 1,
+        }
+    }
+}
+
 const MIN_RADIUS: f64 = 2.5;
 const MAX_RADIUS: f64 = 9.0;
 /// Clear space kept between neighbouring markers after spreading.
@@ -49,13 +75,14 @@ struct Frame {
     height: f64,
 }
 
-fn frame() -> &'static Frame {
-    static FRAME: OnceLock<Frame> = OnceLock::new();
-    FRAME.get_or_init(|| {
+fn frame_for(view: View) -> &'static Frame {
+    static FRAMES: [OnceLock<Frame>; 2] = [OnceLock::new(), OnceLock::new()];
+    FRAMES[view.index()].get_or_init(|| {
+        let (top, bottom) = view.latitudes();
         let (x_min, _) = natural_earth(-180.0, 0.0);
         let (x_max, _) = natural_earth(180.0, 0.0);
-        let (_, y_top) = natural_earth(0.0, LATITUDE_TOP);
-        let (_, y_bottom) = natural_earth(0.0, LATITUDE_BOTTOM);
+        let (_, y_top) = natural_earth(0.0, top);
+        let (_, y_bottom) = natural_earth(0.0, bottom);
         let scale = MAP_WIDTH / (x_max - x_min);
         Frame {
             x_min,
@@ -66,22 +93,27 @@ fn frame() -> &'static Frame {
     })
 }
 
+#[cfg(test)]
 fn project(longitude: f64, latitude: f64) -> (f64, f64) {
-    let f = frame();
+    project_in(View::Print, longitude, latitude)
+}
+
+fn project_in(view: View, longitude: f64, latitude: f64) -> (f64, f64) {
+    let f = frame_for(view);
     let (x, y) = natural_earth(longitude, latitude);
     ((x - f.x_min) * f.scale, (y - f.y_top) * f.scale)
 }
 
-fn land_path() -> &'static str {
-    static PATH: OnceLock<String> = OnceLock::new();
-    PATH.get_or_init(|| {
+fn land_path(view: View) -> &'static str {
+    static PATHS: [OnceLock<String>; 2] = [OnceLock::new(), OnceLock::new()];
+    PATHS[view.index()].get_or_init(|| {
         let rings: Vec<Vec<f64>> = serde_json::from_str(LAND_OUTLINE).unwrap_or_else(|err| {
             panic!("embedded land outline is valid; guaranteed by unit test: {err}")
         });
         let mut path = String::new();
         for ring in rings {
             for (index, point) in ring.chunks_exact(2).enumerate() {
-                let (x, y) = project(point[0], point[1]);
+                let (x, y) = project_in(view, point[0], point[1]);
                 let command = if index == 0 { 'M' } else { 'L' };
                 path.push_str(&format!("{command}{x:.1},{y:.1}"));
             }
@@ -91,37 +123,42 @@ fn land_path() -> &'static str {
     })
 }
 
-fn graticule_path() -> String {
+fn graticule_path(view: View) -> String {
+    let (top, bottom) = view.latitudes();
     let mut path = String::new();
     for longitude in (-180..=180).step_by(30) {
-        let mut latitude = LATITUDE_BOTTOM;
+        let mut latitude = bottom;
         let mut first = true;
-        while latitude <= LATITUDE_TOP {
-            let (x, y) = project(f64::from(longitude), latitude);
+        while latitude <= top {
+            let (x, y) = project_in(view, f64::from(longitude), latitude);
             path.push_str(&format!("{}{x:.1},{y:.1}", if first { 'M' } else { 'L' }));
             first = false;
             latitude += 2.0;
         }
     }
-    for latitude in [-30.0, 0.0, 30.0, 60.0] {
-        let (left, y) = project(-180.0, latitude);
-        let (right, _) = project(180.0, latitude);
+    for latitude in [-60.0, -30.0, 0.0, 30.0, 60.0] {
+        if latitude <= bottom || latitude >= top {
+            continue;
+        }
+        let (left, y) = project_in(view, -180.0, latitude);
+        let (right, _) = project_in(view, 180.0, latitude);
         path.push_str(&format!("M{left:.1},{y:.1}H{right:.1}"));
     }
     path
 }
 
-/// The globe's outline within the cropped latitudes, filled as sea.
-fn sea_path() -> String {
+/// The globe's outline within the view's latitudes, filled as sea.
+fn sea_path(view: View) -> String {
+    let (top, bottom) = view.latitudes();
     let mut points = Vec::new();
-    let mut latitude = LATITUDE_BOTTOM;
-    while latitude <= LATITUDE_TOP {
-        points.push(project(-180.0, latitude));
+    let mut latitude = bottom;
+    while latitude <= top {
+        points.push(project_in(view, -180.0, latitude));
         latitude += 2.0;
     }
-    let mut latitude = LATITUDE_TOP;
-    while latitude >= LATITUDE_BOTTOM {
-        points.push(project(180.0, latitude));
+    let mut latitude = top;
+    while latitude >= bottom {
+        points.push(project_in(view, 180.0, latitude));
         latitude -= 2.0;
     }
     let mut path = String::new();
@@ -142,12 +179,14 @@ struct Marker {
     anchor_x: f64,
     anchor_y: f64,
     radius: f64,
+    /// Index into the caller's locations, so a label can name the marker.
+    location: usize,
 }
 
 /// Nudges overlapping markers apart (the desktop's `spreadMarkers`, with the
 /// gap taken from each pair's radii). Deterministic: relaxed in input order,
 /// coincident markers split on a fixed angle. Each keeps its true anchor.
-fn spread(markers: &mut [Marker]) {
+fn spread(view: View, markers: &mut [Marker]) {
     for _ in 0..80 {
         let mut moved = false;
         for a in 0..markers.len() {
@@ -178,28 +217,34 @@ fn spread(markers: &mut [Marker]) {
             break;
         }
     }
-    let height = frame().height;
+    let height = frame_for(view).height;
     for marker in markers {
         marker.x = marker.x.clamp(marker.radius, MAP_WIDTH - marker.radius);
         marker.y = marker.y.clamp(marker.radius, height - marker.radius);
     }
 }
 
+#[cfg(test)]
 fn markers(locations: &[NameCount]) -> Vec<Marker> {
+    markers_in(View::Print, locations)
+}
+
+fn markers_in(view: View, locations: &[NameCount]) -> Vec<Marker> {
     let regions = region_catalogue();
     let placed: Vec<_> = locations
         .iter()
-        .filter_map(|l| {
+        .enumerate()
+        .filter_map(|(index, l)| {
             regions
                 .get(&l.name.to_ascii_lowercase())
-                .map(|r| (r, l.count))
+                .map(|r| (r, l.count, index))
         })
         .collect();
-    let max = placed.iter().map(|(_, count)| *count).max().unwrap_or(0);
+    let max = placed.iter().map(|(_, count, _)| *count).max().unwrap_or(0);
     let mut markers: Vec<_> = placed
         .into_iter()
-        .map(|(region, count)| {
-            let (x, y) = project(region.longitude, region.latitude);
+        .map(|(region, count, location)| {
+            let (x, y) = project_in(view, region.longitude, region.latitude);
             // Area, not radius, follows the count.
             let share = if max == 0 {
                 0.0
@@ -212,10 +257,11 @@ fn markers(locations: &[NameCount]) -> Vec<Marker> {
                 anchor_x: x,
                 anchor_y: y,
                 radius: MIN_RADIUS + (MAX_RADIUS - MIN_RADIUS) * share,
+                location,
             }
         })
         .collect();
-    spread(&mut markers);
+    spread(view, &mut markers);
     markers
 }
 
@@ -226,49 +272,119 @@ fn attr(value: &str) -> String {
         .replace('"', "&quot;")
 }
 
+/// A marker as drawn, in the figure's pixels, for a consumer that labels it.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct PlacedMarker {
+    /// Index into the locations the figure was drawn from.
+    pub location: usize,
+    pub x: f64,
+    pub y: f64,
+    /// Including the halo, so a label clears everything drawn.
+    pub radius: f64,
+}
+
+/// A rendered map with its pixel size and where each marker landed.
+pub(crate) struct MapFigure {
+    pub svg: String,
+    pub width: f64,
+    pub height: f64,
+    pub markers: Vec<PlacedMarker>,
+}
+
+/// How far a marker's halo extends past the marker, in map units.
+const RING_WIDTH: f64 = 2.2;
+
 /// The map as a standalone SVG, or `None` when no location has coordinates
 /// (e.g. an estate of global resources only), so there is nothing to place.
 pub(crate) fn render(locations: &[NameCount], palette: &Palette) -> Option<String> {
-    let markers = markers(locations);
+    figure(locations, palette, View::Print, PIXEL_WIDTH).map(|figure| figure.svg)
+}
+
+/// The map at `view`'s latitudes, `pixel_width` wide, with its markers.
+pub(crate) fn figure(
+    locations: &[NameCount],
+    palette: &Palette,
+    view: View,
+    pixel_width: f64,
+) -> Option<MapFigure> {
+    let markers = markers_in(view, locations);
     if markers.is_empty() {
         return None;
     }
-    let height = frame().height;
-    let pixel_height = (height * PIXEL_WIDTH / MAP_WIDTH).round();
-    let (sea, land, rule, surface, accent) = (
-        attr(&palette.zebra),
-        attr(&palette.rule),
-        attr(&palette.muted),
+    let height = frame_for(view).height;
+    let pixel_height = (height * pixel_width / MAP_WIDTH).round();
+    let scale = pixel_width / MAP_WIDTH;
+    let map = &palette.map;
+    let (sea, land, land_south, coast, grid, marker, leader, surface) = (
+        attr(&map.sea),
+        attr(&map.land),
+        attr(&map.land_south),
+        attr(&map.coast),
+        attr(&map.grid),
+        attr(&map.marker),
+        attr(&map.leader),
         attr(&palette.surface),
-        attr(&palette.accent),
     );
     let mut svg = format!(
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{PIXEL_WIDTH}\" height=\"{pixel_height}\" viewBox=\"0 0 {MAP_WIDTH} {height}\">\
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{pixel_width}\" height=\"{pixel_height}\" viewBox=\"0 0 {MAP_WIDTH} {height}\">\
+         <defs><linearGradient id=\"land\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\">\
+         <stop offset=\"0\" stop-color=\"{land}\"/><stop offset=\"1\" stop-color=\"{land_south}\"/>\
+         </linearGradient></defs>\
          <path d=\"{}\" fill=\"{sea}\"/>\
-         <path d=\"{}\" fill=\"none\" stroke=\"{land}\" stroke-width=\"0.4\"/>\
-         <path d=\"{}\" fill=\"{land}\" fill-rule=\"evenodd\" stroke=\"{surface}\" stroke-width=\"0.3\" stroke-linejoin=\"round\"/>",
-        sea_path(),
-        graticule_path(),
-        land_path(),
+         <path d=\"{}\" fill=\"none\" stroke=\"{grid}\" stroke-width=\"0.4\"/>\
+         <path d=\"{}\" fill=\"url(#land)\" fill-rule=\"evenodd\" stroke=\"{coast}\" stroke-width=\"0.3\" stroke-linejoin=\"round\"/>",
+        sea_path(view),
+        graticule_path(view),
+        land_path(view),
     );
     for m in &markers {
         if (m.x, m.y) != (m.anchor_x, m.anchor_y) {
             svg.push_str(&format!(
-                "<line x1=\"{:.2}\" y1=\"{:.2}\" x2=\"{:.2}\" y2=\"{:.2}\" stroke=\"{rule}\" stroke-width=\"0.5\"/>\
-                 <circle cx=\"{:.2}\" cy=\"{:.2}\" r=\"1\" fill=\"{rule}\"/>",
+                "<line x1=\"{:.2}\" y1=\"{:.2}\" x2=\"{:.2}\" y2=\"{:.2}\" stroke=\"{leader}\" stroke-width=\"0.5\"/>\
+                 <circle cx=\"{:.2}\" cy=\"{:.2}\" r=\"1\" fill=\"{leader}\"/>",
                 m.anchor_x, m.anchor_y, m.x, m.y, m.anchor_x, m.anchor_y,
+            ));
+        }
+    }
+    // The desktop's halo: a faint ring of the marker colour around each dot.
+    if !map.marker_ring.is_empty() {
+        let ring = attr(&map.marker_ring);
+        for m in &markers {
+            svg.push_str(&format!(
+                "<circle cx=\"{:.2}\" cy=\"{:.2}\" r=\"{:.2}\" fill=\"{ring}\" fill-opacity=\"0.12\" stroke=\"{ring}\" stroke-opacity=\"0.4\" stroke-width=\"0.5\"/>",
+                m.x,
+                m.y,
+                m.radius + RING_WIDTH,
             ));
         }
     }
     // Busiest first, so smaller markers are painted over larger neighbours.
     for m in &markers {
         svg.push_str(&format!(
-            "<circle cx=\"{:.2}\" cy=\"{:.2}\" r=\"{:.2}\" fill=\"{accent}\" fill-opacity=\"0.85\" stroke=\"{surface}\" stroke-width=\"0.8\"/>",
+            "<circle cx=\"{:.2}\" cy=\"{:.2}\" r=\"{:.2}\" fill=\"{marker}\" fill-opacity=\"0.85\" stroke=\"{surface}\" stroke-width=\"0.8\"/>",
             m.x, m.y, m.radius,
         ));
     }
     svg.push_str("</svg>");
-    Some(svg)
+    let ring = if map.marker_ring.is_empty() {
+        0.0
+    } else {
+        RING_WIDTH
+    };
+    Some(MapFigure {
+        svg,
+        width: pixel_width,
+        height: pixel_height,
+        markers: markers
+            .iter()
+            .map(|m| PlacedMarker {
+                location: m.location,
+                x: m.x * scale,
+                y: m.y * scale,
+                radius: (m.radius + ring) * scale,
+            })
+            .collect(),
+    })
 }
 
 #[cfg(test)]

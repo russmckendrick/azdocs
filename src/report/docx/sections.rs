@@ -5,9 +5,9 @@ use std::collections::HashMap;
 use docx_rs::{
     AlignmentType, BorderType, BreakType, Docx, FieldCharType, Footer, Header, HeightRule,
     IndentLevel, InstrNUMPAGES, InstrPAGE, InstrText, LineSpacing, LineSpacingType, NumberingId,
-    Paragraph, Pic, Run, Shading, ShdType, SpecialIndentType, Table, TableBorder,
-    TableBorderPosition, TableBorders, TableCell, TableCellMargins, TableLayoutType, TableRow,
-    VAlignType, WidthType,
+    Paragraph, Pic, RelativeFromHType, RelativeFromVType, Run, Shading, ShdType, SpecialIndentType,
+    Table, TableBorder, TableBorderPosition, TableBorders, TableCell, TableCellMargins,
+    TableLayoutType, TableRow, VAlignType, WidthType,
 };
 
 use super::style::{self, Ctx, half_points, hex, pt_to_emu, twips_to_emu};
@@ -101,6 +101,14 @@ fn chrome_table(ctx: &Ctx, left: Paragraph, right: Paragraph, top_rule: bool) ->
 
 pub fn cover(mut docx: Docx, ctx: &Ctx, cover: &Cover<'_>, branding: &BrandingContext) -> Docx {
     let page_filling_table = matches!(ctx.tokens.layout.cover, CoverStyle::Block);
+    // A page-anchored picture in a hairline paragraph opening the cover is
+    // how Word draws artwork behind one page; mod.rs moves it behind the text.
+    // Not the first-page header, which Word greys out on screen, and not a
+    // table cell, where Word positions it by the cell whatever layoutInCell
+    // says.
+    if let Some(art) = cover_art(ctx) {
+        docx = docx.add_paragraph(anchor_paragraph().add_run(art));
+    }
     match ctx.tokens.layout.cover {
         CoverStyle::Band => {
             docx = docx.add_table(cover_band(ctx));
@@ -137,16 +145,106 @@ pub fn cover(mut docx: Docx, ctx: &Ctx, cover: &Cover<'_>, branding: &BrandingCo
     }
 }
 
+/// The band or block fill, or none when cover artwork is drawn behind it.
+fn band_shading(ctx: &Ctx) -> Option<Shading> {
+    ctx.tokens.cover_background_svg.is_none().then(|| {
+        Shading::new()
+            .shd_type(ShdType::Clear)
+            .fill(hex(&ctx.tokens.palette.band))
+    })
+}
+
+fn shaded(cell: TableCell, shading: Option<Shading>) -> TableCell {
+    match shading {
+        Some(shading) => cell.shading(shading),
+        None => cell,
+    }
+}
+
+/// The theme's cover artwork as a picture anchored to the page corner: the
+/// whole sheet for block and editorial covers, the strip above the band's
+/// lower edge for a band cover.
+fn cover_art(ctx: &Ctx) -> Option<Run> {
+    let svg = ctx.tokens.cover_background_svg.as_deref()?;
+    let (page_width, page_height) = ctx.page_twips;
+    let height = match ctx.tokens.layout.cover {
+        CoverStyle::Block | CoverStyle::Editorial => page_height,
+        CoverStyle::Band => {
+            let margin = page_height.saturating_sub(ctx.usable_height_twips) / 2;
+            margin + (ctx.tokens.layout.cover_band_pt * 20.0).round() as u32
+        }
+    };
+    let png = crate::diagram::png::from_svg(&sliced_art(svg, page_width, height)?, 1.0)
+        .map_err(|error| tracing::warn!(%error, "skipping unrenderable cover artwork"))
+        .ok()?;
+    Some(
+        Run::new().add_image(
+            Pic::new(&png)
+                .size(twips_to_emu(page_width), twips_to_emu(height))
+                .floating()
+                .overlapping()
+                .relative_from_h(RelativeFromHType::Page)
+                .relative_from_v(RelativeFromVType::Page)
+                .offset_x(0)
+                .offset_y(0),
+        ),
+    )
+}
+
+/// Nest the A4 artwork in an SVG of the target size, cropped from the top, so
+/// a band strip shows the artwork's head rather than a squashed sheet. Twelve
+/// twips to the pixel is 120 dpi: plenty for soft artwork, a third of the bytes
+/// of print resolution.
+fn sliced_art(svg: &str, width_twips: u32, height_twips: u32) -> Option<String> {
+    let start = svg.find("<svg")?;
+    let tag_end = start + svg[start..].find('>')?;
+    let (width, height) = (
+        f64::from(width_twips) / 12.0,
+        f64::from(height_twips) / 12.0,
+    );
+    Some(format!(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width:.0}\" height=\"{height:.0}\">\
+         <svg{attrs} x=\"0\" y=\"0\" width=\"100%\" height=\"100%\" preserveAspectRatio=\"xMidYMin slice\">{body}</svg>",
+        attrs = strip_size(&svg[start + 4..tag_end]),
+        body = &svg[tag_end + 1..],
+    ))
+}
+
+/// Drop `width`/`height` from an `<svg>` tag's attributes so the nesting
+/// element sizes it; `viewBox` and namespaces stay.
+fn strip_size(attrs: &str) -> String {
+    let mut out = String::with_capacity(attrs.len());
+    let mut rest = attrs;
+    while let Some(index) = rest.find(|c: char| c.is_ascii_alphabetic()) {
+        out.push_str(&rest[..index]);
+        rest = &rest[index..];
+        let name_end = rest
+            .find(|c: char| c == '=' || c.is_whitespace())
+            .unwrap_or(rest.len());
+        let name = &rest[..name_end];
+        let value_end = rest[name_end..]
+            .find('"')
+            .and_then(|open| {
+                let open = name_end + open + 1;
+                rest[open..].find('"').map(|close| open + close + 1)
+            })
+            .unwrap_or(rest.len());
+        if name != "width" && name != "height" {
+            out.push_str(&rest[..value_end]);
+        }
+        rest = &rest[value_end..];
+    }
+    out.push_str(rest);
+    out
+}
+
 fn cover_band(ctx: &Ctx) -> Table {
     let row = TableRow::new(vec![
-        TableCell::new()
-            .width(ctx.usable_twips as usize, WidthType::Dxa)
-            .shading(
-                Shading::new()
-                    .shd_type(ShdType::Clear)
-                    .fill(hex(&ctx.tokens.palette.band)),
-            )
-            .add_paragraph(Paragraph::new()),
+        shaded(
+            TableCell::new().width(ctx.usable_twips as usize, WidthType::Dxa),
+            band_shading(ctx),
+        )
+        .add_paragraph(Paragraph::new()),
     ])
     .row_height(ctx.tokens.layout.cover_band_pt * 20.0)
     .height_rule(HeightRule::Exact);
@@ -164,14 +262,12 @@ fn block_cover(
     product_mark: Option<Run>,
     logo: Option<Run>,
 ) -> Table {
-    let mut cell = TableCell::new()
-        .width(ctx.usable_twips as usize, WidthType::Dxa)
-        .vertical_align(VAlignType::Center)
-        .shading(
-            Shading::new()
-                .shd_type(ShdType::Clear)
-                .fill(hex(&ctx.tokens.palette.band)),
-        );
+    let mut cell = shaded(
+        TableCell::new()
+            .width(ctx.usable_twips as usize, WidthType::Dxa)
+            .vertical_align(VAlignType::Center),
+        band_shading(ctx),
+    );
     if let Some(product_mark) = product_mark {
         cell = cell.add_paragraph(cover_identity(product_mark, AlignmentType::Center));
     }
@@ -200,7 +296,12 @@ fn block_cover(
     let row = TableRow::new(vec![cell])
         .row_height(
             ctx.usable_height_twips
-                .saturating_sub(style::TABLE_TRAILING_PARAGRAPH_TWIPS) as f32,
+                .saturating_sub(style::TABLE_TRAILING_PARAGRAPH_TWIPS)
+                .saturating_sub(if ctx.tokens.cover_background_svg.is_some() {
+                    ARTWORK_BLOCK_ALLOWANCE_TWIPS
+                } else {
+                    0
+                }) as f32,
         )
         .height_rule(HeightRule::Exact);
     Table::new(vec![row])
@@ -320,6 +421,26 @@ fn cover_metadata(ctx: &Ctx, cover: &Cover<'_>, align: AlignmentType, reversed: 
         .add_run(label(&cover.collected))
         .add_run(label(&format!(" · {} ", words.status)))
         .add_run(label(&cover.status))
+}
+
+/// Height of the paragraph that carries cover artwork: a hairline, so it
+/// barely moves the content it sits above.
+const ANCHOR_PARAGRAPH_TWIPS: u32 = 20;
+
+/// What a block cover gives up to the artwork's paragraph. Far more than the
+/// paragraph's nominal height, because Word's rounding pushed a block trimmed
+/// by exactly that onto page two; over artwork the block is unfilled, so its
+/// height only centres the text and half an inch is invisible.
+const ARTWORK_BLOCK_ALLOWANCE_TWIPS: u32 = 720;
+
+fn anchor_paragraph() -> Paragraph {
+    Paragraph::new().line_spacing(
+        LineSpacing::new()
+            .line_rule(LineSpacingType::Exact)
+            .line(ANCHOR_PARAGRAPH_TWIPS as i32)
+            .before(0)
+            .after(0),
+    )
 }
 
 pub fn page_break() -> Paragraph {
@@ -702,7 +823,10 @@ fn product_mark_picture(ctx: &Ctx, cover: &Cover<'_>, on_dark: bool) -> Option<R
     // LibreOffice loses subsequent cover text after a transparent image inside
     // an exactly sized, filled table cell. Give the dark-cover variant an
     // opaque matte matching the cell; the light covers can retain transparency.
-    let dark_svg = on_dark.then(|| svg_on_background(svg, &hex(&ctx.tokens.palette.band)));
+    // Over cover artwork the cell is unfilled, and a flat matte would show as
+    // a box on the artwork, so the mark keeps its transparency there.
+    let dark_svg = (on_dark && ctx.tokens.cover_background_svg.is_none())
+        .then(|| svg_on_background(svg, &hex(&ctx.tokens.palette.band)));
     let png = if let Some(dark_svg) = dark_svg {
         crate::diagram::png::from_svg(&dark_svg?, 0.25)
     } else {

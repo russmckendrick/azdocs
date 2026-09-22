@@ -17,7 +17,8 @@ import {
   mockResourceDetails,
 } from "./mock-data";
 import { previewCheck, previewSettings } from "./settings-preview";
-import type { CollectResult, ExportResult, WebsiteState } from "./types";
+import reportThemes from "./generated-report-themes.json";
+import type { CollectResult, ExportResult, ReportThemes, WebsiteState } from "./types";
 
 const emptyWebsites: WebsiteState = { endpoints: [], captures: [], evidenceErrors: [] };
 
@@ -55,6 +56,7 @@ export function apiMock() {
     cancelExport: vi.fn(async () => {}),
     cancelWebsiteCapture: vi.fn(async () => {}),
     saveWebsiteImage: vi.fn(async () => true),
+    getReportThemes: vi.fn(async () => structuredClone(reportThemes) as ReportThemes),
     exportSnapshot: vi.fn(
       async (): Promise<ExportResult> => ({ destination: "/exports", outputs: [], cancelled: false }),
     ),

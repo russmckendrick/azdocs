@@ -263,10 +263,17 @@
   image(mark-path, width: 1.35cm, height: 1.35cm, fit: "contain")
 }
 
+// Theme cover artwork, an A4 SVG served by pdf.rs: behind the whole sheet for
+// block and editorial covers, cropped to the strip for a band cover.
+#let has-cover-art = lay.cover_background != ""
+#let cover-art = if has-cover-art {
+  image("/cover-background.svg", width: 100%, height: 100%, fit: "stretch")
+}
+
 #let cover(cover, branding, logo-path, primary-mark-path, on-dark-mark-path) = {
   let mark-path = if lay.cover == "block" { on-dark-mark-path } else { primary-mark-path }
   if lay.cover == "block" {
-    page(footer: none, header: none, margin: 0pt, fill: band)[
+    page(footer: none, header: none, margin: 0pt, fill: band, background: cover-art)[
       #v(1fr)
       #block(inset: (x: 3cm))[
         #if mark-path != "" [#cover-mark(mark-path) #v(0.55cm)]
@@ -292,7 +299,8 @@
     ]
   } else if lay.cover == "band" {
     page(footer: none, header: none, margin: 0pt)[
-      #block(width: 100%, height: lay.cover_band_pt * 1pt, fill: band)
+      #block(width: 100%, height: lay.cover_band_pt * 1pt, fill: band, clip: true,
+        if has-cover-art { image("/cover-background.svg", width: 100%) })
       #block(inset: (x: 2.5cm, top: 3cm))[
         #if mark-path != "" [#cover-mark(mark-path) #v(0.55cm)]
         #if logo-path != "" [#cover-logo(logo-path) #v(0.8cm)]
@@ -308,7 +316,7 @@
       #block(inset: (x: 2.5cm, bottom: 2.5cm), cover-meta(cover))
     ]
   } else {
-    page(footer: none, header: none)[
+    page(footer: none, header: none, background: cover-art)[
       #v(2fr)
       #align(center)[
         #if mark-path != "" [#cover-mark(mark-path) #v(0.65cm)]

@@ -276,6 +276,9 @@ watermark = "Microsoft Azure"
 [diagram.workbook]
 network_topology = "Network Topology"
 vnet_peerings = "VNet Peerings"
+regions = "Regions"
+region_note = "{region} · {count}"
+unplaced_note = "Not on the map: {locations}"
 
 [cli.check]
 config_ok = "Config OK (tenant {tenant})"
@@ -953,6 +956,11 @@ show_more = "Show {count} more"
 loaded = "{visible} of {total} loaded"
 
 [desktop.exports]
+theme_title = "Document style"
+theme_detail = "Colour, type and cover for the PDF and Word documents."
+theme_legend = "Document style"
+theme_configured = "Configured"
+theme = "Style"
 include_reference = "Include technical reference"
 reference_detail = "Add key settings for every resource, relationships, grouped findings and collection coverage."
 title = "Exports"

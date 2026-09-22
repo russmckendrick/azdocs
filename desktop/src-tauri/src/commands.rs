@@ -15,8 +15,8 @@ use tauri::ipc::Channel;
 use crate::AppState;
 use crate::dto::{
     AppBootstrap, CollectRequestDto, CollectResultDto, CollectionEvent, EstateSnapshot,
-    ExportEvent, ExportRequestDto, ExportResultDto, QueryDefDto, QueryRowsDto, ResourceDetailDto,
-    SnapshotComparison, SnapshotSummary,
+    ExportEvent, ExportRequestDto, ExportResultDto, QueryDefDto, QueryRowsDto, ReportThemeDto,
+    ReportThemesDto, ResourceDetailDto, SnapshotComparison, SnapshotSummary,
 };
 use crate::error::AppError;
 use crate::labels::AppLabels;
@@ -802,7 +802,7 @@ fn export_reports(
         include_reference: request.include_reference.unwrap_or(false),
         snapshot: request.snapshot_id,
         format: formats[0],
-        theme: None,
+        theme: request.theme.clone(),
         out: Some(destination.to_path_buf()),
         subscription: request.subscription_id.clone(),
         resource_group: request.resource_group.clone(),
@@ -858,6 +858,9 @@ fn export_diagrams(
         ..
     } = *env;
     let errors = &labels.desktop.backend.errors;
+    // The workbook's map sheet draws in the configured theme's colours.
+    let tokens = azdocs::report::branding::theme_tokens(&config.branding)
+        .map_err(|error| AppError::Export(error.to_string()))?;
     let kind = request
         .diagram_type
         .as_deref()
@@ -915,13 +918,65 @@ fn export_diagrams(
             )),
         };
         outputs.extend(
-            azdocs::commands::diagram::run_with_outputs(store, &args, &cli_labels)
+            azdocs::commands::diagram::run_with_outputs(store, &args, &cli_labels, &tokens)
                 .map_err(|error| AppError::Export(error.to_string()))?,
         );
     }
     Ok(ExportOutcome {
         outputs,
         cancelled: false,
+    })
+}
+
+/// Every document theme, resolved against the branding a report of this
+/// snapshot would use, for the export picker's previews.
+#[tauri::command]
+pub async fn report_themes(
+    snapshot_id: String,
+    state: State<'_, AppState>,
+) -> Result<ReportThemesDto, AppError> {
+    let session = crate::settings::session(&state)?;
+    let database = session.database_path.clone();
+    let document = session.document().or_else(|_| {
+        azdocs::config::ConfigDocument::parse("", None).map_err(crate::settings::config_error)
+    })?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let store = Store::open_read_only(&database)?.with_tenant(session.tenant_id.as_deref());
+        let id = store.resolve_snapshot(&snapshot_id)?;
+        let config = document
+            .for_snapshot(&store.get_snapshot(&id)?.tenant_id)
+            .map_err(crate::settings::config_error)?;
+        let pack = azdocs::report::theme::ThemePack::load()
+            .map_err(|error| AppError::Config(error.to_string()))?;
+        report_themes_from(&pack, &config.branding)
+    })
+    .await
+    .map_err(|error| AppError::State(error.to_string()))?
+}
+
+/// Resolve every theme in `pack` against `branding`. A theme that fails to
+/// resolve is left out rather than failing the list; exporting with it still
+/// reports why.
+pub fn report_themes_from(
+    pack: &azdocs::report::theme::ThemePack,
+    branding: &azdocs::config::BrandingConfig,
+) -> Result<ReportThemesDto, AppError> {
+    let themes = pack
+        .names()
+        .into_iter()
+        .filter_map(|name| {
+            pack.resolve(
+                name,
+                &branding.primary_color.to_lowercase(),
+                &branding.accent_color.to_lowercase(),
+            )
+            .ok()
+        })
+        .map(|tokens| ReportThemeDto::from_tokens(&tokens))
+        .collect();
+    Ok(ReportThemesDto {
+        themes,
+        configured: branding.theme.clone(),
     })
 }
 

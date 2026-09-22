@@ -8,13 +8,13 @@ theme is a new TOML file, never new Rust.
 ```toml
 # azdocs.toml
 [branding]
-theme = "field-report"
+theme = "azure"
 ```
 
-`field-report` is the default when `theme` is omitted and the only theme
-shipped with azdocs. It carries the desktop's Field Report language into every
-styled export. Set a custom theme explicitly when an organisation needs its
-own document system.
+`azure` is the default when `theme` is omitted. Two themes ship with azdocs;
+set a custom theme explicitly when an organisation needs its own document
+system. The desktop Exports page previews every available theme, resolved
+against your branding colours, and can override the configured one per export.
 
 Built-in themes live in `data/themes/` and are embedded in the binary. Drop
 files into `<config dir>/azdocs/themes/` to add your own or replace a built-in
@@ -24,7 +24,8 @@ that lists the names that do exist.
 
 | Theme | Look |
 |---|---|
-| `field-report` | Paper and ink, serif-led hierarchy, hairline tables, quiet evidence fills, and colour reserved for identity and signals. |
+| `azure` | The desktop in print: the navy frame as a gradient cover, Azure-blue sans-serif headings, tinted banded tables with zebra rows, tinted summary cards, the desktop's severity and service-family colours, and its full-colour world map. |
+| `field-report` | Paper and ink: a warm paper-gradient cover, serif-led hierarchy, hairline tables, quiet evidence fills, and colour reserved for identity and signals. |
 
 Themes drive the PDF, DOCX, HTML report, docs site and XLSX. The Markdown and
 CSV outputs are deliberately unstyled.
@@ -56,6 +57,7 @@ Every key has a default, so a theme file only states what it changes. Unknown
 keys are an error, so a typo fails loudly rather than being ignored.
 
 ```toml
+title = "Acme"            # display name in the desktop picker; defaults to the file stem
 description = "One line, shown in the theme listing."
 
 [palette]
@@ -72,6 +74,30 @@ muted         = "#65656f"
 rule          = "#d9d9e0"
 surface       = "#ffffff"
 zebra         = "lighten($primary, 0.95)" # alternating row fill
+bar           = "$muted"                  # single-series chart bars
+bar_track     = "$zebra"                  # the track behind every bar
+
+# Service-family chart bars, one colour per family.
+[palette.series]
+network = "$muted"
+compute = "$muted"
+data = "$muted"
+identity = "$muted"
+monitoring = "$muted"
+integration = "$muted"
+other = "$muted"
+
+# The resource-locations world map. Land shades from `land` (north) to
+# `land_south`; an empty `marker_ring` draws no halo.
+[palette.map]
+sea = "$zebra"
+land = "$rule"
+land_south = "$rule"
+coast = "$surface"
+grid = "$rule"
+marker = "$accent"
+marker_ring = ""
+leader = "$muted"                          # line from a displaced marker to its region
 
 # One block per severity: high, medium, low, info.
 [palette.severity.high]
@@ -114,6 +140,7 @@ rule_pt = 0.5
 radius_pt = 3.0
 table_inset_pt = 6.0
 cover_band_pt = 0.0
+cover_background = ""     # an A4 SVG drawn behind the cover; see Cover artwork
 ```
 
 ### Layout strategies
@@ -133,9 +160,36 @@ implements all of the variants; a theme picks one.
 | | `outline` | Hairline-outlined box |
 | | `bare` | No box: value over label |
 
+## Cover artwork
+
+`cover_background` names an A4 portrait SVG that is drawn full-bleed behind the
+cover. It fills the whole sheet behind a `block` or `editorial` cover and the
+strip at the top of a `band` cover (cropped from the artwork's head), in place
+of the flat `band` fill. The cover type sits on it — `on_band` for block and
+band, `ink` for editorial — so the artwork must keep that colour legible.
+
+Built-in artwork lives in `data/themes/backgrounds/`: `azure-gradient.svg`
+(navy to Azure, under white type) and `field-report-paper.svg` (a warm paper
+gradient, under ink). Drop your own into `<config dir>/azdocs/themes/backgrounds/`;
+a file with the same name replaces the built-in.
+
+Artwork can follow the theme and branding colours: a double-braced palette name
+is replaced with that resolved colour before rendering. For example,
+`stop-color="{{accent}}"` becomes the brand accent. The names are the light
+palette fields: `primary`, `primary_dark`, `primary_tint`, `accent`,
+`accent_tint`, `on_primary`, `band`, `on_band`, `ink`, `muted`, `rule`,
+`surface` and `zebra`. An unknown name, or a missing file, is an error rather
+than a silent fallback.
+
+The PDF embeds the SVG as vector artwork. Word has no per-page background, so
+the DOCX rasterises it at 120 dpi and anchors it to the page, behind the text,
+from the cover's first paragraph. It is deliberately not in a header: Word
+greys header content out while you edit, which would wash the cover out.
+
 ## Fonts
 
-Field Report uses Charter Regular for headings, Arial for body text and tables,
+Azure sets everything in the bundled IBM Plex Sans and Mono in the PDF, and in
+Arial and Courier New in Word. Field Report uses Charter Regular for headings, Arial for body text and tables,
 and Courier New for identifiers in both native print formats.
 `pdf_use_docx_fonts = true` makes the PDF prefer the theme's `docx_*` families.
 Branding resolution loads only those installed families, offline, in a stable
@@ -176,7 +230,8 @@ roles. Their layout engines still have unavoidable differences:
   and `docx_mono` locally and may reflow the document after editing.
 - The PDF block cover can fill the physical sheet. DOCX represents the same
   strategy as a reversed colour block over the printable area because Word
-  does not expose a true full-bleed page background here.
+  does not expose a true full-bleed page background here. Cover artwork is the
+  exception: it is anchored to the page, so it bleeds in both.
 - PDF and Word comparison tables repeat their headers. The DOCX emitter adds
   `w:tblHeader` to header rows in the packaged OOXML.
 - Page breaks and total page counts may consequently differ; content,
@@ -187,7 +242,7 @@ roles. Their layout engines still have unavoidable differences:
 Copy a built-in as a starting point, edit, and select it:
 
 ```bash
-mkdir -p ~/.config/azdocs/themes && cp data/themes/field-report.toml ~/.config/azdocs/themes/acme.toml
+mkdir -p ~/.config/azdocs/themes && cp data/themes/azure.toml ~/.config/azdocs/themes/acme.toml
 ```
 
 ```toml

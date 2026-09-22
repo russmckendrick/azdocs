@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="210mm" height="297mm" viewBox="0 0 2100 2970">
+  <!-- Cover artwork for A4 portrait: a warm paper gradient that keeps the
+       editorial cover's ink type legible. Double-brace palette names are
+       filled from the resolved theme palette. -->
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="{{surface}}"/>
+      <stop offset="0.6" stop-color="{{zebra}}"/>
+      <stop offset="1" stop-color="{{rule}}"/>
+    </linearGradient>
+    <radialGradient id="light" cx="0.5" cy="0.36" r="0.55">
+      <stop offset="0" stop-color="{{surface}}" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="{{surface}}" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="brand" cx="1" cy="1" r="0.6">
+      <stop offset="0" stop-color="{{accent}}" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="{{accent}}" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="2100" height="2970" fill="url(#paper)"/>
+  <rect width="2100" height="2970" fill="url(#brand)"/>
+  <rect width="2100" height="2970" fill="url(#light)"/>
+  <g fill="none" stroke="{{ink}}" stroke-opacity="0.05" stroke-width="3">
+    <circle cx="2100" cy="2970" r="700"/>
+    <circle cx="2100" cy="2970" r="1000"/>
+    <circle cx="2100" cy="2970" r="1320"/>
+    <circle cx="2100" cy="2970" r="1660"/>
+  </g>
+  <rect y="2950" width="2100" height="20" fill="{{ink}}"/>
+</svg>

@@ -9,6 +9,9 @@ import type {
   EdgeKind,
   ExportKind,
   KindClass,
+  ReportCoverStyle,
+  ReportStatStyle,
+  ReportTableStyle,
   QueryKind,
   Severity,
   SnapshotStatus,
@@ -482,7 +485,12 @@ export type ExportRequest = { includeReference?: boolean | null, snapshotId: str
  * Reports only: keep findings at this severity or higher (a `Severity`
  * name; validated against the CLI enum on the Rust side).
  */
-minSeverity?: string | null, };
+minSeverity?: string | null,
+/**
+ * Reports only: a theme name from `report_themes`; absent uses the
+ * configured `[branding] theme`.
+ */
+theme?: string | null, };
 
 export type ExportResult = { destination: string, outputs: Array<string>,
 /**
@@ -490,6 +498,20 @@ export type ExportResult = { destination: string, outputs: Array<string>,
  * written before that.
  */
 cancelled: boolean, };
+
+export type ReportThemes = { themes: Array<ReportTheme>,
+/**
+ * The configured `[branding] theme`.
+ */
+configured: string, };
+
+export type ReportTheme = { name: string, title: string, description: string, cover: ReportCoverStyle, table: ReportTableStyle, stat: ReportStatStyle, zebraRows: boolean, palette: ReportThemePalette,
+/**
+ * The cover artwork SVG with its palette placeholders filled.
+ */
+coverArt?: string | null, };
+
+export type ReportThemePalette = { primary: string, primaryDark: string, primaryTint: string, accent: string, onPrimary: string, band: string, onBand: string, ink: string, muted: string, rule: string, surface: string, zebra: string, high: string, highFill: string, medium: string, mediumFill: string, };
 
 export type ExportEvent = { "event": "phase", "data": { message: string, } } | { "event": "complete", "data": { outputCount: number, } } | { "event": "cancelled", "data": { outputCount: number, } } | { "event": "failed", "data": { message: string, } };
 

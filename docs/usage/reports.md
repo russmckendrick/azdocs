@@ -161,15 +161,19 @@ successful backups or tested recovery.
 
 ## Document design
 
-Every styled export ships in the same **Field Report** language as the desktop:
-paper and ink, regular serif headings, 11-point sans-serif body text, hairline
-tables, quiet evidence fills, and
-colour reserved for branding and signals. `[branding]` still supplies the
-company name, title, brand colour, logo and footer.
+Two document themes ship built in:
 
-`field-report` is the only built-in theme. Themes remain TOML data so an
-organisation can supply a custom document system, or select it for one CLI run
-with `--theme <name>`. See [reference/themes.md](../reference/themes.md).
+| Theme | Look |
+|---|---|
+| `azure` (default) | The desktop app in print: a navy-to-Azure gradient cover, blue sans-serif headings, tinted table headers with zebra rows, tinted summary cards, and the desktop's severity, service-family and world-map colours. |
+| `field-report` | Paper and ink: a warm paper-gradient cover, regular serif headings, hairline tables, quiet evidence fills, and colour reserved for branding and signals. |
+
+`[branding]` still supplies the company name, title, brand colour, logo and
+footer. Themes are TOML data, so an organisation can supply its own document
+system, including A4 SVG cover artwork. Select a theme with `[branding] theme`,
+for one CLI run with `--theme <name>`, or per export from the **Document style**
+picker on the desktop Exports page. See
+[reference/themes.md](../reference/themes.md).
 
 ## The docs tree
 

@@ -369,6 +369,16 @@ export async function saveWebsiteImage(
   return false;
 }
 
+export async function getReportThemes(
+  snapshotId: string,
+): Promise<import("./types").ReportThemes> {
+  if (!PREVIEW || isTauri) return invoke("report_themes", { snapshotId });
+  // The built-in themes against the default branding, written by the
+  // bindings test, so the preview shows the colours an export would carry.
+  return (await import("./generated-report-themes.json"))
+    .default as import("./types").ReportThemes;
+}
+
 export async function exportSnapshot(
   request: ExportRequest,
   onUpdate: (event: ExportEvent) => void,

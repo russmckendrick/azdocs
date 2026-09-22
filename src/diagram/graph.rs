@@ -1069,7 +1069,7 @@ fn finalize_named(named: &mut [NamedGraph]) {
     named.sort_by(|a, b| a.slug.cmp(&b.slug));
 }
 
-fn scoped_resources(
+pub(crate) fn scoped_resources(
     store: &Store,
     snapshot_id: &str,
     scope: &DiagramScope,

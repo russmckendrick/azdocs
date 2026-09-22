@@ -109,6 +109,7 @@ pub fn run() {
                     commands::resource_query_rows,
                     commands::resource_detail,
                     commands::export_snapshot,
+                    commands::report_themes,
                     commands::cancel_export,
                     commands::copy_text,
                     commands::save_text_file,

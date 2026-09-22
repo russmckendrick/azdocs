@@ -264,6 +264,7 @@ mod tests {
         "key",
         "kind",
         "label",
+        "locations",
         "medium",
         "ms",
         "name",
