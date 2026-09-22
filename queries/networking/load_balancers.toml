@@ -1,6 +1,8 @@
 name = "load_balancers"
 category = "networking"
 kind = "inventory"
+resource_types = ["microsoft.network/loadbalancers"]
+resource_table = true
 description = "Load balancers with SKU and rule counts"
 kql = '''
 resources

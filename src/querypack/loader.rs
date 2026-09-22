@@ -152,6 +152,37 @@ mod tests {
     }
 
     #[test]
+    fn unit_builtin_pack_names_at_most_one_resource_table_per_type() {
+        let pack = QueryPack::builtin().unwrap();
+        let mut owners = std::collections::BTreeMap::new();
+        for query in pack.all().into_iter().filter(|query| query.resource_table) {
+            for kind in &query.resource_types {
+                if let Some(previous) = owners.insert(kind.clone(), query.name.clone()) {
+                    panic!(
+                        "{kind} has two resource tables: {previous} and {}",
+                        query.name
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn unit_builtin_resource_columns_are_named_by_their_kql() {
+        let pack = QueryPack::builtin().unwrap();
+        for query in pack.all() {
+            let Some(column) = query.resource_column() else {
+                continue;
+            };
+            let named = query
+                .kql
+                .split(|c: char| !(c.is_ascii_alphanumeric() || c == '_'))
+                .any(|word| word == column);
+            assert!(named, "{} never names {column}", query.name);
+        }
+    }
+
+    #[test]
     fn merge_dir_overrides_builtin_by_name() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(

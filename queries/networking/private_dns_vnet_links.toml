@@ -1,6 +1,8 @@
 name = "private_dns_vnet_links"
 category = "networking"
 kind = "inventory"
+resource_types = ["microsoft.network/privatednszones/virtualnetworklinks"]
+resource_table = true
 description = "Private DNS zone virtual network links with registration status"
 kql = '''
 resources

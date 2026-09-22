@@ -3,6 +3,7 @@
 name = "defender_assessments"
 category = "security"
 kind = "inventory"
+resource_id_field = "resourceId"
 description = "Defender security assessments with status, severity and affected-resource details"
 kql = '''
 // Assessment IDs identify recommendations. Resource details can describe non-Azure assets, so preserve the source object and do not invent an ARM target.

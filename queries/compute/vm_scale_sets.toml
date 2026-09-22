@@ -1,6 +1,8 @@
 name = "vm_scale_sets"
 category = "compute"
 kind = "inventory"
+resource_types = ["microsoft.compute/virtualmachinescalesets"]
+resource_table = true
 description = "VM scale sets with capacity, orchestration mode, and AKS node pool linkage"
 kql = '''
 resources

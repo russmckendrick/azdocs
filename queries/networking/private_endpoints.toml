@@ -1,6 +1,8 @@
 name = "private_endpoints"
 category = "networking"
 kind = "inventory"
+resource_types = ["microsoft.network/privateendpoints"]
+resource_table = true
 description = "Private endpoints and their target resources"
 kql = '''
 resources

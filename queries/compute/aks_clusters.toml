@@ -1,6 +1,8 @@
 name = "aks_clusters"
 category = "compute"
 kind = "inventory"
+resource_types = ["microsoft.containerservice/managedclusters"]
+resource_table = true
 description = "AKS clusters with version, node pools, network plugin, and security posture"
 kql = '''
 resources

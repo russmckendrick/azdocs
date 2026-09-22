@@ -1,6 +1,8 @@
 name = "avd_application_groups"
 category = "avd"
 kind = "inventory"
+resource_types = ["microsoft.desktopvirtualization/applicationgroups"]
+resource_table = true
 description = "Azure Virtual Desktop application groups with their host pool"
 kql = '''
 resources

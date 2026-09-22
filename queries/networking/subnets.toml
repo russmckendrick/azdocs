@@ -1,6 +1,8 @@
 name = "subnets"
 category = "networking"
 kind = "inventory"
+resource_types = ["microsoft.network/virtualnetworks"]
+resource_id_field = "vnetId"
 description = "Subnets expanded from every virtual network"
 kql = '''
 resources

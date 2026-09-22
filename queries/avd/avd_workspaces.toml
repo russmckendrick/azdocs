@@ -1,6 +1,8 @@
 name = "avd_workspaces"
 category = "avd"
 kind = "inventory"
+resource_types = ["microsoft.desktopvirtualization/workspaces"]
+resource_table = true
 description = "Azure Virtual Desktop workspaces with application group counts"
 kql = '''
 resources

@@ -1,6 +1,8 @@
 name = "managed_identities"
 category = "identity"
 kind = "inventory"
+resource_types = ["microsoft.managedidentity/userassignedidentities"]
+resource_table = true
 description = "User-assigned managed identities"
 kql = '''
 resources

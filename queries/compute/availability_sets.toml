@@ -1,6 +1,8 @@
 name = "availability_sets"
 category = "compute"
 kind = "inventory"
+resource_types = ["microsoft.compute/availabilitysets"]
+resource_table = true
 description = "Availability sets with fault/update domain counts and member VM counts"
 kql = '''
 resources

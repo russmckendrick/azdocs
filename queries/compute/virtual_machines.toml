@@ -1,6 +1,8 @@
 name = "virtual_machines"
 category = "compute"
 kind = "inventory"
+resource_types = ["microsoft.compute/virtualmachines"]
+resource_table = true
 description = "Virtual machines with size, OS, and power state"
 kql = '''
 resources

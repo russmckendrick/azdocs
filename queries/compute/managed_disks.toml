@@ -1,6 +1,8 @@
 name = "managed_disks"
 category = "compute"
 kind = "inventory"
+resource_types = ["microsoft.compute/disks"]
+resource_table = true
 description = "Managed disks with size, SKU, encryption, and attachment"
 kql = '''
 resources

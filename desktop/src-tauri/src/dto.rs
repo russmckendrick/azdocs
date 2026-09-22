@@ -39,6 +39,13 @@ pub struct QueryDefDto {
     #[ts(type = "QueryKind")]
     pub kind: String,
     pub description: String,
+    /// ARM types whose resources the rows describe; empty for queries about
+    /// something else (policy, roles, the pack's own bookkeeping).
+    pub resource_types: Vec<String>,
+    /// The column naming the described resource, when rows describe one.
+    pub resource_column: Option<String>,
+    /// This query supplies the default columns for its `resource_types`.
+    pub resource_table: bool,
 }
 
 #[derive(Debug, Serialize, TS)]

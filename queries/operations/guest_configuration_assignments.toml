@@ -3,6 +3,7 @@
 name = "guest_configuration_assignments"
 category = "operations"
 kind = "inventory"
+resource_id_field = "resourceId"
 description = "Guest configuration baseline evaluations for VM and Arc machines"
 kql = '''
 // A missing guest assignment is not a passing OS baseline. Preserve the latest report where the provider supplies it.

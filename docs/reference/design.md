@@ -232,10 +232,9 @@ cards everywhere.
 | Screen | Primary UI |
 |---|---|
 | Overview | analytical dashboard: KPI cards and chart panels |
-| Estate | subscription tree beside a resource table |
+| Estate | Resources tab: subscription tree beside a resource table, whose columns follow one type's query when filtered to that type; Query results tab: category rail beside a query table |
 | Map | topology canvas |
 | Regions | full-page world map of every Azure datacentre, the snapshot's regions highlighted, above a region table |
-| Inventory | category rail beside a query table |
 | Findings | severity tally, filters, findings list and an evidence drawer |
 | Governance | tagging analysis: stat strip, meters and a compliance ledger |
 | Changes | snapshot ledger beside a comparison |
@@ -429,9 +428,9 @@ with its physical location, geography, count and share; a row opens the
 Estate filtered to that region, which is the useful answer to "what is
 there". The Overview's small map stays a static picture.
 
-### Inventory evidence disclosures
+### Query evidence disclosures
 
-Inventory keeps operational summaries and each query's recorded provenance in
+Query results keeps operational summaries and each query's recorded provenance in
 native disclosures, collapsed until requested. Rust owns the summary analysis
 and labelled wording; the frontend renders the supplied statuses, notes,
 columns and cells. Evidence semantics, source limits and historical provenance

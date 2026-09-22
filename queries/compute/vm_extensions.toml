@@ -1,6 +1,8 @@
 name = "vm_extensions"
 category = "compute"
 kind = "inventory"
+resource_types = ["microsoft.compute/virtualmachines/extensions"]
+resource_table = true
 description = "VM extensions with publisher, type, and owning virtual machine"
 kql = '''
 resources

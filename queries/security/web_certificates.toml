@@ -1,6 +1,8 @@
 name = "web_certificates"
 category = "security"
 kind = "inventory"
+resource_types = ["microsoft.web/certificates"]
+resource_table = true
 description = "App Service certificates with subject, issuer, expiry and Key Vault source"
 kql = '''
 resources

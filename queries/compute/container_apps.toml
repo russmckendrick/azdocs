@@ -1,6 +1,8 @@
 name = "container_apps"
 category = "compute"
 kind = "inventory"
+resource_types = ["microsoft.app/containerapps"]
+resource_table = true
 description = "Container Apps and their environments"
 kql = '''
 resources

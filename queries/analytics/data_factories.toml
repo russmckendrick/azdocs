@@ -1,6 +1,8 @@
 name = "data_factories"
 category = "analytics"
 kind = "inventory"
+resource_types = ["microsoft.datafactory/factories"]
+resource_table = true
 description = "Data Factory instances with Git integration and network access"
 kql = '''
 resources

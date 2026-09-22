@@ -1,6 +1,7 @@
 name = "route_table_routes"
 category = "networking"
 kind = "inventory"
+resource_types = ["microsoft.network/routetables"]
 description = "User-defined routes expanded from every route table with prefix and next hop"
 kql = '''
 resources

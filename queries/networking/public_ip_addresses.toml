@@ -1,6 +1,8 @@
 name = "public_ip_addresses"
 category = "networking"
 kind = "inventory"
+resource_types = ["microsoft.network/publicipaddresses"]
+resource_table = true
 description = "Public IP addresses and what they are attached to"
 kql = '''
 resources

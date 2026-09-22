@@ -216,6 +216,7 @@ mod tests {
     const KNOWN_PLACEHOLDERS: &[&str] = &[
         "base",
         "base_date",
+        "delta",
         "version",
         "edges_added",
         "edges_removed",

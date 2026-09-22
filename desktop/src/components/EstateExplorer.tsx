@@ -13,11 +13,14 @@ import {
 } from "lucide-react";
 import { ALL_RESOURCES_ICON, RESOURCE_GROUP_ICON, SUBSCRIPTION_ICON, resourceIcon } from "../azure-icons";
 import { displayLocation } from "../azure-values";
-import type { DashboardFilter, EstateSnapshot, Resource, ResourceType, ScopeSelection } from "../types";
+import type { DashboardFilter, EstateSnapshot, QueryDefMeta, QueryRows, Resource, ResourceType, ScopeSelection } from "../types";
+import { getQueryPackMetadata, getQueryRows } from "../api";
+import { QueryRecord } from "./query-record";
+import { cellText, detailColumns, isMachineShaped, joinRows, typeQueries, type JoinedRow } from "./resource-queries";
 import { ShowMore } from "./progressive-list";
-import { useProgressiveList } from "./use-progressive-list";
-import { EmptyState } from "./view-chrome";
-import { fill, fillNodes } from "../format";
+import { useProgressiveList, type ProgressiveList } from "./use-progressive-list";
+import { EmptyState, ErrorStrip } from "./view-chrome";
+import { errorMessage, fill, fillNodes, plural, spaced } from "../format";
 import { useLabels } from "../labels";
 import { matchesResourceSearch, useResourceTypeMap, useSubscriptionNames } from "../estate-lookups";
 import { readPreference, tenantKey, writePreference } from "../preferences";
@@ -77,7 +80,49 @@ export function EstateExplorer({
 
   const resourceTypeMap = useResourceTypeMap(estate);
   const subscriptionMap = useSubscriptionNames(estate);
-  const { common, desktop: { estate: words } } = useLabels();
+  const { common, desktop: { estate: words, inventory: inventoryWords } } = useLabels();
+
+  // Type-aware columns: once the view is down to one resource type, a query
+  // that describes that type can supply the table. The pack says which; an
+  // unreadable pack only means the summary columns stay.
+  const [pack, setPack] = useState<QueryDefMeta[]>([]);
+  useEffect(() => {
+    let active = true;
+    getQueryPackMetadata()
+      .then((defs) => {
+        if (active) setPack(defs);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
+  const selectedType = typeFilter || dashboardFilter?.azureType || "";
+  const covering = useMemo(
+    () => (selectedType ? typeQueries(pack, estate.queryRuns, selectedType) : []),
+    [estate.queryRuns, pack, selectedType],
+  );
+  /** Per type: the chosen query, or "" for the summary columns. Unset means the default. */
+  const [columnChoice, setColumnChoice] = useState<Record<string, string>>({});
+  const choice = columnChoice[selectedType];
+  const detailDef = choice === "" ? undefined : covering.find((def) => def.name === choice) ?? covering[0];
+  const [detailRows, setDetailRows] = useState<QueryRows>();
+  const [detailError, setDetailError] = useState<string>();
+  useEffect(() => {
+    if (!detailDef) return;
+    let active = true;
+    setDetailError(undefined);
+    getQueryRows(detailDef.name, estate.id)
+      .then((rows) => {
+        if (active) setDetailRows(rows);
+      })
+      .catch((caught) => {
+        if (active) setDetailError(fill(inventoryWords.rows_failed, { error: errorMessage(caught) }));
+      });
+    return () => {
+      active = false;
+    };
+  }, [detailDef, estate.id, inventoryWords.rows_failed]);
 
   const filtered = useMemo(() => {
     const matches = estate.resources.filter((resource) => {
@@ -97,6 +142,12 @@ export function EstateExplorer({
     });
   }, [dashboardFilter, estate.azureMetadata, estate.resources, locationFilter, scope, search, sortKey, tagKey, tagValue, typeFilter]);
   const list = useProgressiveList(filtered, [locationFilter, scope.resourceGroup, scope.subscriptionId, search, sortKey, tagKey, tagValue, typeFilter]);
+  const loadedDetail = detailDef && detailRows?.queryName === detailDef.name ? detailRows : undefined;
+  const detail = useMemo(
+    () => (detailDef?.resourceColumn && loadedDetail ? joinRows(filtered, loadedDetail.rows, detailDef.resourceColumn) : undefined),
+    [detailDef, filtered, loadedDetail],
+  );
+  const detailList = useProgressiveList(detail?.rows ?? [], [detailDef?.name, filtered], 250);
   const tagKeys = useMemo(
     () => [...new Set(estate.resources.flatMap((resource) => Object.keys(resource.tags ?? {})))].sort((a, b) => a.localeCompare(b)),
     [estate.resources],
@@ -350,6 +401,41 @@ export function EstateExplorer({
           ) : null}
         </div>
 
+        {covering.length > 0 ? (
+          <div className="column-picker" role="group" aria-label={words.columns_aria}>
+            <button aria-pressed={!detailDef} onClick={() => setColumnChoice((current) => ({ ...current, [selectedType]: "" }))}>
+              {words.columns_summary}
+            </button>
+            {covering.map((def) => (
+              <button
+                key={def.name}
+                aria-pressed={detailDef?.name === def.name}
+                onClick={() => setColumnChoice((current) => ({ ...current, [selectedType]: def.name }))}
+                title={def.description}
+              >
+                {spaced(def.name)}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        {detailDef ? (
+          <DetailTable
+            def={detailDef}
+            rows={loadedDetail}
+            detail={detail}
+            list={detailList}
+            error={detailError}
+            run={estate.queryRuns.find((run) => run.queryName === detailDef.name)}
+            resourceTypeMap={resourceTypeMap}
+            onDismissError={() => setDetailError(undefined)}
+            onSelect={(id) => {
+              setActiveId(id);
+              onSelectResource(id);
+            }}
+          />
+        ) : (
+          <>
         <div className="resource-table-head" aria-hidden="true">
           <span>{common.columns.resource}</span>
           <span>{common.columns.resource_group}</span>
@@ -384,6 +470,8 @@ export function EstateExplorer({
             <ShowMore list={list} />
           ) : null}
         </div>
+          </>
+        )}
       </section>
 
     </div>
@@ -425,5 +513,89 @@ function ResourceRow({
         {!resource.findingCount && !resource.edgeCount ? <small>{words.quiet}</small> : null}
       </span>
     </button>
+  );
+}
+
+/**
+ * One query's columns under the resources in view. The first cell is always the
+ * resource, so a child row (a subnet, a rule) still says whose it is; a
+ * resource with no stored row keeps an empty line rather than vanishing.
+ */
+function DetailTable({
+  def,
+  rows,
+  detail,
+  list,
+  error,
+  run,
+  resourceTypeMap,
+  onDismissError,
+  onSelect,
+}: {
+  def: QueryDefMeta;
+  rows?: QueryRows;
+  detail?: ReturnType<typeof joinRows>;
+  list: ProgressiveList<JoinedRow>;
+  error?: string;
+  run?: EstateSnapshot["queryRuns"][number];
+  resourceTypeMap: Map<string, ResourceType>;
+  onDismissError: () => void;
+  onSelect: (id: string) => void;
+}) {
+  const { common, desktop: { estate: words, inventory: inventoryWords } } = useLabels();
+  const none = common.verdict.none;
+  const columns = rows ? detailColumns(rows.columns, def.resourceColumn ?? "id") : [];
+  return (
+    <div className="resource-detail-table">
+      {error ? <ErrorStrip message={error} onDismiss={onDismissError} /> : null}
+      <p className="query-description">{def.description}</p>
+      <QueryRecord key={def.name} run={run} />
+      <div className="data-grid-wrap">
+        {!detail ? (
+          <p className="muted-copy">{inventoryWords.reading}</p>
+        ) : detail.rows.length === detail.missing ? (
+          <p className="muted-copy">{words.detail_empty}</p>
+        ) : (
+          <table className="data-grid">
+            <thead>
+              <tr>
+                <th>{common.columns.resource}</th>
+                {columns.map((column) => <th key={column}>{column}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {list.visible.map(({ resource, row, first }, index) => (
+                <tr key={`${resource.id}:${index}`} className={first ? undefined : "continued"}>
+                  <td>
+                    {first ? (
+                      <button className="detail-resource" onClick={() => onSelect(resource.id)} title={resource.name}>
+                        <img src={resourceIcon(resourceTypeMap.get(resource.azureType))} alt="" />
+                        <span>{resource.name}</span>
+                      </button>
+                    ) : null}
+                  </td>
+                  {columns.map((column) => (
+                    <td
+                      key={column}
+                      className={isMachineShaped(column) ? "mono-cell" : undefined}
+                      title={row ? cellText(row[column], none) : undefined}
+                    >
+                      {row ? cellText(row[column], none) : null}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+      <div className="grid-footer">
+        <span>
+          {detail ? plural(inventoryWords.row_count, detail.rows.length - detail.missing, { count: (detail.rows.length - detail.missing).toLocaleString() }) : ""}
+          {detail?.missing ? ` · ${plural(words.detail_missing, detail.missing)}` : ""}
+        </span>
+        <ShowMore list={list} inline />
+      </div>
+    </div>
   );
 }

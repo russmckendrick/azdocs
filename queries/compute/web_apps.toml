@@ -1,6 +1,8 @@
 name = "web_apps"
 category = "compute"
 kind = "inventory"
+resource_types = ["microsoft.web/sites"]
+resource_table = true
 description = "App Services and Function Apps with runtime and TLS settings"
 kql = '''
 resources

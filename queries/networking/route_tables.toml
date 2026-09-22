@@ -1,6 +1,8 @@
 name = "route_tables"
 category = "networking"
 kind = "inventory"
+resource_types = ["microsoft.network/routetables"]
+resource_table = true
 description = "Route tables with route and subnet counts and BGP propagation setting"
 kql = '''
 resources

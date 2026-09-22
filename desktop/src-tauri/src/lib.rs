@@ -106,6 +106,7 @@ pub fn run() {
                     commands::cancel_collect,
                     commands::query_pack_metadata,
                     commands::query_rows,
+                    commands::resource_query_rows,
                     commands::resource_detail,
                     commands::export_snapshot,
                     commands::cancel_export,

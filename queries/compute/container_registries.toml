@@ -1,6 +1,8 @@
 name = "container_registries"
 category = "compute"
 kind = "inventory"
+resource_types = ["microsoft.containerregistry/registries"]
+resource_table = true
 description = "Container registries with SKU, admin user, anonymous pull, public network and zone redundancy posture"
 kql = '''
 resources

@@ -1,6 +1,7 @@
 name = "vm_network_config"
 category = "compute"
 kind = "inventory"
+resource_types = ["microsoft.compute/virtualmachines"]
 description = "VMs with their primary NIC, private/public IPs, and subnet"
 kql = '''
 resources

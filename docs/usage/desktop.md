@@ -35,7 +35,7 @@ themes by `pnpm run screenshots` (see [browser preview](#browser-preview)).
 | Estate | [light](assets/desktop-estate-light.png) | [dark](assets/desktop-estate-dark.png) |
 | Map | [light](assets/desktop-map-light.png) | [dark](assets/desktop-map-dark.png) |
 | Regions | [light](assets/desktop-regions-light.png) | [dark](assets/desktop-regions-dark.png) |
-| Inventory | [light](assets/desktop-inventory-light.png) | [dark](assets/desktop-inventory-dark.png) |
+| Estate › Query results | [light](assets/desktop-query-results-light.png) | [dark](assets/desktop-query-results-dark.png) |
 | Findings | [light](assets/desktop-findings-light.png) | [dark](assets/desktop-findings-dark.png) |
 | Governance | [light](assets/desktop-governance-light.png) | [dark](assets/desktop-governance-dark.png) |
 | Changes | [light](assets/desktop-changes-light.png) | [dark](assets/desktop-changes-dark.png) |
@@ -81,7 +81,16 @@ pnpm run tauri build
 
 - **Estate** keeps the subscription/resource-group hierarchy, searchable
   resource ledger, and resource inspector visible together. Filter by scope,
-  type, location, resource name, ARM type, group, or tags.
+  type, location, resource name, ARM type, group, or tags. Once the view is
+  down to one resource type, the table can show the columns of a query that
+  describes that type — address spaces for VNets, SKUs and sizes for VMs —
+  scoped to the selected subscription or group; child rows such as subnets or
+  NSG rules sit under their parent. **Summary** returns to the standard
+  columns. A resource's record lists every such row under **Collected
+  detail**, including patching, backup, Defender and health rows that name it.
+  The **Query results** tab browses every collected query's stored rows by
+  category, including those about policy, roles and recommendations rather
+  than one resource type, with each query's recorded KQL and sources.
 - **Map** is a full-bleed, hierarchical graph workspace. Its initial
   camera fits the readable connected core; **Fit all** is the first control in
   the icon ribbon when you need the complete overview. The **estate** level

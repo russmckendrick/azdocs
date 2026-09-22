@@ -1,6 +1,7 @@
 name = "aks_node_pools"
 category = "compute"
 kind = "inventory"
+resource_types = ["microsoft.containerservice/managedclusters"]
 description = "AKS node pools expanded from every cluster with mode, VM size, node counts, autoscale, OS and subnet"
 kql = '''
 resources

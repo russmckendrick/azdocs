@@ -8,11 +8,13 @@ import {
   ClipboardCopy,
   GitBranch,
   ListTree,
+  Table2,
 } from "lucide-react";
 import { resourceIcon } from "../azure-icons";
 import { displayKind, displayLocation } from "../azure-values";
-import type { EstateSnapshot, Resource, ResourceDetail, ResourceType } from "../types";
-import { copyText, getResourceDetail } from "../api";
+import type { EstateSnapshot, QueryDefMeta, QueryRows, Resource, ResourceDetail, ResourceType } from "../types";
+import { copyText, getQueryPackMetadata, getResourceDetail, getResourceQueryRows } from "../api";
+import { detailColumns } from "./resource-queries";
 import { AdaptiveDataView } from "./AdaptiveDataView";
 import { describeStoredValue, hasStoredValue } from "./stored-values";
 import { errorMessage, plural, resourceName, spaced } from "../format";
@@ -196,6 +198,8 @@ export function ResourceDetailView({
             )}
           </section>
 
+          <CollectedDetail snapshotId={estate.id} resourceId={resource.id} />
+
           <section className="resource-record-section resource-context-section">
             <div className="resource-record-section-heading">
               <div>
@@ -272,5 +276,58 @@ function EvidenceData({ label, value, compact = false }: { label: string; value:
       </div>
       {stored ? <AdaptiveDataView value={value} /> : null}
     </div>
+  );
+}
+
+/**
+ * The per-resource side of Estate's type tables: every inventory row that
+ * describes this resource, one block per query. Columns the record already
+ * shows (id, group, location) are dropped the same way the tables drop them.
+ */
+function CollectedDetail({ snapshotId, resourceId }: { snapshotId: string; resourceId: string }) {
+  const { desktop: { record: words } } = useLabels();
+  const [collected, setCollected] = useState<{ pack: QueryDefMeta[]; rows: QueryRows[] }>();
+  const [error, setError] = useState<string>();
+  useEffect(() => {
+    let active = true;
+    setCollected(undefined);
+    setError(undefined);
+    Promise.all([getQueryPackMetadata().catch(() => []), getResourceQueryRows(snapshotId, resourceId)])
+      .then(([pack, rows]) => {
+        if (active) setCollected({ pack, rows });
+      })
+      .catch((caught) => {
+        if (active) setError(errorMessage(caught));
+      });
+    return () => {
+      active = false;
+    };
+  }, [resourceId, snapshotId]);
+  return (
+    <section className="resource-record-section">
+      <div className="resource-record-section-heading">
+        <div><h2>{words.collected_title}</h2><p>{words.collected_detail}</p></div>
+        <Table2 size={18} />
+      </div>
+      {error ? <p className="muted-copy risk">{error}</p> : null}
+      {!collected && !error ? <p className="muted-copy" role="status">{words.loading_collected}</p> : null}
+      {collected && collected.rows.length === 0 ? <p className="muted-copy">{words.no_collected}</p> : null}
+      {collected && collected.rows.length > 0 ? (
+        <div className="resource-property-stack">
+          {collected.rows.map((result) => {
+            const def = collected.pack.find((entry) => entry.name === result.queryName);
+            const columns = detailColumns(result.columns, def?.resourceColumn ?? "id");
+            const shaped = result.rows.map((row) => Object.fromEntries(columns.map((column) => [column, row[column]])));
+            return (
+              <EvidenceData
+                key={result.queryName}
+                label={spaced(result.queryName)}
+                value={shaped.length === 1 ? shaped[0] : shaped}
+              />
+            );
+          })}
+        </div>
+      ) : null}
+    </section>
   );
 }

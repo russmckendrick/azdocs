@@ -1,6 +1,8 @@
 name = "cognitive_services"
 category = "ai"
 kind = "inventory"
+resource_types = ["microsoft.cognitiveservices/accounts"]
+resource_table = true
 description = "Cognitive Services and Azure OpenAI accounts with network and auth posture"
 kql = '''
 resources

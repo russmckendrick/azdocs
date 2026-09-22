@@ -1,6 +1,8 @@
 name = "firewall_policies"
 category = "networking"
 kind = "inventory"
+resource_types = ["microsoft.network/firewallpolicies"]
+resource_table = true
 description = "Azure Firewall policies with tier, threat intelligence mode, DNS proxy and rule collection group counts"
 kql = '''
 resources

@@ -1,6 +1,8 @@
 name = "avd_scaling_plans"
 category = "avd"
 kind = "inventory"
+resource_types = ["microsoft.desktopvirtualization/scalingplans"]
+resource_table = true
 description = "Azure Virtual Desktop scaling plans with schedule and host pool counts"
 kql = '''
 resources

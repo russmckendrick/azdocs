@@ -746,6 +746,12 @@ pub struct DesktopShortcutLabels {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DesktopEstateLabels {
+    pub tabs_aria: String,
+    pub tab_resources: String,
+    pub columns_aria: String,
+    pub columns_summary: String,
+    pub detail_missing: Plural,
+    pub detail_empty: String,
     pub hierarchy_aria: String,
     pub title: String,
     pub summary: String,
@@ -782,6 +788,10 @@ pub struct DesktopEstateLabels {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DesktopRecordLabels {
+    pub collected_title: String,
+    pub collected_detail: String,
+    pub loading_collected: String,
+    pub no_collected: String,
     pub unknown_subscription: String,
     pub source_note: String,
     pub summary_aria: String,
@@ -932,6 +942,9 @@ pub struct DesktopDashboardLabels {
     pub high_context: String,
     pub tags_context: String,
     pub links_context: String,
+    pub kpi_delta: String,
+    pub delta_up: String,
+    pub delta_down: String,
     pub history: String,
     pub history_note: String,
     pub history_empty: String,
@@ -950,10 +963,13 @@ pub struct DesktopDashboardLabels {
     pub coverage_note: String,
     pub coverage_count: String,
     pub coverage_empty: String,
+    pub coverage_summary: Plural,
+    pub coverage_gaps: String,
     pub changes: String,
     pub changes_note: String,
     pub changes_empty: String,
     pub baseline: String,
+    pub changes_none: String,
     pub details: String,
     pub open_results: String,
     pub close: String,

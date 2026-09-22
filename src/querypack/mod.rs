@@ -41,9 +41,30 @@ pub struct QueryDef {
     /// row used for pagination. Missing values do not fall back to evidence IDs.
     #[serde(default)]
     pub resource_id_field: Option<String>,
+    /// Inventory only: the lowercase ARM types whose resources the rows
+    /// describe, so the desktop can show them as those types' columns. Rows
+    /// join on `resource_column()`, which may hold a parent (subnets → VNet).
+    #[serde(default)]
+    pub resource_types: Vec<String>,
+    /// Inventory only: this query's columns are the default table for its
+    /// `resource_types`. At most one per type; others stay selectable.
+    #[serde(default)]
+    pub resource_table: bool,
 }
 
 impl QueryDef {
+    /// The column naming the resource an inventory row describes, if the
+    /// query declares one: `resource_id_field`, else `id` when
+    /// `resource_types` is set. Findings keep their own affected-resource rule.
+    pub fn resource_column(&self) -> Option<&str> {
+        if self.kind != QueryKind::Inventory {
+            return None;
+        }
+        self.resource_id_field
+            .as_deref()
+            .or((!self.resource_types.is_empty()).then_some("id"))
+    }
+
     /// Store the exact executed text, including user overrides and KQL comments.
     /// The digest identifies the query; scope and thresholds remain explicit fields.
     pub fn provenance(&self, subscriptions: &[String]) -> QueryProvenance {
@@ -115,6 +136,28 @@ impl QueryDef {
             return Err(invalid(
                 "source requires HTTPS urls and a YYYY-MM-DD reviewed_on date".to_owned(),
             ));
+        }
+        if self.resource_id_field.as_deref().is_some_and(|field| {
+            field.is_empty() || !field.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+        }) {
+            return Err(invalid(
+                "resource_id_field must be a plain column name".to_owned(),
+            ));
+        }
+        if !self.resource_types.is_empty() && self.kind != QueryKind::Inventory {
+            return Err(invalid(
+                "only inventory queries may set resource_types".to_owned(),
+            ));
+        }
+        for kind in &self.resource_types {
+            if !kind.contains('/') || kind.chars().any(|c| c.is_ascii_uppercase()) {
+                return Err(invalid(format!(
+                    "resource_type `{kind}` must be a lowercase ARM type"
+                )));
+            }
+        }
+        if self.resource_table && self.resource_types.is_empty() {
+            return Err(invalid("resource_table requires resource_types".to_owned()));
         }
         match self.kind {
             QueryKind::Finding if self.severity.is_none() => {

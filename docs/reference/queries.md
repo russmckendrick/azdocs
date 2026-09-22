@@ -198,7 +198,7 @@ explicitly disabled settings.
 The cost and compliance chapter is shared by PDF, DOCX, Markdown, HTML/site and
 XLSX exports. It summarises saved service evidence. Full stored records remain in SQLite
 and the relevant data exports; the print technical reference selects operational
-settings and summarises repeated findings. Desktop Inventory discovers the new
+settings and summarises repeated findings. Desktop Estate › Query results discovers the new
 categories from the query pack, and Findings displays the new finding checks.
 
 - Advisor amounts are estimates, not billed costs. Currency and reported period

@@ -1,6 +1,7 @@
 name = "avd_session_hosts"
 category = "avd"
 kind = "inventory"
+resource_types = ["microsoft.compute/virtualmachines"]
 description = "Likely AVD session hosts: VMs sharing a resource group with a host pool"
 kql = '''
 resources

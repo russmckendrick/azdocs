@@ -1,6 +1,8 @@
 name = "postgres_mysql_flexible"
 category = "databases"
 kind = "inventory"
+resource_types = ["microsoft.dbforpostgresql/flexibleservers", "microsoft.dbformysql/flexibleservers"]
+resource_table = true
 description = "PostgreSQL and MySQL flexible servers with backup, auth, and encryption settings"
 kql = '''
 resources

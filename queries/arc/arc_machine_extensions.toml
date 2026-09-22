@@ -1,6 +1,8 @@
 name = "arc_machine_extensions"
 category = "arc"
 kind = "inventory"
+resource_types = ["microsoft.hybridcompute/machines/extensions"]
+resource_table = true
 description = "Extensions installed on Azure Arc-enabled servers"
 kql = '''
 resources

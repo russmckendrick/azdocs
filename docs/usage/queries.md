@@ -45,6 +45,18 @@ resources
   for a finding; it defaults to `id`. This separates a unique policy evidence
   row from its target resource. A missing/empty configured field leaves the
   finding at estate/scope level; it never falls back to the evidence ID.
+- **Inventory queries** that describe Azure resources say so, which lets the
+  desktop show their rows as that type's columns in Estate and on each
+  resource's record:
+  - `resource_types = ["microsoft.network/virtualnetworks"]` names the
+    lowercase ARM types the rows describe;
+  - `resource_id_field = "<column>"` names the column holding the described
+    resource's ID when it is not `id` — `vnetId` for subnets, `resourceId` for
+    patch assessments. A query can set this alone to join its rows to any
+    resource without offering a type table;
+  - `resource_table = true` makes this query the default Estate columns for
+    its types. At most one built-in query per type may set it; others stay
+    selectable.
 - End with `| order by id asc` (or another deterministic sort) — multi-page
   results paginate via `$skipToken`, which needs stable ordering. Avoid
   `take`/`limit`/`sample` when all rows are required, and retain scalar output

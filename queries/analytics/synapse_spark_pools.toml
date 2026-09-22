@@ -1,6 +1,8 @@
 name = "synapse_spark_pools"
 category = "analytics"
 kind = "inventory"
+resource_types = ["microsoft.synapse/workspaces/bigdatapools"]
+resource_table = true
 description = "Synapse Spark pools with node size, autoscale, and auto-pause configuration"
 kql = '''
 resources

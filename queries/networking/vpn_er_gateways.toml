@@ -1,6 +1,8 @@
 name = "vpn_er_gateways"
 category = "networking"
 kind = "inventory"
+resource_types = ["microsoft.network/virtualnetworkgateways"]
+resource_table = true
 description = "VPN and ExpressRoute gateways plus circuits"
 kql = '''
 resources

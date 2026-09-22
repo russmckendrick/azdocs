@@ -1,6 +1,8 @@
 name = "redis_caches"
 category = "databases"
 kind = "inventory"
+resource_types = ["microsoft.cache/redis"]
+resource_table = true
 description = "Redis caches with SKU and TLS settings"
 kql = '''
 resources

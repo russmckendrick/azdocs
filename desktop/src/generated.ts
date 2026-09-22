@@ -351,7 +351,20 @@ export type QueryProvenance = { kql: string, kqlSha256: string, description: str
 
 export type EvidenceTable = { key: string, title: string, note: string, status: string, columns: Array<string>, rows: Array<Array<string>>, };
 
-export type QueryDefMeta = { name: string, category: string, kind: QueryKind, description: string, };
+export type QueryDefMeta = { name: string, category: string, kind: QueryKind, description: string,
+/**
+ * ARM types whose resources the rows describe; empty for queries about
+ * something else (policy, roles, the pack's own bookkeeping).
+ */
+resourceTypes: Array<string>,
+/**
+ * The column naming the described resource, when rows describe one.
+ */
+resourceColumn?: string | null,
+/**
+ * This query supplies the default columns for its `resource_types`.
+ */
+resourceTable: boolean, };
 
 export type QueryRows = { queryName: string, columns: Array<string>, rows: Array<Record<string, unknown>>, };
 

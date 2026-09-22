@@ -1,6 +1,8 @@
 name = "app_gateways"
 category = "networking"
 kind = "inventory"
+resource_types = ["microsoft.network/applicationgateways"]
+resource_table = true
 description = "Application gateways with SKU, inline or policy-based WAF configuration, and listener/pool/rule counts"
 kql = '''
 resources

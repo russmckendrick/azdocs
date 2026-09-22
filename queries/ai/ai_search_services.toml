@@ -1,6 +1,8 @@
 name = "ai_search_services"
 category = "ai"
 kind = "inventory"
+resource_types = ["microsoft.search/searchservices"]
+resource_table = true
 description = "Azure AI Search services with SKU, replicas, partitions, and network posture"
 kql = '''
 resources

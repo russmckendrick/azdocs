@@ -1,6 +1,8 @@
 name = "firewalls"
 category = "networking"
 kind = "inventory"
+resource_types = ["microsoft.network/azurefirewalls"]
+resource_table = true
 description = "Azure Firewalls with SKU and policy"
 kql = '''
 resources

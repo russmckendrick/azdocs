@@ -108,6 +108,20 @@ export async function getQueryRows(
   return (await import("./mock-data")).mockQueryRows(queryName);
 }
 
+/** Every inventory row describing one resource, grouped by query. */
+export async function getResourceQueryRows(
+  snapshotId: string,
+  resourceId: string,
+): Promise<QueryRows[]> {
+  if (!PREVIEW || isTauri)
+    return invoke<QueryRows[]>("resource_query_rows", {
+      snapshotId,
+      resourceId,
+    });
+  await pause(140);
+  return (await import("./mock-data")).mockResourceQueryRows(resourceId);
+}
+
 export async function compareSnapshots(
   baseSnapshotId: string,
   targetSnapshotId: string,

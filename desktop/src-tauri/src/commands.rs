@@ -166,8 +166,44 @@ pub fn query_pack_metadata() -> Result<Vec<QueryDefDto>, AppError> {
                 QueryKind::Finding => "finding".to_owned(),
             },
             description: def.description.clone(),
+            resource_types: def.resource_types.clone(),
+            resource_column: def.resource_column().map(str::to_owned),
+            resource_table: def.resource_table,
         })
         .collect())
+}
+
+/// Every inventory row that describes one resource, grouped by query in pack
+/// order — the per-resource side of the join the Estate type tables make.
+#[tauri::command]
+pub async fn resource_query_rows(
+    snapshot_id: String,
+    resource_id: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<QueryRowsDto>, AppError> {
+    let session = crate::settings::session(&state)?;
+    let pack = QueryPack::load().map_err(|error| AppError::Config(error.to_string()))?;
+    blocking(session, move |session| {
+        let store = open_store_for(&session)?;
+        let snapshot_id = store.resolve_snapshot(&snapshot_id)?;
+        let mut out = Vec::new();
+        for def in pack.all() {
+            let Some(column) = def.resource_column() else {
+                continue;
+            };
+            let rows =
+                store.query_results_for_resource(&snapshot_id, &def.name, column, &resource_id)?;
+            if !rows.is_empty() {
+                out.push(QueryRowsDto {
+                    query_name: def.name.clone(),
+                    columns: azdocs::model::rows::columns(&rows),
+                    rows,
+                });
+            }
+        }
+        Ok(out)
+    })
+    .await
 }
 
 #[tauri::command]
