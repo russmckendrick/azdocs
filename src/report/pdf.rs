@@ -2,20 +2,20 @@
 //! installed fonts with bundled fallbacks, and byte-deterministic output (the document
 //! date comes from the snapshot, not the wall clock).
 
-use std::collections::BTreeMap;
-use std::path::Path;
+use std::collections::{BTreeMap, HashMap};
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, anyhow};
 use chrono::{Datelike, Timelike};
 use include_dir::{Dir, include_dir};
-use typst::Library;
 use typst::diag::{FileError, FileResult, SourceDiagnostic, Warned};
-use typst::foundations::{Bytes, Datetime, Dict, Smart, Value};
-use typst::layout::PagedDocument;
-use typst::syntax::{FileId, Source, VirtualPath};
+use typst::foundations::{Bytes, Datetime, Dict, Duration, Smart, Value};
+use typst::syntax::{FileId, RootedPath, Source, VirtualPath, VirtualRoot};
 use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
-use typst_pdf::{PdfOptions, PdfStandards, Timestamp};
+use typst::{Library, LibraryExt};
+use typst_layout::PagedDocument;
+use typst_pdf::{PdfOptions, Timestamp};
 
 use super::ReportContext;
 use super::branding::BrandingContext;
@@ -101,12 +101,12 @@ fn render_document(
     );
     let world = ReportWorld::new(document, &render_branding, diagrams)?;
     let Warned { output, warnings } = typst::compile::<PagedDocument>(&world);
-    let document = output.map_err(|diags| diagnostics_error("compiling PDF report", &diags))?;
+    let document =
+        output.map_err(|diags| diagnostics_error("compiling PDF report", diags.as_slice()))?;
     let options = PdfOptions {
-        ident: Smart::Custom(ident.as_str()),
+        ident: Smart::Custom(ident),
         timestamp: world.timestamp,
-        page_ranges: None,
-        standards: PdfStandards::default(),
+        ..PdfOptions::default()
     };
     let bytes = typst_pdf::pdf(&document, &options)
         .map_err(|diags| diagnostics_error("exporting PDF report", &diags))?;
@@ -133,8 +133,8 @@ struct ReportWorld {
     book: LazyHash<FontBook>,
     fonts: Vec<Font>,
     main: FileId,
-    sources: BTreeMap<FileId, Source>,
-    files: BTreeMap<FileId, Bytes>,
+    sources: HashMap<FileId, Source>,
+    files: HashMap<FileId, Bytes>,
     today: Option<Datetime>,
     timestamp: Option<Timestamp>,
 }
@@ -169,38 +169,35 @@ impl ReportWorld {
             Value::Str(serde_json::to_string(&branding.labels)?.into()),
         );
 
-        let mut files = BTreeMap::new();
+        let mut files = HashMap::new();
         files.insert(
-            FileId::new(None, VirtualPath::new("/external-link.svg")),
+            file_id("/external-link.svg")?,
             Bytes::new(
                 super::document::external_link_svg(&branding.tokens.palette.accent).into_bytes(),
             ),
         );
         for block in &document.blocks {
             if let super::document::Block::RasterImage { slug, png, .. } = block {
-                let id = FileId::new(None, VirtualPath::new(format!("/websites/{slug}.png")));
+                let id = file_id(format!("/websites/{slug}.png"))?;
                 files.insert(id, Bytes::new(png.to_vec()));
             }
             if let super::document::Block::Chart { slug, svg, .. } = block {
-                let id = FileId::new(None, VirtualPath::new(format!("/charts/{slug}.svg")));
+                let id = file_id(format!("/charts/{slug}.svg"))?;
                 files.insert(id, Bytes::new(svg.clone().into_bytes()));
             }
         }
         for asset in diagrams {
-            let id = FileId::new(
-                None,
-                VirtualPath::new(format!("/diagrams/{}.svg", asset.slug)),
-            );
+            let id = file_id(format!("/diagrams/{}.svg", asset.slug))?;
             files.insert(id, Bytes::new(asset.svg.clone().into_bytes()));
         }
         for azure_type in icon_types {
             let path = format!("/icons/{}.svg", icon_slug(azure_type));
-            let id = FileId::new(None, VirtualPath::new(path.as_str()));
+            let id = file_id(path.as_str())?;
             files.insert(id, Bytes::new(crate::diagram::icons::svg_bytes(azure_type)));
         }
         if let Some(logo) = &branding.logo {
             let path = format!("/logo.{}", logo.extension);
-            let id = FileId::new(None, VirtualPath::new(path.as_str()));
+            let id = file_id(path.as_str())?;
             files.insert(id, Bytes::new(logo.bytes.clone()));
             inputs.insert("logo".into(), Value::Str(path.into()));
         }
@@ -209,7 +206,7 @@ impl ReportWorld {
                 (mark::PRIMARY_VIRTUAL_PATH, mark::primary_svg()),
                 (mark::ON_DARK_VIRTUAL_PATH, mark::on_dark_svg()),
             ] {
-                let id = FileId::new(None, VirtualPath::new(path));
+                let id = file_id(path)?;
                 files.insert(id, Bytes::new(bytes.to_vec()));
             }
             inputs.insert(
@@ -222,14 +219,14 @@ impl ReportWorld {
             );
         }
 
-        let mut sources = BTreeMap::new();
+        let mut sources = HashMap::new();
         let mut main = None;
         for file in TYPST_TEMPLATES.files() {
             let relative = file.path().to_string_lossy();
             let text = file
                 .contents_utf8()
                 .ok_or_else(|| anyhow!("typst template {relative} is not UTF-8"))?;
-            let id = FileId::new(None, VirtualPath::new(format!("/{relative}")));
+            let id = file_id(format!("/{relative}"))?;
             if relative == "report.typ" {
                 main = Some(id);
             }
@@ -307,6 +304,12 @@ fn icon_slug(azure_type: &str) -> String {
     crate::diagram::graph::slugify(azure_type)
 }
 
+fn file_id(path: impl AsRef<str>) -> anyhow::Result<FileId> {
+    let path = VirtualPath::new(path.as_ref())
+        .with_context(|| format!("invalid virtual Typst path {}", path.as_ref()))?;
+    Ok(FileId::new(RootedPath::new(VirtualRoot::Project, path)))
+}
+
 fn snapshot_datetime(created_at: &str) -> (Option<Datetime>, Option<Timestamp>) {
     let Ok(parsed) = chrono::DateTime::parse_from_rfc3339(created_at) else {
         return (None, None);
@@ -340,21 +343,21 @@ impl typst::World for ReportWorld {
         self.sources
             .get(&id)
             .cloned()
-            .ok_or_else(|| FileError::NotFound(id.vpath().as_rootless_path().to_path_buf()))
+            .ok_or_else(|| FileError::NotFound(PathBuf::from(id.vpath().get_without_slash())))
     }
 
     fn file(&self, id: FileId) -> FileResult<Bytes> {
         self.files
             .get(&id)
             .cloned()
-            .ok_or_else(|| FileError::NotFound(id.vpath().as_rootless_path().to_path_buf()))
+            .ok_or_else(|| FileError::NotFound(PathBuf::from(id.vpath().get_without_slash())))
     }
 
     fn font(&self, index: usize) -> Option<Font> {
         self.fonts.get(index).cloned()
     }
 
-    fn today(&self, _offset: Option<i64>) -> Option<Datetime> {
+    fn today(&self, _offset: Option<Duration>) -> Option<Datetime> {
         self.today
     }
 }

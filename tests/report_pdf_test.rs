@@ -160,13 +160,24 @@ fn pdf_reference_resource_links_resolve_to_document_pages() {
         if dict.get(b"Subtype").and_then(lopdf::Object::as_name).ok() != Some(b"Link") {
             continue;
         }
-        let action = dict.get(b"A").and_then(lopdf::Object::as_dict).unwrap();
-        if action.get(b"S").and_then(lopdf::Object::as_name).ok() == Some(b"GoTo") {
-            let destination = action.get(b"D").and_then(lopdf::Object::as_array).unwrap();
-            let target = destination[0].as_reference().unwrap();
-            assert!(pages.contains(&target), "link points outside this PDF");
-            internal_links += 1;
-        }
+        let destination = if let Ok(action) = dict.get(b"A").and_then(lopdf::Object::as_dict) {
+            if action.get(b"S").and_then(lopdf::Object::as_name).ok() != Some(b"GoTo") {
+                continue;
+            }
+            action.get(b"D").ok()
+        } else {
+            // Typst 0.15 writes internal annotation targets directly as
+            // `/Dest`; older releases wrapped them in a `/GoTo` action.
+            dict.get(b"Dest").ok()
+        };
+        let Some(destination) = destination else {
+            continue;
+        };
+        let (_, destination) = document.dereference(destination).unwrap();
+        let parts = destination.as_array().unwrap();
+        let target = parts[0].as_reference().unwrap();
+        assert!(pages.contains(&target), "link points outside this PDF");
+        internal_links += 1;
     }
     assert!(
         internal_links >= report.analysis.resources.len(),

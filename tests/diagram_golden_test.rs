@@ -112,14 +112,14 @@ fn assert_unique_resolving_ids(xml: &str) {
     loop {
         match reader.read_event().expect("well-formed XML") {
             Event::Eof => break,
-            Event::Start(e) | Event::Empty(e) if e.name().as_ref() == b"mxCell" => {
+            Event::Start(e) | Event::Empty(e) if e.name().as_ref() == "mxCell" => {
                 for attribute in e.attributes().map(Result::unwrap) {
-                    let value = String::from_utf8_lossy(&attribute.value).into_owned();
+                    let value = attribute.value.into_owned();
                     match attribute.key.as_ref() {
-                        b"id" => {
+                        "id" => {
                             assert!(ids.insert(value.clone()), "duplicate id {value}");
                         }
-                        b"parent" | b"source" | b"target" => references.push(value),
+                        "parent" | "source" | "target" => references.push(value),
                         _ => {}
                     }
                 }

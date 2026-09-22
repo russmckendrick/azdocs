@@ -675,7 +675,7 @@ fn update_table(target: &mut toml_edit::Table, replacement: &toml_edit::Table) {
 }
 
 pub fn revision(raw: &str) -> String {
-    format!("{:x}", Sha256::digest(raw.as_bytes()))
+    hex::encode(Sha256::digest(raw.as_bytes()))
 }
 
 pub fn read_optional(path: &Path) -> Result<String, ConfigError> {

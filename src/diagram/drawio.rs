@@ -185,15 +185,13 @@ fn with_element<F>(writer: &mut Writer<Vec<u8>>, start: BytesStart<'_>, body: F)
 where
     F: FnOnce(&mut Writer<Vec<u8>>),
 {
-    let name = start.name().as_ref().to_vec();
+    let name = start.name().as_ref().to_owned();
     writer
         .write_event(Event::Start(start))
         .expect("writing to Vec cannot fail");
     body(writer);
     writer
-        .write_event(Event::End(quick_xml::events::BytesEnd::new(
-            String::from_utf8_lossy(&name).into_owned(),
-        )))
+        .write_event(Event::End(quick_xml::events::BytesEnd::new(name)))
         .expect("writing to Vec cannot fail");
 }
 

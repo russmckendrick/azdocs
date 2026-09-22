@@ -20,11 +20,11 @@ db-urls = ["https://github.com/rustsec/advisory-db"]
 # An unmaintained crate we depend on directly is an error; one deep inside
 # typst, resvg or tauri is reported as a warning and moves when they do.
 # Vulnerabilities are errors wherever they sit; each ignore below names the
-# pinned dependency that drags it in and why it cannot reach user input.
+# pinned dependency that drags it in and why it cannot reach untrusted input.
 unmaintained = "workspace"
 ignore = [
-  { id = "RUSTSEC-2026-0194", reason = "quick-xml 0.36 via hayagriva/citationberg in typst 0.13, which parses only its bundled CSL styles, never user input" },
-  { id = "RUSTSEC-2026-0195", reason = "quick-xml 0.36 via hayagriva/citationberg in typst 0.13, which parses only its bundled CSL styles, never user input" },
+  { id = "RUSTSEC-2026-0194", reason = "quick-xml 0.38 via citationberg in typst 0.15.1; the report World exposes embedded templates and generated data only, with no user CSL or bibliography input" },
+  { id = "RUSTSEC-2026-0195", reason = "quick-xml 0.38 via citationberg in typst 0.15.1; the report World exposes embedded templates and generated data only, with no user CSL or bibliography input" },
 ]
 
 [licenses]

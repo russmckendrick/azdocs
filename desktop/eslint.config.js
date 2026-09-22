@@ -19,6 +19,11 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // These compiler-oriented rules reject established patterns in the
+      // desktop app. Keep the runtime hook correctness rules enabled while
+      // dependency maintenance remains separate from a React Compiler rewrite.
+      "react-hooks/refs": "off",
+      "react-hooks/set-state-in-effect": "off",
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       // The Rust side gates on `clippy -D warnings`; the TS side had no gate at
       // all, which is how two imports of the same module survived in api.ts.

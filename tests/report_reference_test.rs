@@ -29,16 +29,16 @@ fn table_rows(xml: &str) -> Vec<Vec<String>> {
     loop {
         match reader.read_event().unwrap() {
             Event::Start(e) => match e.name().as_ref() {
-                b"w:tr" => row.clear(),
-                b"w:tc" => cell.clear(),
-                b"w:t" => in_text = true,
+                "w:tr" => row.clear(),
+                "w:tc" => cell.clear(),
+                "w:t" => in_text = true,
                 _ => {}
             },
-            Event::Text(e) if in_text => cell.push_str(&e.decode().unwrap()),
+            Event::Text(e) if in_text => cell.push_str(e.as_ref()),
             Event::End(e) => match e.name().as_ref() {
-                b"w:t" => in_text = false,
-                b"w:tc" => row.push(cell.replace('\u{200b}', "")),
-                b"w:tr" => rows.push(std::mem::take(&mut row)),
+                "w:t" => in_text = false,
+                "w:tc" => row.push(cell.replace('\u{200b}', "")),
+                "w:tr" => rows.push(std::mem::take(&mut row)),
                 _ => {}
             },
             Event::Eof => break,

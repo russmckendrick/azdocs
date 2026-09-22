@@ -97,13 +97,11 @@ jobs:
         with:
           components: clippy
       - name: "📦 Set up pnpm"
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
-        with:
-          version: 10
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - name: "🟢 Set up Node.js"
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
           cache-dependency-path: desktop/pnpm-lock.yaml
       - name: "🐧 Install Tauri system dependencies"
@@ -200,13 +198,11 @@ jobs:
       - name: "📥 Check out source"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: "📦 Set up pnpm"
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
-        with:
-          version: 10
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - name: "🟢 Set up Node.js"
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
           cache-dependency-path: desktop/pnpm-lock.yaml
       - name: "📦 Install frontend dependencies"
@@ -226,7 +222,7 @@ jobs:
       - name: "🦀 Set up Rust"
         uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
       - name: "🧰 Install cargo-about"
-        uses: taiki-e/install-action@9114bf4d891761788c546334fd37538eae1bf8b3 # v2
+        uses: taiki-e/install-action@94c31af3204a9f15ab40b35ad084410b905bbc73 # v2.87.17
         with:
           tool: cargo-about@0.9.2
       - name: "📦 Fetch locked dependencies"
@@ -236,13 +232,11 @@ jobs:
       - name: "⚖️ Check every crate licence is known and accepted"
         run: cargo about generate --offline --locked --fail docs/licenses/about.hbs -o /dev/null
       - name: "📦 Set up pnpm"
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
-        with:
-          version: 10
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - name: "🟢 Set up Node.js"
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
           cache-dependency-path: desktop/pnpm-lock.yaml
       - name: "📦 Install frontend dependencies"
@@ -259,10 +253,10 @@ jobs:
     steps:
       - name: "📥 Check out source"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: "🦀 Set up Rust 1.89"
+      - name: "🦀 Set up Rust 1.92"
         uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
-          toolchain: "1.89"
+          toolchain: "1.92"
       # The workspace includes the Tauri backend, whose Linux build links
       # WebKitGTK; the check is meaningless without those libraries.
       - name: "🐧 Install Tauri system dependencies"
@@ -321,7 +315,7 @@ jobs:
         with:
           components: llvm-tools-preview
       - name: "🧰 Install cargo-llvm-cov"
-        uses: taiki-e/install-action@9114bf4d891761788c546334fd37538eae1bf8b3 # v2
+        uses: taiki-e/install-action@94c31af3204a9f15ab40b35ad084410b905bbc73 # v2.87.17
         with:
           tool: cargo-llvm-cov
       # The workspace includes the Tauri backend, whose Linux build links

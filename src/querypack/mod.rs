@@ -52,7 +52,7 @@ impl QueryDef {
         subscriptions.dedup();
         QueryProvenance {
             kql: self.kql.clone(),
-            kql_sha256: format!("{:x}", Sha256::digest(self.kql.as_bytes())),
+            kql_sha256: hex::encode(Sha256::digest(self.kql.as_bytes())),
             category: self.category.clone(),
             description: self.description.clone(),
             kind: match self.kind {

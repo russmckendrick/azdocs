@@ -4,7 +4,7 @@ version = "0.3.0"
 description = "Desktop explorer for azdocs Azure estate snapshots"
 authors = ["azdocs contributors"]
 edition = "2024"
-rust-version = "1.89"
+rust-version = "1.92"
 # The desktop app ships as installers, never as a crate; this also lets
 # cargo-deny accept its versionless path dependency on the CLI crate.
 publish = false
@@ -17,14 +17,14 @@ name = "azdocs_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
 azdocs = { path = "../.." }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tauri = { version = "2", features = ["unstable"] }
-tauri-plugin-dialog = "2"
+tauri = { version = "2.11.6", features = ["unstable"] }
+tauri-plugin-dialog = "2.7.3"
 thiserror = { workspace = true }
 tokio = { workspace = true }
 # no-serde-warnings: ts-rs warns on every build about serde attributes it does
@@ -33,29 +33,31 @@ tokio = { workspace = true }
 # rather than being silently ignored — so the warning is noise on every
 # `tauri dev` rebuild, not a signal.
 ts-rs = { version = "12.0.1", features = ["serde-json-impl", "no-serde-warnings"] }
-image = { version = "0.25", default-features = false, features = ["png"] }
-base64 = "0.22"
-chrono = "0.4"
-uuid = { version = "1", features = ["v4"] }
-tauri-plugin-single-instance = "2"
-tauri-plugin-window-state = "2"
-tauri-plugin-opener = "2"
-tauri-plugin-clipboard-manager = "2"
+image = { version = "0.25.10", default-features = false, features = ["png"] }
+base64 = "0.23.1"
+chrono = "0.4.45"
+uuid = { version = "1.26.1", features = ["v4"] }
+tauri-plugin-single-instance = "2.4.5"
+tauri-plugin-window-state = "2.4.1"
+tauri-plugin-opener = "2.5.5"
+tauri-plugin-clipboard-manager = "2.3.3"
 
 [dev-dependencies]
 tempfile = "3.27.0"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2 = "0.6"
-block2 = "0.6"
-objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSObject", "NSError", "NSString", "NSData", "NSDictionary", "NSURL", "NSURLRequest"] }
-objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSImage", "NSBitmapImageRep", "NSImageRep"] }
-objc2-web-kit = { version = "0.3", default-features = false, features = ["std", "block2", "objc2-app-kit", "WKWebView", "WKSnapshotConfiguration", "WKNavigationDelegate", "WKNavigationAction", "WKNavigationResponse", "WKNavigation", "WKUIDelegate", "WKFrameInfo", "WKSecurityOrigin"] }
+objc2 = "0.6.4"
+block2 = "0.6.2"
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSObject", "NSError", "NSString", "NSData", "NSDictionary", "NSURL", "NSURLRequest"] }
+objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSImage", "NSBitmapImageRep", "NSImageRep"] }
+objc2-web-kit = { version = "0.3.2", default-features = false, features = ["std", "block2", "objc2-app-kit", "WKWebView", "WKSnapshotConfiguration", "WKNavigationDelegate", "WKNavigationAction", "WKNavigationResponse", "WKNavigation", "WKUIDelegate", "WKFrameInfo", "WKSecurityOrigin"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
+# These types cross the Wry 0.55 API boundary and must stay on Wry's versions.
 webview2-com = "0.38"
 windows = { version = "0.61", features = ["Win32_System_Com", "Win32_UI_Shell"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 webkit2gtk = { version = "2.0", features = ["v2_40"] }
+# Cairo objects cross the Wry 0.55 API boundary and must stay on Wry's version.
 cairo-rs = { version = "0.18", features = ["png"] }

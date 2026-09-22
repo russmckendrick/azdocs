@@ -10,9 +10,9 @@ release time; see docs/development/releasing.md.
 |---|---|---|---|
 | @fontsource-variable/inter | 5.3.0 | OFL-1.1 | https://github.com/fontsource/font-files |
 | @tauri-apps/api | 2.11.1 | Apache-2.0 OR MIT | https://github.com/tauri-apps/tauri |
-| @tauri-apps/plugin-dialog | 2.7.2 | MIT OR Apache-2.0 | https://github.com/tauri-apps/plugins-workspace |
-| cytoscape | 3.34.1 | MIT | https://github.com/cytoscape/cytoscape.js |
-| lucide-react | 0.468.0 | ISC | https://github.com/lucide-icons/lucide |
-| react | 19.2.8 | MIT | https://github.com/react/react |
-| react-dom | 19.2.8 | MIT | https://github.com/react/react |
-| scheduler | 0.27.0 | MIT | https://github.com/facebook/react |
+| @tauri-apps/plugin-dialog | 2.7.3 | MIT OR Apache-2.0 | https://github.com/tauri-apps/plugins-workspace |
+| cytoscape | 3.34.3 | MIT | https://github.com/cytoscape/cytoscape.js |
+| lucide-react | 1.47.0 | ISC | https://github.com/lucide-icons/lucide |
+| react | 19.3.0 | MIT | https://github.com/react/react |
+| react-dom | 19.3.0 | MIT | https://github.com/react/react |
+| scheduler | 0.28.0 | MIT | https://github.com/react/react |

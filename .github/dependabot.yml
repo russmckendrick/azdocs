@@ -1,38 +1,21 @@
 version: 2
-# Quiet by design: at most two pull requests per ecosystem, one for the
-# minor and patch bumps and one for the majors, once a week. Security
-# updates are not subject to the limits and still arrive as they are found.
+# Routine version-update pull requests are disabled. Dependencies are refreshed
+# together and validated locally so one maintenance change replaces a stream of
+# separately billed CI runs. Dependabot security updates are configured
+# separately in repository settings and are not affected by this limit.
 updates:
   - package-ecosystem: cargo
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 2
-    groups:
-      cargo-minor:
-        update-types: [minor, patch]
-      cargo-major:
-        update-types: [major]
-    # typst crates are pinned to one minor and bumped by hand; resvg and
-    # usvg are lockstep-released and the grouped PR keeps them together.
-    ignore:
-      - dependency-name: "typst*"
-        update-types: ["version-update:semver-minor"]
+    open-pull-requests-limit: 0
   - package-ecosystem: npm
     directory: /desktop
     schedule:
       interval: weekly
-    open-pull-requests-limit: 2
-    groups:
-      npm-minor:
-        update-types: [minor, patch]
-      npm-major:
-        update-types: [major]
+    open-pull-requests-limit: 0
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 1
-    groups:
-      actions:
-        patterns: ["*"]
+    open-pull-requests-limit: 0

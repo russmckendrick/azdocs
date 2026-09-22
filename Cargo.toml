@@ -19,7 +19,7 @@ name = "azdocs"
 version = "0.3.0"
 edition = "2024"
 # Edition 2024, let chains and File::try_lock; CI's msrv job checks this floor still builds.
-rust-version = "1.89"
+rust-version = "1.92"
 description = "Audit, explore and document Azure estates from local SQLite snapshots"
 license = "MIT"
 repository = "https://github.com/russmckendrick/azdocs"
@@ -27,56 +27,58 @@ readme = "README.md"
 
 [dependencies]
 anyhow = "1.0.104"
-base64 = "0.22"
+base64 = "0.23.1"
 chrono = { version = "0.4.45", features = ["serde"] }
-clap = { version = "4.6.6", features = ["derive", "env", "wrap_help"] }
-clap_complete = "4.6.9"
+clap = { version = "4.6.7", features = ["derive", "env", "wrap_help"] }
+clap_complete = "4.6.11"
 comfy-table = "8.0.0"
 crossterm = "0.29.0"
 csv = "1.4.0"
 dialoguer = "0.12.0"
 directories = "6.0.0"
-docx-rs = "0.4"
+docx-rs = "0.4.22"
 # Already in the tree via docx-rs; taken as a direct dependency so the DOCX
 # emitter can validate a user-supplied logo before handing it to `Pic::new`,
 # which panics on an image it cannot decode.
-image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif"] }
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "gif"] }
+hex = "0.4.3"
 include_dir = "0.7.4"
 indicatif = "0.18.6"
 keyring = { version = "4.2.0", default-features = false, features = ["v1"] }
 minijinja = { version = "2.24.0", features = ["loader"] }
 pulldown-cmark = { version = "0.13.4", default-features = false, features = ["html"] }
-quick-xml = "0.41.0"
+quick-xml = "0.42.0"
 ratatui = "0.30.2"
-reqwest = { version = "0.13.4", default-features = false, features = ["json", "rustls", "gzip", "http2", "charset", "form"] }
-resvg = { version = "0.47", default-features = false, features = ["text", "system-fonts", "memmap-fonts"] }
+reqwest = { version = "0.13.5", default-features = false, features = ["json", "rustls", "gzip", "http2", "charset", "form"] }
+resvg = { version = "0.48.1", default-features = false, features = ["text", "system-fonts", "memmap-fonts"] }
 rusqlite = { version = "0.40.2", features = ["bundled", "serde_json"] }
-rust_xlsxwriter = { version = "0.98.1", features = ["chrono"] }
+rust_xlsxwriter = { version = "0.99.1", features = ["chrono"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
-sha2 = "0.10.9"
+sha2 = "0.11.0"
 thiserror = { workspace = true }
 tokio = { workspace = true }
-toml = "1.1.4"
-toml_edit = "0.25"
+toml = "1.1.6"
+toml_edit = "0.25.15"
 tempfile = "3.27.0"
 ts-rs = { version = "12.0.1", features = ["serde-json-impl", "no-serde-warnings"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
-typst = "0.13"
-typst-assets = { version = "0.13", features = ["fonts"] }
-typst-pdf = "0.13"
-usvg = "0.47"
-uuid = { version = "1.24.1", features = ["v4"] }
+typst = "0.15.1"
+typst-assets = { version = "0.15.1", features = ["fonts"] }
+typst-layout = "0.15.1"
+typst-pdf = "0.15.1"
+usvg = "0.48.1"
+uuid = { version = "1.26.1", features = ["v4"] }
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security_Authorization"] }
+windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_Security_Authorization"] }
 
 [dev-dependencies]
 insta = { version = "1.48.0", features = ["json", "yaml", "filters"] }
-lopdf = "0.44.0"
+lopdf = "0.45.0"
 wiremock = "0.6.5"
-zip = "4"
+zip = "8.6.0"
 
 # Debug-mode rasterisation is unusably slow without optimising the pixel
 # pipeline; these only affect dev builds of the named dependencies.

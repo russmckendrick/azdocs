@@ -275,7 +275,14 @@ export function OverviewView({
       )?.displayName ?? (scoped ? scopeName : d.all_subscriptions);
     setSelection({ kind, title, scopeName: name, filter: constraints });
   }
-  let offset = 0;
+  const severityShares = SEVERITIES.map((level) =>
+    data.findings.length
+      ? (data.severity[level] / data.findings.length) * 100
+      : 0,
+  );
+  const severityStarts = severityShares.map((_, index) =>
+    severityShares.slice(0, index).reduce((total, share) => total + share, 0),
+  );
   return (
     <div className="overview-workspace">
       {/* No page header here: the dashboard is the orientation. One compact
@@ -432,12 +439,9 @@ export function OverviewView({
                 cy="80"
                 r="61"
               />
-              {SEVERITIES.map((level) => {
-                const share = data.findings.length
-                  ? (data.severity[level] / data.findings.length) * 100
-                  : 0;
-                const start = offset;
-                offset += share;
+              {SEVERITIES.map((level, index) => {
+                const share = severityShares[index];
+                const start = severityStarts[index];
                 return (
                   <circle
                     key={level}

@@ -329,7 +329,7 @@ shared ports, name-only grids or indiscriminate Fit all.
 - serde_json `preserve_order` feature is load-bearing (column order).
 - rusqlite stays `bundled`; Excel sheet names are case-insensitive/31-char
   (category sheets are suffixed `" queries"` for this reason).
-- typst/typst-pdf/typst-assets are pinned to the same minor (0.13); the World
+- typst/typst-layout/typst-pdf/typst-assets are pinned to the same minor (0.15); the World
   impl in `report/pdf.rs` derives today()/timestamps and the document id from
   the snapshot so PDF bytes stay deterministic within a process for a fixed
   snapshot, theme and font files. Across processes typst-pdf orders font and
