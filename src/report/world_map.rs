@@ -112,8 +112,8 @@ fn land_path(view: View) -> &'static str {
         });
         let mut path = String::new();
         for ring in rings {
-            for (index, point) in ring.chunks_exact(2).enumerate() {
-                let (x, y) = project_in(view, point[0], point[1]);
+            for (index, [lon, lat]) in ring.as_chunks::<2>().0.iter().enumerate() {
+                let (x, y) = project_in(view, *lon, *lat);
                 let command = if index == 0 { 'M' } else { 'L' };
                 path.push_str(&format!("{command}{x:.1},{y:.1}"));
             }
