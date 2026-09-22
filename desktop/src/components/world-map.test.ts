@@ -1,5 +1,14 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { LAND_RINGS } from "./land-outline";
 import { spreadMarkers } from "./world-map";
+
+describe("land outline", () => {
+  it("matches the copy the CLI embeds for the report map", () => {
+    const shared = JSON.parse(readFileSync(new URL("../../../data/land_outline.json", import.meta.url), "utf8"));
+    expect(shared).toEqual(LAND_RINGS);
+  });
+});
 
 describe("spreadMarkers", () => {
   it("separates neighbouring markers to at least the gap", () => {

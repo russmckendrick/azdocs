@@ -68,7 +68,8 @@ one shared `PrintDocument`, built from `ReportContext.analysis` and the stored
 snapshot. The main report contains:
 
 1. Executive assessment: observations, significance and first decisions.
-2. Estate composition: subscriptions, service families and regions.
+2. Estate composition: subscriptions, service families and regions (a world
+   map sized by resource count, then the per-region chart).
 3. Architecture and dependencies: observed connections, shared targets and
    focused figures.
 4. Subscription profiles and up to three distinct group studies per subscription.

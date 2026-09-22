@@ -1512,6 +1512,7 @@ pub struct AssessmentLabels {
     pub region: String,
     pub service_mix: String,
     pub geography: String,
+    pub geography_map_caption: String,
     pub subscription_comparison: String,
     pub main_observations: String,
     pub review_first: String,

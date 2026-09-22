@@ -696,6 +696,15 @@ fn composition<'a>(
         &w.family_caption,
     );
     heading(blocks, 2, w.geography.as_str(), None);
+    if let Some(svg) =
+        crate::report::world_map::render(&report.location_counts, &branding.tokens.palette)
+    {
+        blocks.push(Block::Chart {
+            slug: "estate-map".to_owned(),
+            svg,
+            caption: Cow::Borrowed(&w.geography_map_caption),
+        });
+    }
     chart(
         blocks,
         branding,

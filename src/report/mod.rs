@@ -13,6 +13,7 @@ pub mod provenance;
 pub mod site;
 pub mod theme;
 pub mod websites;
+mod world_map;
 pub mod xlsx;
 
 mod document;

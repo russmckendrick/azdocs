@@ -47,8 +47,9 @@ of Microsoft Corporation.
 Microsoft's published [Azure regions list](https://learn.microsoft.com/azure/reliability/regions-list)
 and the data behind the [Microsoft datacenter map](https://datacenters.microsoft.com/globe/explore):
 region names, physical locations, geographies and coordinates, which are facts
-about Microsoft's service rather than creative content. The desktop's land
-outline (`desktop/src/components/land-outline.ts`) is derived from
+about Microsoft's service rather than creative content. The world map's land
+outline (`desktop/src/components/land-outline.ts` for the desktop and
+`data/land_outline.json` for the PDF and Word reports) is derived from
 [Natural Earth](https://www.naturalearthdata.com/) 1:110m land polygons, which
 are in the public domain, via the `world-atlas` package (ISC) used only at
 generation time.
