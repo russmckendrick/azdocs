@@ -238,7 +238,7 @@ cards everywhere.
 | Findings | severity tally, filters, findings list and an evidence drawer |
 | Governance | tagging analysis: stat strip, meters and a compliance ledger |
 | Changes | snapshot ledger beside a comparison |
-| Exports | deliverable list beside the run panel |
+| Exports | deliverable rows and scope beside the run plate, split by a hairline like Changes |
 | Resource record | linear evidence sheet with compact header facts |
 
 Estate keeps its hierarchy rail because scope is part of browsing; the rail
@@ -524,9 +524,9 @@ the last successful graph as stale, with Retry and Revert actions and an
 
 ## Settings layout
 
-Settings uses the same tokens: a softly bounded tenant list beside a matching
-editor card. Top-level areas are Tenants, Shared defaults and Application,
-grouped into a compact tab control. Selected tabs and tenants use the
+Settings uses the Changes split, not cards: a ruled tenant ledger beside the
+editor, separated by a vertical hairline. Top-level areas are Tenants, Shared
+defaults and Application, in the shared `view-tabs` control that Estate uses. Selected tabs and tenants use the
 `--az-selected` fill; inputs use surface-1 so they stay distinct from the
 canvas without becoming heavy in dark mode. Tenant Connection, Collection &
 audit and Report branding are separate panels; selecting a tenant here changes

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   Check,
+  Database,
   FileOutput,
   FilePenLine,
   FileText,
@@ -28,16 +29,16 @@ import type {
 const SEVERITIES: Severity[] = ["high", "medium", "low", "info"];
 import { errorMessage, fill, plural } from "../format";
 import { useLabels } from "../labels";
-import { ViewHeading } from "./view-chrome";
+import { DatabaseStamp, ViewHeading } from "./view-chrome";
 import { EXPORT_PRESETS, type ExportPresetId } from "./export-presets";
 
 const DEFAULT_PRESET = EXPORT_PRESETS[0]!;
 
 function PresetIcon({ id }: { id: ExportPresetId }) {
-  if (id === "field-report") return <FileText size={20} />;
-  if (id === "word-report") return <FilePenLine size={20} />;
-  if (id === "data-workbook") return <Table2 size={20} />;
-  return <Network size={20} />;
+  if (id === "field-report") return <FileText size={18} />;
+  if (id === "word-report") return <FilePenLine size={18} />;
+  if (id === "data-workbook") return <Table2 size={18} />;
+  return <Network size={18} />;
 }
 
 function relativeOutput(result: ExportResult, output: string) {
@@ -147,19 +148,21 @@ export function ExportsView({ estate }: { estate: EstateSnapshot }) {
 
   return (
     <div className="exports-workspace">
-      <ViewHeading
-        title={words.title}
-        description={words.description}
-        modifier="export-heading"
-      >
-        <div className="export-snapshot" aria-label={words.source_aria}>
-          <span>{words.snapshot}</span>
-          <strong>
-            {fill(words.resources, {
-              count: estate.resources.length.toLocaleString(),
-            })}
-          </strong>
-          <small className="mono">{estate.id}</small>
+      <ViewHeading title={words.title} description={words.description}>
+        <div role="group" aria-label={words.source_aria}>
+          <DatabaseStamp
+            icon={<Database size={16} />}
+            label={words.snapshot}
+            value={
+              <span title={estate.id}>
+                {fill(words.resources, {
+                  count: estate.resources.length.toLocaleString(),
+                })}
+                {" · "}
+                {estate.id.slice(0, 8)}
+              </span>
+            }
+          />
         </div>
       </ViewHeading>
 
@@ -169,12 +172,10 @@ export function ExportsView({ estate }: { estate: EstateSnapshot }) {
             className="export-section"
             aria-labelledby="export-deliverable-heading"
           >
-            <div className="export-section-heading">
-              <div>
-                <h2 id="export-deliverable-heading">{words.choose_title}</h2>
-                <p>{words.choose_detail}</p>
-              </div>
-            </div>
+            <header className="export-section-heading">
+              <h2 id="export-deliverable-heading">{words.choose_title}</h2>
+              <p>{words.choose_detail}</p>
+            </header>
 
             <fieldset className="export-deliverable-list">
               <legend className="sr-only">{words.legend}</legend>
@@ -241,8 +242,11 @@ export function ExportsView({ estate }: { estate: EstateSnapshot }) {
               </label>
             )}
             <fieldset className="export-scope">
-              <legend>{words.scope_title}</legend>
+              <legend className="export-section-heading">
+                <h2>{words.scope_title}</h2>
+              </legend>
               <p>{words.scope_note}</p>
+              <div className="export-scope-fields">
               <label>
                 <span>{words.scope_subscription}</span>
                 <select
@@ -312,6 +316,7 @@ export function ExportsView({ estate }: { estate: EstateSnapshot }) {
                   </select>
                 </label>
               ) : null}
+              </div>
             </fieldset>
             <p className="export-advanced-note">{words.advanced_note}</p>
           </section>
@@ -359,7 +364,7 @@ export function ExportsView({ estate }: { estate: EstateSnapshot }) {
           </dl>
 
           <button
-            className="export-run-button"
+            className="collect-button export-run-button"
             onClick={() => void runExport()}
             disabled={running}
           >
