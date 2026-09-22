@@ -605,9 +605,15 @@ export default function App() {
                     className={railSection(view) === item.id ? "nav-row active" : "nav-row"}
                     onClick={() => openSection(item.id)}
                     aria-current={railSection(view) === item.id ? "page" : undefined}
-                    title={nav[item.id]}
+                    title={
+                      badge
+                        ? `${nav[item.id]} · ${fill(nav.high_findings_badge, { count: badge })}`
+                        : nav[item.id]
+                    }
                     aria-label={
-                      badge ? `${nav[item.id]} · ${badge}` : nav[item.id]
+                      badge
+                        ? `${nav[item.id]} · ${fill(nav.high_findings_badge, { count: badge })}`
+                        : nav[item.id]
                     }
                   >
                     <Icon size={18} aria-hidden="true" />

@@ -41,7 +41,7 @@ import {
 } from "./dashboard-model";
 import { useDashboardNumber } from "./dashboard-motion";
 import { DashboardModal, type DashboardSelection } from "./DashboardModal";
-import { MAP_HEIGHT, MAP_WIDTH, project } from "./world-map";
+import { MAP_HEIGHT, MAP_WIDTH, project, spreadMarkers } from "./world-map";
 import { WorldMapBackdrop } from "./WorldMapBackdrop";
 import { HistoryChart } from "./HistoryChart";
 
@@ -174,6 +174,9 @@ function DataBar({
  * Azure-blue marker per region. Regions the catalogue cannot place are still
  * counted in the list beneath, so nothing is only on the map.
  */
+/** Marker centres sit at least this far apart, so hit targets never overlap. */
+const MARKER_GAP = 14;
+
 function ResourceMap({
   locations,
   regions,
@@ -187,12 +190,15 @@ function ResourceMap({
   nameOf: (location: string) => string;
   onSelect: (location: { name: string; count: number }) => void;
 }) {
-  const markers = locations.flatMap((location) => {
-    const region = regions[location.name.toLowerCase()];
-    if (!region) return [];
-    const [x, y] = project(region.longitude, region.latitude);
-    return [{ ...location, x, y, radius: 3.5 }];
-  });
+  const markers = spreadMarkers(
+    locations.flatMap((location) => {
+      const region = regions[location.name.toLowerCase()];
+      if (!region) return [];
+      const [x, y] = project(region.longitude, region.latitude);
+      return [{ ...location, x, y, radius: 3.5 }];
+    }),
+    MARKER_GAP,
+  );
   return (
     <div className="dashboard-map">
       <svg viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`} role="img" aria-label={label}>
@@ -218,7 +224,19 @@ function ResourceMap({
               <title>
                 {name} · {marker.count.toLocaleString()}
               </title>
-              <circle cx={marker.x} cy={marker.y} r={marker.radius + 8} className="dashboard-map-target" />
+              {marker.x !== marker.anchorX || marker.y !== marker.anchorY ? (
+                <>
+                  <line
+                    x1={marker.anchorX}
+                    y1={marker.anchorY}
+                    x2={marker.x}
+                    y2={marker.y}
+                    className="dashboard-map-leader"
+                  />
+                  <circle cx={marker.anchorX} cy={marker.anchorY} r={1.4} className="dashboard-map-anchor" />
+                </>
+              ) : null}
+              <circle cx={marker.x} cy={marker.y} r={MARKER_GAP / 2} className="dashboard-map-target" />
               <circle cx={marker.x} cy={marker.y} r={marker.radius} className="map-pulse" />
               <circle cx={marker.x} cy={marker.y} r={marker.radius + 3} className="map-marker-ring" />
               <circle cx={marker.x} cy={marker.y} r={marker.radius} />

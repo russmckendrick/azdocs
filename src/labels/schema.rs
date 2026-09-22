@@ -1179,6 +1179,7 @@ pub struct DesktopNavLabels {
     pub neighbourhood: String,
     pub neighbourhood_of: String,
     pub back_to: String,
+    pub high_findings_badge: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

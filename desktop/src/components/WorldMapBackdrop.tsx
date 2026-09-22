@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { GRATICULE_PATH, LAND_PATH } from "./world-map";
+import { GRATICULE_PATH, LAND_PATH, SEA_PATH } from "./world-map";
 
 /** Both map surfaces share the projection, shading and geographic grid. */
 export function WorldMapBackdrop() {
@@ -12,6 +12,7 @@ export function WorldMapBackdrop() {
           <stop className="world-map-land-bottom" offset="100%" />
         </linearGradient>
       </defs>
+      <path className="world-map-sea" d={SEA_PATH} />
       <path className="world-map-grid" d={GRATICULE_PATH} />
       <path className="world-map-land" d={LAND_PATH} fill={`url(#${landGradientId})`} fillRule="evenodd" />
     </g>

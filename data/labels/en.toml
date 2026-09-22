@@ -501,6 +501,7 @@ resource_group = "resource group"
 neighbourhood = "neighbourhood"
 neighbourhood_of = "{name} neighbourhood"
 back_to = "Back to {target}"
+high_findings_badge = "{count} high-severity"
 
 [desktop.shell]
 tagline = "Azure estate explorer"

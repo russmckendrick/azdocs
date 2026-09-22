@@ -100,7 +100,6 @@
   --az-sidebar-text-strong: #ffffff;
   --az-sidebar-muted: rgb(255 255 255 / 48%);
   --az-sidebar-border: rgb(255 255 255 / 8%);
-  --az-sidebar-badge: rgb(255 255 255 / 12%);
   --az-sidebar-focus: #2997ff;
 
   /* Category / chart set (top slots of category_color(); fixed order) */
@@ -122,8 +121,11 @@
   --chart-grid: #e4ebf2;
   --chart-axis: #53677e;
   --chart-area: rgb(8 120 232 / 8%);
-  --map-land: #dee7f0;
-  --map-coast: #c3d0dc;
+  --map-sea: #d6e9f6;
+  --map-land: #c5dcae;
+  --map-land-south: #e6dcb6;
+  --map-coast: #93b37c;
+  --map-grid: rgb(255 255 255 / 70%);
 
   /* Graph plate (read by the cytoscape stylesheet at build time) */
   --graph-canvas: #f8fbfd;
@@ -222,14 +224,16 @@
       --az-sidebar-text: rgb(255 255 255 / 70%);
       --az-sidebar-muted: rgb(255 255 255 / 44%);
       --az-sidebar-border: rgb(255 255 255 / 7%);
-      --az-sidebar-badge: rgb(255 255 255 / 10%);
       --cat-storage: #a98a00;
       --kind-monitoring: #a98a00;
       --chart-grid: rgb(255 255 255 / 6%);
       --chart-axis: #71869a;
       --chart-area: rgb(41 151 255 / 10%);
-      --map-land: #263848;
-      --map-coast: #31506b;
+      --map-sea: #112638;
+      --map-land: #2b4633;
+      --map-land-south: #4a4531;
+      --map-coast: #45704f;
+      --map-grid: rgb(255 255 255 / 7%);
       --graph-canvas: #0d1824;
       --graph-grid: rgb(255 255 255 / 3%);
       --graph-node-fill: #101c2a;
@@ -279,14 +283,16 @@
   --az-sidebar-text: rgb(255 255 255 / 70%);
   --az-sidebar-muted: rgb(255 255 255 / 44%);
   --az-sidebar-border: rgb(255 255 255 / 7%);
-  --az-sidebar-badge: rgb(255 255 255 / 10%);
   --cat-storage: #a98a00;
   --kind-monitoring: #a98a00;
   --chart-grid: rgb(255 255 255 / 6%);
   --chart-axis: #71869a;
   --chart-area: rgb(41 151 255 / 10%);
-  --map-land: #263848;
-  --map-coast: #31506b;
+  --map-sea: #112638;
+  --map-land: #2b4633;
+  --map-land-south: #4a4531;
+  --map-coast: #45704f;
+  --map-grid: rgb(255 255 255 / 7%);
   --graph-canvas: #0d1824;
   --graph-grid: rgb(255 255 255 / 3%);
   --graph-node-fill: #101c2a;
@@ -705,7 +711,7 @@ button.stat-cell.active {
   flex-shrink: 0;
   stroke-width: 1.75;
 }
-.nav-row > span {
+.nav-row > span:not(.nav-badge) {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -720,23 +726,20 @@ button.stat-cell.active {
   font-weight: 600;
   background: var(--az-sidebar-selected);
 }
-/* Subordinate to the label: a quiet count, never a red alarm. */
-.nav-badge {
+/* Subordinate to the label: a quiet trailing count, never a pill or alarm. */
+.nav-row > .nav-badge {
   flex: 0 0 auto;
-  min-width: 20px;
-  padding: 1px 6px;
-  border-radius: var(--r-badge);
-  background: var(--az-sidebar-badge);
+  margin-left: auto;
   color: var(--az-sidebar-text);
   font-size: 0.9167rem;
-  font-weight: 600;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
-  text-align: center;
-  line-height: 1.4;
+  opacity: 0.72;
 }
-.nav-row.active .nav-badge {
-  background: color-mix(in srgb, var(--az-sidebar-text-strong) 16%, transparent);
+.nav-row:hover > .nav-badge,
+.nav-row.active > .nav-badge {
   color: var(--az-sidebar-text-strong);
+  opacity: 0.85;
 }
 .nav-spacer {
   flex: 1;
@@ -781,10 +784,10 @@ button.stat-cell.active {
   justify-content: center;
   padding-inline: 0;
 }
-.sidebar-collapsed .nav-row > span {
+.sidebar-collapsed .nav-row > span:not(.nav-badge) {
   display: none;
 }
-.sidebar-collapsed .nav-badge {
+.sidebar-collapsed .nav-row > .nav-badge {
   position: absolute;
   top: 9px;
   right: 11px;
@@ -793,7 +796,9 @@ button.stat-cell.active {
   min-width: 0;
   padding: 0;
   border-radius: 999px;
+  margin: 0;
   font-size: 0;
+  opacity: 1;
   background: var(--az-sidebar-focus);
 }
 
@@ -2271,12 +2276,14 @@ svg.map-panning {
   stop-color: var(--map-land);
 }
 .world-map-land-bottom {
-  stop-color: color-mix(in srgb, var(--map-land) 60%, var(--az-surface-1));
+  stop-color: var(--map-land-south);
+}
+.world-map-sea {
+  fill: var(--map-sea);
 }
 .world-map-grid {
   fill: none;
-  stroke: var(--map-coast);
-  stroke-opacity: 0.45;
+  stroke: var(--map-grid);
   stroke-width: 0.75px;
   vector-effect: non-scaling-stroke;
   pointer-events: none;
@@ -5504,6 +5511,8 @@ span.graph-container-label {
 .dashboard-coverage-gaps { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: 0.9231rem; color: var(--az-text-secondary); }
 .dashboard-coverage-gaps button { display: inline-flex; align-items: baseline; gap: var(--space-2); padding: 2px var(--space-2); border: 1px solid var(--az-border); border-radius: var(--r-control); color: var(--az-text-primary); }
 .dashboard-coverage-gaps button:hover { background: var(--az-hover); }
+.dashboard-map-leader { stroke: var(--az-primary); stroke-opacity: 0.6; stroke-width: 1px; vector-effect: non-scaling-stroke; pointer-events: none; }
+.dashboard-map-anchor { fill: var(--az-primary); stroke: var(--az-surface-1); stroke-width: 0.6; pointer-events: none; }
 .dashboard-coverage-gaps b { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--az-warning); }
 /* Most-used tag keys: compact name/share pairs under the subscription bars. */
 .dashboard-keys { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 2px var(--space-4); font-size: 0.9231rem; }
