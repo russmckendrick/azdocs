@@ -111,10 +111,13 @@ open azdocs-desktop-macos-arm64.dmg
 
 #### Windows SmartScreen
 
-Windows installers are signed with Azure Trusted Signing only when the
-release was built with signing credentials; a release note says which. An
-unsigned installer makes Windows SmartScreen show **Windows protected your
-PC** on first run. Verify the download's checksum (or its attestation with
+Windows installers, the desktop app and the CLI's `azdocs.exe` are signed
+with a Certum Open Source code-signing certificate issued to
+**Open Source Developer Russell McKendrick** when the release was built with
+signing credentials; a release note says which. SmartScreen reputation builds
+per file as a release is downloaded, so even a signed installer can show
+**Windows protected your PC** for a few days after a release, and an
+unsigned one always does. Verify the download's checksum (or its attestation with
 `gh attestation verify`), then choose **More info › Run anyway**. The
 installed app itself never contacts anything but Azure and the websites you
 ask it to capture.

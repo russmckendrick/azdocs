@@ -11,7 +11,7 @@
 Release artifacts and checksums are published on
 [GitHub Releases](https://github.com/russmckendrick/azdocs/releases), with an
 SPDX SBOM beside each CLI archive and a build-provenance attestation on every
-asset. Windows installers are signed only when a release was built with
-Trusted Signing credentials; otherwise SmartScreen warns on first run, see
+asset. Windows binaries are signed only when a release was built with
+Certum signing credentials; otherwise SmartScreen warns on first run, see
 [installation](../usage/installation.md#windows-smartscreen). The running
 changelog is [CHANGELOG.md](../../CHANGELOG.md).

@@ -110,13 +110,24 @@ jobs:
 
   cli:
     name: "⌨️ CLI · ${{ matrix.archive }}"
-    needs: notices
+    # Ordered after the Windows desktop job, not dependent on it: the Windows
+    # leg signs with the same Certum account, and a TOTP code is single-use,
+    # so two overlapping SimplySign logins make the later one fail. A
+    # concurrency group cannot do this for a matrix (only one job per group
+    # may be pending, so queued legs are cancelled). always() lets the CLI
+    # still build when the desktop job fails.
+    needs: [notices, desktop-windows]
+    if: always() && needs.notices.result == 'success'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     permissions:
       contents: read
       id-token: write
       attestations: write
+    env:
+      # A flag, never the seed itself: job env is visible to every step,
+      # third-party actions included. Unset secrets mean an unsigned build.
+      SIGN_WINDOWS: ${{ secrets.CERTUM_OTP_URI != '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -150,6 +161,25 @@ jobs:
         uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - name: "🏗️ Build release CLI"
         run: cargo build --release --locked --target ${{ matrix.target }}
+      - name: "🔏 Open the SimplySign session"
+        if: runner.os == 'Windows' && env.SIGN_WINDOWS == 'true'
+        shell: pwsh
+        env:
+          CERTUM_USERNAME: ${{ secrets.CERTUM_USERNAME }}
+          CERTUM_OTP_URI: ${{ secrets.CERTUM_OTP_URI }}
+          CERTUM_CERT_SHA1: ${{ secrets.CERTUM_CERT_SHA1 }}
+        run: ./.github/scripts/Connect-SimplySign.ps1
+      - name: "🔏 Sign the Windows executable"
+        if: runner.os == 'Windows' && env.SIGN_WINDOWS == 'true'
+        shell: pwsh
+        env:
+          CERTUM_CERT_SHA1: ${{ secrets.CERTUM_CERT_SHA1 }}
+        run: |
+          $exe = "target/${{ matrix.target }}/release/azdocs.exe"
+          signtool sign /sha1 $env:CERTUM_CERT_SHA1 /fd SHA256 /tr http://time.certum.pl /td SHA256 $exe
+          if ($LASTEXITCODE -ne 0) { throw "signtool could not sign $exe" }
+          signtool verify /pa /v $exe
+          if ($LASTEXITCODE -ne 0) { throw "$exe does not carry a valid signature" }
       - name: "⬇️ Download dependency notices"
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
@@ -365,13 +395,19 @@ jobs:
       contents: read
       id-token: write
       attestations: write
+    # One SimplySign login at a time across every run: a TOTP code is
+    # single-use, so an overlapping login from another run would fail.
+    concurrency:
+      group: certum-simplysign
+      cancel-in-progress: false
     env:
       DESKTOP_SETUP: azdocs-desktop-windows-amd64-setup.exe
       DESKTOP_MSI: azdocs-desktop-windows-amd64.msi
-      # Azure Trusted Signing is optional: when the endpoint secret is unset
-      # the installers ship unsigned and SmartScreen warns, which the
-      # installation guide explains. Setting the four secrets turns signing on.
-      TRUSTED_SIGNING_ENDPOINT: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
+      # Certum signing is optional: when the secrets are unset the installers
+      # ship unsigned and SmartScreen warns, which the installation guide
+      # explains. Setting the three CERTUM_* secrets turns signing on. A
+      # flag, never the seed itself: job env is visible to every step.
+      SIGN_WINDOWS: ${{ secrets.CERTUM_OTP_URI != '' }}
     steps:
       - name: "📥 Check out source"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -411,35 +447,55 @@ jobs:
           cat > output/licenses/notices.json <<'JSON'
           {"bundle":{"resources":{"../../output/licenses/dependency-licenses.html":"notices/dependency-licenses.html"}}}
           JSON
+      # Tauri signs as it bundles: the app executable, the NSIS uninstaller
+      # and both installers, with the certificate SimplySign put in the
+      # user's store. Merged into the notices config, which is already the
+      # one file passed to --config.
+      - name: "🔏 Open the SimplySign session"
+        if: env.SIGN_WINDOWS == 'true'
+        shell: pwsh
+        env:
+          CERTUM_USERNAME: ${{ secrets.CERTUM_USERNAME }}
+          CERTUM_OTP_URI: ${{ secrets.CERTUM_OTP_URI }}
+          CERTUM_CERT_SHA1: ${{ secrets.CERTUM_CERT_SHA1 }}
+        run: ./.github/scripts/Connect-SimplySign.ps1
+      - name: "📎 Add signing to the bundle config"
+        if: env.SIGN_WINDOWS == 'true'
+        shell: pwsh
+        env:
+          CERTUM_CERT_SHA1: ${{ secrets.CERTUM_CERT_SHA1 }}
+        run: |
+          $path = "output/licenses/notices.json"
+          $config = Get-Content $path -Raw | ConvertFrom-Json
+          $config.bundle | Add-Member -NotePropertyName windows -NotePropertyValue ([ordered]@{
+            certificateThumbprint = $env:CERTUM_CERT_SHA1
+            digestAlgorithm = "sha256"
+            timestampUrl = "http://time.certum.pl"
+            tsp = $true
+          })
+          $config | ConvertTo-Json -Depth 10 | Set-Content -Encoding utf8 $path
       - name: "🏗️ Build desktop installers"
         working-directory: desktop
         run: pnpm tauri build --bundles nsis,msi --ci --config ../output/licenses/notices.json
-      - name: "🔑 Sign in to Azure for Trusted Signing"
-        if: env.TRUSTED_SIGNING_ENDPOINT != ''
-        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
-        with:
-          client-id: ${{ secrets.AZURE_TRUSTED_SIGNING_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TRUSTED_SIGNING_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_TRUSTED_SIGNING_SUBSCRIPTION_ID }}
-      - name: "🔏 Sign installers with Azure Trusted Signing"
-        if: env.TRUSTED_SIGNING_ENDPOINT != ''
-        uses: azure/trusted-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
-        with:
-          endpoint: ${{ secrets.AZURE_TRUSTED_SIGNING_ENDPOINT }}
-          trusted-signing-account-name: ${{ secrets.AZURE_TRUSTED_SIGNING_ACCOUNT }}
-          certificate-profile-name: ${{ secrets.AZURE_TRUSTED_SIGNING_PROFILE }}
-          files-folder: target/release/bundle
-          files-folder-filter: exe,msi
-          files-folder-recurse: true
-          file-digest: SHA256
-          timestamp-rfc3161: http://timestamp.acs.microsoft.com
-          timestamp-digest: SHA256
+      - name: "✅ Verify signatures"
+        if: env.SIGN_WINDOWS == 'true'
+        shell: pwsh
+        run: |
+          # Tauri may rename the app binary to productName, so check every
+          # top-level executable rather than guessing the name.
+          $files = @(Get-ChildItem "target/release" -Filter "*.exe" -File) +
+            @(Get-ChildItem "target/release/bundle/nsis" -Filter "*-setup.exe") +
+            @(Get-ChildItem "target/release/bundle/msi" -Filter "*.msi")
+          foreach ($file in $files) {
+            signtool verify /pa $file.FullName
+            if ($LASTEXITCODE -ne 0) { throw "$($file.Name) does not carry a valid signature" }
+          }
       - name: "⚠️ Note unsigned installers"
-        if: env.TRUSTED_SIGNING_ENDPOINT == ''
+        if: env.SIGN_WINDOWS != 'true'
         shell: bash
         run: |
-          echo "::notice::Windows installers are unsigned: AZURE_TRUSTED_SIGNING_ENDPOINT is not configured. SmartScreen will warn on first run."
-          echo "Windows installers in this release are **unsigned** (no Trusted Signing secrets configured); SmartScreen will warn on first run. See docs/usage/installation.md." >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice::Windows installers are unsigned: the CERTUM_* secrets are not configured. SmartScreen will warn on first run."
+          echo "Windows installers in this release are **unsigned** (no Certum signing secrets configured); SmartScreen will warn on first run. See docs/usage/installation.md." >> "$GITHUB_STEP_SUMMARY"
       - name: "🧹 Normalize desktop artifacts"
         shell: pwsh
         run: |
