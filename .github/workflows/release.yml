@@ -481,14 +481,31 @@ jobs:
         if: env.SIGN_WINDOWS == 'true'
         shell: pwsh
         run: |
-          # Tauri may rename the app binary to productName, so check every
-          # top-level executable rather than guessing the name.
-          $files = @(Get-ChildItem "target/release" -Filter "*.exe" -File) +
-            @(Get-ChildItem "target/release/bundle/nsis" -Filter "*-setup.exe") +
-            @(Get-ChildItem "target/release/bundle/msi" -Filter "*.msi")
-          foreach ($file in $files) {
-            signtool verify /pa $file.FullName
-            if ($LASTEXITCODE -ne 0) { throw "$($file.Name) does not carry a valid signature" }
+          # Tauri signs the app executable once per installer and packs the
+          # signed copy, then restores the unsigned original in
+          # target/release on purpose. So check the installers themselves
+          # and every executable unpacked from them, not target/release.
+          function Assert-Signed($path) {
+            signtool verify /pa $path
+            if ($LASTEXITCODE -ne 0) { throw "$(Split-Path $path -Leaf) does not carry a valid signature" }
+          }
+          $setup = Get-ChildItem "target/release/bundle/nsis" -Filter "*-setup.exe" | Select-Object -First 1
+          $msi = Get-ChildItem "target/release/bundle/msi" -Filter "*.msi" | Select-Object -First 1
+          Assert-Signed $setup.FullName
+          Assert-Signed $msi.FullName
+
+          $unpacked = Join-Path $env:RUNNER_TEMP "installer-contents"
+          7z x $setup.FullName "-o$(Join-Path $unpacked nsis)" -y | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "7-Zip could not unpack $($setup.Name)" }
+          $admin = Start-Process msiexec.exe -Wait -PassThru -ArgumentList @(
+            "/a", "`"$($msi.FullName)`"", "/qn", "TARGETDIR=`"$(Join-Path $unpacked msi)`"")
+          if ($admin.ExitCode -ne 0) { throw "msiexec could not unpack $($msi.Name) (exit code $($admin.ExitCode))" }
+
+          foreach ($kind in @("nsis", "msi")) {
+            $exes = @(Get-ChildItem (Join-Path $unpacked $kind) -Recurse -Filter "*.exe" -File |
+              Where-Object { $_.FullName -notlike '*$PLUGINSDIR*' })
+            if ($exes.Count -eq 0) { throw "No executable found inside the $kind installer" }
+            foreach ($exe in $exes) { Assert-Signed $exe.FullName }
           }
       - name: "⚠️ Note unsigned installers"
         if: env.SIGN_WINDOWS != 'true'
