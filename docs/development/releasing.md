@@ -13,6 +13,7 @@ flowchart LR
     checks --> notices[Locked dependency notices]
     notices --> cli[CLI archives]
     checks --> desktop[Desktop packages]
+    desktop -. one SimplySign login at a time .-> cli
     cli & desktop --> release[GitHub Release and checksums]
     release --> tap[Homebrew formula and cask]
 ```
@@ -72,16 +73,48 @@ These are optional and turn on Windows code signing when all are set:
 
 | Secret | Purpose |
 |---|---|
-| `AZURE_TRUSTED_SIGNING_ENDPOINT` | The Azure Trusted Signing account endpoint, e.g. `https://weu.codesigning.azure.net` |
-| `AZURE_TRUSTED_SIGNING_ACCOUNT` | The Trusted Signing account name |
-| `AZURE_TRUSTED_SIGNING_PROFILE` | The certificate profile name |
-| `AZURE_TRUSTED_SIGNING_CLIENT_ID`, `AZURE_TRUSTED_SIGNING_TENANT_ID`, `AZURE_TRUSTED_SIGNING_SUBSCRIPTION_ID` | An App Registration with the *Trusted Signing Certificate Profile Signer* role, federated to this repository for OIDC sign-in |
+| `CERTUM_USERNAME` | The Certum SimplySign account email |
+| `CERTUM_OTP_URI` | The complete `otpauth://totp/...` URI behind the SimplySign mobile app's QR code. As sensitive as the signing key: with it and the account name anyone can sign as the project until the QR code is regenerated |
+| `CERTUM_CERT_SHA1` | SHA-1 thumbprint of the Certum code-signing certificate, hex without colons (`openssl x509 -inform der -in <cert>.cer -noout -fingerprint -sha1`). Not secret |
 
-Without the endpoint secret the Windows job builds unsigned installers, says so
-in the run summary, and Windows SmartScreen warns on first run; the
+The certificate is a Certum Open Source Code Signing certificate held in
+Certum's cloud HSM. Azure Artifact Signing is not used because it only
+validates individual developers in the United States and Canada.
+`.github/scripts/Connect-SimplySign.ps1` installs a pinned SimplySign Desktop
+on the runner, logs in with a TOTP code generated from the seed, and waits for
+the certificate to appear in the user's certificate store; signtool then finds
+it by thumbprint.
+
+```mermaid
+flowchart LR
+    secrets[CERTUM_* secrets] --> login[Connect-SimplySign.ps1<br/>SimplySign Desktop + TOTP]
+    login --> store[Certificate in<br/>Cert:\CurrentUser\My]
+    store --> tauri[tauri build<br/>signs app exe, uninstaller,<br/>setup.exe and MSI]
+    store --> cli[signtool<br/>signs azdocs.exe]
+    tauri & cli --> verify[signtool verify /pa]
+```
+
+In the desktop job Tauri signs as it bundles (`bundle.windows` is merged into
+the notices config), so the app executable and the NSIS uninstaller inside the
+installers are signed as well as the installers themselves. The CLI's Windows
+leg signs `azdocs.exe` before packaging. Both fail the release if a file they
+signed does not verify.
+
+A TOTP code is single-use, so two SimplySign logins must never overlap: the
+later one reads "invalid user name or token", and repeated failures lock the
+account. The desktop job and the manual check share the `certum-simplysign`
+concurrency group, and the CLI matrix is ordered after the desktop job
+(a concurrency group would cancel queued matrix legs). Do not rerun a failed
+login repeatedly; check the account in SimplySign first.
+
+To prove the secrets work without a release, run the **Windows signing check**
+workflow (`.github/workflows/signing-check.yml`) by hand. It spends one login
+and signs a throwaway executable.
+
+Without the secrets the Windows jobs build unsigned binaries, say so in the
+run summary, and Windows SmartScreen warns on first run; the
 [installation guide](../usage/installation.md#windows-smartscreen) tells users
-what to expect. With it, the NSIS and MSI installers are signed and
-timestamped after the build.
+what to expect.
 
 The Apple certificate must be a **Developer ID Application** identity. An Apple
 Distribution or Developer ID Installer certificate cannot sign the

@@ -8,7 +8,12 @@ are cut from the Unreleased section at tag time; see
 
 ## [Unreleased]
 
-Nothing yet.
+### Changed
+
+- Windows releases are signed with a Certum Open Source code-signing
+  certificate through SimplySign, replacing the unused Azure Trusted Signing
+  path. The desktop app executable and its uninstaller are now signed along
+  with the setup executable and MSI, and the CLI's `azdocs.exe` is signed too.
 
 ## [0.4.0] - 2026-09-22
 
