@@ -8,6 +8,10 @@ are cut from the Unreleased section at tag time; see
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.4.1] - 2026-09-23
+
 ### Changed
 
 - Windows releases are signed with a Certum Open Source code-signing
@@ -146,7 +150,8 @@ Softer Azure desktop theme and clearer Settings surfaces. See
 First public release: CLI, TUI and desktop explorer. See
 [docs/releases/0.1.0.md](docs/releases/0.1.0.md).
 
-[Unreleased]: https://github.com/russmckendrick/azdocs/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/russmckendrick/azdocs/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/russmckendrick/azdocs/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/russmckendrick/azdocs/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/russmckendrick/azdocs/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/russmckendrick/azdocs/compare/v0.1.1...v0.2.0
