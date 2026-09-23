@@ -39,5 +39,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "signtool could not sign the test executable" }
           signtool verify /pa /v $exe
           if ($LASTEXITCODE -ne 0) { throw "The test executable does not carry a valid signature" }
-          $signer = (Get-AuthenticodeSignature $exe).SignerCertificate
+          # Read the embedded signature: Get-AuthenticodeSignature prefers a
+          # Windows catalog, and whoami.exe is catalog-signed by Microsoft.
+          $signer = [System.Security.Cryptography.X509Certificates.X509Certificate]::CreateFromSignedFile($exe)
           "Signed by: $($signer.Subject)" | Tee-Object -FilePath $env:GITHUB_STEP_SUMMARY -Append
